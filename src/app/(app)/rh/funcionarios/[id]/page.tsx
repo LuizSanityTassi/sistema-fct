@@ -8,8 +8,10 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
+import { listarFolhaDoFuncionario } from "@/lib/data/folha";
 import { listarSalarios, obterFuncionario } from "@/lib/data/funcionarios";
-import { CONTRATO_LABEL } from "@/lib/rh/rotulos";
+import { rotuloCompetencia } from "@/lib/rh/competencia";
+import { CONTRATO_LABEL, FOLHA_STATUS_LABEL } from "@/lib/rh/rotulos";
 import { anosDesde, descreverPeriodo, formatarData, formatarMoeda } from "@/lib/formatos";
 import { mascararCpf } from "@/lib/validacao/cpf";
 import { alterarStatusFuncionario } from "../actions";
@@ -36,7 +38,9 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
   const f = await obterFuncionario(id);
   if (!f) notFound();
   const podeEditar = sessao.papel === "admin" || sessao.papel === "rh";
-  const salarios = podeEditar ? await listarSalarios(id) : [];
+  const [salarios, folhas] = podeEditar
+    ? await Promise.all([listarSalarios(id), listarFolhaDoFuncionario(id)])
+    : [[], []];
   const vigente = salarios.find((s) => !s.vigencia_fim) ?? salarios[0];
 
   const unidade = f.unidade;
@@ -149,6 +153,29 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
                 </TableBody>
               </Table>
             </>
+          )}
+          {podeEditar && folhas.length > 0 && (
+            <div className="mt-5 border-t pt-4">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Folha recente</p>
+              <ul className="divide-y text-sm">
+                {folhas.map((fl) => (
+                  <li key={fl.id} className="flex items-center justify-between gap-3 py-1.5">
+                    <Link href={`/rh/folha/${fl.id}`} className="hover:underline">
+                      {rotuloCompetencia(fl.competencia)}
+                    </Link>
+                    <span className="text-xs text-muted-foreground">{FOLHA_STATUS_LABEL[fl.status]}</span>
+                    <span className="tabular-nums">{formatarMoeda(fl.valor_liquido)}</span>
+                    {fl.storage_path ? (
+                      <a href={`/api/arquivos/holerite/${fl.id}`} className="text-xs text-fct-navy underline">
+                        holerite
+                      </a>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </section>
 

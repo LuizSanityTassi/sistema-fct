@@ -431,8 +431,17 @@ export type Database = {
           created_at: string
           descontos: number
           employee_id: string
+          fechada_em: string | null
+          fgts: number
           horas_extras: number
           id: string
+          inss: number
+          irrf: number
+          observacoes: string | null
+          outros_descontos: number
+          paga_em: string | null
+          qtd_horas_extras_100: number
+          qtd_horas_extras_50: number
           salario_base: number
           status: Database["public"]["Enums"]["payroll_status"]
           storage_path: string | null
@@ -446,8 +455,17 @@ export type Database = {
           created_at?: string
           descontos?: number
           employee_id: string
+          fechada_em?: string | null
+          fgts?: number
           horas_extras?: number
           id?: string
+          inss?: number
+          irrf?: number
+          observacoes?: string | null
+          outros_descontos?: number
+          paga_em?: string | null
+          qtd_horas_extras_100?: number
+          qtd_horas_extras_50?: number
           salario_base?: number
           status?: Database["public"]["Enums"]["payroll_status"]
           storage_path?: string | null
@@ -461,8 +479,17 @@ export type Database = {
           created_at?: string
           descontos?: number
           employee_id?: string
+          fechada_em?: string | null
+          fgts?: number
           horas_extras?: number
           id?: string
+          inss?: number
+          irrf?: number
+          observacoes?: string | null
+          outros_descontos?: number
+          paga_em?: string | null
+          qtd_horas_extras_100?: number
+          qtd_horas_extras_50?: number
           salario_base?: number
           status?: Database["public"]["Enums"]["payroll_status"]
           storage_path?: string | null

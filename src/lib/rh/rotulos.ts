@@ -42,6 +42,14 @@ export const ASO_TIPO_LABEL: Record<TipoAso, string> = {
   demissional: "Demissional",
 };
 
+export type StatusFolha = Enums["payroll_status"];
+
+export const FOLHA_STATUS_LABEL: Record<StatusFolha, string> = {
+  rascunho: "Em elaboração",
+  fechada: "Fechada",
+  paga: "Paga",
+};
+
 export type SituacaoAso = "valido" | "vencendo" | "vencido" | "sem_validade";
 
 /** Situação de um ASO pela data de validade (aviso a partir de 30 dias antes). */
