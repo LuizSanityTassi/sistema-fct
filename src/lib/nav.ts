@@ -22,6 +22,8 @@ export type NavItem = {
   /** Papéis com acesso. Ausente = todo usuário autenticado. */
   papeis?: AppRole[];
   descricao: string;
+  /** Não aparece no menu; serve só para a regra de acesso da rota. */
+  oculto?: boolean;
 };
 
 export type NavGrupo = {
@@ -99,6 +101,13 @@ export const NAV: NavGrupo[] = [
         descricao: "Fila de TI, ativos e acessos.",
       },
       {
+        label: "Solicitar acesso",
+        href: "/ti/acessos",
+        icon: MonitorCog,
+        descricao: "Pedir acesso a um sistema (vira chamado de TI).",
+        oculto: true,
+      },
+      {
         label: "Relatórios",
         href: "/relatorios",
         icon: ChartColumn,
@@ -145,9 +154,9 @@ export function podeVerItem(item: NavItem, papel: AppRole) {
   return !item.papeis || item.papeis.includes(papel);
 }
 
-/** Menu filtrado pelo papel; grupos que ficam vazios somem. */
+/** Menu filtrado pelo papel (sem itens ocultos); grupos que ficam vazios somem. */
 export function navParaPapel(papel: AppRole): NavGrupo[] {
-  return NAV.map((g) => ({ ...g, itens: g.itens.filter((i) => podeVerItem(i, papel)) })).filter(
+  return NAV.map((g) => ({ ...g, itens: g.itens.filter((i) => !i.oculto && podeVerItem(i, papel)) })).filter(
     (g) => g.itens.length > 0,
   );
 }

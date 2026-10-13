@@ -393,6 +393,75 @@ export type Database = {
           },
         ]
       }
+      it_assets: {
+        Row: {
+          ativo: boolean
+          branch_id: string
+          created_at: string
+          data_aquisicao: string | null
+          descricao: string
+          fornecedor: string | null
+          id: string
+          numero_serie: string | null
+          observacoes: string | null
+          patrimonio: string | null
+          responsavel_employee_id: string | null
+          status: Database["public"]["Enums"]["it_asset_status"]
+          tipo: string
+          updated_at: string
+          valor: number | null
+        }
+        Insert: {
+          ativo?: boolean
+          branch_id: string
+          created_at?: string
+          data_aquisicao?: string | null
+          descricao: string
+          fornecedor?: string | null
+          id?: string
+          numero_serie?: string | null
+          observacoes?: string | null
+          patrimonio?: string | null
+          responsavel_employee_id?: string | null
+          status?: Database["public"]["Enums"]["it_asset_status"]
+          tipo: string
+          updated_at?: string
+          valor?: number | null
+        }
+        Update: {
+          ativo?: boolean
+          branch_id?: string
+          created_at?: string
+          data_aquisicao?: string | null
+          descricao?: string
+          fornecedor?: string | null
+          id?: string
+          numero_serie?: string | null
+          observacoes?: string | null
+          patrimonio?: string | null
+          responsavel_employee_id?: string | null
+          status?: Database["public"]["Enums"]["it_asset_status"]
+          tipo?: string
+          updated_at?: string
+          valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "it_assets_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "it_assets_responsavel_employee_id_fkey"
+            columns: ["responsavel_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           ativo: boolean
@@ -837,6 +906,7 @@ export type Database = {
         | "atestado"
         | "outros"
       employee_status: "ativo" | "afastado" | "ferias" | "desligado"
+      it_asset_status: "em_uso" | "estoque" | "manutencao" | "baixado"
       payroll_status: "rascunho" | "fechada" | "paga"
       ticket_category:
         | "ti"
@@ -1002,6 +1072,7 @@ export const Constants = {
         "outros",
       ],
       employee_status: ["ativo", "afastado", "ferias", "desligado"],
+      it_asset_status: ["em_uso", "estoque", "manutencao", "baixado"],
       payroll_status: ["rascunho", "fechada", "paga"],
       ticket_category: [
         "ti",

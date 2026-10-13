@@ -59,7 +59,7 @@ export function descreverPeriodo(iso: string | null | undefined, ate = new Date(
   }
   if (anos === 0 && meses === 0) {
     const dias = Math.floor((ate.getTime() - d.getTime()) / 86_400_000);
-    return pluralizar(dias, "dia", "dias");
+    return dias === 0 ? "menos de 1 dia" : pluralizar(dias, "dia", "dias");
   }
   const partes: string[] = [];
   if (anos > 0) partes.push(pluralizar(anos, "ano", "anos"));

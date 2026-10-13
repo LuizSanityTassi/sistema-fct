@@ -16,6 +16,8 @@ type Props = {
   action: (prev: EstadoChamado, fd: FormData) => Promise<EstadoChamado>;
   unidades: OpcaoUnidade[];
   unidadePadrao: string | null;
+  /** Valores pré-preenchidos (ex.: chamado aberto a partir de um ativo de TI). */
+  inicial?: { titulo?: string; categoria?: string };
 };
 
 const AJUDA: Record<string, string> = {
@@ -27,11 +29,12 @@ const AJUDA: Record<string, string> = {
   outros: "Qualquer outro assunto.",
 };
 
-export function ChamadoForm({ action, unidades, unidadePadrao }: Props) {
+export function ChamadoForm({ action, unidades, unidadePadrao, inicial = {} }: Props) {
   const [estado, formAction] = useActionState(action, {});
   const erro = (c: string) => estado.erros?.[c];
   const grupos = new Map<string, OpcaoUnidade[]>();
   for (const u of unidades) grupos.set(u.grupo, [...(grupos.get(u.grupo) ?? []), u]);
+  const categoriaInicial = inicial.categoria && inicial.categoria in CATEGORIA_CHAMADO_LABEL ? inicial.categoria : "ti";
 
   return (
     <form action={formAction} noValidate className="space-y-6">
@@ -39,10 +42,10 @@ export function ChamadoForm({ action, unidades, unidadePadrao }: Props) {
       <section className="rounded-xl border bg-card p-5">
         <div className="grid gap-4 sm:grid-cols-2">
           <Campo id="titulo" label="Título" obrigatorio erro={erro("titulo")} className="sm:col-span-2" dica="Resuma o problema em uma frase">
-            <Input id="titulo" name="titulo" maxLength={120} aria-invalid={!!erro("titulo")} autoFocus />
+            <Input id="titulo" name="titulo" defaultValue={inicial.titulo ?? ""} maxLength={120} aria-invalid={!!erro("titulo")} autoFocus />
           </Campo>
           <Campo id="categoria" label="Categoria" obrigatorio erro={erro("categoria")}>
-            <SelectNativo id="categoria" name="categoria" defaultValue="ti" aria-invalid={!!erro("categoria")}>
+            <SelectNativo id="categoria" name="categoria" defaultValue={categoriaInicial} aria-invalid={!!erro("categoria")}>
               {Object.entries(CATEGORIA_CHAMADO_LABEL).map(([valor, rotulo]) => (
                 <option key={valor} value={valor}>
                   {rotulo} — {AJUDA[valor]}
