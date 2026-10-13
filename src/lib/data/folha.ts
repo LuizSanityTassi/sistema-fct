@@ -86,8 +86,9 @@ export async function listarFolha(competencia: string, f: FiltrosFolha) {
     const termo = f.q.replace(/[%_,().]/g, " ").trim();
     if (termo) consulta = consulta.ilike("employees.nome", `%${termo}%`);
   }
+  // Ordena os registros pelo nome do funcionário (coluna da tabela relacionada, sintaxe do PostgREST).
   const { data, error, count } = await consulta
-    .order("nome", { referencedTable: "employees" })
+    .order("employees(nome)" as "id")
     .range(de, de + TAMANHO_PAGINA - 1);
   if (error) throw error;
   const total = count ?? 0;
