@@ -5,6 +5,10 @@ const nextConfig: NextConfig = {
   // usamos renderização dinâmica padrão em vez de pré-renderização com Cache Components.
   cacheComponents: false,
   partialPrefetching: false,
+  experimental: {
+    // upload de documentos/ASO via Server Action (bucket aceita até 20 MB)
+    serverActions: { bodySizeLimit: "25mb" },
+  },
   turbopack: {
     rules: {
       "*.css": {

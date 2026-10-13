@@ -14,6 +14,7 @@ import { anosDesde, descreverPeriodo, formatarData, formatarMoeda } from "@/lib/
 import { mascararCpf } from "@/lib/validacao/cpf";
 import { alterarStatusFuncionario } from "../actions";
 import { AlterarStatusFuncionario } from "../alterar-status";
+import { DocumentosEAso } from "./documentos-aso";
 
 export async function generateMetadata({ params }: PageProps<"/rh/funcionarios/[id]">): Promise<Metadata> {
   const { id } = await params;
@@ -152,15 +153,22 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
         </section>
 
         <section className="rounded-xl border bg-card p-5">
-          <h2 className="mb-3 text-sm font-semibold">Documentos e ASO</h2>
-          <ul className="space-y-2 text-sm text-muted-foreground">
-            <li className="flex items-center gap-2">
-              <FileText className="size-4" aria-hidden /> Documentos — Etapa 6
+          <h2 className="mb-3 text-sm font-semibold">Arquivos da ficha</h2>
+          <ul className="space-y-2 text-sm">
+            <li>
+              <a href="#documentos" className="flex items-center gap-2 text-fct-navy hover:underline">
+                <FileText className="size-4" aria-hidden /> Documentos
+              </a>
             </li>
-            <li className="flex items-center gap-2">
-              <Stethoscope className="size-4" aria-hidden /> Exames (ASO) — Etapa 6
+            <li>
+              <a href="#aso" className="flex items-center gap-2 text-fct-navy hover:underline">
+                <Stethoscope className="size-4" aria-hidden /> Exames ocupacionais (ASO)
+              </a>
             </li>
           </ul>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Arquivos ficam em armazenamento privado; o download usa link temporário de 60 segundos.
+          </p>
         </section>
       </div>
 
@@ -170,6 +178,8 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
           <p className="text-sm whitespace-pre-line">{f.observacoes}</p>
         </section>
       )}
+
+      <DocumentosEAso employeeId={f.id} podeEditar={podeEditar} />
     </>
   );
 }

@@ -166,6 +166,7 @@ export type Database = {
       }
       employee_aso: {
         Row: {
+          ativo: boolean
           created_at: string
           data_realizacao: string | null
           data_validade: string | null
@@ -176,6 +177,7 @@ export type Database = {
           tipo: Database["public"]["Enums"]["aso_type"]
         }
         Insert: {
+          ativo?: boolean
           created_at?: string
           data_realizacao?: string | null
           data_validade?: string | null
@@ -186,6 +188,7 @@ export type Database = {
           tipo: Database["public"]["Enums"]["aso_type"]
         }
         Update: {
+          ativo?: boolean
           created_at?: string
           data_realizacao?: string | null
           data_validade?: string | null
