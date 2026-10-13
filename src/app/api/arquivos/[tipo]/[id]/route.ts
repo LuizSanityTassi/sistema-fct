@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 // Download de documento/laudo: gera URL assinada de 60 s. O RLS (tabela + Storage) decide quem pode.
 export async function GET(req: Request, ctx: RouteContext<"/api/arquivos/[tipo]/[id]">) {
   const { tipo, id } = await ctx.params;
-  if (tipo !== "documento" && tipo !== "aso" && tipo !== "holerite") {
+  if (tipo !== "documento" && tipo !== "aso" && tipo !== "holerite" && tipo !== "anexo") {
     return new NextResponse("Não encontrado", { status: 404 });
   }
 
