@@ -175,7 +175,7 @@ export function FilialForm({ action, organizacoes, regionais, funcionarios, valo
 
       <div className="flex items-center gap-2">
         <BotaoSalvar />
-        <Button type="button" variant="ghost" render={<Link href={voltarPara} />}>
+        <Button type="button" variant="ghost" nativeButton={false} render={<Link href={voltarPara} />}>
           Cancelar
         </Button>
       </div>

@@ -35,7 +35,7 @@ export function OrganizacaoForm({ action, valores }: Props) {
       </section>
       <div className="flex items-center gap-2">
         <BotaoSalvar />
-        <Button type="button" variant="ghost" render={<Link href="/filiais" />}>
+        <Button type="button" variant="ghost" nativeButton={false} render={<Link href="/filiais" />}>
           Cancelar
         </Button>
       </div>

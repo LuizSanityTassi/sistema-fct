@@ -41,7 +41,7 @@ export default async function FiliaisPage({ searchParams }: PageProps<"/filiais"
         descricao="Grupos, unidades (lojas e empresas de apoio) e seus responsáveis. A unidade é a base de todo o sistema."
         acoes={
           admin ? (
-            <Button className="bg-fct-yellow text-fct-navy hover:bg-fct-yellow/85" render={<Link href="/filiais/nova" />}>
+            <Button className="bg-fct-yellow text-fct-navy hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/filiais/nova" />}>
               <Plus data-icon="inline-start" />
               Nova unidade
             </Button>
@@ -80,11 +80,11 @@ export default async function FiliaisPage({ searchParams }: PageProps<"/filiais"
                   </div>
                 </div>
                 <div className="flex shrink-0 gap-1">
-                  <Button variant="ghost" size="sm" render={<Link href={`/filiais?grupo=${o.id}`} />}>
+                  <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={`/filiais?grupo=${o.id}`} />}>
                     Ver unidades
                   </Button>
                   {admin && (
-                    <Button variant="outline" size="sm" render={<Link href={`/filiais/empresas/${o.id}/editar`} />}>
+                    <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/filiais/empresas/${o.id}/editar`} />}>
                       Editar
                     </Button>
                   )}
@@ -126,7 +126,7 @@ export default async function FiliaisPage({ searchParams }: PageProps<"/filiais"
           Filtrar
         </Button>
         {temFiltro ? (
-          <Button type="button" variant="ghost" render={<Link href="/filiais" />}>
+          <Button type="button" variant="ghost" nativeButton={false} render={<Link href="/filiais" />}>
             Limpar
           </Button>
         ) : (

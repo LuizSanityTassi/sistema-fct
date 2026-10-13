@@ -48,7 +48,7 @@ export default async function FilialPage({ params, searchParams }: PageProps<"/f
         acoes={
           admin ? (
             <>
-              <Button variant="outline" render={<Link href={`/filiais/${filial.id}/editar`} />}>
+              <Button variant="outline" nativeButton={false} render={<Link href={`/filiais/${filial.id}/editar`} />}>
                 <Pencil data-icon="inline-start" />
                 Editar
               </Button>
