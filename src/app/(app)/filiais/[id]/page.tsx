@@ -113,6 +113,11 @@ export default async function FilialPage({ params, searchParams }: PageProps<"/f
           <h2 className="text-sm font-semibold">
             Funcionários {podeVerFuncionarios && `(${pluralizar(funcionarios.length, "pessoa", "pessoas")})`}
           </h2>
+          {podeVerFuncionarios && (
+            <Link href={`/rh/funcionarios?filial=${filial.id}`} className="text-sm text-fct-navy underline">
+              Abrir no RH
+            </Link>
+          )}
         </div>
         {!podeVerFuncionarios ? (
           <p className="border-t px-5 py-6 text-sm text-muted-foreground">Seu perfil não tem acesso à lista de funcionários.</p>
@@ -133,7 +138,11 @@ export default async function FilialPage({ params, searchParams }: PageProps<"/f
               {funcionarios.map((f) => (
                 <TableRow key={f.id}>
                   <TableCell className="font-mono text-xs">{f.matricula ?? "—"}</TableCell>
-                  <TableCell className="font-medium">{f.nome}</TableCell>
+                  <TableCell className="font-medium">
+                    <Link href={`/rh/funcionarios/${f.id}`} className="hover:underline">
+                      {f.nome}
+                    </Link>
+                  </TableCell>
                   <TableCell className="hidden md:table-cell">{f.cargo ?? "—"}</TableCell>
                   <TableCell className="hidden sm:table-cell">{formatarData(f.data_admissao)}</TableCell>
                   <TableCell>

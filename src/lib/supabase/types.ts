@@ -306,6 +306,7 @@ export type Database = {
           cpf: string | null
           created_at: string
           data_admissao: string | null
+          data_desligamento: string | null
           data_nascimento: string | null
           department_id: string | null
           email: string | null
@@ -330,6 +331,7 @@ export type Database = {
           cpf?: string | null
           created_at?: string
           data_admissao?: string | null
+          data_desligamento?: string | null
           data_nascimento?: string | null
           department_id?: string | null
           email?: string | null
@@ -354,6 +356,7 @@ export type Database = {
           cpf?: string | null
           created_at?: string
           data_admissao?: string | null
+          data_desligamento?: string | null
           data_nascimento?: string | null
           department_id?: string | null
           email?: string | null
