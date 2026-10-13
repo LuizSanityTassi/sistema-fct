@@ -35,7 +35,7 @@ export async function requestReset(_prev: AuthState, formData: FormData): Promis
   if (!email) return { erro: "Informe o e-mail." };
   const supabase = await createClient();
   await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${await origem()}/auth/atualizar-senha`,
+    redirectTo: `${await origem()}/auth/confirm?next=/auth/atualizar-senha`,
   });
   // Mensagem genérica (não revela se o e-mail existe)
   return { ok: "Se o e-mail estiver cadastrado, enviamos um link para redefinir a senha." };
