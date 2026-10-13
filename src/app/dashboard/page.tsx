@@ -1,6 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "../login/actions";
 
+// Página autenticada: sempre renderizada no servidor a cada acesso (lê cookies de sessão).
+export const dynamic = "force-dynamic";
+
 const PAPEL_LABEL: Record<string, string> = {
   admin: "Administrador",
   rh: "RH",

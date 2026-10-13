@@ -1,7 +1,8 @@
 import { type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
-export async function middleware(request: NextRequest) {
+// Next 16: o antigo "middleware.ts" virou "proxy.ts". Renova a sessão e protege as rotas.
+export async function proxy(request: NextRequest) {
   return await updateSession(request);
 }
 
