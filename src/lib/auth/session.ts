@@ -22,9 +22,20 @@ export const getSessao = cache(async (): Promise<Sessao> => {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("nome, papel, branch_id")
+    .select("nome, papel, branch_id, ativo, ultimo_acesso")
     .eq("id", user.id)
     .maybeSingle();
+
+  // Usuário desativado pelo administrador: encerra a sessão.
+  if (profile && profile.ativo === false) {
+    await supabase.auth.signOut();
+    redirect("/login?erro=inativo");
+  }
+
+  // Registra o último acesso no máximo a cada 30 minutos.
+  if (profile && (!profile.ultimo_acesso || Date.now() - Date.parse(profile.ultimo_acesso) > 30 * 60 * 1000)) {
+    await supabase.from("profiles").update({ ultimo_acesso: new Date().toISOString() }).eq("id", user.id);
+  }
 
   const papel = profile?.papel;
   return {
