@@ -1,0 +1,287 @@
+// Cliente da API do Omie (só servidor). Duas empresas, cada uma com suas chaves em variáveis de ambiente:
+//   OMIE_NAZARIO_APP_KEY / OMIE_NAZARIO_APP_SECRET   e   OMIE_VARELA_APP_KEY / OMIE_VARELA_APP_SECRET
+// As chaves nunca vão para o navegador nem para o banco. Portado do api.php da ferramenta em produção.
+
+export type EmpresaOmie = "nazario" | "varela";
+export const EMPRESAS_OMIE: Record<EmpresaOmie, string> = { nazario: "Nazário", varela: "Varela" };
+export const ehEmpresaOmie = (v: unknown): v is EmpresaOmie => v === "nazario" || v === "varela";
+
+const URL_OMIE = process.env.OMIE_URL ?? "https://app.omie.com.br/api/v1/";
+const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+export class OmieErro extends Error {}
+
+export function chavesOmie(emp: EmpresaOmie) {
+  const prefixo = emp === "nazario" ? "OMIE_NAZARIO" : "OMIE_VARELA";
+  const app_key = process.env[`${prefixo}_APP_KEY`]?.trim();
+  const app_secret = process.env[`${prefixo}_APP_SECRET`]?.trim();
+  return app_key && app_secret ? { app_key, app_secret } : null;
+}
+
+/** O que a tela pode saber das chaves: se existem e os 4 últimos caracteres. */
+export function statusChaves(): Record<EmpresaOmie, { configurado: boolean; final: string }> {
+  const s = (emp: EmpresaOmie) => {
+    const c = chavesOmie(emp);
+    return { configurado: !!c, final: c ? c.app_key.slice(-4) : "" };
+  };
+  return { nazario: s("nazario"), varela: s("varela") };
+}
+
+type Resposta = Record<string, unknown>;
+
+async function chamar(emp: EmpresaOmie, caminho: string, call: string, param: Record<string, unknown>): Promise<Resposta> {
+  const ch = chavesOmie(emp);
+  if (!ch) throw new OmieErro(`As chaves da Omie da ${EMPRESAS_OMIE[emp]} não estão configuradas (variáveis de ambiente).`);
+  const corpo = JSON.stringify({ call, app_key: ch.app_key, app_secret: ch.app_secret, param: [param] });
+  let ultimo = "";
+  for (let tentativa = 0; tentativa < 3; tentativa++) {
+    let texto = "";
+    let codigo = 0;
+    try {
+      const r = await fetch(URL_OMIE + caminho, { method: "POST", headers: { "Content-Type": "application/json" }, body: corpo, signal: AbortSignal.timeout(60_000) });
+      codigo = r.status;
+      texto = await r.text();
+    } catch (e) {
+      ultimo = e instanceof Error ? e.message : "sem conexão";
+      if (tentativa < 2) {
+        await dormir(2000);
+        continue;
+      }
+      throw new OmieErro(`Não consegui falar com a Omie (${ultimo}).`);
+    }
+    let json: unknown;
+    try {
+      json = JSON.parse(texto);
+    } catch {
+      throw new OmieErro(`Resposta inesperada da Omie (HTTP ${codigo}).`);
+    }
+    if (!json || typeof json !== "object") throw new OmieErro(`Resposta inesperada da Omie (HTTP ${codigo}).`);
+    const j = json as Resposta;
+    if (typeof j.faultstring === "string") {
+      ultimo = j.faultstring;
+      // limite de uso / requisição repetida: espera e tenta de novo
+      if (tentativa < 2 && /consumo redundante|aguarde|too many|tente novamente em/i.test(ultimo)) {
+        await dormir(3000);
+        continue;
+      }
+      throw new OmieErro(ultimo);
+    }
+    return j;
+  }
+  throw new OmieErro(ultimo || "A Omie não respondeu.");
+}
+
+const semRegistros = (msg: string) => /n[aã]o (existem|h[aá]) registros/i.test(msg);
+
+async function todas<T = Resposta>(emp: EmpresaOmie, caminho: string, call: string, extra: Record<string, unknown>, campo: string): Promise<T[]> {
+  const out: T[] = [];
+  for (let pagina = 1; pagina <= 40; pagina++) {
+    let r: Resposta;
+    try {
+      r = await chamar(emp, caminho, call, { pagina, registros_por_pagina: 500, ...extra });
+    } catch (e) {
+      if (e instanceof OmieErro && semRegistros(e.message)) break;
+      throw e;
+    }
+    out.push(...((r[campo] as T[] | undefined) ?? []));
+    if (pagina >= Number(r.total_de_paginas ?? 1)) break;
+  }
+  return out;
+}
+
+export function normOmie(s: unknown) {
+  return String(s ?? "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, " ")
+    .trim();
+}
+
+export type Departamento = { codigo: string; descricao: string };
+
+/** Departamento pelo começo do nome: "F301 …", "301 …", "F001 …", "423 - …", "TRIO …". */
+export function departamentoPorPrefixo(deps: Departamento[], prefixo: string) {
+  const m = /^F?(\d+)$/i.exec(prefixo);
+  const re = m ? new RegExp(`^F?0*${Number(m[1])}\\b`) : new RegExp(`^${normOmie(prefixo).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`);
+  return deps.find((d) => re.test(normOmie(d.descricao))) ?? null;
+}
+
+export type CacheOmie = {
+  quando: string;
+  por: string | null;
+  conta: { id: number; nome: string } | null;
+  categoria: { codigo: string; nome: string } | null;
+  departamentos: Record<string, { codigo: string; nome: string }>;
+  departamentosFaltando: string[];
+  todos: Departamento[];
+  opcoesConta: string[];
+  opcoesCategoria: string[];
+};
+
+/** Busca na Omie as contas correntes, categorias e departamentos e liga pelos nomes. */
+export async function buscarCadastros(emp: EmpresaOmie, nomeConta: string, nomeCategoria: string, departamentosPedidos: string[], por: string | null): Promise<CacheOmie> {
+  type Conta = { nCodCC: number; descricao: string; inativo?: string };
+  type Categoria = { codigo: string; descricao: string; conta_inativa?: string; conta_despesa?: string };
+  type Dep = { codigo: string | number; descricao: string; inativo?: string };
+  const contas = (await todas<Conta>(emp, "geral/contacorrente/", "ListarContasCorrentes", { apenas_importado_api: "N" }, "ListarContasCorrentes")).filter((c) => c.inativo !== "S");
+  const cats = (await todas<Categoria>(emp, "geral/categorias/", "ListarCategorias", { filtrar_apenas_ativo: "S" }, "categoria_cadastro")).filter((c) => c.conta_inativa !== "S");
+  const deps: Departamento[] = (await todas<Dep>(emp, "geral/departamentos/", "ListarDepartamentos", {}, "departamentos"))
+    .filter((d) => d.inativo !== "S")
+    .map((d) => ({ codigo: String(d.codigo), descricao: String(d.descricao ?? "") }));
+
+  const conta = contas.find((c) => normOmie(c.descricao) === normOmie(nomeConta));
+  const candidatas = cats.filter((c) => normOmie(c.descricao) === normOmie(nomeCategoria));
+  const categoria = candidatas.find((c) => c.conta_despesa === "S") ?? candidatas[0];
+  const departamentos: CacheOmie["departamentos"] = {};
+  const faltando: string[] = [];
+  for (const nome of departamentosPedidos) {
+    let achou = deps.find((d) => normOmie(d.descricao) === normOmie(nome)) ?? null;
+    if (!achou) {
+      const m = /^(F?\d{1,3}|TRIO)\b/i.exec(nome);
+      if (m) achou = departamentoPorPrefixo(deps, m[1]);
+    }
+    if (achou) departamentos[nome] = { codigo: achou.codigo, nome: achou.descricao };
+    else faltando.push(nome);
+  }
+  return {
+    quando: new Date().toISOString(),
+    por,
+    conta: conta ? { id: conta.nCodCC, nome: conta.descricao } : null,
+    categoria: categoria ? { codigo: String(categoria.codigo), nome: categoria.descricao } : null,
+    departamentos,
+    departamentosFaltando: faltando,
+    todos: deps,
+    opcoesConta: contas.map((c) => c.descricao),
+    opcoesCategoria: cats.filter((c) => c.conta_despesa === "S").map((c) => c.descricao),
+  };
+}
+
+const docFmt = (d: string) =>
+  d.length === 14 ? d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5") : d.length === 11 ? d.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4") : d;
+
+/** Código do fornecedor na Omie: procura pelo CNPJ/CPF (ou nome) e, se pedido, cadastra. */
+async function codigoFornecedor(emp: EmpresaOmie, cnpj: string, nome: string, cadastrar: boolean, cache: Map<string, number>): Promise<number> {
+  type Cliente = { codigo_cliente_omie: number; cnpj_cpf?: string };
+  const doc = cnpj.replace(/\D/g, "");
+  if (doc && doc.length !== 11 && doc.length !== 14) throw new OmieErro("CNPJ/CPF do fornecedor inválido.");
+  const chave = doc || `N:${normOmie(nome)}`;
+  const emCache = cache.get(chave);
+  if (emCache) return emCache;
+  const buscar = async (filtro: Record<string, string>) => {
+    try {
+      const r = await chamar(emp, "geral/clientes/", "ListarClientes", { pagina: 1, registros_por_pagina: 50, apenas_importado_api: "N", clientesFiltro: filtro });
+      return (r.clientes_cadastro as Cliente[] | undefined) ?? [];
+    } catch (e) {
+      if (e instanceof OmieErro && semRegistros(e.message)) return [];
+      throw e;
+    }
+  };
+  if (doc) {
+    let lista = await buscar({ cnpj_cpf: docFmt(doc) });
+    if (!lista.length) lista = await buscar({ cnpj_cpf: doc });
+    lista = lista.filter((c) => (c.cnpj_cpf ?? "").replace(/\D/g, "") === doc);
+    if (lista.length) {
+      cache.set(chave, lista[0].codigo_cliente_omie);
+      return lista[0].codigo_cliente_omie;
+    }
+    if (!cadastrar) throw new OmieErro(`fornecedor ${docFmt(doc)} não está cadastrado na Omie.`);
+    if (!nome.trim()) throw new OmieErro("fornecedor sem nome para cadastrar.");
+    try {
+      const r = await chamar(emp, "geral/clientes/", "IncluirCliente", {
+        codigo_cliente_integracao: `FCT${doc}`,
+        razao_social: nome.slice(0, 60),
+        nome_fantasia: nome.slice(0, 100),
+        cnpj_cpf: docFmt(doc),
+        tags: [{ tag: "Fornecedor" }],
+      });
+      const codigo = Number(r.codigo_cliente_omie);
+      cache.set(chave, codigo);
+      return codigo;
+    } catch (e) {
+      // corrida: alguém cadastrou no meio do caminho
+      const lista2 = (await buscar({ cnpj_cpf: docFmt(doc) })).filter((c) => (c.cnpj_cpf ?? "").replace(/\D/g, "") === doc);
+      if (lista2.length) {
+        cache.set(chave, lista2[0].codigo_cliente_omie);
+        return lista2[0].codigo_cliente_omie;
+      }
+      throw new OmieErro(`não consegui cadastrar o fornecedor na Omie: ${e instanceof Error ? e.message : e}`);
+    }
+  }
+  // sem CNPJ: só se o nome for único
+  const lista = await buscar({ razao_social: nome.slice(0, 60) });
+  const iguais = lista.filter((c) => normOmie((c as { razao_social?: string }).razao_social) === normOmie(nome));
+  if (iguais.length === 1) {
+    cache.set(chave, iguais[0].codigo_cliente_omie);
+    return iguais[0].codigo_cliente_omie;
+  }
+  throw new OmieErro(iguais.length ? "mais de um fornecedor com esse nome na Omie; informe o CNPJ." : "fornecedor sem CNPJ e não encontrado pelo nome na Omie.");
+}
+
+export type ContaApi = {
+  chave: string;
+  codigo: string;
+  cnpj: string;
+  nome: string;
+  valor: number;
+  venc: string; // dd/mm/aaaa
+  numdoc: string;
+  nota: string;
+  barra: string;
+  obs: string;
+  departamento: string;
+  fil: number | null;
+};
+
+export type ResultadoLancamento = { chave: string; ok: boolean; codigoOmie?: string | null; msg?: string; erro?: string };
+
+/** Lança contas a pagar de UMA empresa (UpsertContaPagar), uma a uma, sem atropelar o limite da Omie. */
+export async function lancarContas(emp: EmpresaOmie, cache: CacheOmie, contas: ContaApi[], cadastrarFornecedor: boolean): Promise<ResultadoLancamento[]> {
+  if (!cache.conta?.id || !cache.categoria?.codigo) {
+    throw new OmieErro(`Antes de lançar na ${EMPRESAS_OMIE[emp]}, busque os cadastros na Omie (conta corrente e categoria não foram encontradas).`);
+  }
+  const fornecedores = new Map<string, number>();
+  const resultados: ResultadoLancamento[] = [];
+  for (const c of contas) {
+    const r: ResultadoLancamento = { chave: c.chave, ok: false };
+    try {
+      let dep = cache.departamentos[c.departamento] ?? null;
+      if (!dep && c.fil != null) {
+        const x = departamentoPorPrefixo(cache.todos, String(c.fil));
+        if (x) dep = { codigo: x.codigo, nome: x.descricao };
+      }
+      if (!dep) throw new OmieErro(`departamento da filial ${c.fil ?? "?"} não foi achado na Omie da ${EMPRESAS_OMIE[emp]} (cadastre lá e busque os cadastros de novo).`);
+      const codigoFornec = await codigoFornecedor(emp, c.cnpj, c.nome, cadastrarFornecedor, fornecedores);
+      if (!/^\d{2}\/\d{2}\/\d{4}$/.test(c.venc)) throw new OmieErro("vencimento inválido.");
+      const valor = Math.round(c.valor * 100) / 100;
+      if (valor <= 0) throw new OmieErro("valor zerado ou negativo.");
+      if (!c.codigo) throw new OmieErro("conta sem código de integração.");
+      const p: Record<string, unknown> = {
+        codigo_lancamento_integracao: c.codigo.slice(0, 20),
+        codigo_cliente_fornecedor: codigoFornec,
+        data_vencimento: c.venc,
+        data_previsao: c.venc,
+        data_emissao: c.venc,
+        data_entrada: c.venc,
+        valor_documento: valor,
+        codigo_categoria: cache.categoria.codigo,
+        id_conta_corrente: cache.conta.id,
+        numero_documento: c.numdoc.slice(0, 20),
+        observacao: c.obs.slice(0, 2000),
+        distribuicao: [{ cCodDep: dep.codigo, nPerDep: 100, nValDep: valor }],
+      };
+      if (c.nota) p.numero_documento_fiscal = c.nota.slice(0, 20);
+      if (/^\d{44,48}$/.test(c.barra)) p.codigo_barras_ficha_compensacao = c.barra;
+      const x = await chamar(emp, "financas/contapagar/", "UpsertContaPagar", p);
+      if (x.codigo_status !== undefined && String(x.codigo_status) !== "0") throw new OmieErro(String(x.descricao_status ?? "recusado"));
+      r.ok = true;
+      r.codigoOmie = x.codigo_lancamento_omie != null ? String(x.codigo_lancamento_omie) : null;
+      r.msg = String(x.descricao_status ?? "");
+    } catch (e) {
+      r.erro = e instanceof Error ? e.message : String(e);
+    }
+    resultados.push(r);
+    await dormir(300);
+  }
+  return resultados;
+}

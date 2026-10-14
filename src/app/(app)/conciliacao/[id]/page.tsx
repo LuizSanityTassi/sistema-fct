@@ -8,11 +8,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
+import type { ConfigOmie } from "@/lib/conciliacao/omie";
+import { statusChaves, type CacheOmie, type EmpresaOmie } from "@/lib/conciliacao/omie-api";
+import { CONFIG_OMIE_PADRAO, contasDaConciliacao } from "@/lib/conciliacao/omie-envio";
+import { podeConciliar } from "@/lib/conciliacao/permissoes";
 import { CATEGORIA_LABEL, GRUPO_LABEL, type GrupoItem } from "@/lib/conciliacao/rotulos";
-import { chavesEnviadas, lerFiltrosItens, listarItens, mapaFiliais, obterConciliacao, TAMANHO_PAGINA_ITENS } from "@/lib/data/conciliacao";
+import { chavesEnviadas, lerFiltrosItens, listarItens, mapaFiliais, obterConciliacao, obterConfig, TAMANHO_PAGINA_ITENS } from "@/lib/data/conciliacao";
 import { formatarData, formatarDataHora, formatarMoeda, pluralizar } from "@/lib/formatos";
 import { createClient } from "@/lib/supabase/server";
 import { BadgeCategoria, BadgeStatusPendencia, Filial } from "../badges-conc";
+import { enviarPlanilhaOmie, lancarOmieApi, validarEnvioOmie } from "../omie-actions";
+import { EnvioOmie } from "./envio-omie";
 
 export const metadata = { title: "Conciliação" };
 
@@ -38,24 +44,25 @@ type Resumo = {
   cobertura?: { ini: string | null; fim: string | null; bancoVencIni: string | null };
 };
 
-const ABAS: { chave: GrupoItem | "descontos" | "filiais"; rotulo: string }[] = [
+const ABAS: { chave: GrupoItem | "descontos" | "filiais" | "omie"; rotulo: string }[] = [
   { chave: "exato", rotulo: "Bateram" },
   { chave: "aproximado", rotulo: "Para conferir" },
   { chave: "so_trier", rotulo: "Só no Trier" },
   { chave: "so_dda", rotulo: "Só no DDA" },
   { chave: "descontos", rotulo: "Descontos" },
   { chave: "filiais", rotulo: "Por filial" },
+  { chave: "omie", rotulo: "Enviar ao Omie" },
 ];
 
 export default async function ConciliacaoDetalhePage({ params, searchParams }: PageProps<"/conciliacao/[id]">) {
-  const [, { id }, sp] = await Promise.all([exigirAcesso("/conciliacao"), params, searchParams]);
+  const [sessao, { id }, sp] = await Promise.all([exigirAcesso("/conciliacao"), params, searchParams]);
   const c = await obterConciliacao(id);
   if (!c) notFound();
   const r = (c.resumo ?? {}) as Resumo;
   const abaPedida = typeof sp.aba === "string" ? sp.aba : "";
-  const aba = abaPedida === "filiais" ? "filiais" : lerFiltrosItens(sp).grupo;
+  const aba = abaPedida === "filiais" || abaPedida === "omie" ? abaPedida : lerFiltrosItens(sp).grupo;
   const filtros = lerFiltrosItens(sp);
-  const [filiais, resultado] = await Promise.all([mapaFiliais(), aba === "filiais" ? null : listarItens(c.id, filtros)]);
+  const [filiais, resultado] = await Promise.all([mapaFiliais(), aba === "filiais" || aba === "omie" ? null : listarItens(c.id, filtros)]);
   const itens = resultado?.itens ?? [];
   const [enviados, pendencias] = await Promise.all([
     chavesEnviadas(itens.map((i) => i.chave)),
@@ -67,6 +74,29 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
     })(),
   ]);
   const base = `/conciliacao/${c.id}`;
+  const omie =
+    aba === "omie"
+      ? await (async () => {
+          const supabase = await createClient();
+          const [contas, config, { data: cfgs }] = await Promise.all([
+            contasDaConciliacao(supabase, c.id),
+            obterConfig<ConfigOmie>("omie", CONFIG_OMIE_PADRAO),
+            supabase.from("conc_config").select("chave, valor").in("chave", ["omie_cache_nazario", "omie_cache_varela", "omie_nazario", "omie_varela"]),
+          ]);
+          const cfg = new Map((cfgs ?? []).map((x) => [x.chave, x.valor]));
+          const ch = statusChaves();
+          const status = (e: EmpresaOmie) => {
+            const cache = cfg.get(`omie_cache_${e}`) as CacheOmie | undefined;
+            return {
+              nome: e === "nazario" ? "Nazário" : "Varela",
+              configurado: ch[e].configurado,
+              pronto: ch[e].configurado && !!cache?.conta && !!cache?.categoria,
+              testado: !!(cfg.get(`omie_${e}`) as { testado?: boolean } | undefined)?.testado,
+            };
+          };
+          return { contas, config, api: { nazario: status("nazario"), varela: status("varela") } };
+        })()
+      : null;
   const paramsLista = { aba: filtros.grupo, q: filtros.q, filial: filtros.filial !== undefined ? String(filtros.filial) : undefined, categoria: filtros.categoria };
   const categoriasDaAba = Object.entries(r.porCategoria ?? {}).filter(([, v]) => v.qtd > 0);
   const kpis: [string, string, string | null, string?][] = [
@@ -90,6 +120,15 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
         }
       />
 
+      {typeof sp.planilha === "string" && (
+        <div role="status" className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+          <span>Planilha do Omie gerada com {sp.qtd ?? "?"} conta(s) e registrada como enviada.</span>
+          <a href={`/api/conciliacao/arquivo/${sp.planilha}`} className="font-medium underline">
+            Baixar planilha
+          </a>
+          <span className="text-xs">Importe na Omie em Finanças → Contas a pagar → Importar planilha.</span>
+        </div>
+      )}
       {sp.nova === "1" && (
         <div className="mb-4">
           <AvisoSucesso
@@ -127,17 +166,41 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
 
       <nav aria-label="Abas" className="mb-4 flex flex-wrap gap-2">
         {ABAS.map((a) => {
-          const qtd = a.chave === "descontos" ? (r.descontos?.noVencimento.qtd ?? 0) + (r.descontos?.soAntecipado.qtd ?? 0) + (r.descontos?.semData.qtd ?? 0) : a.chave === "filiais" ? (r.porFilial?.length ?? 0) : a.chave === "exato" ? (r.bateu ?? 0) : a.chave === "aproximado" ? (r.conferir ?? 0) : a.chave === "so_trier" ? (r.soTrier ?? 0) + (r.semArquivo ?? 0) : (r.soDDA ?? 0);
+          const qtd =
+            a.chave === "omie"
+              ? null
+              : a.chave === "descontos"
+                ? (r.descontos?.noVencimento.qtd ?? 0) + (r.descontos?.soAntecipado.qtd ?? 0) + (r.descontos?.semData.qtd ?? 0)
+                : a.chave === "filiais"
+                  ? (r.porFilial?.length ?? 0)
+                  : a.chave === "exato"
+                    ? (r.bateu ?? 0)
+                    : a.chave === "aproximado"
+                      ? (r.conferir ?? 0)
+                      : a.chave === "so_trier"
+                        ? (r.soTrier ?? 0) + (r.semArquivo ?? 0)
+                        : (r.soDDA ?? 0);
           const ativa = aba === a.chave;
           return (
-            <Link key={a.chave} href={`${base}?aba=${a.chave}`} aria-current={ativa ? "page" : undefined} className={`rounded-full border px-3 py-1 text-sm ${ativa ? "border-fct-navy bg-fct-navy text-white" : "bg-card hover:border-fct-navy/40"}`}>
-              {a.rotulo} <span className={ativa ? "opacity-80" : "text-muted-foreground"}>({qtd})</span>
+            <Link key={a.chave} href={`${base}?aba=${a.chave}`} aria-current={ativa ? "page" : undefined} className={`rounded-full border px-3 py-1 text-sm ${ativa ? "border-fct-navy bg-fct-navy text-white" : a.chave === "omie" ? "border-fct-yellow bg-fct-yellow/20 hover:border-fct-navy/40" : "bg-card hover:border-fct-navy/40"}`}>
+              {a.rotulo} {qtd !== null && <span className={ativa ? "opacity-80" : "text-muted-foreground"}>({qtd})</span>}
             </Link>
           );
         })}
       </nav>
 
-      {aba === "filiais" ? (
+      {aba === "omie" && omie ? (
+        <EnvioOmie
+          conciliacaoId={c.id}
+          contas={omie.contas}
+          api={omie.api}
+          config={omie.config}
+          podeEnviar={podeConciliar(sessao.papel)}
+          validar={validarEnvioOmie}
+          enviarPlanilha={enviarPlanilhaOmie}
+          lancarApi={lancarOmieApi}
+        />
+      ) : aba === "filiais" ? (
         <div className="rounded-xl border bg-card">
           <Table>
             <TableHeader>

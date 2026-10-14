@@ -66,7 +66,7 @@ Configuração no painel do Supabase: Authentication → URL Configuration com S
 ```
 src/app/(app)/            área autenticada (layout com menu lateral)
   dashboard · filiais · rh/{funcionarios,documentos,aso,folha} · chamados · ti · relatorios
-  financeiro/{lancamentos,categorias} · conciliacao/{arquivos,nova,[id],pendencias,de-para}
+  financeiro/{lancamentos,categorias} · conciliacao/{arquivos,nova,[id],pendencias,de-para,omie}
   configuracoes/{usuarios,permissoes,auditoria}
 src/app/login, recuperar-senha, auth/*   autenticação
 src/app/api/arquivos/     download assinado de arquivos
@@ -85,7 +85,7 @@ scripts/migrar-financeiro.mjs   importador do fluxo de caixa anterior (roda na s
 
 Fase 2: ✅ TI (fila, acessos, ativos) · ✅ Relatórios com CSV · ✅ Financeiro F1 (lançamentos, categorias/DRE,
 fechamento de mês, visão geral por grupo/mês/unidade, migração do legado). · ✅ Conciliação C1 (arquivos do Itaú e do Trier,
-motor de conciliação, pendências, de-para e aprendizado).
+motor de conciliação, pendências, de-para e aprendizado) · ✅ C2 envio ao Omie (planilha e API, desfazer).
 
 Próximas: importador Omie (F2), DRE/contábil com ajustes e saldos (F3), orçamento e caixa diário/mensal (F4),
 inadimplência e ranking (F5), alertas/fechamento (F6); depois conciliação DDA (upload CNAB240 primeiro).
@@ -100,7 +100,16 @@ cada rodada grava `conc_conciliacoes` + `conc_itens` (uma linha por conta: bolet
 do Trier), registra/resolve `conc_pendencias` (chave = `Omie.chave()`: boleto+filial pagadora ou título do Trier) e
 aprende fornecedor ↔ raiz de CNPJ em `conc_aprendizado`. De-para do financeiro em `conc_depara` (seed na migração 0018).
 Regras: a filial PAGADORA do boleto manda; AGRUPADO/COMBINAÇÃO contam como exatos; só vale desconto pagando no vencimento.
-Próximo: envio ao Omie (planilha e API), robô do Trier, agente dos .RET do Itaú, painel por fornecedor/anomalias.
+
+**Envio ao Omie** (aba "Enviar ao Omie" da conciliação + tela Conciliação → Omie): seleção por grupo (exatos pré-marcados,
+já enviados ficam de fora), validação 🟢/🟡/🔴 (já enviada, sem departamento, alerta, duplicidade, pendência justificada),
+**planilha** no modelo oficial v1.1.5 (`omie-modelo.ts` + JSZip, guardada em `conc_arquivos` tipo `omie`) ou **API**
+(`omie-api.ts`: UpsertContaPagar, fornecedor por CNPJ com cadastro automático, departamento por nome/prefixo da filial,
+2 empresas — filial ≥ 300 e TRIO = Nazário, < 300 = Varela; modo teste lança 1 conta até "liberar lote"). Chaves só em
+`OMIE_NAZARIO_APP_KEY/SECRET` e `OMIE_VARELA_APP_KEY/SECRET` (env). Tudo que vai registra `conc_enviados_omie` (chave da conta),
+resolve a pendência e pode ser desfeito com motivo (reabre pendências). Regra do financeiro: emissão/registro/vencimento/previsão
+= vencimento do boleto; categoria e conta padrão em `conc_config` ("omie").
+Próximo: robô do Trier, agente dos .RET do Itaú, painel por fornecedor/anomalias.
 
 ## Migração do financeiro anterior (fluxo de caixa SQLite)
 
