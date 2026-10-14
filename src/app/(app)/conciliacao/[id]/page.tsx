@@ -13,6 +13,7 @@ import { statusChaves, type CacheOmie, type EmpresaOmie } from "@/lib/conciliaca
 import { CONFIG_OMIE_PADRAO, contasDaConciliacao } from "@/lib/conciliacao/omie-envio";
 import { podeConciliar } from "@/lib/conciliacao/permissoes";
 import { CATEGORIA_LABEL, GRUPO_LABEL, type GrupoItem } from "@/lib/conciliacao/rotulos";
+import { anomaliaGrave, type ResumoAnomalia } from "@/lib/conciliacao/servico";
 import { chavesEnviadas, lerFiltrosItens, listarItens, mapaFiliais, obterConciliacao, obterConfig, TAMANHO_PAGINA_ITENS } from "@/lib/data/conciliacao";
 import { formatarData, formatarDataHora, formatarMoeda, pluralizar } from "@/lib/formatos";
 import { createClient } from "@/lib/supabase/server";
@@ -42,7 +43,11 @@ type Resumo = {
   avisos?: string[];
   pendencias?: { novas: number; reabertas: number; resolvidasAuto: number; abertasNaLeva: number };
   cobertura?: { ini: string | null; fim: string | null; bancoVencIni: string | null };
+  anomalias?: number;
+  anomaliasGraves?: number;
+  anomaliasLista?: ResumoAnomalia[];
 };
+const raizDe = (cnpj: string) => cnpj.replace(/\D/g, "").padStart(14, "0").slice(0, 8);
 
 const ABAS: { chave: GrupoItem | "descontos" | "filiais" | "omie"; rotulo: string }[] = [
   { chave: "exato", rotulo: "Bateram" },
@@ -97,7 +102,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
           return { contas, config, api: { nazario: status("nazario"), varela: status("varela") } };
         })()
       : null;
-  const paramsLista = { aba: filtros.grupo, q: filtros.q, filial: filtros.filial !== undefined ? String(filtros.filial) : undefined, categoria: filtros.categoria };
+  const paramsLista = { aba: filtros.grupo, q: filtros.q, filial: filtros.filial !== undefined ? String(filtros.filial) : undefined, categoria: filtros.categoria, anomalias: filtros.anomalias ? "1" : undefined };
   const categoriasDaAba = Object.entries(r.porCategoria ?? {}).filter(([, v]) => v.qtd > 0);
   const kpis: [string, string, string | null, string?][] = [
     ["Bateram", pct(c.pct_bateu), `${r.bateu ?? 0} de ${c.qtd_trier} títulos · ${pct(c.pct_valor_bateu)} do valor`, "text-emerald-700"],
@@ -105,6 +110,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
     ["Só no Trier", String(r.soTrier ?? 0), `${formatarMoeda(r.valorSoTrier ?? 0)}${r.semArquivo ? ` · +${r.semArquivo} fora do período dos arquivos` : ""}`, (r.soTrier ?? 0) > 0 ? "text-red-700" : undefined],
     ["Só no DDA", String(r.soDDA ?? 0), `${formatarMoeda(r.valorSoDDA ?? 0)} de boletos sem título`, (r.soDDA ?? 0) > 0 ? "text-sky-700" : undefined],
     ["Desconto no vencimento", formatarMoeda(r.descontos?.noVencimento.valor ?? 0), `${r.descontos?.noVencimento.qtd ?? 0} boleto(s) · antecipado ${formatarMoeda(r.descontos?.soAntecipado.valor ?? 0)}`],
+    ["Fora do padrão", r.anomalias === undefined ? "—" : String(r.anomalias), r.anomalias === undefined ? "conciliação anterior à detecção" : (r.anomaliasGraves ?? 0) > 0 ? `${r.anomaliasGraves} grave(s) · comparado ao histórico do fornecedor` : "comparado ao histórico do fornecedor", (r.anomalias ?? 0) > 0 ? "text-orange-700" : undefined],
   ];
 
   return (
@@ -149,7 +155,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
         </div>
       )}
 
-      <section className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <section className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-6">
         {kpis.map(([rotulo, valor, nota, tom]) => (
           <div key={rotulo} className="rounded-xl border bg-card px-4 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{rotulo}</p>
@@ -158,6 +164,34 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
           </div>
         ))}
       </section>
+
+      {(r.anomaliasLista ?? []).length > 0 && (
+        <details id="anomalias" className="mb-4 rounded-xl border border-orange-200 bg-orange-50/50">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-orange-900">
+            ⚠ Fora do padrão: {pluralizar(r.anomalias ?? 0, "boleto", "boletos")} comparando com o histórico de cada fornecedor
+            {(r.anomalias ?? 0) > (r.anomaliasLista?.length ?? 0) ? ` (mostrando os ${r.anomaliasLista!.length} maiores)` : ""}
+          </summary>
+          <ul className="divide-y border-t text-sm">
+            {r.anomaliasLista!.map((a) => (
+              <li key={a.chave} className="flex flex-wrap items-start gap-x-3 px-4 py-2">
+                <span className="w-24 shrink-0 tabular-nums text-muted-foreground">{formatarData(a.vencimento)}</span>
+                <Filial filial={a.filial} />
+                <span className="min-w-0 flex-1">
+                  <span className="font-medium">{a.beneficiario ?? "—"}</span> · {formatarMoeda(a.valor)}
+                  <ul className="mt-0.5 text-xs">
+                    {a.avisos.map((v) => (
+                      <li key={v} className={anomaliaGrave(v) ? "font-semibold text-red-700" : "text-orange-800"}>
+                        {anomaliaGrave(v) ? "🔴" : "🟠"} {v}
+                      </li>
+                    ))}
+                  </ul>
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="px-4 py-2 text-xs text-orange-900">Anomalias graves (valor EXTREMAMENTE acima, banco diferente) bloqueiam o envio ao Omie; as outras só avisam. A ficha de cada fornecedor está em Conciliação → Fornecedores.</p>
+        </details>
+      )}
 
       <p className="mb-4 text-xs text-muted-foreground">
         Arquivos: {(r.arquivos ?? []).map((a) => a.nome).join(" · ")}
@@ -244,6 +278,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
         <>
           <form method="get" className="mb-4 grid gap-2 rounded-xl border bg-card p-3 lg:grid-cols-[1fr_auto_auto_auto_auto] lg:items-center">
             <input type="hidden" name="aba" value={filtros.grupo} />
+            {filtros.anomalias && <input type="hidden" name="anomalias" value="1" />}
             <div className="relative">
               <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
               <Input name="q" defaultValue={filtros.q ?? ""} placeholder="Beneficiário, fornecedor, documento ou CNPJ" className="pl-8" aria-label="Buscar" />
@@ -261,12 +296,19 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
             <Button type="submit" variant="outline">
               Filtrar
             </Button>
-            {filtros.q || filtros.filial !== undefined || filtros.categoria ? (
+            {filtros.q || filtros.filial !== undefined || filtros.categoria || filtros.anomalias ? (
               <Button type="button" variant="ghost" nativeButton={false} render={<Link href={`${base}?aba=${filtros.grupo}`} />}>
                 Limpar
               </Button>
             ) : (
               <span />
+            )}
+            {(r.anomalias ?? 0) > 0 && filtros.grupo !== "descontos" && (
+              <p className="text-xs lg:col-span-5">
+                <Link href={`${base}?aba=${filtros.grupo}&anomalias=${filtros.anomalias ? "" : "1"}`} className={`rounded-full border px-2 py-0.5 ${filtros.anomalias ? "border-orange-400 bg-orange-100 text-orange-900" : "text-orange-800 hover:border-orange-300"}`}>
+                  ⚠ {filtros.anomalias ? "mostrando só fora do padrão — clique para ver todos" : "só fora do padrão"}
+                </Link>
+              </p>
             )}
           </form>
 
@@ -294,7 +336,8 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
                     const pd = pendencias.get(it.chave);
                     const env = enviados.get(it.chave);
                     const desc = it.desconto as { valor: number; ate: string | null; noVencimento: boolean | null } | null;
-                    const dados = it.dados as { filTrier?: number | null } | null;
+                    const dados = it.dados as { filTrier?: number | null; anomalias?: string[] } | null;
+                    const anomalias = Array.isArray(dados?.anomalias) ? dados!.anomalias! : [];
                     return (
                       <TableRow key={it.id}>
                         <TableCell>
@@ -303,13 +346,22 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
                         </TableCell>
                         <TableCell className="tabular-nums">{formatarData(it.vencimento)}</TableCell>
                         <TableCell>
-                          <p className="font-medium">{it.beneficiario ?? it.fornecedor}</p>
+                          <p className="font-medium">
+                            {it.cnpj ? (
+                              <Link href={`/conciliacao/fornecedores/${raizDe(it.cnpj)}`} className="hover:underline" title="Ficha do fornecedor">
+                                {it.beneficiario ?? it.fornecedor}
+                              </Link>
+                            ) : (
+                              (it.beneficiario ?? it.fornecedor)
+                            )}
+                          </p>
                           <p className="text-xs text-muted-foreground">
                             {it.beneficiario && it.fornecedor && it.beneficiario !== it.fornecedor ? `Trier: ${it.fornecedor}` : ""}
                             {it.cnpj ? `${it.beneficiario && it.fornecedor && it.beneficiario !== it.fornecedor ? " · " : ""}${it.cnpj}` : ""}
                             {it.fornecedor_real ? ` · fornecedor real: ${it.fornecedor_real}` : ""}
                           </p>
                           {it.alerta && <p className="text-xs font-semibold text-red-700">ALERTA: {it.alerta}</p>}
+                          {anomalias.length > 0 && <p className={`text-xs font-semibold ${anomalias.some(anomaliaGrave) ? "text-red-700" : "text-orange-700"}`}>⚠ {anomalias.join(" • ")}</p>}
                           {desc && (
                             <p className="text-xs text-emerald-700">
                               Desconto {formatarMoeda(desc.valor)} {desc.noVencimento === true ? `pagando até ${formatarData(desc.ate)}` : desc.noVencimento === false ? "(só antecipado)" : "(conferir data)"}

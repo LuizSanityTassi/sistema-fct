@@ -29,6 +29,8 @@ type DadosItem = {
   trier?: { doc: string; fil: number; forn: string; emis: string | null; venc: string | null; valor: number; pagar: number }[];
   dda?: { arquivo?: string; mov?: string; emis?: string | null; pagador?: string | null; tipoBoleto?: string | null; fil?: number | null; filForte?: boolean; raiz?: string } | null;
   filTrier?: number | null;
+  anomalias?: string[];
+  fora_padrao?: boolean;
 };
 
 export function itemDeLinha(l: ItemConciliacao): ItemOmie {
@@ -98,12 +100,16 @@ export type ContaEnvio = {
   enviadoEm: string | null;
   enviadoVia: string | null;
   pendencia: { status: string; motivo: string | null } | null;
+  /** Avisos da detecção de anomalias (histórico do fornecedor). */
+  anomalias: string[];
 };
 
 export function contaDeLinha(l: ItemConciliacao, enviado: { enviado_em: string; via: string } | undefined, pendencia: { status: string; motivo: string | null } | undefined): ContaEnvio {
   const it = itemDeLinha(l);
   const dep = Omie.departamento(Omie.filialDe(it), it.d ? it.d.pagadorCnpj || it.d.pagador : null);
+  const anomalias = Array.isArray((l.dados as DadosItem | null)?.anomalias) ? ((l.dados as DadosItem).anomalias as string[]) : [];
   return {
+    anomalias,
     chave: l.chave,
     grupo: l.grupo,
     categoria: l.categoria,
@@ -174,6 +180,8 @@ export function validarEnvio(contas: ContaEnvio[], verbo: "planilha" | "api"): V
       else add(grave, c, "sem departamento (filial fora da lista do Omie)");
     }
     if (c.alerta) add(grave, c, `alerta: ${c.alerta}`);
+    // anomalias graves (valor EXTREMAMENTE acima, banco diferente) bloqueiam; as outras só avisam
+    for (const a of c.anomalias) add(/EXTREMAMENTE|banco diferente/.test(a) ? grave : atencao, c, `fora do padrão: ${a}`);
     if (c.pendencia?.status === "justificado") add(grave, c, `pendência justificada: ${c.pendencia.motivo ?? ""}`);
     if (c.barra) porBarra.set(c.barra, [...(porBarra.get(c.barra) ?? []), c]);
     const k3 = `${c.raiz}|${Math.round(c.valor * 100)}|${c.vencimento ?? ""}`;

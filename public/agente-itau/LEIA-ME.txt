@@ -1,0 +1,27 @@
+AGENTE FCT – Itaú Mailbox -> Sistema FCT (Conciliação)
+======================================================
+O que faz: a cada 15 minutos olha a pasta onde o Itaú Mailbox salva os arquivos RECEBIDOS
+e manda para o Sistema FCT os retornos de DDA novos. Nunca apaga nem altera nada da pasta.
+Só envia arquivos que começam com "341" (arquivos do Itaú); o resto é ignorado aqui mesmo.
+
+INSTALAR
+1. No Sistema FCT: Conciliação > Robôs e agente > "Novo agente" > dê um nome (ex.: PC do Luiz)
+   > Gerar chave > Copiar (a chave aparece UMA vez).
+2. Baixe os 4 arquivos desta pasta (agente-itau.ps1, instalar.ps1, desinstalar.ps1, LEIA-ME.txt)
+   para uma pasta do PC do Itaú Mailbox (ex.: C:\FCT\agente-itau).
+3. Botão direito em instalar.ps1 > "Executar com o PowerShell".
+4. Ele pergunta: a pasta dos arquivos recebidos do Itaú Mailbox, o endereço (Enter) e a chave
+   (cole; não aparece na tela).
+5. Pronto: roda agora e depois sozinho a cada 15 min (Agendador de Tarefas: "FCT Agente Itau").
+
+ACOMPANHAR
+- agente.log (nesta pasta): o que foi enviado/ignorado/erro.
+- No Sistema FCT: Conciliação > Robôs e agente (último contato, quantos enviou) e Conciliação > Arquivos.
+
+SEGURANÇA
+- A chave fica criptografada pelo Windows (só o seu usuário, neste PC, consegue ler).
+- A chave só serve para ENVIAR arquivos de DDA; não entra no sistema nem lê nada.
+- Perdeu o PC / trocou de máquina: revogue a chave no Sistema FCT e gere outra.
+
+DESINSTALAR: botão direito em desinstalar.ps1 > Executar com o PowerShell (e revogue a chave no sistema).
+OBS.: só funciona com o PC ligado e o usuário logado. Arquivos não se perdem: ficam no Itaú/na pasta até ele rodar.

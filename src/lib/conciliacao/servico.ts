@@ -70,6 +70,8 @@ export async function guardarArquivo(
   file: File,
   tipoPedido: TipoArquivoConc | "auto",
   origem: "upload" | "agente" | "robo_trier" = "upload",
+  /** Para quem chama sem sessão de usuário (agente): mapa de filiais já carregado e dados extras para o meta. */
+  opcoes: { filiais?: Filiais; meta?: Record<string, Json> } = {},
 ): Promise<ResultadoUpload> {
   const nome = file.name.replace(/ \(\d+\)(?=\.)/, "").slice(0, 150);
   try {
@@ -79,14 +81,14 @@ export async function guardarArquivo(
     const ext = (nome.split(".").pop() ?? "").toLowerCase();
     if (!EXTENSOES.has(ext)) throw new Error("tipo não permitido (aceito: .RET, .pdf, .xlsx, .xls)");
     const tipo = tipoPedido === "auto" ? detectarTipo(nome, buf) : tipoPedido;
-    const filiais = await mapaFiliais();
+    const filiais = opcoes.filiais ?? (await mapaFiliais());
 
-    let meta: Record<string, Json> = {};
+    let meta: Record<string, Json> = { ...(opcoes.meta ?? {}) };
     let filial: number | null = null;
     let descricao = "";
     if (tipo === "dda_ret" || tipo === "dda_planilha") {
       const a = lerDDA(nome, buf);
-      meta = metaDDA(a);
+      meta = { ...meta, ...metaDDA(a) };
       if (a.planilha) filial = filialDoNome(nome, filiais.codigos);
       else {
         // .RET de UMA filial (CNPJ do lote ≠ matriz /0001) fica ligado a ela; o da matriz traz várias
@@ -97,7 +99,7 @@ export async function guardarArquivo(
       descricao = `${meta.qtd} boleto(s), ${moeda(Number(meta.total))}${meta.vencIni ? `, vencimentos ${dataBr(meta.vencIni)} a ${dataBr(meta.vencFim)}` : ""}${a.ignoradas ? ` · ${a.ignoradas} linha(s) danificada(s) ignorada(s)` : ""}`;
     } else if (tipo === "trier") {
       const tr = await lerTrier(nome, buf);
-      meta = metaTrier(tr);
+      meta = { ...meta, ...metaTrier(tr) };
       const fils = meta.filiais as number[];
       filial = fils.length === 1 ? fils[0] : null;
       descricao = `${meta.qtd} título(s), ${moeda(Number(meta.total))}, filial(is) ${fils.join(", ")}${meta.vencIni ? `, vencimentos ${dataBr(meta.vencIni)} a ${dataBr(meta.vencFim)}` : ""}`;
@@ -234,7 +236,7 @@ export async function executarConciliacao(supabase: Cliente, userId: string, ped
 
   const [{ data: depara }, { data: aprendido }] = await Promise.all([
     supabase.from("conc_depara").select("dda, fornecedores, alerta").eq("ativo", true),
-    supabase.from("conc_aprendizado").select("fornecedor, raiz, taxas, bloqueado"),
+    supabase.from("conc_aprendizado").select("fornecedor, raiz, taxas, bloqueado, confirmado, vezes"),
   ]);
   const filialDeCnpj = (c: string) => {
     const d = c.replace(/\D/g, "").slice(-14);
@@ -250,8 +252,12 @@ export async function executarConciliacao(supabase: Cliente, userId: string, ped
 
   const grupos = Omie.grupos(res);
   const linhas = (Object.keys(GRUPO) as (keyof GruposOmie)[]).flatMap((k) => grupos[k].map((it) => linhaItem(it, GRUPO[k], filiais)));
+  const anomalias = await analisarAnomalias(supabase, linhas, depara ?? [], aprendido ?? []);
   const B = Motor.BATEU;
   const resumo: Record<string, Json> = {
+    anomalias: anomalias.qtd,
+    anomaliasGraves: anomalias.graves,
+    anomaliasLista: anomalias.lista as unknown as Json,
     qtdTrier: res.qtdTrier,
     totalTrier: r2(res.totalTrier),
     qtdDDA: res.qtdDDA,
@@ -323,6 +329,79 @@ export async function executarConciliacao(supabase: Cliente, userId: string, ped
     novo: { faixa: `${pedido.filMin}-${pedido.filMax}`, arquivos: ids.length, titulos: res.qtdTrier, boletos: res.qtdDDA, pctBateu: r4(res.pctBateu), pendencias: pend },
   });
   return { id: conc.id, avisos };
+}
+
+// ---------- anomalias (comparando cada boleto com o histórico do fornecedor) ----------
+// Mesmas regras da ferramenta anterior: valor muito/EXTREMAMENTE acima do normal, banco ou CNPJ diferente do habitual,
+// fornecedor novo, fornecedor do Trier que costuma usar outro CNPJ, boleto >10% diferente do título.
+
+type LinhaItem = Omit<Inserir<"conc_itens">, "conciliacao_id">;
+type HistoricoFornecedor = { n: number; cnpjs: string[]; bancos: string[]; valores: [string, number][] };
+export type ResumoAnomalia = { chave: string; beneficiario: string | null; filial: number | null; valor: number; vencimento: string | null; avisos: string[] };
+const raizDe = (cnpj: string) => cnpj.replace(/\D/g, "").padStart(14, "0").slice(0, 8);
+/** Anomalia que bloqueia o envio ao Omie (as outras só avisam). */
+export const anomaliaGrave = (a: string) => /EXTREMAMENTE|banco diferente/.test(a);
+
+async function analisarAnomalias(
+  supabase: Cliente,
+  linhas: LinhaItem[],
+  dePara: { dda: string }[],
+  aprendido: { fornecedor: string; raiz: string; bloqueado: boolean; confirmado: boolean; vezes: number }[],
+) {
+  const comBoleto = linhas.filter((l) => l.barra && l.cnpj && l.cnpj.replace(/\D/g, "").length === 14);
+  const raizes = [...new Set(comBoleto.map((l) => raizDe(l.cnpj!)))];
+  const hist = new Map<string, HistoricoFornecedor>();
+  for (let i = 0; i < raizes.length; i += 500) {
+    const { data, error } = await supabase.rpc("conc_fornecedor_historico", { p_raizes: raizes.slice(i, i + 500) });
+    if (error) throw new Error(`Não consegui ler o histórico dos fornecedores: ${error.message}`);
+    for (const h of data ?? []) hist.set(h.raiz, { n: Number(h.n), cnpjs: h.cnpjs ?? [], bancos: h.bancos ?? [], valores: ((h.valores as [string, number][] | null) ?? []).map(([k, v]) => [k, Number(v)]) });
+  }
+  const temHistorico = hist.size > 0;
+  const apPorForn = new Map<string, Set<string>>();
+  for (const x of aprendido) {
+    if (x.bloqueado || !(x.confirmado || x.vezes >= 5)) continue;
+    const k = Motor.norm(x.fornecedor);
+    if (!apPorForn.has(k)) apPorForn.set(k, new Set());
+    apPorForn.get(k)!.add(x.raiz.trim());
+  }
+  const lista: ResumoAnomalia[] = [];
+  for (const l of comBoleto) {
+    const av: string[] = [];
+    const raiz = raizDe(l.cnpj!);
+    const h = hist.get(raiz);
+    const valor = Number(l.valor);
+    // o próprio boleto (já visto numa rodada anterior) não conta contra si mesmo
+    const vals = h ? h.valores.filter(([k]) => k !== l.chave).map(([, v]) => v).sort((a, b) => a - b) : [];
+    if (temHistorico && !h) av.push("Fornecedor novo: este CNPJ nunca apareceu antes");
+    let foraPadrao = false;
+    // só avisa com histórico suficiente e diferença grande (evita alarme falso em fornecedor que varia muito)
+    if (vals.length >= 15) {
+      const med = vals[Math.floor(vals.length / 2)];
+      const p90 = vals[Math.floor(0.9 * (vals.length - 1))];
+      const mx = vals[vals.length - 1];
+      if (valor >= 2000 && valor > Math.max(4 * p90, 8 * med, 1.5 * mx)) {
+        foraPadrao = true;
+        av.push(`${valor > 10 * p90 ? "Valor EXTREMAMENTE acima" : "Valor muito acima"} do histórico deste fornecedor (normal até ${moeda(p90)}, maior já visto ${moeda(mx)})`);
+      }
+    }
+    const banco = l.barra!.slice(0, 3);
+    if (h && h.bancos.length && vals.length >= 5 && !h.bancos.includes(banco)) av.push(`Boleto emitido por banco diferente do habitual (antes: ${h.bancos.join(", ")}; agora: ${banco})`);
+    const cnpjNum = l.cnpj!.replace(/\D/g, "");
+    if (h && h.cnpjs.length && vals.length >= 5 && !h.cnpjs.includes(cnpjNum)) av.push(`CNPJ do beneficiário novo para este fornecedor (${l.cnpj})`);
+    if (l.fornecedor) {
+      const viaDePara = dePara.some((e) => e.dda && Motor.norm(l.beneficiario ?? "").startsWith(Motor.norm(e.dda)));
+      const rs = apPorForn.get(Motor.norm(l.fornecedor));
+      if (!viaDePara && rs && rs.size && !rs.has(raiz)) av.push(`O fornecedor do Trier “${l.fornecedor}” costuma usar outro CNPJ`);
+      const vt = l.valor_trier == null ? null : Number(l.valor_trier);
+      if ((l.categoria === "VALOR" || l.categoria === "DOCUMENTO") && vt && Math.abs(valor - vt) / Math.abs(vt) > 0.1) av.push(`Boleto ${Math.round((100 * (valor - vt)) / vt)}% diferente do título do Trier`);
+    }
+    if (av.length) {
+      l.dados = { ...((l.dados ?? {}) as Record<string, Json>), anomalias: av, fora_padrao: foraPadrao };
+      lista.push({ chave: l.chave, beneficiario: l.beneficiario ?? null, filial: l.filial ?? null, valor, vencimento: l.vencimento ?? null, avisos: av });
+    }
+  }
+  lista.sort((a, b) => Number(b.avisos.some(anomaliaGrave)) - Number(a.avisos.some(anomaliaGrave)) || b.valor - a.valor);
+  return { qtd: lista.length, graves: lista.filter((x) => x.avisos.some(anomaliaGrave)).length, lista: lista.slice(0, 60) };
 }
 
 // ---------- pendências ----------

@@ -1869,6 +1869,35 @@ export type Database = {
           },
         ]
       }
+      conc_boletos_vistos: {
+        Row: {
+          anomalias: Json | null
+          banco: string | null
+          beneficiario: string | null
+          categoria: string | null
+          chave: string | null
+          cnpj_num: string | null
+          conciliacao_id: string | null
+          criado_em: string | null
+          filial: number | null
+          fora_padrao: boolean | null
+          fornecedor: string | null
+          fornecedor_real: string | null
+          grupo: string | null
+          raiz: string | null
+          valor: number | null
+          vencimento: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conc_itens_conciliacao_id_fkey"
+            columns: ["conciliacao_id"]
+            isOneToOne: false
+            referencedRelation: "conc_conciliacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_current_salary: {
         Row: {
           employee_id: string | null
@@ -1947,6 +1976,56 @@ export type Database = {
       }
     }
     Functions: {
+      conc_fornecedor_ficha: {
+        Args: { p_raiz: string }
+        Returns: {
+          bancos: string[]
+          boletos: number
+          cnpjs: string[]
+          divergencias: number
+          exatos: number
+          fora_padrao: number
+          fornecedores: string[]
+          maximo: number
+          mediana: number
+          minimo: number
+          nome: string
+          p10: number
+          p90: number
+          primeiro: string
+          raiz: string
+          total: number
+          ultimo: string
+          ultimo_venc: string
+        }[]
+      }
+      conc_fornecedor_historico: {
+        Args: { p_raizes: string[] }
+        Returns: {
+          bancos: string[]
+          cnpjs: string[]
+          n: number
+          raiz: string
+          valores: Json
+        }[]
+      }
+      conc_fornecedores_lista: {
+        Args: { p_limite?: number; p_q?: string }
+        Returns: {
+          bancos: number
+          cnpjs: number
+          divergencias: number
+          exatos: number
+          fora_padrao: number
+          nome: string
+          primeiro: string
+          qtd: number
+          raiz: string
+          total: number
+          ultimo: string
+          ultimo_venc: string
+        }[]
+      }
       fin_diario: {
         Args: { p_ate: string; p_branches?: string[]; p_de: string }
         Returns: {

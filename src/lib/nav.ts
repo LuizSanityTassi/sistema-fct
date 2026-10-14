@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowLeftRight,
+  Bot,
   Building2,
   ChartColumn,
   ClipboardList,
@@ -14,6 +15,7 @@ import {
   Send,
   ShieldCheck,
   Stethoscope,
+  Store,
   UserCog,
   Users,
   Wallet,
@@ -227,6 +229,20 @@ export const NAV: NavGrupo[] = [
         icon: Send,
         papeis: ["admin", "financeiro", "contador"],
         descricao: "Envios ao Omie (planilha e API), configuração e desfazer.",
+      },
+      {
+        label: "Fornecedores",
+        href: "/conciliacao/fornecedores",
+        icon: Store,
+        papeis: ["admin", "financeiro", "contador"],
+        descricao: "Ficha por fornecedor (raiz do CNPJ): histórico de boletos, faixa normal de valores, bancos e anomalias.",
+      },
+      {
+        label: "Robôs e agente",
+        href: "/conciliacao/robos",
+        icon: Bot,
+        papeis: ["admin", "financeiro"],
+        descricao: "Busca automática do relatório do Trier e agente que envia os .RET do Itaú Mailbox.",
       },
     ],
   },

@@ -66,7 +66,9 @@ Configuração no painel do Supabase: Authentication → URL Configuration com S
 ```
 src/app/(app)/            área autenticada (layout com menu lateral)
   dashboard · filiais · rh/{funcionarios,documentos,aso,folha} · chamados · ti · relatorios
-  financeiro/{lancamentos,categorias,importar,dre,orcamento,caixa,analise,migrar} · conciliacao/{arquivos,nova,[id],pendencias,de-para,omie}
+  financeiro/{lancamentos,categorias,importar,dre,orcamento,caixa,analise,migrar} · conciliacao/{arquivos,nova,[id],pendencias,de-para,omie,fornecedores,robos}
+  api/conciliacao/{arquivo/[id],agente}   download assinado de arquivo · endpoint do agente dos .RET (chave X-Agente)
+  public/agente-itau/                     scripts PowerShell do agente (instalar, agente, desinstalar, LEIA-ME)
   configuracoes/{usuarios,permissoes,auditoria}
 src/app/login, recuperar-senha, auth/*   autenticação
 src/app/api/arquivos/     download assinado de arquivos
@@ -90,7 +92,9 @@ motor de conciliação, pendências, de-para e aprendizado) · ✅ C2 envio ao O
 Fase 3 (financeiro completo): ✅ F2 importador do Omie · ✅ F3 DRE com ajustes do contador e saldos de caixa ·
 ✅ F4 orçamento e caixa (diário, mensal, semanal) · ✅ F5 inadimplência, ranking, resumo por loja e comparativo ·
 ✅ F6 alertas na visão geral · ✅ migração do sistema anterior também pela tela (`/financeiro/migrar`, admin).
-Próximas: robô do Trier e agente dos .RET (C3), painel por fornecedor e anomalias (C4).
+Conciliação: ✅ C3 robô do Trier + agente dos .RET do Itaú · ✅ C4 ficha por fornecedor e detecção de anomalias.
+Pendente do lado da operação: definir as variáveis de ambiente (Omie, Trier, service_role) na Vercel, rodar a migração do
+financeiro antigo e instalar o agente no PC do Itaú Mailbox.
 
 ## Financeiro (módulo Financeiro)
 
@@ -135,7 +139,25 @@ já enviados ficam de fora), validação 🟢/🟡/🔴 (já enviada, sem depart
 `OMIE_NAZARIO_APP_KEY/SECRET` e `OMIE_VARELA_APP_KEY/SECRET` (env). Tudo que vai registra `conc_enviados_omie` (chave da conta),
 resolve a pendência e pode ser desfeito com motivo (reabre pendências). Regra do financeiro: emissão/registro/vencimento/previsão
 = vencimento do boleto; categoria e conta padrão em `conc_config` ("omie").
-Próximo: robô do Trier, agente dos .RET do Itaú, painel por fornecedor/anomalias.
+**Robôs e agente** (C3, tela Conciliação → Robôs e agente):
+- **Robô do Trier** (`trier-robo.ts`, porta fiel do `api.php` anterior): entra no Trier web (Podium: `Login.pod` → `httpStart`
+  → `save`, com `Origin`/`Referer`), abre `Rel_0010.pod`, roda `runReport` (todas as filiais, a pagar, detalhado, por
+  vencimento, saída Excel), baixa o .xlsx e guarda como arquivo `trier` com origem `robo_trier`. Credenciais só em
+  `TRIER_URL`/`TRIER_USUARIO`/`TRIER_SENHA` (env); período padrão (dias antes/depois) em `conc_config` "trier" (admin).
+  A tela tem `maxDuration = 300` porque o Trier pode levar minutos.
+- **Agente dos .RET** (`/api/conciliacao/agente`, scripts em `public/agente-itau/`): o PC com o Itaú Mailbox roda
+  `agente-itau.ps1` a cada 15 min (Agendador de Tarefas) e manda cada arquivo novo que começa com "341" com o cabeçalho
+  `X-Agente: ag_…`. O servidor valida o SHA-256 da chave em `conc_agentes` (gerada uma vez pelo admin, revogável), grava via
+  `guardarArquivo` com a service_role (env `SUPABASE_SERVICE_ROLE_KEY`, nunca no cliente) e marca `ultimo_uso`/`uploads`.
+
+**Fornecedores e anomalias** (C4): a view `conc_boletos_vistos` (um boleto por chave, leitura mais recente) e as funções
+`conc_fornecedor_historico`, `conc_fornecedores_lista` e `conc_fornecedor_ficha` (migração 0022) dão a **ficha por raiz de
+CNPJ** (Conciliação → Fornecedores: boletos, total, % que bateu direto, divergências, faixa normal P10/mediana/P90/máximo,
+CNPJs, bancos, nomes no Trier, de-para aprendido, pendências abertas). A cada conciliação, `analisarAnomalias` compara cada
+boleto com esse histórico e grava em `conc_itens.dados.anomalias` (+ `fora_padrao`): fornecedor novo, valor muito/EXTREMAMENTE
+acima (≥ R$ 2 mil e > 4×P90, 8×mediana, 1,5×máximo, com ≥ 15 boletos), banco ou CNPJ diferente do habitual, fornecedor do
+Trier que costuma usar outro CNPJ, boleto > 10 % diferente do título. Aparecem no detalhe da conciliação (card "Fora do padrão",
+filtro `?anomalias=1`, tag na linha) e na validação do Omie (EXTREMAMENTE/banco diferente bloqueiam; o resto avisa).
 
 ## Migração do financeiro anterior (fluxo de caixa SQLite)
 

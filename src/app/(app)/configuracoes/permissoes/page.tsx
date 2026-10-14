@@ -27,6 +27,8 @@ const ESCRITA: Record<string, string> = {
   "/financeiro/caixa": "Administrador e Financeiro",
   "/financeiro/analise": "Inadimplência: Administrador e Financeiro. Ranking e comparativo: só leitura",
   "/financeiro/migrar": "Administrador",
+  "/conciliacao/fornecedores": "Administrador, Financeiro e Contador (só leitura)",
+  "/conciliacao/robos": "Buscar do Trier: Administrador e Financeiro. Agentes (gerar/revogar chave) e período padrão: Administrador",
   "/conciliacao": "—",
   "/conciliacao/arquivos": "Administrador e Financeiro enviam/arquivam; Contador só consulta e baixa",
   "/conciliacao/pendencias": "Administrador e Financeiro (status, motivo, responsável)",

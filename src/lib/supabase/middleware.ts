@@ -1,7 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const ROTAS_PUBLICAS = ["/login", "/recuperar-senha", "/auth"];
+// /api/conciliacao/agente não tem sessão de usuário: autentica pela chave do agente (X-Agente) dentro da própria rota.
+const ROTAS_PUBLICAS = ["/login", "/recuperar-senha", "/auth", "/api/conciliacao/agente"];
 
 // Renova a sessão em cada request e protege as rotas privadas.
 export async function updateSession(request: NextRequest) {

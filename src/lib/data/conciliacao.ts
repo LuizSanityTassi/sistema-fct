@@ -1,5 +1,7 @@
 import { cache } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { ehUuid } from "@/lib/data/filiais";
+import type { Database } from "@/lib/supabase/types";
 import {
   codigoNumerico,
   ehProblema,
@@ -19,8 +21,10 @@ const LOTE = 1000;
 // ---------- filiais (código Trier ↔ unidade) ----------
 
 /** Unidades com código numérico (F301 → 301) e CNPJ, para ligar boleto/título à unidade do sistema. */
-export const mapaFiliais = cache(async () => {
-  const supabase = await createClient();
+export const mapaFiliais = cache(async () => montarMapaFiliais(await createClient()));
+
+/** Mesmo mapa, com um client qualquer (o agente de arquivos não tem sessão de usuário). */
+export async function montarMapaFiliais(supabase: SupabaseClient<Database>) {
   const { data, error } = await supabase.from("branches").select("id, codigo, nome, cnpj, ativo").order("codigo");
   if (error) throw error;
   const porFilial = new Map<number, { id: string; codigo: string; nome: string }>();
@@ -33,7 +37,7 @@ export const mapaFiliais = cache(async () => {
     if (cnpj.length === 14) porCnpj.set(cnpj, n);
   }
   return { porFilial, porCnpj, codigos: [...porFilial.keys()].sort((a, b) => a - b) };
-});
+}
 
 // ---------- arquivos ----------
 
@@ -119,7 +123,7 @@ export const obterConciliacao = cache(async (id: string) => {
   return data;
 });
 
-export type FiltrosItens = { grupo: GrupoItem | "descontos"; q?: string; filial?: number; categoria?: string; pagina: number };
+export type FiltrosItens = { grupo: GrupoItem | "descontos"; q?: string; filial?: number; categoria?: string; anomalias?: boolean; pagina: number };
 
 export function lerFiltrosItens(sp: Record<string, string | string[] | undefined>): FiltrosItens {
   const s = (k: string) => (typeof sp[k] === "string" ? sp[k].trim() : "");
@@ -131,6 +135,7 @@ export function lerFiltrosItens(sp: Record<string, string | string[] | undefined
     q: s("q") || undefined,
     filial: Number.isFinite(filial) ? filial : undefined,
     categoria: s("categoria") || undefined,
+    anomalias: s("anomalias") === "1" || undefined,
     pagina: Number.isFinite(pagina) && pagina > 0 ? pagina : 1,
   };
 }
@@ -143,6 +148,7 @@ export async function listarItens(conciliacaoId: string, f: FiltrosItens) {
   else consulta = consulta.eq("grupo", f.grupo);
   if (f.filial !== undefined) consulta = consulta.eq("filial", f.filial);
   if (f.categoria) consulta = consulta.eq("categoria", f.categoria);
+  if (f.anomalias) consulta = consulta.not("dados->anomalias", "is", null);
   if (f.q) {
     const termo = f.q.replace(/[%_,().\\]/g, " ").trim();
     if (termo) {
