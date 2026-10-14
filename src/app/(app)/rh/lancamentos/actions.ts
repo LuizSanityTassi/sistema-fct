@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { competenciaValida } from "@/lib/rh/competencia";
-import { competenciaParaData } from "@/lib/rh/lancamentos";
+import { CHAVE_QUEBRA_CAIXA, competenciaParaData, ehFarmaceutico } from "@/lib/rh/lancamentos";
 import { createClient } from "@/lib/supabase/server";
 
 export type AlteracaoValor = { employeeId: string; eventoId: string; valor: number | null };
@@ -41,10 +41,19 @@ export async function salvarLancamentos(competencia: string, valores: AlteracaoV
   const data = competenciaParaData(competencia);
   const ids = [...new Set([...valores.map((v) => v.employeeId), ...observacoes.map((o) => o.employeeId)])];
   const branchDe = new Map<string, string>();
+  const farmaceuticos = new Set<string>();
   for (const parte of pedacos(ids, 300)) {
-    const { data: emps, error } = await supabase.from("employees").select("id, branch_id").in("id", parte);
+    const { data: emps, error } = await supabase.from("employees").select("id, branch_id, cargo").in("id", parte);
     if (error) return { ok: false, erro: error.message };
-    for (const e of emps) if (e.branch_id) branchDe.set(e.id, e.branch_id);
+    for (const e of emps) {
+      if (e.branch_id) branchDe.set(e.id, e.branch_id);
+      if (ehFarmaceutico(e.cargo)) farmaceuticos.add(e.id);
+    }
+  }
+  // farmacêutico não tem quebra de caixa
+  const { data: quebra } = await supabase.from("folha_eventos").select("id").eq("chave", CHAVE_QUEBRA_CAIXA).maybeSingle();
+  if (quebra && valores.some((v) => v.eventoId === quebra.id && farmaceuticos.has(v.employeeId) && v.valor !== null && v.valor > 0)) {
+    return { ok: false, erro: "Farmacêutico não tem quebra de caixa: apague esse valor antes de salvar." };
   }
   if (valores.some((v) => !branchDe.has(v.employeeId))) return { ok: false, erro: "Funcionário sem filial no cadastro: corrija o cadastro antes de lançar." };
 

@@ -12,12 +12,18 @@ const moeda = (v: number) => v.toLocaleString("pt-BR", { style: "currency", curr
 const dataBr = (iso: string | null) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : "—");
 
 export function MigrarForm({ action }: Props) {
-  const [estado, formAction, pendente] = useActionState(action, {});
+  const [estado, enviar, pendente] = useActionState(action, {});
+  // envio manual: com <form action> o React limpa o formulário (e os arquivos) depois da prévia
+  const aoEnviar = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter);
+    React.startTransition(() => enviar(fd));
+  };
   const [qtd, setQtd] = React.useState(0);
   const p = estado.plano;
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form onSubmit={aoEnviar} className="space-y-4">
       <section className="rounded-xl border bg-card p-5">
         <h2 className="mb-1 text-sm font-semibold">Arquivos do sistema anterior</h2>
         <p className="mb-4 text-xs text-muted-foreground">

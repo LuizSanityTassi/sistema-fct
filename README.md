@@ -118,8 +118,8 @@ partir da linha 11 (A = 11 tipo de cálculo, B = matrícula 00000, C = nome, D =
   conhecida; CNPJ sem código não gera arquivo e aparece no LEIA-ME do .zip).
 - **Importar planilha do RH** (transição): lê do .xlsx do Google só as abas do mês ("VARELA 092026", "QC Varela 092026"),
   entende "9,58 100" / "19,32 adc", recupera células que o Sheets virou data ("12.03 60" → 12/03/1960 → 12,03) e marca
-  para conferência; falta "sim" e reembolsos viram observação pendente; quebra de caixa de farmacêutico não é lançada
-  (opção na tela). Casa pelo nome (exato, sem "de/da/dos", ou até 2 letras de diferença com o mesmo primeiro nome); o CPF
+  para conferência; falta "sim" e reembolsos viram observação pendente; **farmacêutico não tem quebra de caixa** (a grade
+  bloqueia a célula, a gravação recusa, a importação ignora e a planilha nunca leva). Casa pelo nome (exato, sem "de/da/dos", ou até 2 letras de diferença com o mesmo primeiro nome); o CPF
   da aba de quebra não é lido. Valores existentes que não estão na planilha não são apagados.
 - Acesso: admin e RH (RLS nas 4 tabelas). Auditoria registra gravação, importação e exportação só com contagens.
 

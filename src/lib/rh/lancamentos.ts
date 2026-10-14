@@ -66,6 +66,11 @@ export function funcaoCurta(cargo: string | null | undefined) {
 
 export const ehFarmaceutico = (cargo: string | null | undefined) => normalizarNome(cargo ?? "").includes("FARMACEUTIC");
 
+export const CHAVE_QUEBRA_CAIXA = "quebra_caixa";
+
+/** Regra da empresa: farmacêutico não tem quebra de caixa (nem na grade, nem na importação, nem na planilha). */
+export const eventoNaoSeAplica = (chaveEvento: string, cargo: string | null | undefined) => chaveEvento === CHAVE_QUEBRA_CAIXA && ehFarmaceutico(cargo);
+
 /**
  * Valor digitado na grade: "9,58", "9.58", "1.234,56", "1.234" → número com 2 casas.
  * Vazio → null (apaga o lançamento). Texto que não é número → NaN.

@@ -15,12 +15,18 @@ const dataBr = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.sl
 const SITUACAO: Record<string, string> = { novo: "novo", dup_arquivo: "repetido no arquivo", dup_banco: "já no sistema", mes_fechado: "mês fechado", invalido: "inválido" };
 
 export function ImportarForm({ action, anoPadrao, hoje }: Props) {
-  const [estado, formAction, pendente] = useActionState(action, {});
+  const [estado, enviar, pendente] = useActionState(action, {});
+  // envio manual: com <form action> o React limpa o formulário (e os arquivos) depois da prévia
+  const aoEnviar = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter);
+    React.startTransition(() => enviar(fd));
+  };
   const [qtd, setQtd] = React.useState(0);
   const a = estado.analise;
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form onSubmit={aoEnviar} className="space-y-4">
       <section className="rounded-xl border bg-card p-5">
         <h2 className="mb-1 text-sm font-semibold">Arquivos do Omie</h2>
         <p className="mb-4 text-xs text-muted-foreground">

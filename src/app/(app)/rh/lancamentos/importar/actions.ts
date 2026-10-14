@@ -7,7 +7,7 @@ import { rpcPaginado } from "@/lib/data/dre";
 import { carregarEventos } from "@/lib/data/lancamentos-folha";
 import { competenciaValida, rotuloCompetencia } from "@/lib/rh/competencia";
 import { lerPlanilhaRh, type AbaLida } from "@/lib/rh/importacao-rh";
-import { ativoNaCompetencia, competenciaParaData, distanciaNomes, ehFarmaceutico, formatarValorGrade, normalizarNome } from "@/lib/rh/lancamentos";
+import { ativoNaCompetencia, competenciaParaData, distanciaNomes, eventoNaoSeAplica, formatarValorGrade, normalizarNome } from "@/lib/rh/lancamentos";
 import { createClient } from "@/lib/supabase/server";
 
 type Ref = { nome: string; aba: string; linha: number };
@@ -30,7 +30,6 @@ export type AnaliseRh = {
   quebraFarmaceuticos: { nome: string; valor: string }[];
   duplicados: { nome: string; evento: string }[];
   parecidos: { planilha: string; cadastro: string }[];
-  quebraFarmaceuticosLancada: boolean;
   observacoes: number;
 };
 
@@ -59,7 +58,6 @@ export async function importarPlanilhaRh(_prev: EstadoImportacaoRh, fd: FormData
   if (arquivo.size > 20 * 1024 * 1024) return { erro: "Arquivo grande demais (máx. 20 MB)." };
   if (!/\.xlsx?$/i.test(arquivo.name)) return { erro: "Use a planilha em Excel (.xlsx). No Google Planilhas: Arquivo → Fazer download → Microsoft Excel." };
   const gravar = fd.get("etapa") === "gravar";
-  const lancarQuebraFarmaceutico = fd.get("quebra_farmaceuticos") === "on";
 
   let leitura;
   try {
@@ -139,9 +137,8 @@ export async function importarPlanilhaRh(_prev: EstadoImportacaoRh, fd: FormData
     const ev = eventoPorChave.get(v.chave);
     if (!ev || !ev.ativo) continue;
     const valorTxt = formatarValorGrade(v.valor);
-    if (v.chave === "quebra_caixa" && !lancarQuebraFarmaceutico && ehFarmaceutico(emp.cargo)) {
+    if (eventoNaoSeAplica(v.chave, emp.cargo)) {
       quebraFarmaceuticos.push({ nome: emp.nome, valor: valorTxt });
-      addObs(emp.id, `Quebra de caixa de R$ ${valorTxt} na planilha do RH não lançada (farmacêutico)`, false);
       continue;
     }
     const chave = `${emp.id}|${ev.id}`;
@@ -214,7 +211,6 @@ export async function importarPlanilhaRh(_prev: EstadoImportacaoRh, fd: FormData
     quebraFarmaceuticos,
     duplicados,
     parecidos: [...parecidos.values()],
-    quebraFarmaceuticosLancada: lancarQuebraFarmaceutico,
     observacoes: obsGravar.length,
   };
   if (!gravar) return { analise };

@@ -4,17 +4,18 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, CircleAlert, Download, Save, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatarValorGrade, lerValorDigitado } from "@/lib/rh/lancamentos";
+import { CHAVE_QUEBRA_CAIXA, formatarValorGrade, lerValorDigitado } from "@/lib/rh/lancamentos";
 import { cn } from "@/lib/utils";
 import { salvarLancamentos, type AlteracaoObs, type AlteracaoValor } from "./actions";
 
-export type EventoGrade = { id: string; nome: string; codigo: number | null; unidade: "horas" | "valor"; naPlanilha: boolean };
+export type EventoGrade = { id: string; chave: string; nome: string; codigo: number | null; unidade: "horas" | "valor"; naPlanilha: boolean };
 export type FuncionarioGrade = {
   id: string;
   nome: string;
   matricula: string | null;
   funcao: string;
   ativoNoMes: boolean;
+  farmaceutico: boolean;
   valores: Record<string, number>;
   obs: { texto: string; pendente: boolean } | null;
 };
@@ -122,7 +123,13 @@ const Linha = React.memo(function Linha({ f, eventos, linha, registrar }: { f: F
       </td>
       {eventos.map((e, c) => (
         <td key={e.id} className="px-1 py-1">
-          <Celula chave={`${f.id}|${e.id}`} inicial={f.valores[e.id]} linha={linha} coluna={c} registrar={registrar} rotulo={`${e.nome} de ${f.nome}`} />
+          {e.chave === CHAVE_QUEBRA_CAIXA && f.farmaceutico ? (
+            <span className="block w-[5.5rem] px-1.5 text-right text-xs text-muted-foreground" title="Farmacêutico não tem quebra de caixa">
+              n/a
+            </span>
+          ) : (
+            <Celula chave={`${f.id}|${e.id}`} inicial={f.valores[e.id]} linha={linha} coluna={c} registrar={registrar} rotulo={`${e.nome} de ${f.nome}`} />
+          )}
         </td>
       ))}
       <td className="px-2 py-1">

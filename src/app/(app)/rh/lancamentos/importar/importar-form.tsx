@@ -58,10 +58,6 @@ export function ImportarRhForm({ action, competencia }: Props) {
             <Input id="competencia" name="competencia" type="month" defaultValue={competencia} className="w-44" />
           </Campo>
         </div>
-        <label className="mt-3 flex items-start gap-2 text-xs text-muted-foreground">
-          <input type="checkbox" name="quebra_farmaceuticos" className="mt-0.5" />
-          <span>Lançar também a quebra de caixa dos farmacêuticos (na planilha da contabilidade de setembro ela não foi descontada dos farmacêuticos da filial /0032).</span>
-        </label>
         <div className="mt-3 flex items-center gap-2">
           <Button type="submit" name="etapa" value="analisar" variant="outline" disabled={pendente || !temArquivo}>
             <FileSpreadsheet data-icon="inline-start" />
@@ -148,7 +144,7 @@ export function ImportarRhForm({ action, competencia }: Props) {
             ))}
           />
           <Lista
-            titulo="Quebra de caixa de farmacêutico não lançada (vira observação no funcionário)"
+            titulo="Quebra de caixa de farmacêutico ignorada (farmacêutico não tem quebra de caixa)"
             itens={a.quebraFarmaceuticos.map((x, i) => (
               <li key={i}>
                 {x.nome}: R$ {x.valor}

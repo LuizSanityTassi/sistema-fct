@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { exigirAcesso } from "@/lib/auth/session";
 import { arquivoDaFilial, carregarCompetencia } from "@/lib/data/lancamentos-folha";
 import { competenciaAtual, competenciaValida, rotuloCompetencia, somarMeses } from "@/lib/rh/competencia";
-import { normalizarNome } from "@/lib/rh/lancamentos";
+import { ehFarmaceutico, normalizarNome } from "@/lib/rh/lancamentos";
 import { createClient } from "@/lib/supabase/server";
 import { GradeLancamentos, type GrupoGrade } from "./grade";
 
@@ -69,6 +69,7 @@ export default async function LancamentosFolhaPage({ searchParams }: PageProps<"
           matricula: x.matricula,
           funcao: x.funcao,
           ativoNoMes: x.ativoNoMes,
+          farmaceutico: ehFarmaceutico(x.cargo),
           valores: dados.valores.get(x.id) ?? {},
           obs: dados.observacoes.get(x.id) ?? null,
         })),
@@ -169,7 +170,7 @@ export default async function LancamentosFolhaPage({ searchParams }: PageProps<"
 
       <GradeLancamentos
         competencia={competencia}
-        eventos={eventos.map((e) => ({ id: e.id, nome: e.nome, codigo: e.codigo, unidade: e.unidade, naPlanilha: e.naPlanilha && e.codigo !== null }))}
+        eventos={eventos.map((e) => ({ id: e.id, chave: e.chave, nome: e.nome, codigo: e.codigo, unidade: e.unidade, naPlanilha: e.naPlanilha && e.codigo !== null }))}
         grupos={grupos}
         versao={versao}
       />

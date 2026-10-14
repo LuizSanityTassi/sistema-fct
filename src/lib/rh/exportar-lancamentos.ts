@@ -1,7 +1,7 @@
 // Monta as planilhas da contabilidade de uma competência (só servidor): um .xls por CNPJ com os funcionários
 // registrados nele e os eventos que têm código da Domínio.
 import { arquivoDaFilial, razaoSocialDaPlanilha, type DadosCompetencia, type FilialFolha } from "@/lib/data/lancamentos-folha";
-import { matriculaPlanilha, ordenarPorMatricula } from "./lancamentos";
+import { eventoNaoSeAplica, matriculaPlanilha, ordenarPorMatricula } from "./lancamentos";
 import { gerarPlanilhaDominio, type ColunaEvento } from "./planilha-dominio";
 
 export type PlanilhaGerada = {
@@ -24,6 +24,7 @@ export function colunasDaPlanilha(dados: DadosCompetencia): ColunaEvento[] {
 export function gerarPlanilhas(dados: DadosCompetencia, filtro: { branchId?: string; raiz?: string }): PlanilhaGerada[] {
   const colunas = colunasDaPlanilha(dados);
   const naPlanilha = new Set(colunas.map((c) => c.id));
+  const chavePorId = new Map(dados.eventos.map((e) => [e.id, e.chave]));
   const saida: PlanilhaGerada[] = [];
   for (const filial of dados.filiais) {
     if (filtro.branchId && filial.id !== filtro.branchId) continue;
@@ -54,7 +55,7 @@ export function gerarPlanilhas(dados: DadosCompetencia, filtro: { branchId?: str
         matricula: matriculaPlanilha(f.matricula),
         nome: f.nome.toUpperCase(),
         funcao: f.funcao,
-        valores: dados.valores.get(f.id) ?? {},
+        valores: Object.fromEntries(Object.entries(dados.valores.get(f.id) ?? {}).filter(([ev]) => !eventoNaoSeAplica(chavePorId.get(ev) ?? "", f.cargo))),
       })),
     });
     saida.push({ ...base, buffer, erro: null });
