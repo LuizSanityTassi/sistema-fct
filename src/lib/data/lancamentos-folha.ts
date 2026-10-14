@@ -7,6 +7,7 @@ import {
   funcaoCurta,
   nomeArquivoDominio,
   nomeEmpresa,
+  numeroFilialCnpj,
   raizCnpj,
   type EventoFolha,
   type UnidadeEvento,
@@ -101,6 +102,16 @@ export async function carregarFiliais(supabase: Cliente): Promise<FilialFolha[]>
 
 /** Razão social que sai no cabeçalho da planilha. */
 export const razaoSocialDaPlanilha = (f: FilialFolha) => (f.razaoSocialPlanilha || f.razaoSocialCadastro || f.nome).toUpperCase();
+
+/**
+ * Código da empresa que vai no cabeçalho da planilha: o da Domínio quando cadastrado; senão, por decisão do
+ * usuário (14/10/2026), o número da filial no CNPJ (30.598.529/0023-25 → 23), marcado como provisório.
+ */
+export function codigoEmpresaDaPlanilha(f: FilialFolha): { codigo: number | null; provisorio: boolean } {
+  if (f.codigoDominio) return { codigo: f.codigoDominio, provisorio: false };
+  const n = numeroFilialCnpj(f.cnpj);
+  return n ? { codigo: Number(n), provisorio: true } : { codigo: null, provisorio: false };
+}
 
 export const arquivoDaFilial = (f: FilialFolha, competencia: string) => nomeArquivoDominio(f.cnpj, competencia, f.codigo);
 

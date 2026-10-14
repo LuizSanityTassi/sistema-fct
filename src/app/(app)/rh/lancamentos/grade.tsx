@@ -20,7 +20,7 @@ export type FuncionarioGrade = {
   obs: { texto: string; pendente: boolean } | null;
 };
 export type GrupoGrade = {
-  filial: { id: string; codigo: string; nome: string; cnpj: string | null; codigoDominio: number | null; arquivo: string };
+  filial: { id: string; codigo: string; nome: string; cnpj: string | null; codigoDominio: number | null; codigoProvisorio: boolean; arquivo: string };
   funcionarios: FuncionarioGrade[];
 };
 
@@ -252,7 +252,13 @@ export function GradeLancamentos({ competencia, eventos, grupos, versao }: Props
                       <span className="text-muted-foreground">{g.funcionarios.length} funcionário(s)</span>
                       {g.filial.codigoDominio ? (
                         <>
-                          <span className="text-muted-foreground">Domínio {g.filial.codigoDominio}</span>
+                          {g.filial.codigoProvisorio ? (
+                            <a href="/rh/lancamentos/configuracao" className="text-amber-800 underline-offset-2 hover:underline" title="Número da filial no CNPJ. Troque pelo código da Domínio quando a contabilidade confirmar.">
+                              código provisório {g.filial.codigoDominio}
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground">Domínio {g.filial.codigoDominio}</span>
+                          )}
                           <a
                             href={`/api/folha-lancamentos/planilha?competencia=${competencia}&filial=${g.filial.id}`}
                             className="inline-flex items-center gap-1 font-medium text-fct-navy underline-offset-2 hover:underline"
@@ -262,7 +268,7 @@ export function GradeLancamentos({ competencia, eventos, grupos, versao }: Props
                         </>
                       ) : (
                         <a href="/rh/lancamentos/configuracao" className="text-amber-800 underline-offset-2 hover:underline">
-                          sem código da Domínio: informe em Configurar para gerar a planilha
+                          sem CNPJ no cadastro: não gera planilha
                         </a>
                       )}
                     </div>

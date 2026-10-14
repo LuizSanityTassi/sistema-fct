@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { exigirAcesso } from "@/lib/auth/session";
-import { arquivoDaFilial, carregarCompetencia } from "@/lib/data/lancamentos-folha";
+import { arquivoDaFilial, carregarCompetencia, codigoEmpresaDaPlanilha } from "@/lib/data/lancamentos-folha";
 import { competenciaAtual, competenciaValida, rotuloCompetencia, somarMeses } from "@/lib/rh/competencia";
 import { ehFarmaceutico, normalizarNome } from "@/lib/rh/lancamentos";
 import { createClient } from "@/lib/supabase/server";
@@ -58,7 +58,7 @@ export default async function LancamentosFolhaPage({ searchParams }: PageProps<"
   const grupos: GrupoGrade[] = filiaisDaEmpresa
     .filter((f) => !filial || f.id === filial)
     .map((f) => ({
-      filial: { id: f.id, codigo: f.codigo, nome: f.nome, cnpj: f.cnpj, codigoDominio: f.codigoDominio, arquivo: arquivoDaFilial(f, competencia) },
+      filial: { id: f.id, codigo: f.codigo, nome: f.nome, cnpj: f.cnpj, codigoDominio: codigoEmpresaDaPlanilha(f).codigo, codigoProvisorio: codigoEmpresaDaPlanilha(f).provisorio, arquivo: arquivoDaFilial(f, competencia) },
       funcionarios: daEmpresa
         .filter((x) => x.branchPlanilha === f.id)
         .filter((x) => !q || normalizarNome(x.nome).includes(q) || x.matricula === txt("q").trim())
@@ -78,7 +78,7 @@ export default async function LancamentosFolhaPage({ searchParams }: PageProps<"
 
   const comValor = daEmpresa.filter((f) => temValor(f.id)).length;
   const pendencias = daEmpresa.filter((f) => pendente(f.id)).length;
-  const semCodigo = filiaisDaEmpresa.filter((f) => !f.codigoDominio).length;
+  const semCodigo = filiaisDaEmpresa.filter((f) => codigoEmpresaDaPlanilha(f).provisorio).length;
   const versao = assinatura(dados.valores, dados.observacoes);
   const params = (extra: Record<string, string>) => new URLSearchParams({ competencia, empresa, ...(filial ? { filial } : {}), ...extra }).toString();
 
@@ -159,7 +159,7 @@ export default async function LancamentosFolhaPage({ searchParams }: PageProps<"
           { rotulo: `Funcionários · ${rotuloCompetencia(competencia)}`, valor: daEmpresa.length },
           { rotulo: "Com lançamento", valor: comValor },
           { rotulo: "Com pendência", valor: pendencias, alerta: pendencias > 0 },
-          { rotulo: "CNPJs sem código Domínio", valor: semCodigo, alerta: semCodigo > 0 },
+          { rotulo: "CNPJs com código provisório", valor: semCodigo, alerta: semCodigo > 0 },
         ].map((k) => (
           <div key={k.rotulo} className="rounded-xl border bg-card px-4 py-3">
             <dt className="text-xs text-muted-foreground">{k.rotulo}</dt>

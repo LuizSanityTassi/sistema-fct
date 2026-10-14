@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { exigirAcesso } from "@/lib/auth/session";
 import { carregarEventos, carregarFiliais } from "@/lib/data/lancamentos-folha";
 import { competenciaAtual } from "@/lib/rh/competencia";
-import { nomeArquivoDominio } from "@/lib/rh/lancamentos";
+import { nomeArquivoDominio, numeroFilialCnpj } from "@/lib/rh/lancamentos";
 import { createClient } from "@/lib/supabase/server";
 import { salvarEmpresasDominio, salvarEventos } from "./actions";
 import { EmpresasForm, EventosForm, type CnpjConfig } from "./formularios";
@@ -36,6 +36,7 @@ export default async function ConfiguracaoLancamentosPage() {
       cnpj: f.cnpj,
       arquivo: nomeArquivoDominio(f.cnpj, competencia, f.codigo),
       codigoDominio: f.codigoDominio,
+      provisorio: numeroFilialCnpj(f.cnpj) ? Number(numeroFilialCnpj(f.cnpj)) : null,
       razaoPlanilha: f.razaoSocialPlanilha,
       razaoCadastro: f.razaoSocialCadastro,
       funcionarios: qtd.get(f.id) ?? 0,
@@ -51,7 +52,7 @@ export default async function ConfiguracaoLancamentosPage() {
       <PageHeader
         eyebrow="Recursos Humanos"
         titulo="Configurar lançamentos da folha"
-        descricao="Os eventos viram as colunas da planilha da contabilidade, na ordem abaixo. Cada CNPJ precisa do código da empresa na Domínio (o “Codigo Empresa” do cabeçalho; a filial /0032 é 801)."
+        descricao="Os eventos viram as colunas da planilha da contabilidade, na ordem abaixo. O “Codigo Empresa” do cabeçalho é o código da empresa na Domínio (a filial /0032 é 801). Enquanto não for informado, a planilha sai com o número da filial no CNPJ (provisório)."
         acoes={
           <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/rh/lancamentos" />}>
             <ChevronLeft data-icon="inline-start" />
@@ -69,7 +70,7 @@ export default async function ConfiguracaoLancamentosPage() {
       <section className="rounded-xl border bg-card p-5">
         <h2 className="mb-1 text-sm font-semibold">Empresas na Domínio (um código por CNPJ)</h2>
         <p className="mb-3 text-xs text-muted-foreground">
-          O arquivo sai com o número da filial no CNPJ e o mês (ex.: 30.598.529/<strong>0032</strong>-16 → “32 SETEMBRO.xls”). A razão social em branco usa a do cadastro da filial.
+          O arquivo sai com o número da filial no CNPJ e o mês (ex.: 30.598.529/<strong>0032</strong>-16 → “32 SETEMBRO.xls”). Código em branco = provisório (número da filial no CNPJ). Razão social em branco usa a do cadastro da filial.
         </p>
         <EmpresasForm action={salvarEmpresasDominio} grupos={grupos} />
       </section>

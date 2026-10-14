@@ -55,10 +55,10 @@ export async function GET(req: Request) {
   const zip = new JSZip();
   const umaEmpresa = new Set(prontas.map((p) => p.filial.empresa)).size === 1;
   for (const p of prontas) zip.file(umaEmpresa ? p.arquivo : `${p.filial.empresa}/${p.arquivo}`, p.buffer!);
-  const problemas = planilhas.filter((p) => p.erro || p.foraDaPlanilha);
+  const problemas = planilhas.filter((p) => p.erro || p.foraDaPlanilha || p.codigoProvisorio);
   if (problemas.length) {
     const linhas = problemas.map((p) =>
-      [`${p.filial.codigo} ${p.filial.nome} (${p.filial.cnpj ?? "sem CNPJ"})`, p.erro ? `NÃO GERADA: ${p.erro}` : null, p.foraDaPlanilha ? `${p.foraDaPlanilha} valor(es) em evento sem código da Domínio ficaram fora` : null]
+      [`${p.filial.codigo} ${p.filial.nome} (${p.filial.cnpj ?? "sem CNPJ"})`, p.erro ? `NÃO GERADA: ${p.erro}` : null, p.codigoProvisorio ? "código da empresa provisório (número da filial no CNPJ): confirmar com a contabilidade" : null, p.foraDaPlanilha ? `${p.foraDaPlanilha} valor(es) em evento sem código da Domínio ficaram fora` : null]
         .filter(Boolean)
         .join(" — "),
     );

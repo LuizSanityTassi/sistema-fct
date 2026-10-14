@@ -81,7 +81,7 @@ export function EventosForm({ action, eventos }: { action: Acao; eventos: Evento
   );
 }
 
-export type CnpjConfig = { id: string; codigo: string; nome: string; cnpj: string; arquivo: string; codigoDominio: number | null; razaoPlanilha: string | null; razaoCadastro: string | null; funcionarios: number };
+export type CnpjConfig = { id: string; codigo: string; nome: string; cnpj: string; arquivo: string; codigoDominio: number | null; provisorio: number | null; razaoPlanilha: string | null; razaoCadastro: string | null; funcionarios: number };
 
 export function EmpresasForm({ action, grupos }: { action: Acao; grupos: { empresa: string; filiais: CnpjConfig[] }[] }) {
   const [estado, formAction] = useActionState(action, {});
@@ -90,9 +90,9 @@ export function EmpresasForm({ action, grupos }: { action: Acao; grupos: { empre
       <ErroFormulario mensagem={estado.erro} />
       <AvisoSucesso mensagem={estado.ok} />
       {grupos.map((g) => (
-        <details key={g.empresa} className="rounded-lg border" open={g.filiais.some((f) => f.funcionarios > 0 && !f.codigoDominio)}>
+        <details key={g.empresa} className="rounded-lg border" open={false}>
           <summary className="cursor-pointer px-3 py-2 text-sm font-semibold">
-            {g.empresa} · {g.filiais.length} CNPJ(s) · {g.filiais.filter((f) => f.codigoDominio).length} com código
+            {g.empresa} · {g.filiais.length} CNPJ(s) · {g.filiais.filter((f) => f.codigoDominio).length} com código da Domínio, {g.filiais.filter((f) => !f.codigoDominio).length} provisório(s)
           </summary>
           <div className="overflow-x-auto border-t">
             <table className="w-full text-sm">
@@ -118,7 +118,7 @@ export function EmpresasForm({ action, grupos }: { action: Acao; grupos: { empre
                     </td>
                     <td className="px-3 py-1.5 text-right tabular-nums">{f.funcionarios}</td>
                     <td className="px-3 py-1.5">
-                      <Input name={`codigo_${f.id}`} defaultValue={f.codigoDominio ?? ""} inputMode="numeric" placeholder="ex.: 801" className="h-8 w-28" aria-label={`Código Domínio de ${f.codigo}`} />
+                      <Input name={`codigo_${f.id}`} defaultValue={f.codigoDominio ?? ""} inputMode="numeric" placeholder={`provisório: ${f.provisorio ?? "—"}`} className="h-8 w-28" aria-label={`Código Domínio de ${f.codigo}`} />
                     </td>
                     <td className="px-3 py-1.5">
                       <Input name={`razao_${f.id}`} defaultValue={f.razaoPlanilha ?? ""} maxLength={150} placeholder={f.razaoCadastro ?? ""} className="h-8 w-[26rem]" aria-label={`Razão social de ${f.codigo}`} />

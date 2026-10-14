@@ -115,7 +115,8 @@ partir da linha 11 (A = 11 tipo de cálculo, B = matrícula 00000, C = nome, D =
 - Eventos e códigos da Domínio em `folha_eventos` (tela Configurar). "Horas Extras 75%" ainda não tem código: é
   gravado, mas só vai para a planilha quando o código for informado.
 - Código da empresa na Domínio e razão social da planilha por CNPJ em `folha_empresas_dominio` (só a /0032 = 801 é
-  conhecida; CNPJ sem código não gera arquivo e aparece no LEIA-ME do .zip).
+  conhecida). CNPJ sem código sai com o **número da filial no CNPJ** (/0023 → 23), marcado como provisório na tela e
+  no LEIA-ME do .zip, até a contabilidade confirmar o código.
 - **Importar planilha do RH** (transição): lê do .xlsx do Google só as abas do mês ("VARELA 092026", "QC Varela 092026"),
   entende "9,58 100" / "19,32 adc", recupera células que o Sheets virou data ("12.03 60" → 12/03/1960 → 12,03) e marca
   para conferência; falta "sim" e reembolsos viram observação pendente; **farmacêutico não tem quebra de caixa** (a grade
