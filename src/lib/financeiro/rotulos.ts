@@ -35,3 +35,9 @@ export function ordemGrupo(a: string, b: string) {
 }
 
 export const DRE_SINAL_LABEL: Record<"1" | "-1", string> = { "1": "Soma (+)", "-1": "Subtrai (−)" };
+
+/** Caixa e fluxo mensal/diário são acompanhados por EMPRESA (VARELA inclui Itajaí; NAZÁRIO inclui Blumenau). */
+export const EMPRESAS_CAIXA = [
+  { nome: "VARELA", grupos: ["VARELA", "ITAJAÍ"], cor: "text-red-700", borda: "border-t-red-600" },
+  { nome: "NAZÁRIO", grupos: ["NAZÁRIO", "BLUMENAU"], cor: "text-blue-700", borda: "border-t-blue-600" },
+] as const;

@@ -5,8 +5,11 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
-import { listarCompetenciasFinanceiro, listarMesesFechados, resumoPeriodo, type Agregado } from "@/lib/data/financeiro";
+import { rpcPaginado } from "@/lib/data/dre";
+import { listarCategorias, listarCompetenciasFinanceiro, listarMesesFechados, resumoPeriodo, type Agregado } from "@/lib/data/financeiro";
+import { montarAlertas } from "@/lib/financeiro/alertas";
 import { moedaFin } from "@/lib/financeiro/formatos";
+import { createClient as supabaseRpc } from "@/lib/supabase/server";
 import { podeLancar } from "@/lib/financeiro/permissoes";
 import { pluralizar } from "@/lib/formatos";
 import { rotuloCompetencia } from "@/lib/rh/competencia";
@@ -46,9 +49,18 @@ export default async function FinanceiroPage({ searchParams }: PageProps<"/finan
   const anos = [...new Set([anoAtual, ...competencias.map((c) => c.slice(0, 4))])].sort().reverse();
   const anoPedido = typeof sp.ano === "string" ? sp.ano : "";
   const ano = anos.includes(anoPedido) ? anoPedido : (competencias[0]?.slice(0, 4) ?? anoAtual);
-  const [resumo, fechados] = await Promise.all([resumoPeriodo(`${ano}-01`, `${ano}-12`), listarMesesFechados()]);
+  const [resumo, fechados, categorias] = await Promise.all([resumoPeriodo(`${ano}-01`, `${ano}-12`), listarMesesFechados(), listarCategorias()]);
   const fechado = new Set(fechados.map((m) => m.competencia));
   const vazio = resumo.total.qtd === 0;
+  const mesRef = resumo.porMes.length ? resumo.porMes[resumo.porMes.length - 1].competencia : null;
+  const alertas = mesRef
+    ? montarAlertas(
+        (await rpcPaginado((a, b) => supabaseRpc().then((s) => s.rpc("fin_dre", { p_de: `${ano}-01`, p_ate: `${ano}-12` }).range(a, b)))).map((l) => ({ categoria_id: l.categoria_id, competencia: l.competencia.trim(), tipo: l.tipo, total: Number(l.total) })),
+        categorias,
+        mesRef,
+        rotuloCompetencia,
+      )
+    : [];
 
   return (
     <>
@@ -91,6 +103,17 @@ export default async function FinanceiroPage({ searchParams }: PageProps<"/finan
         <Kpi rotulo="Resultado" valor={moedaFin(resumo.total.resultado)} nota={vazio ? null : `margem ${margem(resumo.total)}`} tom={tomResultado(resumo.total.resultado)} />
         <Kpi rotulo="Meses com movimento" valor={String(resumo.porMes.length)} nota={`${resumo.porMes.filter((m) => fechado.has(m.competencia)).length} fechado(s)`} />
       </section>
+
+      {alertas.length > 0 && (
+        <section className="mb-6 space-y-2">
+          {alertas.map((a) => (
+            <div key={a.id} className={`flex items-start gap-2 rounded-lg border px-3 py-2 text-sm ${a.nivel === "critico" ? "border-red-200 bg-red-50 text-red-900" : a.nivel === "atencao" ? "border-orange-200 bg-orange-50 text-orange-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+              <span className="text-[11px] font-semibold tracking-wide">{a.nivel === "critico" ? "🔴 CRÍTICO" : a.nivel === "atencao" ? "🟠 ATENÇÃO" : "🟡 INFO"}</span>
+              <span>{a.texto}</span>
+            </div>
+          ))}
+        </section>
+      )}
 
       {vazio ? (
         <section className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">

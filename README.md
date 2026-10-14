@@ -66,7 +66,7 @@ Configuração no painel do Supabase: Authentication → URL Configuration com S
 ```
 src/app/(app)/            área autenticada (layout com menu lateral)
   dashboard · filiais · rh/{funcionarios,documentos,aso,folha} · chamados · ti · relatorios
-  financeiro/{lancamentos,categorias} · conciliacao/{arquivos,nova,[id],pendencias,de-para,omie}
+  financeiro/{lancamentos,categorias,importar,dre,orcamento,caixa,analise,migrar} · conciliacao/{arquivos,nova,[id],pendencias,de-para,omie}
   configuracoes/{usuarios,permissoes,auditoria}
 src/app/login, recuperar-senha, auth/*   autenticação
 src/app/api/arquivos/     download assinado de arquivos
@@ -87,8 +87,34 @@ Fase 2: ✅ TI (fila, acessos, ativos) · ✅ Relatórios com CSV · ✅ Finance
 fechamento de mês, visão geral por grupo/mês/unidade, migração do legado). · ✅ Conciliação C1 (arquivos do Itaú e do Trier,
 motor de conciliação, pendências, de-para e aprendizado) · ✅ C2 envio ao Omie (planilha e API, desfazer).
 
-Próximas: importador Omie (F2), DRE/contábil com ajustes e saldos (F3), orçamento e caixa diário/mensal (F4),
-inadimplência e ranking (F5), alertas/fechamento (F6); depois conciliação DDA (upload CNAB240 primeiro).
+Fase 3 (financeiro completo): ✅ F2 importador do Omie · ✅ F3 DRE com ajustes do contador e saldos de caixa ·
+✅ F4 orçamento e caixa (diário, mensal, semanal) · ✅ F5 inadimplência, ranking, resumo por loja e comparativo ·
+✅ F6 alertas na visão geral · ✅ migração do sistema anterior também pela tela (`/financeiro/migrar`, admin).
+Próximas: robô do Trier e agente dos .RET (C3), painel por fornecedor e anomalias (C4).
+
+## Financeiro (módulo Financeiro)
+
+Reproduz o fluxo de caixa anterior dentro do sistema, com RLS e auditoria. Valores sempre **sem centavos** (regra 41).
+- **Lançamentos / Categorias / Visão geral** (F1): por grupo financeiro (VARELA = Varela + Itajaí; NAZÁRIO = Nazário + Blumenau),
+  mês e unidade; fechamento de mês bloqueia lançamentos (trigger) — reabrir é só admin.
+- **Importar do Omie** (F2, `/financeiro/importar`): lê o relatório "LANÇAMENTOS DESPESAS" (FILIAL·TIPO·GRUPO·Categoria·Valor·MÊS,
+  células mescladas herdadas) e a planilha pivot por CNPJ; mostra o plano (novos, repetidos no arquivo/banco, mês fechado,
+  inválidos, categorias novas) antes de gravar; cada importação vira um **lote** que pode ser desfeito.
+- **DRE** (F3, `/financeiro/dre`): molde `fin_dre_estrutura` (famílias → grupos → categorias), três níveis de detalhe, busca,
+  % sobre receitas; contador/financeiro/admin **editam células** (ajuste da categoria no mês → `fin_dre_ajustes`) e os
+  **saldos de caixa** (OmieCash, Sicredi, Itaú, Santander… → `fin_dre_saldos`); acumulado, capacidade e payback como no antigo.
+- **Orçamento** (F4, `/financeiro/orcamento`): orçado × realizado por categoria e mês (`fin_orcamentos`), visão mês ou ano,
+  realizado automático dos lançamentos ou informado à mão.
+- **Caixa** (F4, `/financeiro/caixa`): **diário** (a receber dinheiro/PIX/boletos, a pagar do dia, conferência de caixa
+  com motivo, saldo por conta — `fin_fluxo_diario`), **mensal** (provisão × realizado por família com acertividade —
+  `fin_fluxo_mensal`) e **dia a dia** do mês por empresa.
+- **Inadimplência e ranking** (F5, `/financeiro/analise`): crediário/convênio por mês (`fin_inadimplencia`, taxa colorida),
+  ranking de lojas por resultado/despesa/receita, resumo por loja (lucro/prejuízo/empate e composição das despesas) e
+  comparativo mês × mês anterior por grupo.
+- **Alertas** (F6, na visão geral): prejuízo no mês, categorias >30% acima da média dos 3 meses anteriores e a categoria
+  que mais consumiu.
+Funções SQL (`fin_totais`, `fin_dre`, `fin_resumo_unidades`, `fin_diario`) fazem as somas no banco (PostgREST sem agregações)
+e são paginadas de 1.000 em 1.000 (`rpcPaginado`).
 
 ## Conciliação DDA Itaú × Trier (módulo Conciliação)
 
@@ -113,9 +139,14 @@ Próximo: robô do Trier, agente dos .RET do Itaú, painel por fornecedor/anomal
 
 ## Migração do financeiro anterior (fluxo de caixa SQLite)
 
-O histórico (lançamentos realizados, categorias e classificação DRE/financeira) é importado por
-`scripts/migrar-financeiro.mjs`, executado **na sua máquina** com o **seu login de administrador** — a
-`service_role` nunca entra em cena e nenhum dado real vai para o Git. Precisa de Node 22.13+ (usa `node:sqlite`).
+Dois caminhos, ambos com o **seu login de administrador** (a `service_role` nunca entra em cena e nenhum dado real
+vai para o Git):
+
+1. **Pela tela** `/financeiro/migrar` (menu Financeiro, só admin): envie o arquivo `fluxo-caixa.db`; o sistema lê o SQLite no
+   servidor (sql.js), mostra o plano (unidades a criar, categorias, lançamentos novos × já importados, extras: ajustes,
+   saldos, orçamento, caixa, inadimplência) e grava quando você confirmar. Em produção (Vercel) o upload é limitado a
+   4,5 MB — para um banco maior, rode `npm run dev` e use a tela em `localhost:3000`.
+2. **Pelo script** `scripts/migrar-financeiro.mjs`, executado na sua máquina. Precisa de Node 22.13+ (usa `node:sqlite`).
 
 ```powershell
 # na pasta do projeto, com .env.local preenchido

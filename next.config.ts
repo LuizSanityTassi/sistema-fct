@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
     serverActions: { bodySizeLimit: "25mb" },
   },
   // Leitores da conciliação (PDF do Trier, planilhas): ficam fora do bundle e são carregados pelo Node em tempo de execução.
-  serverExternalPackages: ["pdfjs-dist", "xlsx"],
+  serverExternalPackages: ["pdfjs-dist", "xlsx", "sql.js"],
   turbopack: {
     rules: {
       "*.css": {

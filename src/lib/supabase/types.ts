@@ -994,6 +994,262 @@ export type Database = {
         }
         Relationships: []
       }
+      fin_dre_ajustes: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          branch_id: string | null
+          categoria_id: string
+          chave: string | null
+          competencia: string
+          grupo: string
+          id: string
+          valor: number
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          branch_id?: string | null
+          categoria_id: string
+          chave?: string | null
+          competencia: string
+          grupo?: string
+          id?: string
+          valor: number
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          branch_id?: string | null
+          categoria_id?: string
+          chave?: string | null
+          competencia?: string
+          grupo?: string
+          id?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_dre_ajustes_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_dre_ajustes_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_dre_ajustes_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "fin_categorias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_dre_estrutura: {
+        Row: {
+          familia: string
+          grupo: string
+          ordem_familia: number
+          ordem_grupo: number
+          sinal: number
+        }
+        Insert: {
+          familia: string
+          grupo: string
+          ordem_familia: number
+          ordem_grupo: number
+          sinal?: number
+        }
+        Update: {
+          familia?: string
+          grupo?: string
+          ordem_familia?: number
+          ordem_grupo?: number
+          sinal?: number
+        }
+        Relationships: []
+      }
+      fin_dre_saldos: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          branch_id: string | null
+          campo: string
+          chave: string | null
+          competencia: string
+          grupo: string
+          id: string
+          valor: number
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          branch_id?: string | null
+          campo: string
+          chave?: string | null
+          competencia: string
+          grupo?: string
+          id?: string
+          valor: number
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          branch_id?: string | null
+          campo?: string
+          chave?: string | null
+          competencia?: string
+          grupo?: string
+          id?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_dre_saldos_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_dre_saldos_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_fluxo_diario: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          campo: string
+          data: string
+          grupo: string
+          id: string
+          texto: string | null
+          valor: number | null
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          campo: string
+          data: string
+          grupo: string
+          id?: string
+          texto?: string | null
+          valor?: number | null
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          campo?: string
+          data?: string
+          grupo?: string
+          id?: string
+          texto?: string | null
+          valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_fluxo_diario_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_fluxo_mensal: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          competencia: string
+          grupo: string
+          id: string
+          linha: string
+          provisao: number | null
+          realizado: number | null
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          competencia: string
+          grupo: string
+          id?: string
+          linha: string
+          provisao?: number | null
+          realizado?: number | null
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          competencia?: string
+          grupo?: string
+          id?: string
+          linha?: string
+          provisao?: number | null
+          realizado?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_fluxo_mensal_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_inadimplencia: {
+        Row: {
+          ano: number
+          atrasado: number | null
+          atualizado_em: string
+          atualizado_por: string | null
+          id: string
+          mes: number
+          recebido: number | null
+          tipo: string
+        }
+        Insert: {
+          ano: number
+          atrasado?: number | null
+          atualizado_em?: string
+          atualizado_por?: string | null
+          id?: string
+          mes: number
+          recebido?: number | null
+          tipo: string
+        }
+        Update: {
+          ano?: number
+          atrasado?: number | null
+          atualizado_em?: string
+          atualizado_por?: string | null
+          id?: string
+          mes?: number
+          recebido?: number | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_inadimplencia_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fin_lancamentos: {
         Row: {
           branch_id: string
@@ -1089,6 +1345,54 @@ export type Database = {
             columns: ["fechado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_orcamentos: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          categoria_id: string
+          competencia: string
+          grupo: string
+          id: string
+          realizado_informado: number | null
+          valor: number | null
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          categoria_id: string
+          competencia: string
+          grupo?: string
+          id?: string
+          realizado_informado?: number | null
+          valor?: number | null
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          categoria_id?: string
+          competencia?: string
+          grupo?: string
+          id?: string
+          realizado_informado?: number | null
+          valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_orcamentos_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_orcamentos_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "fin_categorias"
             referencedColumns: ["id"]
           },
         ]
@@ -1643,6 +1947,36 @@ export type Database = {
       }
     }
     Functions: {
+      fin_diario: {
+        Args: { p_ate: string; p_branches?: string[]; p_de: string }
+        Returns: {
+          categoria_id: string
+          data: string
+          qtd: number
+          tipo: Database["public"]["Enums"]["fin_tipo"]
+          total: number
+        }[]
+      }
+      fin_dre: {
+        Args: { p_ate: string; p_branches?: string[]; p_de: string }
+        Returns: {
+          categoria_id: string
+          competencia: string
+          qtd: number
+          tipo: Database["public"]["Enums"]["fin_tipo"]
+          total: number
+        }[]
+      }
+      fin_resumo_unidades: {
+        Args: { p_ate: string; p_branches?: string[]; p_de: string }
+        Returns: {
+          branch_id: string
+          competencia: string
+          grupo: string
+          tipo: Database["public"]["Enums"]["fin_tipo"]
+          total: number
+        }[]
+      }
       fin_totais: {
         Args: {
           p_ate?: string
