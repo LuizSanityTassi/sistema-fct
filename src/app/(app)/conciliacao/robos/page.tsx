@@ -10,6 +10,7 @@ import { podeConciliar, podeConfigurarConciliacao } from "@/lib/conciliacao/perm
 import { CONFIG_TRIER_PADRAO, statusTrier, type ConfigTrier } from "@/lib/conciliacao/trier-robo";
 import { obterConfig } from "@/lib/data/conciliacao";
 import { formatarDataHora } from "@/lib/formatos";
+import { credenciaisTrier } from "@/lib/integracoes/segredos";
 import { createClient } from "@/lib/supabase/server";
 import { buscarTrier, criarAgente, revogarAgente, salvarConfigTrier, testarTrier } from "./actions";
 import { BuscarTrierForm } from "./buscar-trier-form";
@@ -25,13 +26,14 @@ export default async function RobosPage() {
   const sessao = await exigirAcesso("/conciliacao/robos");
   const supabase = await createClient();
   const admin = podeConfigurarConciliacao(sessao.papel);
-  const [cfg, { data: buscas }, { data: recebidos }] = await Promise.all([
+  const [cfg, { data: buscas }, { data: recebidos }, cred] = await Promise.all([
     obterConfig<ConfigTrier>("trier", CONFIG_TRIER_PADRAO),
     supabase.from("conc_arquivos").select("id, nome, enviado_em, meta, quem:profiles!conc_arquivos_enviado_por_fkey(nome)").eq("origem", "robo_trier").order("enviado_em", { ascending: false }).limit(5),
     supabase.from("conc_arquivos").select("id, nome, enviado_em, meta").eq("origem", "agente").order("enviado_em", { ascending: false }).limit(5),
+    credenciaisTrier(supabase),
   ]);
   const agentes = admin ? ((await supabase.from("conc_agentes").select("id, nome, criado_em, revogado_em, ultimo_uso, uploads, criador:profiles(nome)").order("criado_em", { ascending: false })).data ?? []) : [];
-  const trier = statusTrier();
+  const trier = statusTrier(cred);
   const agenteHabilitado = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
   const periodoDe = (meta: unknown) => (meta as { robo?: { periodo?: string } } | null)?.robo?.periodo ?? "";
   const agenteDe = (meta: unknown) => (meta as { agente?: string } | null)?.agente ?? "";
@@ -47,10 +49,24 @@ export default async function RobosPage() {
         </p>
         {!trier.configurado ? (
           <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            Robô ainda não configurado neste servidor. O administrador define <code className="rounded bg-white/70 px-1 text-xs">TRIER_USUARIO</code> e <code className="rounded bg-white/70 px-1 text-xs">TRIER_SENHA</code> (e, se preciso, <code className="rounded bg-white/70 px-1 text-xs">TRIER_URL</code>) nas variáveis de ambiente (Vercel) — use um usuário do Trier criado só para o robô, com acesso apenas a esse relatório. Nunca no código ou no Git. Enquanto isso, o relatório pode ser enviado à mão em Conciliação → Arquivos.
+            Robô ainda sem usuário e senha do Trier.{" "}
+            {admin ? (
+              <>
+                Cadastre em{" "}
+                <Link href="/configuracoes/integracoes" className="font-medium underline">
+                  Configurações → Integrações
+                </Link>{" "}
+                (use um usuário do Trier criado só para o robô, com acesso apenas a esse relatório).
+              </>
+            ) : (
+              "Peça ao administrador para cadastrar em Configurações → Integrações."
+            )}{" "}
+            Enquanto isso, o relatório pode ser enviado à mão em Conciliação → Arquivos.
           </p>
         ) : (
-          <p className="mb-3 text-xs text-muted-foreground">Usuário do robô: {trier.usuario}. A senha nunca aparece no sistema.</p>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Usuário do robô: {trier.usuario} ({trier.origem === "sistema" ? "cadastrado em Configurações → Integrações" : "variáveis de ambiente do servidor"}). A senha nunca aparece no sistema.
+          </p>
         )}
         <BuscarTrierForm buscar={buscarTrier} testar={testarTrier} config={cfg} configurado={trier.configurado} podeBuscar={podeConciliar(sessao.papel)} />
         {admin && (

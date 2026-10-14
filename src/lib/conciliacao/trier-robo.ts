@@ -1,15 +1,14 @@
 // Robô do Trier (só servidor): entra no Trier web (Podium), gera o relatório "Contas a Pagar ou Pagas" (Rel_0010)
 // de todas as filiais em Excel e devolve o arquivo — porta fiel das funções trier_* do api.php da ferramenta anterior.
-// Credenciais SÓ em variáveis de ambiente (TRIER_URL, TRIER_USUARIO, TRIER_SENHA): nunca no banco, no código ou no Git.
+// As credenciais vêm de `credenciaisTrier()` (tela Configurações → Integrações, guardadas no Vault; ou TRIER_* do ambiente)
+// e nunca aparecem no navegador, no código ou no Git.
 import http from "node:http";
 import https from "node:https";
+import type { CredenciaisTrier } from "@/lib/integracoes/segredos";
 
 export type ConfigTrier = { diasAntes: number; diasDepois: number };
 export const CONFIG_TRIER_PADRAO: ConfigTrier = { diasAntes: 5, diasDepois: 60 };
-/** Guardado em conc_config "trier_ultimo": como foi a última busca. */
-export type UltimaBuscaTrier = { quando: string; por: string | null; ok: boolean; msg: string; periodo: string; arquivoId?: string | null };
 
-const URL_PADRAO = "http://redefct.ddns.com.br:4647/sgfpod1/";
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36 SistemaFCT";
 
 type Cookies = Record<string, string>;
@@ -17,15 +16,9 @@ type Resposta = { cod: number; corpo: Buffer; local: string };
 
 export class TrierErro extends Error {}
 
-function credenciais() {
-  const url = (process.env.TRIER_URL || URL_PADRAO).trim();
-  return { url: url.endsWith("/") ? url : `${url}/`, usuario: (process.env.TRIER_USUARIO ?? "").trim(), senha: process.env.TRIER_SENHA ?? "" };
-}
-
-/** O que a tela pode mostrar: configurado ou não, endereço e começo do usuário (nunca a senha). */
-export function statusTrier() {
-  const c = credenciais();
-  return { configurado: Boolean(c.usuario && c.senha), url: c.url, usuario: c.usuario ? `${c.usuario.slice(0, 2)}•••` : "" };
+/** O que a tela pode mostrar: configurado ou não, de onde veio, endereço e começo do usuário (nunca a senha). */
+export function statusTrier(c: CredenciaisTrier) {
+  return { configurado: Boolean(c.usuario && c.senha), origem: c.origem, url: c.url, usuario: c.usuario ? `${c.usuario.slice(0, 2)}•••` : "" };
 }
 
 // pedido HTTP com cookies; aceita resposta cortada (o Trier fecha a conexão sem terminar, mas o conteúdo já veio)
@@ -120,9 +113,8 @@ function trierMsg(js: string) {
   return "";
 }
 
-async function trierEntrar(ck: Cookies) {
-  const cfg = credenciais();
-  if (!cfg.usuario || !cfg.senha) throw new TrierErro("usuário e senha do Trier não configurados no servidor (TRIER_USUARIO / TRIER_SENHA).");
+async function trierEntrar(cfg: CredenciaisTrier, ck: Cookies) {
+  if (!cfg.usuario || !cfg.senha) throw new TrierErro("usuário e senha do Trier não configurados (Configurações → Integrações).");
   const base = cfg.url;
   const p = await trierPagina(base, "Login.pod", ck);
   if (!p.serial) throw new TrierErro("não consegui abrir a tela de login do Trier (endereço certo? servidor ligado?).");
@@ -149,19 +141,19 @@ async function trierSair(base: string, ck: Cookies) {
 const dataBr = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
 
 /** Só testa usuário e senha (entra e sai). */
-export async function testarLoginTrier() {
+export async function testarLoginTrier(cred: CredenciaisTrier) {
   const ck: Cookies = {};
-  const base = await trierEntrar(ck);
+  const base = await trierEntrar(cred, ck);
   await trierSair(base, ck);
 }
 
 /** Gera o relatório de contas a pagar (todas as filiais, por vencimento, detalhado, Excel) e devolve o .xlsx. */
-export async function buscarRelatorioTrier(cfg: ConfigTrier = CONFIG_TRIER_PADRAO) {
+export async function buscarRelatorioTrier(cred: CredenciaisTrier, cfg: ConfigTrier = CONFIG_TRIER_PADRAO) {
   const hoje = new Date();
   const ini = dataBr(new Date(hoje.getTime() - cfg.diasAntes * 86_400_000));
   const fim = dataBr(new Date(hoje.getTime() + cfg.diasDepois * 86_400_000));
   const ck: Cookies = {};
-  const base = await trierEntrar(ck);
+  const base = await trierEntrar(cred, ck);
   try {
     const p = await trierPagina(base, "Rel_0010.pod", ck);
     if (!p.serial) throw new TrierErro('o usuário do Trier não tem acesso ao relatório "Contas a Pagar ou Pagas".');

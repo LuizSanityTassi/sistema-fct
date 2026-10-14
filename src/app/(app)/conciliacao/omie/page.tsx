@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Download, TriangleAlert } from "lucide-react";
 import { AvisoSucesso } from "@/components/form/campo";
 import { PageHeader } from "@/components/layout/page-header";
@@ -26,7 +27,7 @@ export default async function OmiePage({ searchParams }: PageProps<"/conciliacao
   ]);
   const cfg = new Map((cfgs ?? []).map((c) => [c.chave, c.valor]));
   const config = (cfg.get("omie") as { categoria: string; conta: string } | undefined) ?? CONFIG_OMIE_PADRAO;
-  const chaves = statusChaves();
+  const chaves = await statusChaves(supabase);
   const escreve = podeConciliar(sessao.papel);
   const admin = podeConfigurarConciliacao(sessao.papel);
   const erro = typeof sp.erro === "string" ? sp.erro : null;
@@ -66,11 +67,17 @@ export default async function OmiePage({ searchParams }: PageProps<"/conciliacao
               </h2>
               {!ch.configurado ? (
                 <p className="text-muted-foreground">
-                  Sem chave da API no servidor: contas desta empresa só pela planilha. Para habilitar, o administrador define <code className="rounded bg-muted px-1 text-xs">OMIE_{e.toUpperCase()}_APP_KEY</code> e <code className="rounded bg-muted px-1 text-xs">OMIE_{e.toUpperCase()}_APP_SECRET</code> nas variáveis de ambiente (Vercel) — nunca no código.
+                  Sem chave da API: contas desta empresa só pela planilha. Para habilitar, o administrador cola a app_key e a app_secret da Omie {EMPRESAS_OMIE[e]} em{" "}
+                  <Link href="/configuracoes/integracoes" className="font-medium text-fct-navy underline">
+                    Configurações → Integrações
+                  </Link>
+                  .
                 </p>
               ) : (
                 <ul className="space-y-1">
-                  <li>Chave ••••{ch.final}</li>
+                  <li>
+                    Chave ••••{ch.final} <span className="text-xs text-muted-foreground">({ch.origem === "sistema" ? "cadastrada em Integrações" : "variável de ambiente"})</span>
+                  </li>
                   {cache ? (
                     <>
                       <li>

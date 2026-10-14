@@ -4,11 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
-import { buscarCadastros, chavesOmie, ehEmpresaOmie, EMPRESAS_OMIE, OmieErro } from "@/lib/conciliacao/omie-api";
-import { CONFIG_OMIE_PADRAO, contasDaConciliacao, desfazerEnvio, gerarPlanilhaOmie, lancarPorApi, validarEnvio, type ResultadoApi, type Validacao } from "@/lib/conciliacao/omie-envio";
-import { Omie } from "@/lib/conciliacao/omie";
+import { chavesOmie, ehEmpresaOmie, EMPRESAS_OMIE, OmieErro } from "@/lib/conciliacao/omie-api";
+import { atualizarCadastrosOmie, CONFIG_OMIE_PADRAO, contasDaConciliacao, desfazerEnvio, gerarPlanilhaOmie, lancarPorApi, validarEnvio, type ResultadoApi, type Validacao } from "@/lib/conciliacao/omie-envio";
 import { podeConciliar, podeConfigurarConciliacao } from "@/lib/conciliacao/permissoes";
-import { mapaFiliais, obterConciliacao, obterConfig } from "@/lib/data/conciliacao";
+import { obterConciliacao, obterConfig } from "@/lib/data/conciliacao";
 import { ehUuid } from "@/lib/data/filiais";
 import { createClient } from "@/lib/supabase/server";
 import type { ConfigOmie } from "@/lib/conciliacao/omie";
@@ -113,17 +112,11 @@ export async function buscarCadastrosOmie(fd: FormData) {
   if (!sessao) return;
   const empresa = texto(fd, "empresa");
   if (!ehEmpresaOmie(empresa)) return;
-  if (!chavesOmie(empresa)) redirect(`/conciliacao/omie?erro=${encodeURIComponent(`As chaves da Omie da ${EMPRESAS_OMIE[empresa]} não estão configuradas no servidor.`)}`);
-  const cfg = await obterConfig<ConfigOmie>("omie", CONFIG_OMIE_PADRAO);
-  const filiais = await mapaFiliais();
-  // Nazário: nomes exatos dos departamentos (lista do financeiro); Varela: pelo código da filial (F001…)
-  const pedidos = empresa === "nazario" ? Omie.DEPARTAMENTOS.map((d) => d.nome) : [...filiais.porFilial.entries()].filter(([n]) => n < 300).map(([, b]) => b.codigo);
   const supabase = await createClient();
+  const ch = await chavesOmie(supabase, empresa);
+  if (!ch) redirect(`/conciliacao/omie?erro=${encodeURIComponent(`As chaves da Omie da ${EMPRESAS_OMIE[empresa]} não estão configuradas (Configurações → Integrações).`)}`);
   try {
-    const cache = await buscarCadastros(empresa, cfg.conta, cfg.categoria, pedidos, sessao.nome);
-    const { error } = await supabase.from("conc_config").upsert({ chave: `omie_cache_${empresa}`, valor: cache, atualizado_em: new Date().toISOString(), atualizado_por: sessao.id }, { onConflict: "chave" });
-    if (error) throw new Error(error.message);
-    await registrarAuditoria(supabase, { userId: sessao.id, acao: "editar", entidade: "conc_config", novo: { omie_cadastros: empresa, conta: cache.conta?.nome ?? null, categoria: cache.categoria?.nome ?? null, departamentos: Object.keys(cache.departamentos).length, faltando: cache.departamentosFaltando.length } });
+    await atualizarCadastrosOmie(supabase, ch, empresa, sessao);
   } catch (e) {
     redirect(`/conciliacao/omie?erro=${encodeURIComponent(`${EMPRESAS_OMIE[empresa]}: ${e instanceof OmieErro || e instanceof Error ? e.message : "falha"}`)}`);
   }

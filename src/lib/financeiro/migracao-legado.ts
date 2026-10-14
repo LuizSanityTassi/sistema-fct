@@ -29,13 +29,13 @@ export type Legado = {
   inadimplencia: { tipo: string; ano: number; mes: number; atrasado: number | null; recebido: number | null }[];
 };
 
-const limpar = (s: unknown) => String(s ?? "").replace(/\s+/g, " ").trim();
+export const limpar = (s: unknown) => String(s ?? "").replace(/\s+/g, " ").trim();
 const semAcento = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "");
-const chaveNome = (s: string) => semAcento(limpar(s)).toLowerCase();
-const TIPO: Record<string, FinTipo> = { pagar: "pagar", receber: "receber" };
+export const chaveNome = (s: string) => semAcento(limpar(s)).toLowerCase();
+export const TIPO: Record<string, FinTipo> = { pagar: "pagar", receber: "receber" };
 const GRUPOS_IGNORADOS = new Set(["teste", "testeshim", "zz"]);
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const r2 = (v: number) => Math.round(v * 100) / 100;
+export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const r2 = (v: number) => Math.round(v * 100) / 100;
 
 /** "empresa" do legado → grupo da diretoria usado nas telas. */
 export function grupoLegado(empresa: unknown) {
@@ -95,10 +95,10 @@ const regionalPorCodigo = (codigo: string) => {
   return n < 100 ? "Sul" : n < 200 ? "Serra" : n < 300 ? "Vale do Itajaí" : n < 500 ? "Oeste" : "Blumenau";
 };
 
-type Branch = { id: string; codigo: string; nome: string; cnpj: string | null; organization_id: string; ativo: boolean };
-type NovaUnidade = { nomeLegado: string; codigo: string; nome: string; cnpj: string | null; empresa: string; regional: string; ativo: boolean };
+export type Branch = { id: string; codigo: string; nome: string; cnpj: string | null; organization_id: string; ativo: boolean };
+export type NovaUnidade = { nomeLegado: string; codigo: string; nome: string; cnpj: string | null; empresa: string; regional: string; ativo: boolean };
 
-function existente(nomeLegado: string, branches: Branch[]) {
+export function existente(nomeLegado: string, branches: Branch[]) {
   const cnpj = CNPJ_RE.exec(nomeLegado)?.[0];
   if (cnpj) {
     const b = branches.find((x) => digitos(x.cnpj) === digitos(cnpj));
@@ -132,7 +132,7 @@ function procurar<T>(mapa: Record<string, T> | undefined, nome: string): T | und
   return mapa[nome] ?? mapa[limpar(nome)] ?? Object.entries(mapa).find(([k]) => chaveNome(k) === chaveNome(nome))?.[1];
 }
 
-function montarCategorias(legado: Legado, seeds: Seeds) {
+export function montarCategorias(legado: Legado, seeds: Seeds) {
   const categorias = new Map<string, CategoriaNova>();
   const chave = (tipo: string, grupo: string, nome: string) => `${tipo}|${grupo}|${nome}`;
   const registrar = (tipoLegado: unknown, grupoLegado_: unknown, nomeLegado: unknown) => {
@@ -181,7 +181,7 @@ async function carregarBase(supabase: Cliente) {
   return { orgPorNome, branches: (branches ?? []) as Branch[] };
 }
 
-function mapearUnidades(legado: Legado, branches: Branch[], orgPorNome: (n: string) => { id: string } | null) {
+export function mapearUnidades(legado: Legado, branches: Branch[], orgPorNome: (n: string) => { id: string } | null) {
   const nomes = [...new Set(legado.lancamentos.map((l) => l.filial))].sort();
   const contagem = new Map<string, number>();
   for (const l of legado.lancamentos) contagem.set(l.filial, (contagem.get(l.filial) ?? 0) + 1);

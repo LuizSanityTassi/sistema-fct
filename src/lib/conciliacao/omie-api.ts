@@ -1,37 +1,36 @@
-// Cliente da API do Omie (só servidor). Duas empresas, cada uma com suas chaves em variáveis de ambiente:
-//   OMIE_NAZARIO_APP_KEY / OMIE_NAZARIO_APP_SECRET   e   OMIE_VARELA_APP_KEY / OMIE_VARELA_APP_SECRET
-// As chaves nunca vão para o navegador nem para o banco. Portado do api.php da ferramenta em produção.
+// Cliente da API do Omie (só servidor). Duas empresas, cada uma com suas chaves (app_key/app_secret), que vêm de
+// `chavesOmie(supabase, empresa)`: o que o administrador gravou em Configurações → Integrações (Vault) ou, se não
+// houver, as variáveis OMIE_<EMPRESA>_APP_KEY/APP_SECRET. Nunca vão para o navegador. Portado do api.php anterior.
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { chavesOmieDe, type ChavesOmie } from "@/lib/integracoes/segredos";
+import type { Database } from "@/lib/supabase/types";
 
 export type EmpresaOmie = "nazario" | "varela";
 export const EMPRESAS_OMIE: Record<EmpresaOmie, string> = { nazario: "Nazário", varela: "Varela" };
 export const ehEmpresaOmie = (v: unknown): v is EmpresaOmie => v === "nazario" || v === "varela";
+export type Chaves = Pick<ChavesOmie, "app_key" | "app_secret">;
 
 const URL_OMIE = process.env.OMIE_URL ?? "https://app.omie.com.br/api/v1/";
 const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export class OmieErro extends Error {}
 
-export function chavesOmie(emp: EmpresaOmie) {
-  const prefixo = emp === "nazario" ? "OMIE_NAZARIO" : "OMIE_VARELA";
-  const app_key = process.env[`${prefixo}_APP_KEY`]?.trim();
-  const app_secret = process.env[`${prefixo}_APP_SECRET`]?.trim();
-  return app_key && app_secret ? { app_key, app_secret } : null;
-}
+/** Chaves da empresa (tela de Integrações ou ambiente) ou null se ainda não configuradas. */
+export const chavesOmie = (supabase: SupabaseClient<Database>, emp: EmpresaOmie) => chavesOmieDe(supabase, emp);
 
-/** O que a tela pode saber das chaves: se existem e os 4 últimos caracteres. */
-export function statusChaves(): Record<EmpresaOmie, { configurado: boolean; final: string }> {
-  const s = (emp: EmpresaOmie) => {
-    const c = chavesOmie(emp);
-    return { configurado: !!c, final: c ? c.app_key.slice(-4) : "" };
+/** O que a tela pode saber das chaves: se existem, de onde vêm e os 4 últimos caracteres. */
+export async function statusChaves(supabase: SupabaseClient<Database>): Promise<Record<EmpresaOmie, { configurado: boolean; final: string; origem: "sistema" | "ambiente" | null }>> {
+  const s = async (emp: EmpresaOmie) => {
+    const c = await chavesOmieDe(supabase, emp);
+    return { configurado: !!c, final: c ? c.app_key.slice(-4) : "", origem: c?.origem ?? null };
   };
-  return { nazario: s("nazario"), varela: s("varela") };
+  return { nazario: await s("nazario"), varela: await s("varela") };
 }
 
 type Resposta = Record<string, unknown>;
 
-async function chamar(emp: EmpresaOmie, caminho: string, call: string, param: Record<string, unknown>): Promise<Resposta> {
-  const ch = chavesOmie(emp);
-  if (!ch) throw new OmieErro(`As chaves da Omie da ${EMPRESAS_OMIE[emp]} não estão configuradas (variáveis de ambiente).`);
+async function chamar(ch: Chaves, emp: EmpresaOmie, caminho: string, call: string, param: Record<string, unknown>): Promise<Resposta> {
+  if (!ch?.app_key || !ch.app_secret) throw new OmieErro(`As chaves da Omie da ${EMPRESAS_OMIE[emp]} não estão configuradas (Configurações → Integrações).`);
   const corpo = JSON.stringify({ call, app_key: ch.app_key, app_secret: ch.app_secret, param: [param] });
   let ultimo = "";
   for (let tentativa = 0; tentativa < 3; tentativa++) {
@@ -73,12 +72,12 @@ async function chamar(emp: EmpresaOmie, caminho: string, call: string, param: Re
 
 const semRegistros = (msg: string) => /n[aã]o (existem|h[aá]) registros/i.test(msg);
 
-async function todas<T = Resposta>(emp: EmpresaOmie, caminho: string, call: string, extra: Record<string, unknown>, campo: string): Promise<T[]> {
+async function todas<T = Resposta>(ch: Chaves, emp: EmpresaOmie, caminho: string, call: string, extra: Record<string, unknown>, campo: string): Promise<T[]> {
   const out: T[] = [];
   for (let pagina = 1; pagina <= 40; pagina++) {
     let r: Resposta;
     try {
-      r = await chamar(emp, caminho, call, { pagina, registros_por_pagina: 500, ...extra });
+      r = await chamar(ch, emp, caminho, call, { pagina, registros_por_pagina: 500, ...extra });
     } catch (e) {
       if (e instanceof OmieErro && semRegistros(e.message)) break;
       throw e;
@@ -120,13 +119,13 @@ export type CacheOmie = {
 };
 
 /** Busca na Omie as contas correntes, categorias e departamentos e liga pelos nomes. */
-export async function buscarCadastros(emp: EmpresaOmie, nomeConta: string, nomeCategoria: string, departamentosPedidos: string[], por: string | null): Promise<CacheOmie> {
+export async function buscarCadastros(ch: Chaves, emp: EmpresaOmie, nomeConta: string, nomeCategoria: string, departamentosPedidos: string[], por: string | null): Promise<CacheOmie> {
   type Conta = { nCodCC: number; descricao: string; inativo?: string };
   type Categoria = { codigo: string; descricao: string; conta_inativa?: string; conta_despesa?: string };
   type Dep = { codigo: string | number; descricao: string; inativo?: string };
-  const contas = (await todas<Conta>(emp, "geral/contacorrente/", "ListarContasCorrentes", { apenas_importado_api: "N" }, "ListarContasCorrentes")).filter((c) => c.inativo !== "S");
-  const cats = (await todas<Categoria>(emp, "geral/categorias/", "ListarCategorias", { filtrar_apenas_ativo: "S" }, "categoria_cadastro")).filter((c) => c.conta_inativa !== "S");
-  const deps: Departamento[] = (await todas<Dep>(emp, "geral/departamentos/", "ListarDepartamentos", {}, "departamentos"))
+  const contas = (await todas<Conta>(ch, emp, "geral/contacorrente/", "ListarContasCorrentes", { apenas_importado_api: "N" }, "ListarContasCorrentes")).filter((c) => c.inativo !== "S");
+  const cats = (await todas<Categoria>(ch, emp, "geral/categorias/", "ListarCategorias", { filtrar_apenas_ativo: "S" }, "categoria_cadastro")).filter((c) => c.conta_inativa !== "S");
+  const deps: Departamento[] = (await todas<Dep>(ch, emp, "geral/departamentos/", "ListarDepartamentos", {}, "departamentos"))
     .filter((d) => d.inativo !== "S")
     .map((d) => ({ codigo: String(d.codigo), descricao: String(d.descricao ?? "") }));
 
@@ -161,7 +160,7 @@ const docFmt = (d: string) =>
   d.length === 14 ? d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5") : d.length === 11 ? d.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4") : d;
 
 /** Código do fornecedor na Omie: procura pelo CNPJ/CPF (ou nome) e, se pedido, cadastra. */
-async function codigoFornecedor(emp: EmpresaOmie, cnpj: string, nome: string, cadastrar: boolean, cache: Map<string, number>): Promise<number> {
+async function codigoFornecedor(ch: Chaves, emp: EmpresaOmie, cnpj: string, nome: string, cadastrar: boolean, cache: Map<string, number>): Promise<number> {
   type Cliente = { codigo_cliente_omie: number; cnpj_cpf?: string };
   const doc = cnpj.replace(/\D/g, "");
   if (doc && doc.length !== 11 && doc.length !== 14) throw new OmieErro("CNPJ/CPF do fornecedor inválido.");
@@ -170,7 +169,7 @@ async function codigoFornecedor(emp: EmpresaOmie, cnpj: string, nome: string, ca
   if (emCache) return emCache;
   const buscar = async (filtro: Record<string, string>) => {
     try {
-      const r = await chamar(emp, "geral/clientes/", "ListarClientes", { pagina: 1, registros_por_pagina: 50, apenas_importado_api: "N", clientesFiltro: filtro });
+      const r = await chamar(ch, emp, "geral/clientes/", "ListarClientes", { pagina: 1, registros_por_pagina: 50, apenas_importado_api: "N", clientesFiltro: filtro });
       return (r.clientes_cadastro as Cliente[] | undefined) ?? [];
     } catch (e) {
       if (e instanceof OmieErro && semRegistros(e.message)) return [];
@@ -188,7 +187,7 @@ async function codigoFornecedor(emp: EmpresaOmie, cnpj: string, nome: string, ca
     if (!cadastrar) throw new OmieErro(`fornecedor ${docFmt(doc)} não está cadastrado na Omie.`);
     if (!nome.trim()) throw new OmieErro("fornecedor sem nome para cadastrar.");
     try {
-      const r = await chamar(emp, "geral/clientes/", "IncluirCliente", {
+      const r = await chamar(ch, emp, "geral/clientes/", "IncluirCliente", {
         codigo_cliente_integracao: `FCT${doc}`,
         razao_social: nome.slice(0, 60),
         nome_fantasia: nome.slice(0, 100),
@@ -236,7 +235,7 @@ export type ContaApi = {
 export type ResultadoLancamento = { chave: string; ok: boolean; codigoOmie?: string | null; msg?: string; erro?: string };
 
 /** Lança contas a pagar de UMA empresa (UpsertContaPagar), uma a uma, sem atropelar o limite da Omie. */
-export async function lancarContas(emp: EmpresaOmie, cache: CacheOmie, contas: ContaApi[], cadastrarFornecedor: boolean): Promise<ResultadoLancamento[]> {
+export async function lancarContas(ch: Chaves, emp: EmpresaOmie, cache: CacheOmie, contas: ContaApi[], cadastrarFornecedor: boolean): Promise<ResultadoLancamento[]> {
   if (!cache.conta?.id || !cache.categoria?.codigo) {
     throw new OmieErro(`Antes de lançar na ${EMPRESAS_OMIE[emp]}, busque os cadastros na Omie (conta corrente e categoria não foram encontradas).`);
   }
@@ -251,7 +250,7 @@ export async function lancarContas(emp: EmpresaOmie, cache: CacheOmie, contas: C
         if (x) dep = { codigo: x.codigo, nome: x.descricao };
       }
       if (!dep) throw new OmieErro(`departamento da filial ${c.fil ?? "?"} não foi achado na Omie da ${EMPRESAS_OMIE[emp]} (cadastre lá e busque os cadastros de novo).`);
-      const codigoFornec = await codigoFornecedor(emp, c.cnpj, c.nome, cadastrarFornecedor, fornecedores);
+      const codigoFornec = await codigoFornecedor(ch, emp, c.cnpj, c.nome, cadastrarFornecedor, fornecedores);
       if (!/^\d{2}\/\d{2}\/\d{4}$/.test(c.venc)) throw new OmieErro("vencimento inválido.");
       const valor = Math.round(c.valor * 100) / 100;
       if (valor <= 0) throw new OmieErro("valor zerado ou negativo.");
@@ -272,7 +271,7 @@ export async function lancarContas(emp: EmpresaOmie, cache: CacheOmie, contas: C
       };
       if (c.nota) p.numero_documento_fiscal = c.nota.slice(0, 20);
       if (/^\d{44,48}$/.test(c.barra)) p.codigo_barras_ficha_compensacao = c.barra;
-      const x = await chamar(emp, "financas/contapagar/", "UpsertContaPagar", p);
+      const x = await chamar(ch, emp, "financas/contapagar/", "UpsertContaPagar", p);
       if (x.codigo_status !== undefined && String(x.codigo_status) !== "0") throw new OmieErro(String(x.descricao_status ?? "recusado"));
       r.ok = true;
       r.codigoOmie = x.codigo_lancamento_omie != null ? String(x.codigo_lancamento_omie) : null;

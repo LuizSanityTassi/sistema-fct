@@ -89,7 +89,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
             supabase.from("conc_config").select("chave, valor").in("chave", ["omie_cache_nazario", "omie_cache_varela", "omie_nazario", "omie_varela"]),
           ]);
           const cfg = new Map((cfgs ?? []).map((x) => [x.chave, x.valor]));
-          const ch = statusChaves();
+          const ch = await statusChaves(supabase);
           const status = (e: EmpresaOmie) => {
             const cache = cfg.get(`omie_cache_${e}`) as CacheOmie | undefined;
             return {

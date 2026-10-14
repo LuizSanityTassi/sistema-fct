@@ -9,9 +9,28 @@ import type { Database, Json } from "@/lib/supabase/types";
 import type { Linha } from "@/lib/tipos";
 import { Motor, type TituloDDA, type TituloTrierConciliado } from "./motor";
 import { Omie, type ConfigOmie, type ItemOmie, type LinhaOmie } from "./omie";
-import { chavesOmie, EMPRESAS_OMIE, lancarContas, type CacheOmie, type ContaApi, type EmpresaOmie, type ResultadoLancamento } from "./omie-api";
+import { mapaFiliais, obterConfig } from "@/lib/data/conciliacao";
+import { buscarCadastros, chavesOmie, EMPRESAS_OMIE, lancarContas, type CacheOmie, type Chaves, type ContaApi, type EmpresaOmie, type ResultadoLancamento } from "./omie-api";
 import { OMIE_MODELO_B64 } from "./omie-modelo";
 import { BUCKET_CONCILIACAO } from "./servico";
+
+/** Busca na Omie conta corrente, categoria e departamentos da empresa e guarda em conc_config (omie_cache_<empresa>). */
+export async function atualizarCadastrosOmie(supabase: Cliente, ch: Chaves, empresa: EmpresaOmie, sessao: { id: string; nome: string }) {
+  const cfg = await obterConfig<ConfigOmie>("omie", CONFIG_OMIE_PADRAO);
+  const filiais = await mapaFiliais();
+  // Nazário: nomes exatos dos departamentos (lista do financeiro); Varela: pelo código da filial (F001…)
+  const pedidos = empresa === "nazario" ? Omie.DEPARTAMENTOS.map((d) => d.nome) : [...filiais.porFilial.entries()].filter(([n]) => n < 300).map(([, b]) => b.codigo);
+  const cache = await buscarCadastros(ch, empresa, cfg.conta, cfg.categoria, pedidos, sessao.nome);
+  const { error } = await supabase.from("conc_config").upsert({ chave: `omie_cache_${empresa}`, valor: cache as unknown as Json, atualizado_em: new Date().toISOString(), atualizado_por: sessao.id }, { onConflict: "chave" });
+  if (error) throw new Error(error.message);
+  await registrarAuditoria(supabase, {
+    userId: sessao.id,
+    acao: "editar",
+    entidade: "conc_config",
+    novo: { omie_cadastros: empresa, conta: cache.conta?.nome ?? null, categoria: cache.categoria?.nome ?? null, departamentos: Object.keys(cache.departamentos).length, faltando: cache.departamentosFaltando.length },
+  });
+  return cache;
+}
 
 type Cliente = SupabaseClient<Database>;
 type Conciliacao = Linha<"conc_conciliacoes">;
@@ -336,6 +355,7 @@ export async function lancarPorApi(supabase: Cliente, userId: string, conc: Conc
   const cfgMap = new Map((cfgs ?? []).map((c) => [c.chave, c.valor]));
   const cache = (emp: EmpresaOmie) => cfgMap.get(`omie_cache_${emp}`) as CacheOmie | undefined;
   const testado = (emp: EmpresaOmie) => !!(cfgMap.get(`omie_${emp}`) as { testado?: boolean } | undefined)?.testado;
+  const credOmie: Record<EmpresaOmie, Chaves | null> = { nazario: await chavesOmie(supabase, "nazario"), varela: await chavesOmie(supabase, "varela") };
 
   const porEmpresa: Record<EmpresaOmie, { linha: ItemConciliacao; item: ItemOmie; conta: ContaApi }[]> = { nazario: [], varela: [] };
   const fora: ResultadoApi["fora"] = [];
@@ -347,7 +367,7 @@ export async function lancarPorApi(supabase: Cliente, userId: string, conc: Conc
     const nome = d ? d.deParaFornecedor || d.nome : (t?.forn ?? "");
     const emp = Omie.empresaDe(item);
     if (!emp) return void fora.push({ chave: linha.chave, nome, motivo: "não deu para saber se é Nazário ou Varela (filial desconhecida)" });
-    if (!chavesOmie(emp)) return void fora.push({ chave: linha.chave, nome, motivo: `a ${EMPRESAS_OMIE[emp]} ainda não tem chave da Omie configurada` });
+    if (!credOmie[emp]) return void fora.push({ chave: linha.chave, nome, motivo: `a ${EMPRESAS_OMIE[emp]} ainda não tem chave da Omie configurada (Configurações → Integrações)` });
     const c = cache(emp);
     if (!c?.conta || !c.categoria) return void fora.push({ chave: linha.chave, nome, motivo: `falta buscar os cadastros na Omie da ${EMPRESAS_OMIE[emp]} (conta ou categoria não achada)` });
     let cnpj = "";
@@ -384,7 +404,7 @@ export async function lancarPorApi(supabase: Cliente, userId: string, conc: Conc
       modoTeste.push(emp);
       lista = lista.slice(0, 1); // 1ª conta de cada empresa é teste: a pessoa confere na Omie e libera o lote
     }
-    const res = await lancarContas(emp, cache(emp)!, lista.map((x) => x.conta), cadastrarFornecedor);
+    const res = await lancarContas(credOmie[emp]!, emp, cache(emp)!, lista.map((x) => x.conta), cadastrarFornecedor);
     const ok = res.filter((r) => r.ok);
     await marcarEnviados(
       supabase,

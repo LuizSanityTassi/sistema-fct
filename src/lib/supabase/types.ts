@@ -2072,6 +2072,25 @@ export type Database = {
           total: number
         }[]
       }
+      integracao_ler_segredos: {
+        Args: { p_nomes: string[] }
+        Returns: {
+          nome: string
+          valor: string
+        }[]
+      }
+      integracao_salvar_segredo: {
+        Args: { p_nome: string; p_valor: string }
+        Returns: undefined
+      }
+      integracao_status_segredos: {
+        Args: never
+        Returns: {
+          atualizado_em: string
+          final: string
+          nome: string
+        }[]
+      }
     }
     Enums: {
       app_role:

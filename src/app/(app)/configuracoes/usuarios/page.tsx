@@ -40,7 +40,7 @@ export default async function UsuariosPage({ searchParams }: PageProps<"/configu
 
       {sp.convidado === "1" && (
         <div className="mb-4">
-          <AvisoSucesso mensagem="Convite enviado. A pessoa recebe um e-mail para criar a senha." />
+          <AvisoSucesso mensagem={sp.modo === "confirmacao" ? "Conta criada. A pessoa recebe o e-mail de confirmação do Supabase e define a senha no primeiro acesso." : "Convite enviado. A pessoa recebe um e-mail para criar a senha."} />
         </div>
       )}
       {sp.salvo === "1" && (
@@ -57,8 +57,7 @@ export default async function UsuariosPage({ searchParams }: PageProps<"/configu
         <div role="note" className="mb-4 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
           <p>
-            Convite por e-mail ainda não está configurado neste ambiente (falta <code>SUPABASE_SERVICE_ROLE_KEY</code> no servidor). Enquanto isso,
-            crie o usuário em Supabase → Authentication → Users e ajuste o papel aqui.
+            Sem <code>SUPABASE_SERVICE_ROLE_KEY</code> no servidor, “Convidar” cria a conta e manda o e-mail de <strong>confirmação</strong> do Supabase (a pessoa define a senha no primeiro acesso) em vez do convite formal. Para o convite formal e para o agente do Itaú, veja Configurações → Integrações.
           </p>
         </div>
       )}

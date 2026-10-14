@@ -9,7 +9,10 @@ import { guardarArquivo, type ResultadoUpload } from "@/lib/conciliacao/servico"
 import { buscarRelatorioTrier, CONFIG_TRIER_PADRAO, statusTrier, testarLoginTrier, type ConfigTrier } from "@/lib/conciliacao/trier-robo";
 import { obterConfig } from "@/lib/data/conciliacao";
 import { ehUuid } from "@/lib/data/filiais";
+import { credenciaisTrier } from "@/lib/integracoes/segredos";
 import { createClient } from "@/lib/supabase/server";
+
+const SEM_CREDENCIAIS = "O robô ainda não tem usuário e senha do Trier: o administrador cadastra em Configurações → Integrações.";
 
 export type EstadoTrier = { erro?: string; ok?: string; resultado?: ResultadoUpload; periodo?: string };
 export type EstadoAgente = { erro?: string; token?: string; nome?: string };
@@ -29,14 +32,15 @@ const revalidar = () => {
 export async function buscarTrier(_prev: EstadoTrier, fd: FormData): Promise<EstadoTrier> {
   const sessao = await getSessao();
   if (!podeConciliar(sessao.papel)) return { erro: "Só Administrador e Financeiro buscam do Trier." };
-  if (!statusTrier().configurado) return { erro: "O robô não está configurado no servidor (variáveis TRIER_USUARIO e TRIER_SENHA)." };
+  const supabase = await createClient();
+  const cred = await credenciaisTrier(supabase);
+  if (!statusTrier(cred).configurado) return { erro: SEM_CREDENCIAIS };
   const padrao = await obterConfig<ConfigTrier>("trier", CONFIG_TRIER_PADRAO);
   const cfg: ConfigTrier = { diasAntes: inteiro(fd, "diasAntes", padrao.diasAntes, 0, 90), diasDepois: inteiro(fd, "diasDepois", padrao.diasDepois, 1, 180) };
   try {
-    const r = await buscarRelatorioTrier(cfg);
+    const r = await buscarRelatorioTrier(cred, cfg);
     const copia = new Uint8Array(r.conteudo);
     const file = new File([copia.buffer as ArrayBuffer], r.nome, { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-    const supabase = await createClient();
     const resultado = await guardarArquivo(supabase, sessao.id, file, "trier", "robo_trier", { meta: { robo: { periodo: r.periodo, ...cfg } } });
     revalidar();
     if (!resultado.ok) return { erro: `O relatório veio do Trier, mas não deu para guardar: ${resultado.mensagem}`, periodo: r.periodo };
@@ -50,9 +54,10 @@ export async function buscarTrier(_prev: EstadoTrier, fd: FormData): Promise<Est
 export async function testarTrier(_prev: EstadoTrier, _fd: FormData): Promise<EstadoTrier> {
   const sessao = await getSessao();
   if (!podeConciliar(sessao.papel)) return { erro: "Sem permissão." };
-  if (!statusTrier().configurado) return { erro: "O robô não está configurado no servidor (variáveis TRIER_USUARIO e TRIER_SENHA)." };
+  const cred = await credenciaisTrier(await createClient());
+  if (!statusTrier(cred).configurado) return { erro: SEM_CREDENCIAIS };
   try {
-    await testarLoginTrier();
+    await testarLoginTrier(cred);
     return { ok: "Login no Trier OK: usuário e senha do robô funcionam." };
   } catch (e) {
     return { erro: mensagem(e) };

@@ -8,6 +8,8 @@ import { diferencas, registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { ehUuid } from "@/lib/data/filiais";
 import { PAPEIS } from "@/lib/roles";
+import { randomBytes } from "node:crypto";
+import { createClient as createClientPublico } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -68,37 +70,45 @@ export async function convidarUsuario(_prev: EstadoUsuario, fd: FormData): Promi
   });
   if (!r.success) return { erro: "Confira os campos destacados.", erros: errosDoZod(r.error) };
 
+  const destino = `${await origem()}/auth/confirm?next=/auth/atualizar-senha`;
   const admin = createAdminClient();
-  if (!admin) {
-    return {
-      erro:
-        "Convite por e-mail não configurado neste ambiente: defina SUPABASE_SERVICE_ROLE_KEY nas variáveis do servidor (Vercel → Settings → Environment Variables; localmente no .env.local). Enquanto isso, crie o usuário em Supabase → Authentication → Users e ajuste o papel aqui.",
-    };
+  let userId: string;
+  let modo: "convite" | "confirmacao";
+  if (admin) {
+    // Com a service_role no servidor: convite oficial do Supabase (e-mail "você foi convidado").
+    const { data, error } = await admin.auth.admin.inviteUserByEmail(r.data.email, { data: { nome: r.data.nome }, redirectTo: destino });
+    if (error || !data.user) return { erro: `Não foi possível convidar: ${error?.message ?? "erro desconhecido"}` };
+    userId = data.user.id;
+    modo = "convite";
+  } else {
+    // Sem service_role: cria a conta com a chave pública (signUp) e uma senha aleatória que ninguém conhece;
+    // a pessoa recebe o e-mail de confirmação do Supabase e define a própria senha no primeiro acesso.
+    const publico = createClientPublico(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+    const { data, error } = await publico.auth.signUp({ email: r.data.email, password: randomBytes(32).toString("base64url"), options: { data: { nome: r.data.nome }, emailRedirectTo: destino } });
+    if (error) return { erro: `Não foi possível criar a conta: ${error.message}` };
+    if (!data.user) return { erro: "O Supabase não devolveu o usuário criado." };
+    if (data.user.identities && data.user.identities.length === 0) return { erro: "Já existe uma conta com esse e-mail. Use “Redefinir senha” na lista." };
+    userId = data.user.id;
+    modo = "confirmacao";
   }
-
-  const { data, error } = await admin.auth.admin.inviteUserByEmail(r.data.email, {
-    data: { nome: r.data.nome },
-    redirectTo: `${await origem()}/auth/confirm?next=/auth/atualizar-senha`,
-  });
-  if (error || !data.user) return { erro: `Não foi possível convidar: ${error?.message ?? "erro desconhecido"}` };
 
   // O trigger handle_new_user já criou o perfil; aqui definimos papel e unidade.
   const supabase = await createClient();
   const { error: erroPerfil } = await supabase
     .from("profiles")
     .update({ nome: r.data.nome, papel: r.data.papel, branch_id: r.data.branch_id ?? null })
-    .eq("id", data.user.id);
-  if (erroPerfil) return { erro: `Convite enviado, mas o perfil não pôde ser ajustado: ${erroPerfil.message}` };
+    .eq("id", userId);
+  if (erroPerfil) return { erro: `Conta criada, mas o perfil não pôde ser ajustado: ${erroPerfil.message}` };
 
   await registrarAuditoria(supabase, {
     userId: sessao.id,
     acao: "convidar",
     entidade: "profiles",
-    registroId: data.user.id,
-    novo: { email: r.data.email, nome: r.data.nome, papel: r.data.papel, branch_id: r.data.branch_id ?? null },
+    registroId: userId,
+    novo: { email: r.data.email, nome: r.data.nome, papel: r.data.papel, branch_id: r.data.branch_id ?? null, modo },
   });
   revalidatePath("/configuracoes/usuarios");
-  redirect("/configuracoes/usuarios?convidado=1");
+  redirect(`/configuracoes/usuarios?convidado=1&modo=${modo}`);
 }
 
 // ---------- editar ----------

@@ -96,6 +96,17 @@ Conciliação: ✅ C3 robô do Trier + agente dos .RET do Itaú · ✅ C4 ficha 
 Pendente do lado da operação: definir as variáveis de ambiente (Omie, Trier, service_role) na Vercel, rodar a migração do
 financeiro antigo e instalar o agente no PC do Itaú Mailbox.
 
+## Integrações (Configurações → Integrações, só admin)
+
+Tudo que precisa de chave ou senha é cadastrado **pela tela**, não por variável de ambiente: usuário/senha do robô do
+Trier e app_key/app_secret da Omie (Nazário e Varela). Os valores vão para o **Supabase Vault** (criptografado) pelas
+funções `integracao_salvar_segredo` / `integracao_ler_segredos` / `integracao_status_segredos` (migração 0023, security
+definer: admin grava; admin e financeiro leem; a tela recebe só "configurado" e o final da chave). "Salvar e testar" já
+faz o login no Trier ou busca os cadastros na Omie. Variáveis `TRIER_*` / `OMIE_*` continuam valendo como alternativa
+(`src/lib/integracoes/segredos.ts` resolve: tela primeiro, ambiente depois). A única exceção é a
+`SUPABASE_SERVICE_ROLE_KEY` (Vercel), usada pelo agente dos .RET e pelo convite formal por e-mail — sem ela o convite
+cai no modo "conta + e-mail de confirmação" (signUp com a chave pública) e o agente fica desligado.
+
 ## Financeiro (módulo Financeiro)
 
 Reproduz o fluxo de caixa anterior dentro do sistema, com RLS e auditoria. Valores sempre **sem centavos** (regra 41).
