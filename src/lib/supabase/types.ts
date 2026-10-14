@@ -1397,6 +1397,210 @@ export type Database = {
           },
         ]
       }
+      folha_empresas_dominio: {
+        Row: {
+          branch_id: string
+          codigo_dominio: number | null
+          created_at: string
+          razao_social: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          branch_id: string
+          codigo_dominio?: number | null
+          created_at?: string
+          razao_social?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          branch_id?: string
+          codigo_dominio?: number | null
+          created_at?: string
+          razao_social?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "folha_empresas_dominio_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: true
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folha_empresas_dominio_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      folha_eventos: {
+        Row: {
+          ativo: boolean
+          chave: string
+          codigo: number | null
+          created_at: string
+          id: string
+          na_planilha: boolean
+          nome: string
+          ordem: number
+          unidade: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          chave: string
+          codigo?: number | null
+          created_at?: string
+          id?: string
+          na_planilha?: boolean
+          nome: string
+          ordem?: number
+          unidade?: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          chave?: string
+          codigo?: number | null
+          created_at?: string
+          id?: string
+          na_planilha?: boolean
+          nome?: string
+          ordem?: number
+          unidade?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      folha_lancamentos: {
+        Row: {
+          branch_id: string
+          competencia: string
+          created_at: string
+          created_by: string | null
+          employee_id: string
+          evento_id: string
+          id: string
+          origem: string
+          updated_at: string
+          updated_by: string | null
+          valor: number
+        }
+        Insert: {
+          branch_id: string
+          competencia: string
+          created_at?: string
+          created_by?: string | null
+          employee_id: string
+          evento_id: string
+          id?: string
+          origem?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor: number
+        }
+        Update: {
+          branch_id?: string
+          competencia?: string
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string
+          evento_id?: string
+          id?: string
+          origem?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "folha_lancamentos_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folha_lancamentos_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folha_lancamentos_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folha_lancamentos_evento_id_fkey"
+            columns: ["evento_id"]
+            isOneToOne: false
+            referencedRelation: "folha_eventos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folha_lancamentos_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      folha_observacoes: {
+        Row: {
+          competencia: string
+          created_at: string
+          employee_id: string
+          pendente: boolean
+          texto: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          competencia: string
+          created_at?: string
+          employee_id: string
+          pendente?: boolean
+          texto: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          competencia?: string
+          created_at?: string
+          employee_id?: string
+          pendente?: boolean
+          texto?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "folha_observacoes_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folha_observacoes_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       it_assets: {
         Row: {
           ativo: boolean

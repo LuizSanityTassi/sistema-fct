@@ -14,6 +14,9 @@ export const ENTIDADES_AUDITADAS: Record<string, string> = {
   tickets: "Chamados",
   profiles: "Usuários",
   user_branch_access: "Acesso a unidades",
+  folha_lancamentos: "Lançamentos da folha",
+  folha_eventos: "Eventos da folha",
+  folha_empresas_dominio: "Empresas na Domínio",
 };
 
 export const ACOES_AUDITADAS: Record<string, string> = {
@@ -23,6 +26,7 @@ export const ACOES_AUDITADAS: Record<string, string> = {
   reativar: "Reativou",
   importar: "Importou",
   excluir: "Excluiu",
+  exportar: "Exportou",
 };
 
 export type FiltrosAuditoria = {

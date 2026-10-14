@@ -40,10 +40,10 @@ organization (grupo: VARELA, NAZÁRIO) → branch (unidade: F001…, F301…, AD
 `employee_salaries` (histórico por vigência) · `employee_documents` · `employee_aso` · `payroll_records` ·
 `tickets` · `ticket_comments` · `ticket_attachments` · `ticket_history` · `it_assets` ·
 `fin_categorias` · `fin_lancamentos` · `fin_meses_fechados` · `conc_*` (arquivos, conciliacoes, itens, pendencias,
-depara, aprendizado, enviados_omie, config, agentes) · `audit_logs`
+depara, aprendizado, enviados_omie, config, agentes) · `folha_*` (eventos, empresas_dominio, lancamentos, observacoes) · `audit_logs`
 Views: `employee_current_salary`, `branch_employee_counts`, `fin_resumo_mensal`, `fin_resumo_categoria`
 (todas `security_invoker`). Função `fin_totais()` soma receber/pagar com filtros, respeitando o RLS. Dinheiro em `numeric(14,2)`; exclusão
-**lógica**; PKs `uuid`. Migrations versionadas em `supabase/migrations/` (0001–0018).
+**lógica**; PKs `uuid`. Migrations versionadas em `supabase/migrations/` (0001–0024).
 Storage: buckets privados `conciliacao` (arquivos da conciliação) e `documentos` (`funcionarios/<id>/…`, `folha/<id>/…`, `chamados/<id>/…`),
 download sempre por URL assinada de 60 s (`/api/arquivos/[tipo]/[id]`).
 
@@ -96,8 +96,32 @@ Fase 3 (financeiro completo): ✅ F2 importador do Omie · ✅ F3 DRE com ajuste
 ✅ F4 orçamento e caixa (diário, mensal, semanal) · ✅ F5 inadimplência, ranking, resumo por loja e comparativo ·
 ✅ F6 alertas na visão geral · ✅ migração do sistema anterior também pela tela (`/financeiro/migrar`, admin).
 Conciliação: ✅ C3 robô do Trier + agente dos .RET do Itaú · ✅ C4 ficha por fornecedor e detecção de anomalias.
+RH: ✅ lançamentos da folha para a contabilidade (grade do mês, importação da planilha do RH, planilha da Domínio por CNPJ).
 Pendente do lado da operação: definir as variáveis de ambiente (Omie, Trier, service_role) na Vercel, rodar a migração do
 financeiro antigo e instalar o agente no PC do Itaú Mailbox.
+
+## Lançamentos da folha para a contabilidade (RH → Lançamentos da folha)
+
+O RH lança durante o mês os eventos variáveis de cada funcionário (horas extras 50/60/75/100%, horas noturnas, feriado,
+domingo, comissões, faltas parciais, adiantamento, farmácia, quebra de caixa, VT, consignado, outros) numa grade por
+filial, e no fechamento baixa a planilha **RELAÇÃO DE VALORES PARA FOLHA DE PAGAMENTO** que a contabilidade importa na
+Domínio: um `.xls` (Excel 97-2003) por CNPJ, nome "<nº da filial no CNPJ> <MÊS>.xls" (30.598.529/**0032**-16 → `32 SETEMBRO.xls`),
+ou um `.zip` com todos (`/api/folha-lancamentos/planilha`). Layout copiado do modelo de 09/2026: cabeçalho em A3..C6
+(código da empresa, razão social, CNPJ, competência mm/yyyy), nomes dos eventos na linha 9, códigos na linha 10, dados a
+partir da linha 11 (A = 11 tipo de cálculo, B = matrícula 00000, C = nome, D = função, valores 0.00), 40 linhas no mínimo,
+"S" e a linha TOTAL. A biblioteca não grava fórmulas em .xls: o TOTAL sai somado (o modelo somava a partir da linha 12).
+
+- O arquivo é separado pelo **CNPJ de registro** do funcionário (`employees.branch_id`), que é como a contabilidade separa.
+- Eventos e códigos da Domínio em `folha_eventos` (tela Configurar). "Horas Extras 75%" ainda não tem código: é
+  gravado, mas só vai para a planilha quando o código for informado.
+- Código da empresa na Domínio e razão social da planilha por CNPJ em `folha_empresas_dominio` (só a /0032 = 801 é
+  conhecida; CNPJ sem código não gera arquivo e aparece no LEIA-ME do .zip).
+- **Importar planilha do RH** (transição): lê do .xlsx do Google só as abas do mês ("VARELA 092026", "QC Varela 092026"),
+  entende "9,58 100" / "19,32 adc", recupera células que o Sheets virou data ("12.03 60" → 12/03/1960 → 12,03) e marca
+  para conferência; falta "sim" e reembolsos viram observação pendente; quebra de caixa de farmacêutico não é lançada
+  (opção na tela). Casa pelo nome (exato, sem "de/da/dos", ou até 2 letras de diferença com o mesmo primeiro nome); o CPF
+  da aba de quebra não é lido. Valores existentes que não estão na planilha não são apagados.
+- Acesso: admin e RH (RLS nas 4 tabelas). Auditoria registra gravação, importação e exportação só com contagens.
 
 ## Integrações (Configurações → Integrações, só admin)
 

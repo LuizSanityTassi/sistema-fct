@@ -83,6 +83,13 @@ export const NAV: NavGrupo[] = [
         papeis: ["admin", "rh"],
         descricao: "Registros de folha por competência.",
       },
+      {
+        label: "Lançamentos da folha",
+        href: "/rh/lancamentos",
+        icon: ClipboardList,
+        papeis: ["admin", "rh"],
+        descricao: "Horas extras, quebra de caixa e eventos do mês; gera a planilha da contabilidade (Domínio) por CNPJ.",
+      },
     ],
   },
   {

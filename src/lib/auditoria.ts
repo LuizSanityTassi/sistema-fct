@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Json } from "@/lib/supabase/types";
 
-export type AcaoAuditoria = "criar" | "editar" | "inativar" | "reativar" | "importar" | "excluir" | "convidar";
+export type AcaoAuditoria = "criar" | "editar" | "inativar" | "reativar" | "importar" | "excluir" | "convidar" | "exportar";
 
 type RegistroAuditoria = {
   userId: string;
