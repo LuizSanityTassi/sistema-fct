@@ -393,6 +393,150 @@ export type Database = {
           },
         ]
       }
+      fin_categorias: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          dre_familia: string | null
+          dre_grupo: string | null
+          dre_sinal: number | null
+          fin_familia: string | null
+          fin_grupo: string | null
+          grupo: string
+          id: string
+          nome: string
+          tipo: Database["public"]["Enums"]["fin_tipo"]
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          dre_familia?: string | null
+          dre_grupo?: string | null
+          dre_sinal?: number | null
+          fin_familia?: string | null
+          fin_grupo?: string | null
+          grupo: string
+          id?: string
+          nome: string
+          tipo: Database["public"]["Enums"]["fin_tipo"]
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          dre_familia?: string | null
+          dre_grupo?: string | null
+          dre_sinal?: number | null
+          fin_familia?: string | null
+          fin_grupo?: string | null
+          grupo?: string
+          id?: string
+          nome?: string
+          tipo?: Database["public"]["Enums"]["fin_tipo"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fin_lancamentos: {
+        Row: {
+          branch_id: string
+          categoria_id: string
+          competencia: string
+          created_at: string
+          created_by: string | null
+          data: string
+          descricao: string | null
+          id: string
+          legado_id: number | null
+          lote_id: string | null
+          origem: Database["public"]["Enums"]["fin_origem"]
+          tipo: Database["public"]["Enums"]["fin_tipo"]
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          branch_id: string
+          categoria_id: string
+          competencia: string
+          created_at?: string
+          created_by?: string | null
+          data: string
+          descricao?: string | null
+          id?: string
+          legado_id?: number | null
+          lote_id?: string | null
+          origem?: Database["public"]["Enums"]["fin_origem"]
+          tipo: Database["public"]["Enums"]["fin_tipo"]
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          branch_id?: string
+          categoria_id?: string
+          competencia?: string
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          descricao?: string | null
+          id?: string
+          legado_id?: number | null
+          lote_id?: string | null
+          origem?: Database["public"]["Enums"]["fin_origem"]
+          tipo?: Database["public"]["Enums"]["fin_tipo"]
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_lancamentos_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_lancamentos_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "fin_categorias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_lancamentos_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_meses_fechados: {
+        Row: {
+          competencia: string
+          fechado_em: string
+          fechado_por: string | null
+        }
+        Insert: {
+          competencia: string
+          fechado_em?: string
+          fechado_por?: string | null
+        }
+        Update: {
+          competencia?: string
+          fechado_em?: string
+          fechado_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_meses_fechados_fechado_por_fkey"
+            columns: ["fechado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       it_assets: {
         Row: {
           ativo: boolean
@@ -882,12 +1026,78 @@ export type Database = {
           },
         ]
       }
+      fin_resumo_categoria: {
+        Row: {
+          branch_id: string | null
+          categoria_id: string | null
+          competencia: string | null
+          qtd: number | null
+          tipo: Database["public"]["Enums"]["fin_tipo"] | null
+          total: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_lancamentos_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_lancamentos_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "fin_categorias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_resumo_mensal: {
+        Row: {
+          branch_id: string | null
+          competencia: string | null
+          qtd: number | null
+          tipo: Database["public"]["Enums"]["fin_tipo"] | null
+          total: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_lancamentos_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
-      [_ in never]: never
+      fin_totais: {
+        Args: {
+          p_ate?: string
+          p_branches?: string[]
+          p_categoria?: string
+          p_de?: string
+          p_origem?: Database["public"]["Enums"]["fin_origem"]
+          p_q?: string
+          p_tipo?: Database["public"]["Enums"]["fin_tipo"]
+        }
+        Returns: {
+          qtd: number
+          tipo: Database["public"]["Enums"]["fin_tipo"]
+          total: number
+        }[]
+      }
     }
     Enums: {
-      app_role: "admin" | "rh" | "ti" | "financeiro" | "gerente" | "usuario"
+      app_role:
+        | "admin"
+        | "rh"
+        | "ti"
+        | "financeiro"
+        | "gerente"
+        | "usuario"
+        | "contador"
       aso_type:
         | "admissional"
         | "periodico"
@@ -906,6 +1116,8 @@ export type Database = {
         | "atestado"
         | "outros"
       employee_status: "ativo" | "afastado" | "ferias" | "desligado"
+      fin_origem: "manual" | "omie" | "migracao"
+      fin_tipo: "receber" | "pagar"
       it_asset_status: "em_uso" | "estoque" | "manutencao" | "baixado"
       payroll_status: "rascunho" | "fechada" | "paga"
       ticket_category:
@@ -1051,7 +1263,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "rh", "ti", "financeiro", "gerente", "usuario"],
+      app_role: [
+        "admin",
+        "rh",
+        "ti",
+        "financeiro",
+        "gerente",
+        "usuario",
+        "contador",
+      ],
       aso_type: [
         "admissional",
         "periodico",
@@ -1072,6 +1292,8 @@ export const Constants = {
         "outros",
       ],
       employee_status: ["ativo", "afastado", "ferias", "desligado"],
+      fin_origem: ["manual", "omie", "migracao"],
+      fin_tipo: ["receber", "pagar"],
       it_asset_status: ["em_uso", "estoque", "manutencao", "baixado"],
       payroll_status: ["rascunho", "fechada", "paga"],
       ticket_category: [

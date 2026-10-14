@@ -18,13 +18,17 @@ const ESCRITA: Record<string, string> = {
   "/filiais": "Administrador",
   "/ti": "Administrador e TI",
   "/relatorios": "—",
+  "/financeiro": "—",
+  "/financeiro/lancamentos": "Lançam e editam: Administrador, Financeiro e Contador. Excluem e fecham mês: Administrador e Financeiro. Reabrir mês: só administrador",
+  "/financeiro/categorias": "Administrador, Financeiro e Contador",
   "/configuracoes/usuarios": "Administrador",
   "/configuracoes/permissoes": "Administrador",
   "/configuracoes/auditoria": "Somente leitura (administrador)",
 };
 
 const REGRAS_BANCO = [
-  "Gerente e usuário só enxergam a própria unidade (principal + adicionais); papéis corporativos (admin, RH, TI, financeiro) enxergam todas.",
+  "Gerente e usuário só enxergam a própria unidade (principal + adicionais); papéis corporativos (admin, RH, TI, financeiro, contador) enxergam todas.",
+  "Financeiro: o gerente vê os lançamentos das próprias unidades; o contador vê e lança em todas, mas não exclui nem fecha mês. Competência fechada bloqueia inclusão, edição e exclusão para todos, exceto o administrador.",
   "Salários e folha são visíveis apenas para administrador e RH — o gerente vê o funcionário, não o valor.",
   "Documentos e ASO: lê quem pode ver o funcionário; envia e remove só administrador e RH. Arquivos ficam em bucket privado com link temporário.",
   "Chamados de RH são visíveis só para RH, administrador, quem abriu e quem atende. Os demais chamados seguem a visibilidade da unidade.",

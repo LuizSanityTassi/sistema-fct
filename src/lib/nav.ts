@@ -117,6 +117,32 @@ export const NAV: NavGrupo[] = [
     ],
   },
   {
+    titulo: "Financeiro",
+    itens: [
+      {
+        label: "Visão geral",
+        href: "/financeiro",
+        icon: ChartColumn,
+        papeis: ["admin", "financeiro", "contador", "gerente"],
+        descricao: "Receitas, despesas e resultado por grupo e unidade.",
+      },
+      {
+        label: "Lançamentos",
+        href: "/financeiro/lancamentos",
+        icon: Wallet,
+        papeis: ["admin", "financeiro", "contador", "gerente"],
+        descricao: "Entradas e saídas realizadas por unidade.",
+      },
+      {
+        label: "Categorias",
+        href: "/financeiro/categorias",
+        icon: ScrollText,
+        papeis: ["admin", "financeiro", "contador"],
+        descricao: "Plano de categorias e molde da DRE.",
+      },
+    ],
+  },
+  {
     titulo: "Configurações",
     itens: [
       {

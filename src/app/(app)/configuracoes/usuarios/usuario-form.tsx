@@ -31,7 +31,8 @@ const DESCRICAO_PAPEL: Record<AppRole, string> = {
   admin: "Tudo: cadastros, usuários, permissões, auditoria.",
   rh: "Funcionários, documentos, ASO, folha e salários de todas as unidades.",
   ti: "Chamados (menos os de RH), unidades e módulo de TI.",
-  financeiro: "Chamados de financeiro, unidades e relatórios.",
+  financeiro: "Financeiro completo (lançamentos, categorias, fechamento), chamados de financeiro e relatórios.",
+  contador: "Financeiro de todas as unidades (lança, importa e classifica; não exclui nem fecha mês).",
   gerente: "Funcionários e chamados da própria unidade (sem salários).",
   usuario: "Abre e acompanha os próprios chamados.",
 };
