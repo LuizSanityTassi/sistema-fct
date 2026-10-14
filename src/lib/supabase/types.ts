@@ -1582,6 +1582,21 @@ export type Database = {
           },
         ]
       }
+      fin_lotes: {
+        Row: {
+          ate: string | null
+          created_by: string | null
+          criado_em: string | null
+          de: string | null
+          descricao: string | null
+          lote_id: string | null
+          origem: Database["public"]["Enums"]["fin_origem"] | null
+          qtd: number | null
+          total: number | null
+          unidades: number | null
+        }
+        Relationships: []
+      }
       fin_resumo_categoria: {
         Row: {
           branch_id: string | null

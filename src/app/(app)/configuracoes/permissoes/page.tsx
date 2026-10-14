@@ -21,6 +21,7 @@ const ESCRITA: Record<string, string> = {
   "/financeiro": "—",
   "/financeiro/lancamentos": "Lançam e editam: Administrador, Financeiro e Contador. Excluem e fecham mês: Administrador e Financeiro. Reabrir mês: só administrador",
   "/financeiro/categorias": "Administrador, Financeiro e Contador",
+  "/financeiro/importar": "Importam: Administrador, Financeiro e Contador. Desfazem lote: Administrador e Financeiro",
   "/conciliacao": "—",
   "/conciliacao/arquivos": "Administrador e Financeiro enviam/arquivam; Contador só consulta e baixa",
   "/conciliacao/pendencias": "Administrador e Financeiro (status, motivo, responsável)",

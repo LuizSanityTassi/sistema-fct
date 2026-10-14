@@ -145,6 +145,13 @@ export const NAV: NavGrupo[] = [
         papeis: ["admin", "financeiro", "contador"],
         descricao: "Plano de categorias e molde da DRE.",
       },
+      {
+        label: "Importar do Omie",
+        href: "/financeiro/importar",
+        icon: FolderOpen,
+        papeis: ["admin", "financeiro", "contador"],
+        descricao: "Relatórios do Omie em Excel viram lançamentos realizados por unidade.",
+      },
     ],
   },
   {

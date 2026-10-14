@@ -262,6 +262,23 @@ export const obterLancamento = cache(async (id: string) => {
   return data;
 });
 
+// ---------- lotes de importação (view fin_lotes) ----------
+
+export async function listarLotes(limite = 50) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("fin_lotes").select("*").order("criado_em", { ascending: false }).limit(limite);
+  if (error) throw error;
+  const ids = [...new Set(data.map((l) => l.created_by).filter((v): v is string => !!v))];
+  const nomes = new Map<string, string>();
+  if (ids.length) {
+    const { data: perfis } = await supabase.from("profiles").select("id, nome").in("id", ids);
+    for (const p of perfis ?? []) nomes.set(p.id, p.nome);
+  }
+  return data
+    .filter((l): l is typeof l & { lote_id: string; origem: FinOrigem; criado_em: string; qtd: number; total: number; de: string; ate: string; unidades: number } => !!l.lote_id && !!l.origem && !!l.criado_em)
+    .map((l) => ({ ...l, quem: l.created_by ? (nomes.get(l.created_by) ?? null) : null }));
+}
+
 // ---------- resumos (view fin_resumo_mensal) ----------
 
 type LinhaResumo = { branch_id: string | null; competencia: string | null; tipo: FinTipo | null; qtd: number | null; total: number | null };
