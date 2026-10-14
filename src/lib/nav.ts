@@ -1,8 +1,12 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  ArrowLeftRight,
   Building2,
   ChartColumn,
+  ClipboardList,
   FileText,
+  FolderOpen,
+  Scale,
   LayoutDashboard,
   LifeBuoy,
   MonitorCog,
@@ -139,6 +143,39 @@ export const NAV: NavGrupo[] = [
         icon: ScrollText,
         papeis: ["admin", "financeiro", "contador"],
         descricao: "Plano de categorias e molde da DRE.",
+      },
+    ],
+  },
+  {
+    titulo: "Conciliação",
+    itens: [
+      {
+        label: "Painel",
+        href: "/conciliacao",
+        icon: Scale,
+        papeis: ["admin", "financeiro", "contador"],
+        descricao: "DDA do Itaú × contas a pagar do Trier: resultado, pendências e envios ao Omie.",
+      },
+      {
+        label: "Arquivos",
+        href: "/conciliacao/arquivos",
+        icon: FolderOpen,
+        papeis: ["admin", "financeiro", "contador"],
+        descricao: "Arquivos do banco (.RET, planilha do portal) e relatórios do Trier.",
+      },
+      {
+        label: "Pendências",
+        href: "/conciliacao/pendencias",
+        icon: ClipboardList,
+        papeis: ["admin", "financeiro", "contador"],
+        descricao: "Divergências a tratar, com prioridade, responsável e histórico.",
+      },
+      {
+        label: "De-para",
+        href: "/conciliacao/de-para",
+        icon: ArrowLeftRight,
+        papeis: ["admin", "financeiro", "contador"],
+        descricao: "Boleto em nome de terceiro → fornecedor real; correspondências aprendidas.",
       },
     ],
   },

@@ -9,6 +9,8 @@ const nextConfig: NextConfig = {
     // upload de documentos/ASO via Server Action (bucket aceita até 20 MB)
     serverActions: { bodySizeLimit: "25mb" },
   },
+  // Leitores da conciliação (PDF do Trier, planilhas): ficam fora do bundle e são carregados pelo Node em tempo de execução.
+  serverExternalPackages: ["pdfjs-dist", "xlsx"],
   turbopack: {
     rules: {
       "*.css": {

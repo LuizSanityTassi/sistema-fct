@@ -21,6 +21,10 @@ const ESCRITA: Record<string, string> = {
   "/financeiro": "—",
   "/financeiro/lancamentos": "Lançam e editam: Administrador, Financeiro e Contador. Excluem e fecham mês: Administrador e Financeiro. Reabrir mês: só administrador",
   "/financeiro/categorias": "Administrador, Financeiro e Contador",
+  "/conciliacao": "—",
+  "/conciliacao/arquivos": "Administrador e Financeiro enviam/arquivam; Contador só consulta e baixa",
+  "/conciliacao/pendencias": "Administrador e Financeiro (status, motivo, responsável)",
+  "/conciliacao/de-para": "Administrador e Financeiro",
   "/configuracoes/usuarios": "Administrador",
   "/configuracoes/permissoes": "Administrador",
   "/configuracoes/auditoria": "Somente leitura (administrador)",
@@ -32,6 +36,7 @@ const REGRAS_BANCO = [
   "Salários e folha são visíveis apenas para administrador e RH — o gerente vê o funcionário, não o valor.",
   "Documentos e ASO: lê quem pode ver o funcionário; envia e remove só administrador e RH. Arquivos ficam em bucket privado com link temporário.",
   "Chamados de RH são visíveis só para RH, administrador, quem abriu e quem atende. Os demais chamados seguem a visibilidade da unidade.",
+  "Conciliação: arquivos do banco e do Trier ficam em bucket privado (link de 60 s); nada é apagado, só arquivado com motivo. Contador vê tudo e não altera.",
   "Toda alteração relevante grava auditoria com valor anterior e novo, sem CPF em claro.",
   "Nada é apagado fisicamente: unidades, funcionários, documentos e ASO usam exclusão lógica.",
 ];

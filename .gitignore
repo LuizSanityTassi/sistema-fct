@@ -43,3 +43,6 @@ next-env.d.ts
 
 # config local do Claude Code (servidor de preview)
 .claude/
+
+# amostras locais de teste (dados reais, nunca no Git)
+public/_amostras/

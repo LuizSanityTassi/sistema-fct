@@ -37,11 +37,12 @@ organization (grupo: VARELA, NAZÁRIO) → branch (unidade: F001…, F301…, AD
 `organizations` · `branches` · `departments` · `profiles` · `user_branch_access` · `employees` ·
 `employee_salaries` (histórico por vigência) · `employee_documents` · `employee_aso` · `payroll_records` ·
 `tickets` · `ticket_comments` · `ticket_attachments` · `ticket_history` · `it_assets` ·
-`fin_categorias` · `fin_lancamentos` · `fin_meses_fechados` · `audit_logs`
+`fin_categorias` · `fin_lancamentos` · `fin_meses_fechados` · `conc_*` (arquivos, conciliacoes, itens, pendencias,
+depara, aprendizado, enviados_omie, config, agentes) · `audit_logs`
 Views: `employee_current_salary`, `branch_employee_counts`, `fin_resumo_mensal`, `fin_resumo_categoria`
 (todas `security_invoker`). Função `fin_totais()` soma receber/pagar com filtros, respeitando o RLS. Dinheiro em `numeric(14,2)`; exclusão
-**lógica**; PKs `uuid`. Migrations versionadas em `supabase/migrations/` (0001–0017).
-Storage: bucket privado `documentos` (`funcionarios/<id>/…`, `folha/<id>/…`, `chamados/<id>/…`),
+**lógica**; PKs `uuid`. Migrations versionadas em `supabase/migrations/` (0001–0018).
+Storage: buckets privados `conciliacao` (arquivos da conciliação) e `documentos` (`funcionarios/<id>/…`, `folha/<id>/…`, `chamados/<id>/…`),
 download sempre por URL assinada de 60 s (`/api/arquivos/[tipo]/[id]`).
 
 ## Como rodar
@@ -65,7 +66,8 @@ Configuração no painel do Supabase: Authentication → URL Configuration com S
 ```
 src/app/(app)/            área autenticada (layout com menu lateral)
   dashboard · filiais · rh/{funcionarios,documentos,aso,folha} · chamados · ti · relatorios
-  financeiro/{lancamentos,categorias} · configuracoes/{usuarios,permissoes,auditoria}
+  financeiro/{lancamentos,categorias} · conciliacao/{arquivos,nova,[id],pendencias,de-para}
+  configuracoes/{usuarios,permissoes,auditoria}
 src/app/login, recuperar-senha, auth/*   autenticação
 src/app/api/arquivos/     download assinado de arquivos
 src/lib/data/*            consultas (server) · src/lib/*/rotulos.ts  rótulos puros (client-safe)
@@ -82,10 +84,23 @@ scripts/migrar-financeiro.mjs   importador do fluxo de caixa anterior (roda na s
 11. ✅ Testes de permissão/segurança (`docs/TESTES-PERMISSOES.md`)
 
 Fase 2: ✅ TI (fila, acessos, ativos) · ✅ Relatórios com CSV · ✅ Financeiro F1 (lançamentos, categorias/DRE,
-fechamento de mês, visão geral por grupo/mês/unidade, migração do legado).
+fechamento de mês, visão geral por grupo/mês/unidade, migração do legado). · ✅ Conciliação C1 (arquivos do Itaú e do Trier,
+motor de conciliação, pendências, de-para e aprendizado).
 
 Próximas: importador Omie (F2), DRE/contábil com ajustes e saldos (F3), orçamento e caixa diário/mensal (F4),
 inadimplência e ranking (F5), alertas/fechamento (F6); depois conciliação DDA (upload CNAB240 primeiro).
+
+## Conciliação DDA Itaú × Trier (módulo Conciliação)
+
+Substitui o site `conciliacao.farmaciafct.com.br` (PHP). O **motor** (`src/lib/conciliacao/motor.js`) é o mesmo da
+ferramenta em produção, portado como módulo ES; os **leitores** (`leitores.ts`) rodam no servidor: `.RET` CNAB 240,
+planilha "Boletos Recebidos" do portal Itaú (SheetJS) e relatório "Contas a Pagar ou Pagas" do Trier em PDF
+(pdf.js, página girada) ou XLS. Arquivos ficam no bucket privado `conciliacao` (`arquivos/<sha256>.<ext>`, sem duplicar);
+cada rodada grava `conc_conciliacoes` + `conc_itens` (uma linha por conta: boleto com os títulos que casaram, ou título só
+do Trier), registra/resolve `conc_pendencias` (chave = `Omie.chave()`: boleto+filial pagadora ou título do Trier) e
+aprende fornecedor ↔ raiz de CNPJ em `conc_aprendizado`. De-para do financeiro em `conc_depara` (seed na migração 0018).
+Regras: a filial PAGADORA do boleto manda; AGRUPADO/COMBINAÇÃO contam como exatos; só vale desconto pagando no vencimento.
+Próximo: envio ao Omie (planilha e API), robô do Trier, agente dos .RET do Itaú, painel por fornecedor/anomalias.
 
 ## Migração do financeiro anterior (fluxo de caixa SQLite)
 
