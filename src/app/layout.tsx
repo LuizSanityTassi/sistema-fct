@@ -15,12 +15,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: { default: "Sistema FCT", template: "%s · Sistema FCT" },
   description: "Sistema interno de gestão — Farmácias FCT",
+  // sistema todo em português: o tradutor automático do navegador troca nomes do menu ("Funcionários" vira "/")
+  other: { google: "notranslate" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="pt-BR"
+      translate="no"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
