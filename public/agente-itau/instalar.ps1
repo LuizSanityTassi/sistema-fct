@@ -7,8 +7,8 @@ Write-Host ''
 $pasta = Read-Host 'Pasta onde o Itaú Mailbox salva os arquivos RECEBIDOS (ex.: C:\ItauMailbox\RETORNO)'
 $pasta = $pasta.Trim('"', ' ')
 if (-not (Test-Path $pasta)) { Write-Host "A pasta '$pasta' não existe. Confira e rode de novo." -ForegroundColor Red; Read-Host 'Enter para sair'; exit 1 }
-$url = Read-Host 'Endereço do sistema [Enter = https://sistema-fct.vercel.app]'
-if (-not $url) { $url = 'https://sistema-fct.vercel.app' }
+$url = Read-Host 'Endereço do sistema [Enter = https://portal.farmaciafct.com.br]'
+if (-not $url) { $url = 'https://portal.farmaciafct.com.br' }
 $tok = Read-Host 'Cole a CHAVE DO AGENTE (gerada em Conciliação > Robôs e agente)' -AsSecureString
 if ($tok.Length -lt 40) { Write-Host 'Chave muito curta. Confira e rode de novo.' -ForegroundColor Red; Read-Host 'Enter para sair'; exit 1 }
 # a chave fica criptografada pelo Windows (só este usuário, neste PC, consegue ler)

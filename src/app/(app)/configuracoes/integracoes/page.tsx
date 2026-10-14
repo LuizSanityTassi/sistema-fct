@@ -93,10 +93,11 @@ export default async function IntegracoesPage() {
         <p className="text-muted-foreground">Para os links dos e-mails do Supabase voltarem para o sistema, confira uma vez no painel do Supabase (Authentication → URL Configuration):</p>
         <ul className="mt-2 list-disc space-y-1 pl-5">
           <li>
-            Site URL: <code className="rounded bg-muted px-1 text-xs">https://sistema-fct.vercel.app</code>
+            Site URL: <code className="rounded bg-muted px-1 text-xs">https://portal.farmaciafct.com.br</code>
           </li>
           <li>
-            Redirect URLs: <code className="rounded bg-muted px-1 text-xs">https://sistema-fct.vercel.app/**</code> e <code className="rounded bg-muted px-1 text-xs">http://localhost:3000/**</code>
+            Redirect URLs: <code className="rounded bg-muted px-1 text-xs">https://portal.farmaciafct.com.br/**</code>,{" "}
+            <code className="rounded bg-muted px-1 text-xs">https://sistema-fct.vercel.app/**</code> e <code className="rounded bg-muted px-1 text-xs">http://localhost:3000/**</code>
           </li>
         </ul>
         <p className="mt-2 text-xs text-muted-foreground">

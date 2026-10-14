@@ -6,7 +6,9 @@ categorias com molde de DRE, fechamento de mês), com usuários/permissões e au
 pronta para contábil, conciliação, compras etc. A **unidade (filial)** é a entidade central:
 todo módulo referencia o mesmo registro (nada de CNPJ/código solto).
 
-Produção: https://sistema-fct.vercel.app (deploy automático do branch `main`).
+Produção: https://portal.farmaciafct.com.br (deploy automático do branch `main` na Vercel; o endereço
+https://sistema-fct.vercel.app continua funcionando). DNS: registro A `portal` → `216.198.79.1` no Zone Editor
+do cPanel da hospedagem (o subdomínio também existe no cPanel, mas não é usado).
 
 ## Stack
 - **Next.js 16 (App Router) + TypeScript + React 19** — Server Components e Server Actions
@@ -59,8 +61,9 @@ Variáveis de ambiente:
   usada apenas para convidar usuários por e-mail. Nunca no código, nunca no Git.
 
 Configuração no painel do Supabase: Authentication → URL Configuration com Site URL
-`https://sistema-fct.vercel.app` e Redirect URLs `https://sistema-fct.vercel.app/**`,
-`http://localhost:3000/**` (necessário para convite e "esqueci minha senha").
+`https://portal.farmaciafct.com.br` e Redirect URLs `https://portal.farmaciafct.com.br/**`,
+`https://sistema-fct.vercel.app/**`, `http://localhost:3000/**` (necessário para convite e "esqueci minha senha").
+Os links dos e-mails usam o endereço por onde a pessoa acessou (cabeçalho `x-forwarded-host`).
 
 ## Estrutura
 ```
