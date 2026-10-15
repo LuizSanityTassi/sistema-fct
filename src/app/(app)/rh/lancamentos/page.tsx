@@ -9,7 +9,7 @@ import { arquivoDaFilial, carregarCompetencia, codigoEmpresaDaPlanilha } from "@
 import { competenciaAtual, competenciaValida, rotuloCompetencia, somarMeses } from "@/lib/rh/competencia";
 import { ehFarmaceutico, normalizarNome } from "@/lib/rh/lancamentos";
 import { createClient } from "@/lib/supabase/server";
-import { GradeLancamentos, type GrupoGrade } from "./grade";
+import { GradeLancamentos, LinkBaixarPlanilha, type GrupoGrade } from "./grade";
 
 export const metadata = { title: "Lançamentos da folha" };
 
@@ -147,7 +147,7 @@ export default async function LancamentosFolhaPage({ searchParams }: PageProps<"
           </Button>
         </form>
         {empresa && (
-          <Button size="sm" nativeButton={false} render={<a href={`/api/folha-lancamentos/planilha?${params({})}`} />}>
+          <Button size="sm" nativeButton={false} render={<LinkBaixarPlanilha href={`/api/folha-lancamentos/planilha?${params({})}`} />}>
             <Download data-icon="inline-start" />
             {filial ? "Baixar planilha da filial" : "Baixar todas (.zip)"}
           </Button>
@@ -169,6 +169,7 @@ export default async function LancamentosFolhaPage({ searchParams }: PageProps<"
       </dl>
 
       <GradeLancamentos
+        key={`${competencia}|${empresa}|${filial}|${q}|${situacao}`}
         competencia={competencia}
         eventos={eventos.map((e) => ({ id: e.id, chave: e.chave, nome: e.nome, codigo: e.codigo, unidade: e.unidade, naPlanilha: e.naPlanilha && e.codigo !== null }))}
         grupos={grupos}
