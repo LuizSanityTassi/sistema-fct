@@ -5,9 +5,10 @@ import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { ehEmpresaOmie, EMPRESAS_OMIE, OmieErro } from "@/lib/conciliacao/omie-api";
 import { atualizarCadastrosOmie } from "@/lib/conciliacao/omie-envio";
-import { testarLoginTrier } from "@/lib/conciliacao/trier-robo";
+import { diagnosticarTrier, testarLoginTrier } from "@/lib/conciliacao/trier-robo";
 import { chavesOmieDe, credenciaisTrier, salvarSegredo, SEGREDOS } from "@/lib/integracoes/segredos";
 import { createClient } from "@/lib/supabase/server";
+import type { Json } from "@/lib/supabase/types";
 
 export type EstadoIntegracao = { erro?: string; ok?: string };
 
@@ -103,4 +104,41 @@ export async function salvarOmie(_prev: EstadoIntegracao, fd: FormData): Promise
   } catch (e) {
     return { erro: `Salvo, mas a Omie recusou: ${mensagem(e)}` };
   }
+}
+
+export type RelatorioEncontrado = { pagina: string; rotulo: string; acessivel: boolean; campos: number; gerado: string };
+export type EstadoDiagnostico = { erro?: string; ok?: string; relatorios?: RelatorioEncontrado[] };
+
+/**
+ * Procura no menu do Trier as telas dos relatórios de caixa e anota os campos de cada uma (e tenta gerar o
+ * relatório do dia escolhido). O resultado fica em integracao_diagnosticos (só admin) para montar o robô da
+ * diferença de caixa. Não grava usuário nem senha e não altera nada no Trier.
+ */
+export async function diagnosticarRelatoriosTrier(_prev: EstadoDiagnostico, fd: FormData): Promise<EstadoDiagnostico> {
+  const sessao = await exigirAdmin();
+  if (!sessao) return { erro: "Só o administrador roda o diagnóstico." };
+  const iso = texto(fd, "dia");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return { erro: "Escolha o dia." };
+  const dia = iso.split("-").reverse().join("/");
+  const supabase = await createClient();
+  const cred = await credenciaisTrier(supabase);
+  if (!cred.usuario || !cred.senha) return { erro: "Cadastre antes o usuário e a senha do robô do Trier." };
+  let diag;
+  try {
+    diag = await diagnosticarTrier(cred, dia);
+  } catch (e) {
+    return { erro: `O robô não conseguiu ler o Trier: ${mensagem(e)}` };
+  }
+  const gerado = (t: (typeof diag.relatorios)[number]["tentativa"]) => {
+    if (!t) return "";
+    if (t.base64) return `gerou ${t.arquivo?.split(".").pop()?.toUpperCase() ?? "arquivo"} (${Math.round((t.tamanho ?? 0) / 1024)} KB)`;
+    return `não gerou: ${t.mensagem ?? "sem arquivo"}`;
+  };
+  const relatorios: RelatorioEncontrado[] = diag.relatorios.map((r) => ({ pagina: r.pagina, rotulo: r.rotulo, acessivel: r.acessivel, campos: r.campos.length, gerado: gerado(r.tentativa) }));
+  const resumo = { dia, telas_no_menu: diag.links.length, relatorios };
+  const { error } = await supabase.from("integracao_diagnosticos").insert({ sistema: "trier", resumo, dados: diag as unknown as Json });
+  if (error) return { erro: `O diagnóstico rodou, mas não consegui guardar o resultado: ${error.message}` };
+  await registrarAuditoria(supabase, { userId: sessao.id, acao: "criar", entidade: "integracoes", novo: { diagnostico_trier: { dia, relatorios: relatorios.length } } });
+  if (!relatorios.length) return { erro: `Entrei no Trier e li o menu (${diag.links.length} telas), mas não achei nenhum relatório com “caixa” no nome. O usuário do robô tem acesso aos relatórios financeiros?` };
+  return { ok: `Pronto: achei ${relatorios.length} tela(s) de caixa no menu do Trier. O resultado ficou guardado para eu montar a busca automática.`, relatorios };
 }

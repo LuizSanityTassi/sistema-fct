@@ -2,11 +2,11 @@
 
 import * as React from "react";
 import { useActionState } from "react";
-import { CheckCircle2, Eye, EyeOff } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff, Search } from "lucide-react";
 import { Campo, ErroFormulario } from "@/components/form/campo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { EstadoIntegracao } from "./actions";
+import type { EstadoDiagnostico, EstadoIntegracao } from "./actions";
 
 type Acao = (prev: EstadoIntegracao, fd: FormData) => Promise<EstadoIntegracao>;
 
@@ -86,6 +86,48 @@ export function OmieForm({ action, empresa, nome, status }: { action: Acao; empr
       <ErroFormulario mensagem={estado.erro} />
       <Sucesso msg={estado.ok} />
       <Botoes pendente={pendente} podeLimpar={status.appKey || status.appSecret} rotulo={`a Omie ${nome}`} />
+    </form>
+  );
+}
+
+type AcaoDiagnostico = (prev: EstadoDiagnostico, fd: FormData) => Promise<EstadoDiagnostico>;
+
+/** Procura no menu do Trier os relatórios de caixa (para montar a busca da diferença de caixa). */
+export function DiagnosticoTrierForm({ action, ontem, ultimo }: { action: AcaoDiagnostico; ontem: string; ultimo: string | null }) {
+  const [estado, formAction, pendente] = useActionState(action, {});
+  return (
+    <form action={formAction} className="space-y-3 border-t pt-4">
+      <div>
+        <h3 className="text-sm font-semibold">Relatórios de caixa (diferença de caixa)</h3>
+        <p className="text-xs text-muted-foreground">
+          O robô entra no Trier, procura no menu “Conferência de Movimentos de Caixa” e “Fechamento de Caixa”, anota os campos de cada um e tenta gerar os dois do dia escolhido. Só lê: não muda nada no Trier. Pode levar até 4 minutos.
+          {ultimo && ` Último diagnóstico: ${ultimo}.`}
+        </p>
+      </div>
+      <div className="flex flex-wrap items-end gap-2">
+        <Campo id="diag-dia" label="Dia dos caixas">
+          <Input id="diag-dia" name="dia" type="date" defaultValue={ontem} className="w-44" />
+        </Campo>
+        <Button type="submit" variant="outline" disabled={pendente}>
+          <Search data-icon="inline-start" />
+          {pendente ? "Procurando no Trier…" : "Procurar relatórios de caixa"}
+        </Button>
+      </div>
+      <ErroFormulario mensagem={estado.erro} />
+      <Sucesso msg={estado.ok} />
+      {estado.relatorios && estado.relatorios.length > 0 && (
+        <ul className="space-y-1.5 text-sm">
+          {estado.relatorios.map((r) => (
+            <li key={r.pagina} className="rounded-lg border bg-muted/30 px-3 py-2">
+              <span className="font-mono text-xs font-semibold">{r.pagina}</span> <span className="text-muted-foreground">· {r.rotulo}</span>
+              <span className="block text-xs text-muted-foreground">
+                {r.acessivel ? `${r.campos} campo(s)` : "o usuário do robô não tem acesso a esta tela"}
+                {r.gerado && ` · ${r.gerado}`}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </form>
   );
 }

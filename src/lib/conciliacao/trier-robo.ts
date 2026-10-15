@@ -206,3 +206,191 @@ export async function buscarRelatorioTrier(cred: CredenciaisTrier, cfg: ConfigTr
     await trierSair(base, ck);
   }
 }
+
+// ---------- diagnóstico: descobrir no menu as telas dos relatórios de caixa e os campos de cada uma ----------
+
+export type LinkMenuTrier = { pagina: string; rotulo: string; contexto: string };
+export type CampoTrier = { nome: string; tipo: string; valor: string; marcado?: boolean; opcoes?: { valor: string; texto: string; selecionada: boolean }[] };
+export type TentativaTrier = { campos: Record<string, string>; arquivo?: string; tamanho?: number; base64?: string; mensagem?: string; resposta?: string };
+export type RelatorioDiagnosticado = { pagina: string; rotulo: string; acessivel: boolean; campos: CampoTrier[]; padroes: Record<string, string>; html: string; inicio: string; tentativa?: TentativaTrier };
+export type DiagnosticoTrier = { menuHtml: string; menuInicio: string; links: LinkMenuTrier[]; relatorios: RelatorioDiagnosticado[] };
+
+const limpo = (s: string) =>
+  semTags(s)
+    .replace(/&nbsp;/g, " ")
+    .replace(/\\['"]/g, "")
+    .replace(/[{}()[\]'";,]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+const atributo = (tag: string, nome: string) => new RegExp(`\\b${nome}\\s*=\\s*("([^"]*)"|'([^']*)'|([^\\s>]+))`, "i").exec(tag)?.slice(2).find((v) => v !== undefined) ?? "";
+
+/**
+ * Nome do item do menu que abre a tela: o texto passado junto na chamada (openPage('X.pod','Nome')), senão o
+ * primeiro texto depois do link, senão o último antes (menus em JSON costumam pôr o nome antes do endereço).
+ */
+function rotuloDoLink(f: string, i: number, fim: number) {
+  const depois = f.slice(fim, fim + 400);
+  const arg = /^\s*['"]?\s*,\s*['"]([^'"]{3,80})['"]/.exec(depois)?.[1];
+  if (arg) return limpo(arg);
+  // item em objeto JS/JSON: {text:'Nome', url:'X.pod'} — a propriedade de nome no mesmo { }
+  const abre = f.lastIndexOf("{", i);
+  const fecha0 = f.indexOf("}", fim);
+  if (abre >= 0 && i - abre < 400 && f.lastIndexOf("}", i) < abre && fecha0 >= 0 && fecha0 - fim < 400) {
+    const prop = /\b(?:text|label|titulo|title|nome|descricao|caption)\s*:\s*['"]([^'"]{3,80})['"]/i.exec(f.slice(abre, fecha0));
+    if (prop) return limpo(prop[1]);
+  }
+  let resto = depois;
+  const fecha = resto.search(/[<>]/);
+  if (fecha >= 0 && resto[fecha] === ">") resto = resto.slice(fecha + 1);
+  const texto = resto
+    .split(/<[^>]*>/)
+    .map(limpo)
+    .find((t) => t.length >= 3);
+  if (texto && !/^\S+\.pod$/i.test(texto)) return texto.slice(0, 80);
+  let antes = f.slice(Math.max(0, i - 400), i);
+  if (antes.lastIndexOf("<") > antes.lastIndexOf(">")) antes = antes.slice(0, antes.lastIndexOf("<"));
+  return (
+    antes
+      .split(/<[^>]*>/)
+      .map(limpo)
+      .reverse()
+      .find((t) => t.length >= 3)
+      ?.slice(-80) ?? ""
+  );
+}
+
+/** Toda menção a uma tela .pod no menu, com o nome do item e o texto em volta. */
+function linksDoMenu(...fontes: string[]) {
+  const vistos = new Map<string, LinkMenuTrier>();
+  for (const f of fontes) {
+    for (const m of f.matchAll(/([A-Za-z][A-Za-z0-9_]*\.pod)\b/g)) {
+      const i = m.index ?? 0;
+      const fim = i + m[1].length;
+      const link = { pagina: m[1], rotulo: rotuloDoLink(f, i, fim), contexto: limpo(f.slice(Math.max(0, i - 200), fim + 200)).slice(0, 300) };
+      const ja = vistos.get(m[1]);
+      if (!ja || (!ja.rotulo && link.rotulo)) vistos.set(m[1], link);
+    }
+  }
+  return [...vistos.values()];
+}
+
+/** Campos do formulário da tela: input/select/textarea com valor, marcação e opções. */
+function camposDaTela(html: string): CampoTrier[] {
+  const campos: CampoTrier[] = [];
+  for (const m of html.matchAll(/<input\b[^>]*>/gi)) {
+    const nome = atributo(m[0], "name");
+    if (!nome) continue;
+    campos.push({ nome, tipo: (atributo(m[0], "type") || "text").toLowerCase(), valor: atributo(m[0], "value"), marcado: /\bchecked\b/i.test(m[0]) });
+  }
+  for (const m of html.matchAll(/<select\b([^>]*)>([\s\S]*?)<\/select>/gi)) {
+    const nome = atributo(`<select ${m[1]}>`, "name");
+    if (!nome) continue;
+    const opcoes = [...m[2].matchAll(/<option\b([^>]*)>([\s\S]*?)(?=<option\b|$)/gi)].map((o) => ({ valor: atributo(`<o ${o[1]}>`, "value"), texto: limpo(o[2]).slice(0, 80), selecionada: /\bselected\b/i.test(o[1]) }));
+    campos.push({ nome, tipo: "select", valor: (opcoes.find((o) => o.selecionada) ?? opcoes[0])?.valor ?? "", opcoes });
+  }
+  for (const m of html.matchAll(/<textarea\b([^>]*)>([\s\S]*?)<\/textarea>/gi)) {
+    const nome = atributo(`<t ${m[1]}>`, "name");
+    if (nome) campos.push({ nome, tipo: "textarea", valor: m[2] });
+  }
+  return campos;
+}
+
+/** Valores que a tela preenche sozinha ao abrir (resposta do httpStart). */
+function padroesDoInicio(js: string) {
+  const out: Record<string, string> = {};
+  for (const m of js.matchAll(/\$el\('([^']+)'\)\.value\s*=\s*'((?:[^'\\]|\\.)*)'/g)) out[m[1]] = desescapar(m[2]);
+  for (const m of js.matchAll(/\$el\('([^']+)'\)\.checked\s*=\s*(true|false)/g)) out[`${m[1]}#checked`] = m[2];
+  return out;
+}
+
+/** Monta o pedido do relatório com os valores da própria tela, datas de `dia` e saída em Excel quando houver. */
+function camposTentativa(campos: CampoTrier[], padroes: Record<string, string>, dia: string) {
+  const out: Record<string, string> = {};
+  for (const c of campos) {
+    if (c.tipo === "button" || c.tipo === "submit" || c.tipo === "reset" || c.tipo === "image") continue;
+    if (c.tipo === "radio") {
+      const marcado = padroes[`${c.nome}#checked`] === "true" || c.marcado;
+      if (marcado || !(c.nome in out)) out[c.nome] = c.valor;
+      continue;
+    }
+    if (c.tipo === "checkbox") {
+      const marcado = padroes[`${c.nome}#checked`] ? padroes[`${c.nome}#checked`] === "true" : c.marcado;
+      out[c.nome] = marcado ? c.valor || "S" : "";
+      continue;
+    }
+    out[c.nome] = padroes[c.nome] ?? c.valor;
+    if (c.tipo !== "hidden" && /^dat|^dt_|data/i.test(c.nome)) out[c.nome] = dia;
+    if (c.tipo === "select" && /saida/i.test(c.nome)) {
+      const excel = c.opcoes?.find((o) => /excel|xls|planilha/i.test(o.texto));
+      if (excel) out[c.nome] = excel.valor;
+    }
+  }
+  return out;
+}
+
+const corta = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…[cortado ${s.length - n}]` : s);
+
+/**
+ * Entra no Trier, lê o menu e, para cada tela cujo nome no menu fala em "caixa", anota os campos e os valores
+ * que a tela preenche sozinha. Nos dois relatórios da diferença de caixa tenta gerar o de `dia` (Excel se houver).
+ * Só leitura: não altera nada no Trier.
+ */
+export async function diagnosticarTrier(cred: CredenciaisTrier, dia: string): Promise<DiagnosticoTrier> {
+  const comeco = Date.now();
+  const ck: Cookies = {};
+  const base = await trierEntrar(cred, ck);
+  try {
+    const menu = await trierPagina(base, "Menu.pod", ck);
+    let menuInicio = "";
+    try {
+      if (menu.serial) menuInicio = await trierAcao(base, menu.serial, "httpStart", { attributes: trierAtributos(menu.html) }, ck, 60_000, "Menu.pod");
+    } catch (e) {
+      menuInicio = `[erro no httpStart do menu: ${e instanceof Error ? e.message : String(e)}]`;
+    }
+    const links = linksDoMenu(menu.html, menuInicio);
+    const deCaixa = links.filter((l) => /caixa/i.test(l.rotulo) && !/^(Menu|Login|Logout)\.pod$/i.test(l.pagina)).slice(0, 8);
+    const relatorios: RelatorioDiagnosticado[] = [];
+    for (const l of deCaixa) {
+      const rotulo = l.rotulo;
+      const p = await trierPagina(base, l.pagina, ck);
+      if (!p.serial) {
+        relatorios.push({ pagina: l.pagina, rotulo, acessivel: false, campos: [], padroes: {}, html: corta(p.html || p.redir, 4000), inicio: "" });
+        continue;
+      }
+      let inicio = "";
+      try {
+        inicio = await trierAcao(base, p.serial, "httpStart", { attributes: trierAtributos(p.html) }, ck, 60_000, l.pagina);
+      } catch (e) {
+        inicio = `[erro: ${e instanceof Error ? e.message : String(e)}]`;
+      }
+      const campos = camposDaTela(p.html);
+      const padroes = padroesDoInicio(inicio);
+      const rel: RelatorioDiagnosticado = { pagina: l.pagina, rotulo, acessivel: true, campos, padroes, html: corta(p.html, 300_000), inicio: corta(inicio, 100_000) };
+      // a função tem 300 s na Vercel: só tenta gerar se ainda sobra tempo para o relatório e o download
+      if (/confer.{0,6}ncia.{0,20}movimento|fechamento.{0,6}caixa/i.test(rotulo) && Date.now() - comeco < 90_000) {
+        const pedido = camposTentativa(campos, padroes, dia);
+        const t: TentativaTrier = { campos: pedido };
+        try {
+          const r = await trierAcao(base, p.serial, "runReport", pedido, ck, 110_000, l.pagina);
+          t.resposta = corta(r, 20_000);
+          const m = /openReport\('([^']+)'/i.exec(r);
+          if (m) {
+            const arq = await httpPedido("GET", base + m[1].replace(/^\/+/, ""), null, ck, 90_000);
+            t.arquivo = m[1];
+            t.tamanho = arq.corpo.length;
+            if (arq.cod === 200 && arq.corpo.length <= 6_000_000) t.base64 = arq.corpo.toString("base64");
+          } else t.mensagem = trierMsg(r) || "o Trier não devolveu arquivo";
+        } catch (e) {
+          t.mensagem = e instanceof Error ? e.message : String(e);
+        }
+        rel.tentativa = t;
+      }
+      relatorios.push(rel);
+    }
+    return { menuHtml: corta(menu.html, 1_500_000), menuInicio: corta(menuInicio, 1_500_000), links, relatorios };
+  } finally {
+    await trierSair(base, ck);
+  }
+}
+
+export const _testeDiagnostico = { linksDoMenu, camposDaTela, padroesDoInicio, camposTentativa };

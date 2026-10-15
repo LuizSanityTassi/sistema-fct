@@ -1652,6 +1652,41 @@ export type Database = {
           },
         ]
       }
+      integracao_diagnosticos: {
+        Row: {
+          criado_em: string
+          criado_por: string | null
+          dados: Json
+          id: string
+          resumo: Json
+          sistema: string
+        }
+        Insert: {
+          criado_em?: string
+          criado_por?: string | null
+          dados?: Json
+          id?: string
+          resumo?: Json
+          sistema: string
+        }
+        Update: {
+          criado_em?: string
+          criado_por?: string | null
+          dados?: Json
+          id?: string
+          resumo?: Json
+          sistema?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integracao_diagnosticos_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       denuncia_responsaveis: {
         Row: {
           liberado_em: string

@@ -6,23 +6,30 @@ import { EMPRESAS_OMIE, statusChaves, type EmpresaOmie } from "@/lib/conciliacao
 import { credenciaisTrier, SEGREDOS, statusSegredos } from "@/lib/integracoes/segredos";
 import { formatarDataHora } from "@/lib/formatos";
 import { createClient } from "@/lib/supabase/server";
-import { salvarOmie, salvarTrier } from "./actions";
-import { OmieForm, TrierForm } from "./formularios";
+import { diagnosticarRelatoriosTrier, salvarOmie, salvarTrier } from "./actions";
+import { DiagnosticoTrierForm, OmieForm, TrierForm } from "./formularios";
 
 export const metadata = { title: "Integrações" };
+// o diagnóstico do Trier entra no sistema e gera relatórios: precisa do tempo máximo da função
+export const maxDuration = 300;
 
 const Estado = ({ ok, texto }: { ok: boolean; texto: string }) => <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${ok ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>{ok ? "🟢" : "⚪"} {texto}</span>;
+
+// dia anterior no horário de Brasília (UTC−3), em aaaa-mm-dd
+const ontemNoBrasil = () => new Date(Date.now() - 27 * 3_600_000).toISOString().slice(0, 10);
 
 export default async function IntegracoesPage() {
   const sessao = await exigirAcesso("/configuracoes/integracoes");
   if (sessao.papel !== "admin") redirect("/dashboard?erro=sem_permissao");
   const supabase = await createClient();
-  const [segredos, cred, omie, { count: agentes }] = await Promise.all([
+  const [segredos, cred, omie, { count: agentes }, { data: ultimoDiag }] = await Promise.all([
     statusSegredos(supabase),
     credenciaisTrier(supabase),
     statusChaves(supabase),
     supabase.from("conc_agentes").select("id", { count: "exact", head: true }).is("revogado_em", null),
+    supabase.from("integracao_diagnosticos").select("criado_em").eq("sistema", "trier").order("criado_em", { ascending: false }).limit(1).maybeSingle(),
   ]);
+  const ontem = ontemNoBrasil();
   const temServiceRole = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
   const trierOk = Boolean(cred.usuario && cred.senha);
   const quando = (nome: keyof typeof SEGREDOS) => segredos[SEGREDOS[nome]].atualizadoEm;
@@ -33,18 +40,19 @@ export default async function IntegracoesPage() {
 
       <section className="mb-4 rounded-xl border bg-card p-5">
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <h2 className="text-sm font-semibold">Trier — robô do relatório “Contas a Pagar ou Pagas”</h2>
+          <h2 className="text-sm font-semibold">Trier — robô dos relatórios</h2>
           <Estado ok={trierOk} texto={trierOk ? `configurado (${cred.origem === "sistema" ? "aqui" : "ambiente"})` : "falta usuário e senha"} />
           {quando("trier_senha") && <span className="text-xs text-muted-foreground">senha alterada em {formatarDataHora(quando("trier_senha")!)}</span>}
         </div>
         <p className="mb-3 text-xs text-muted-foreground">
-          Crie no Trier um usuário só para o robô, com acesso apenas ao relatório “Contas a Pagar ou Pagas” (Rel 0010), e cadastre aqui. Depois é só usar “Buscar do Trier agora” em{" "}
+          Crie no Trier um usuário só para o robô, com acesso apenas aos relatórios “Contas a Pagar ou Pagas” (Rel 0010), “Conferência de Movimentos de Caixa” e “Fechamento de Caixa”, e cadastre aqui. Depois é só usar “Buscar do Trier agora” em{" "}
           <Link href="/conciliacao/robos" className="text-fct-navy underline">
             Conciliação → Robôs e agente
           </Link>
           .
         </p>
         <TrierForm action={salvarTrier} status={{ url: cred.url, usuario: segredos[SEGREDOS.trier_usuario].configurado, senha: segredos[SEGREDOS.trier_senha].configurado, origemAmbiente: cred.origem === "ambiente" }} />
+        {trierOk && <div className="mt-4"><DiagnosticoTrierForm action={diagnosticarRelatoriosTrier} ontem={ontem} ultimo={ultimoDiag ? formatarDataHora(ultimoDiag.criado_em) : null} /></div>}
       </section>
 
       {(["nazario", "varela"] as EmpresaOmie[]).map((e) => {
