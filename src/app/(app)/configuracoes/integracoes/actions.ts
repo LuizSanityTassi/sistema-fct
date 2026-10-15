@@ -139,6 +139,7 @@ export async function diagnosticarRelatoriosTrier(_prev: EstadoDiagnostico, fd: 
   const { error } = await supabase.from("integracao_diagnosticos").insert({ sistema: "trier", resumo, dados: diag as unknown as Json });
   if (error) return { erro: `O diagnóstico rodou, mas não consegui guardar o resultado: ${error.message}` };
   await registrarAuditoria(supabase, { userId: sessao.id, acao: "criar", entidade: "integracoes", novo: { diagnostico_trier: { dia, relatorios: relatorios.length } } });
-  if (!relatorios.length) return { erro: `Entrei no Trier e li o menu (${diag.links.length} telas), mas não achei nenhum relatório com “caixa” no nome. O usuário do robô tem acesso aos relatórios financeiros?` };
-  return { ok: `Pronto: achei ${relatorios.length} tela(s) de caixa no menu do Trier. O resultado ficou guardado para eu montar a busca automática.`, relatorios };
+  if (!relatorios.length) return { erro: `Entrei no Trier e li o menu (${diag.links.length} telas), mas não consegui abrir os relatórios de caixa.` };
+  const gerados = diag.relatorios.filter((r) => r.tentativa?.base64).length;
+  return { ok: `Pronto: abri ${relatorios.length} relatório(s) de caixa no Trier e ${gerados} gerou(aram) arquivo. O resultado ficou guardado para montar a busca automática.`, relatorios };
 }

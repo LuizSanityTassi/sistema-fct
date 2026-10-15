@@ -100,7 +100,7 @@ export function DiagnosticoTrierForm({ action, ontem, ultimo }: { action: AcaoDi
       <div>
         <h3 className="text-sm font-semibold">Relatórios de caixa (diferença de caixa)</h3>
         <p className="text-xs text-muted-foreground">
-          O robô entra no Trier, procura no menu “Conferência de Movimentos de Caixa” e “Fechamento de Caixa”, anota os campos de cada um e tenta gerar os dois do dia escolhido. Só lê: não muda nada no Trier. Pode levar até 4 minutos.
+          O robô entra no Trier, abre “Diferenças de Caixa”, “Conferência de Movimentos de Caixa”, “Fechamento de Caixa” e “Movimentos Caixa Balcão”, anota os campos de cada um e tenta gerá-los no dia escolhido. Só lê: não muda nada no Trier. Pode levar até 4 minutos.
           {ultimo && ` Último diagnóstico: ${ultimo}.`}
         </p>
       </div>

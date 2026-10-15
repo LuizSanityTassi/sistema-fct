@@ -215,9 +215,18 @@ export type TentativaTrier = { campos: Record<string, string>; arquivo?: string;
 export type RelatorioDiagnosticado = { pagina: string; rotulo: string; acessivel: boolean; campos: CampoTrier[]; padroes: Record<string, string>; html: string; inicio: string; tentativa?: TentativaTrier };
 export type DiagnosticoTrier = { menuHtml: string; menuInicio: string; links: LinkMenuTrier[]; relatorios: RelatorioDiagnosticado[] };
 
-const limpo = (s: string) =>
-  semTags(s)
+// entidades HTML que o Trier usa nos nomes do menu (&#32; &#234; &amp; …)
+const entidades = (s: string) =>
+  s
+    .replace(/&#(\d+);?/g, (_, n: string) => String.fromCharCode(Number(n)))
+    .replace(/&#x([0-9a-f]+);?/gi, (_, n: string) => String.fromCharCode(parseInt(n, 16)))
     .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"');
+const limpo = (s: string) =>
+  entidades(semTags(s))
     .replace(/\\['"]/g, "")
     .replace(/[{}()[\]'";,]+/g, " ")
     .replace(/\s+/g, " ")
@@ -263,12 +272,17 @@ function rotuloDoLink(f: string, i: number, fim: number) {
 function linksDoMenu(...fontes: string[]) {
   const vistos = new Map<string, LinkMenuTrier>();
   for (const f of fontes) {
+    for (const m of f.matchAll(/printSideMenu\(\s*'[^']*'\s*,\s*'[^']*'\s*,\s*'([^']*)'\s*,\s*'([^']*)'\s*,\s*'([A-Za-z][A-Za-z0-9_]*\.pod)/g)) {
+      vistos.set(m[3], { pagina: m[3], rotulo: limpo(m[1]), contexto: limpo(m[2]) });
+    }
+  }
+  for (const f of fontes) {
     for (const m of f.matchAll(/([A-Za-z][A-Za-z0-9_]*\.pod)\b/g)) {
       const i = m.index ?? 0;
       const fim = i + m[1].length;
       const link = { pagina: m[1], rotulo: rotuloDoLink(f, i, fim), contexto: limpo(f.slice(Math.max(0, i - 200), fim + 200)).slice(0, 300) };
       const ja = vistos.get(m[1]);
-      if (!ja || (!ja.rotulo && link.rotulo)) vistos.set(m[1], link);
+      if (!ja) vistos.set(m[1], link);
     }
   }
   return [...vistos.values()];
@@ -330,13 +344,22 @@ function camposTentativa(campos: CampoTrier[], padroes: Record<string, string>, 
 
 const corta = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…[cortado ${s.length - n}]` : s);
 
+/** Telas do Trier (achadas no menu em 15/10/2026, Relatórios > Financeiros), na ordem de prioridade do diagnóstico. */
+export const TELAS_CAIXA_TRIER = [
+  { pagina: "Rel_0122.pod", rotulo: "Relatório de Diferenças de Caixa" },
+  { pagina: "Rel_0275.pod", rotulo: "Conferência de Movimentos de Caixa" },
+  { pagina: "Rel_0031.pod", rotulo: "Fechamento de Caixa" },
+  { pagina: "Rel_0047.pod", rotulo: "Movimentos Caixa Balcão" },
+] as const;
+
 /**
- * Entra no Trier, lê o menu e, para cada tela cujo nome no menu fala em "caixa", anota os campos e os valores
- * que a tela preenche sozinha. Nos dois relatórios da diferença de caixa tenta gerar o de `dia` (Excel se houver).
+ * Entra no Trier, lê o menu (lista de telas) e abre as telas de caixa: anota os campos e os valores que cada uma
+ * preenche sozinha e tenta gerar o relatório de `dia` (Excel se houver), enquanto houver tempo.
  * Só leitura: não altera nada no Trier.
  */
 export async function diagnosticarTrier(cred: CredenciaisTrier, dia: string): Promise<DiagnosticoTrier> {
   const comeco = Date.now();
+  const resta = () => 285_000 - (Date.now() - comeco); // a função tem 300 s na Vercel
   const ck: Cookies = {};
   const base = await trierEntrar(cred, ck);
   try {
@@ -348,34 +371,33 @@ export async function diagnosticarTrier(cred: CredenciaisTrier, dia: string): Pr
       menuInicio = `[erro no httpStart do menu: ${e instanceof Error ? e.message : String(e)}]`;
     }
     const links = linksDoMenu(menu.html, menuInicio);
-    const deCaixa = links.filter((l) => /caixa/i.test(l.rotulo) && !/^(Menu|Login|Logout)\.pod$/i.test(l.pagina)).slice(0, 8);
     const relatorios: RelatorioDiagnosticado[] = [];
-    for (const l of deCaixa) {
-      const rotulo = l.rotulo;
-      const p = await trierPagina(base, l.pagina, ck);
+    for (const { pagina, rotulo } of TELAS_CAIXA_TRIER) {
+      if (resta() < 15_000) break;
+      const p = await trierPagina(base, pagina, ck);
       if (!p.serial) {
-        relatorios.push({ pagina: l.pagina, rotulo, acessivel: false, campos: [], padroes: {}, html: corta(p.html || p.redir, 4000), inicio: "" });
+        relatorios.push({ pagina, rotulo, acessivel: false, campos: [], padroes: {}, html: corta(p.html || p.redir, 4000), inicio: "" });
         continue;
       }
       let inicio = "";
       try {
-        inicio = await trierAcao(base, p.serial, "httpStart", { attributes: trierAtributos(p.html) }, ck, 60_000, l.pagina);
+        inicio = await trierAcao(base, p.serial, "httpStart", { attributes: trierAtributos(p.html) }, ck, 30_000, pagina);
       } catch (e) {
         inicio = `[erro: ${e instanceof Error ? e.message : String(e)}]`;
       }
       const campos = camposDaTela(p.html);
       const padroes = padroesDoInicio(inicio);
-      const rel: RelatorioDiagnosticado = { pagina: l.pagina, rotulo, acessivel: true, campos, padroes, html: corta(p.html, 300_000), inicio: corta(inicio, 100_000) };
-      // a função tem 300 s na Vercel: só tenta gerar se ainda sobra tempo para o relatório e o download
-      if (/confer.{0,6}ncia.{0,20}movimento|fechamento.{0,6}caixa/i.test(rotulo) && Date.now() - comeco < 90_000) {
+      const rel: RelatorioDiagnosticado = { pagina, rotulo, acessivel: true, campos, padroes, html: corta(p.html, 300_000), inicio: corta(inicio, 100_000) };
+      // só tenta gerar se ainda sobra tempo para o relatório e o download
+      if (resta() > 60_000) {
         const pedido = camposTentativa(campos, padroes, dia);
         const t: TentativaTrier = { campos: pedido };
         try {
-          const r = await trierAcao(base, p.serial, "runReport", pedido, ck, 110_000, l.pagina);
+          const r = await trierAcao(base, p.serial, "runReport", pedido, ck, Math.min(110_000, resta() - 30_000), pagina);
           t.resposta = corta(r, 20_000);
           const m = /openReport\('([^']+)'/i.exec(r);
           if (m) {
-            const arq = await httpPedido("GET", base + m[1].replace(/^\/+/, ""), null, ck, 90_000);
+            const arq = await httpPedido("GET", base + m[1].replace(/^\/+/, ""), null, ck, Math.max(10_000, Math.min(60_000, resta() - 10_000)));
             t.arquivo = m[1];
             t.tamanho = arq.corpo.length;
             if (arq.cod === 200 && arq.corpo.length <= 6_000_000) t.base64 = arq.corpo.toString("base64");
@@ -387,7 +409,8 @@ export async function diagnosticarTrier(cred: CredenciaisTrier, dia: string): Pr
       }
       relatorios.push(rel);
     }
-    return { menuHtml: corta(menu.html, 1_500_000), menuInicio: corta(menuInicio, 1_500_000), links, relatorios };
+    // o menu inteiro já foi guardado no 1º diagnóstico; agora basta a lista de telas
+    return { menuHtml: links.length ? "" : corta(menu.html, 1_500_000), menuInicio: links.length ? "" : corta(menuInicio, 1_500_000), links, relatorios };
   } finally {
     await trierSair(base, ck);
   }
