@@ -1687,6 +1687,194 @@ export type Database = {
           },
         ]
       }
+      caixa_coletas: {
+        Row: {
+          branch_id: string
+          caixas: number
+          coletado_em: string
+          coletado_por: string | null
+          dia: string
+          duracao_ms: number | null
+          mensagem: string | null
+          status: string
+        }
+        Insert: {
+          branch_id: string
+          caixas?: number
+          coletado_em?: string
+          coletado_por?: string | null
+          dia: string
+          duracao_ms?: number | null
+          mensagem?: string | null
+          status: string
+        }
+        Update: {
+          branch_id?: string
+          caixas?: number
+          coletado_em?: string
+          coletado_por?: string | null
+          dia?: string
+          duracao_ms?: number | null
+          mensagem?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caixa_coletas_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caixa_coletas_coletado_por_fkey"
+            columns: ["coletado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      caixa_diferencas: {
+        Row: {
+          andamento: string
+          branch_id: string
+          classe: string
+          cod_operador: number | null
+          coletado_em: string
+          competencia: string
+          decidida_em: string | null
+          decidida_por: string | null
+          decisao_obs: string | null
+          dia: string
+          diferenca: number
+          employee_id: string | null
+          fechamento: string | null
+          formas: Json
+          id: string
+          informado: number
+          justificada_em: string | null
+          justificada_por: string | null
+          justificativa: string | null
+          nome_operador: string
+          numero_caixa: number
+          valor_quebra: number
+        }
+        Insert: {
+          andamento?: string
+          branch_id: string
+          cod_operador?: number | null
+          coletado_em?: string
+          decidida_em?: string | null
+          decidida_por?: string | null
+          decisao_obs?: string | null
+          dia: string
+          diferenca: number
+          employee_id?: string | null
+          fechamento?: string | null
+          formas?: Json
+          id?: string
+          informado: number
+          justificada_em?: string | null
+          justificada_por?: string | null
+          justificativa?: string | null
+          nome_operador: string
+          numero_caixa: number
+        }
+        Update: {
+          andamento?: string
+          branch_id?: string
+          cod_operador?: number | null
+          coletado_em?: string
+          decidida_em?: string | null
+          decidida_por?: string | null
+          decisao_obs?: string | null
+          dia?: string
+          diferenca?: number
+          employee_id?: string | null
+          fechamento?: string | null
+          formas?: Json
+          id?: string
+          informado?: number
+          justificada_em?: string | null
+          justificada_por?: string | null
+          justificativa?: string | null
+          nome_operador?: string
+          numero_caixa?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caixa_diferencas_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caixa_diferencas_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caixa_diferencas_justificada_por_fkey"
+            columns: ["justificada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caixa_diferencas_decidida_por_fkey"
+            columns: ["decidida_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      caixa_operadores: {
+        Row: {
+          cod_operador: number
+          employee_id: string | null
+          nome_trier: string
+          vinculado_em: string | null
+          vinculado_por: string | null
+          visto_em: string
+        }
+        Insert: {
+          cod_operador: number
+          employee_id?: string | null
+          nome_trier: string
+          vinculado_em?: string | null
+          vinculado_por?: string | null
+          visto_em?: string
+        }
+        Update: {
+          cod_operador?: number
+          employee_id?: string | null
+          nome_trier?: string
+          vinculado_em?: string | null
+          vinculado_por?: string | null
+          visto_em?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caixa_operadores_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caixa_operadores_vinculado_por_fkey"
+            columns: ["vinculado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       denuncia_responsaveis: {
         Row: {
           liberado_em: string
@@ -1953,6 +2141,7 @@ export type Database = {
           branch_id: string | null
           created_at: string
           email: string | null
+          employee_id: string | null
           id: string
           nome: string
           papel: Database["public"]["Enums"]["app_role"]
@@ -1964,6 +2153,7 @@ export type Database = {
           branch_id?: string | null
           created_at?: string
           email?: string | null
+          employee_id?: string | null
           id: string
           nome?: string
           papel?: Database["public"]["Enums"]["app_role"]
@@ -1975,6 +2165,7 @@ export type Database = {
           branch_id?: string | null
           created_at?: string
           email?: string | null
+          employee_id?: string | null
           id?: string
           nome?: string
           papel?: Database["public"]["Enums"]["app_role"]
@@ -2439,6 +2630,10 @@ export type Database = {
           tipo: Database["public"]["Enums"]["fin_tipo"]
           total: number
         }[]
+      }
+      caixa_justificar: {
+        Args: { p_id: string; p_texto: string }
+        Returns: undefined
       }
       integracao_ler_segredos: {
         Args: { p_nomes: string[] }

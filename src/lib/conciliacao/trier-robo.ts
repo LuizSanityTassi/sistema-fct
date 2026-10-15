@@ -449,3 +449,76 @@ export async function diagnosticarTrier(cred: CredenciaisTrier, dia: string, fil
 }
 
 export const _testeDiagnostico = { linksDoMenu, camposDaTela, padroesDoInicio, camposTentativa, telasCaixaTrier };
+
+// ---------- diferença de caixa: "Relatório de Diferenças de Caixa" (Rel_0122) de cada filial, em Excel ----------
+
+export type PedidoCaixaTrier = { dia: string; filial: number }; // dia em aaaa-mm-dd; filial = número no Trier (F002 → 2)
+export type RespostaCaixaTrier = PedidoCaixaTrier & { xlsx?: Buffer; semMovimento?: boolean; erro?: string; ms: number };
+
+const isoParaBr = (iso: string) => iso.split("-").reverse().join("/");
+
+/**
+ * Gera no Trier o Relatório de Diferenças de Caixa de cada filial × dia pedido (modo "Período", XLS), um por vez,
+ * enquanto couber no prazo. Cada resposta vai para `aoReceber` assim que chega (quem chama grava na hora: se a função
+ * for interrompida, o que já veio fica salvo). Devolve os pedidos que ficaram para a próxima rodada. Só leitura.
+ * Uma filial por vez porque "todas as filiais" num pedido só passa de 2 minutos no Trier.
+ */
+export async function buscarDiferencasCaixaTrier(
+  cred: CredenciaisTrier,
+  pedidos: PedidoCaixaTrier[],
+  aoReceber: (r: RespostaCaixaTrier) => Promise<void>,
+  prazoMs = 270_000,
+) {
+  const comeco = Date.now();
+  const resta = () => prazoMs - (Date.now() - comeco);
+  const ck: Cookies = {};
+  const base = await trierEntrar(cred, ck);
+  const restantes = [...pedidos];
+  try {
+    const pagina = "Rel_0122.pod";
+    const p = await trierPagina(base, pagina, ck);
+    if (!p.serial) throw new TrierErro('o usuário do robô no Trier não tem acesso ao "Relatório de Diferenças de Caixa" (Relatórios > Financeiros).');
+    await trierAcao(base, p.serial, "httpStart", { attributes: trierAtributos(p.html) }, ck, 30_000, pagina);
+    const formulario = camposTentativa(camposDaTela(p.html), {});
+    // como clicar em "Período" na tela: libera as datas
+    await trierAcao(base, p.serial, "habilitaComponentes", { ...formulario, filtro: "1" }, ck, 30_000, pagina);
+    while (restantes.length && resta() > 45_000) {
+      const pedido = restantes[0];
+      const t0 = Date.now();
+      const dia = isoParaBr(pedido.dia);
+      const campos = {
+        ...formulario,
+        filtro: "1",
+        id_cod_filialEntrada: String(pedido.filial),
+        id_cod_filial: String(pedido.filial),
+        dt_abertura: dia,
+        dt_fechamento: dia,
+        chk_detalhar_forma_pagamento: "S",
+        chk_exibir_justificativa: "N", // a tela desliga essa opção no modo Período
+        saida: "4", // XLS
+      };
+      let resposta: RespostaCaixaTrier;
+      try {
+        const r = await trierAcao(base, p.serial, "runReport", campos, ck, Math.min(150_000, resta() - 15_000), pagina);
+        const m = /openReport\('([^']+\.xlsx?)'/i.exec(r);
+        if (m) {
+          const arq = await httpPedido("GET", base + m[1].replace(/^\/+/, ""), null, ck, Math.max(10_000, Math.min(60_000, resta() - 10_000)));
+          if (arq.cod !== 200 || arq.corpo.subarray(0, 2).toString("latin1") !== "PK") throw new TrierErro("não consegui baixar o Excel gerado pelo Trier.");
+          resposta = { ...pedido, xlsx: arq.corpo, ms: Date.now() - t0 };
+        } else {
+          const msg = trierMsg(r);
+          resposta = /nenhum|n[aã]o (h[aá]|foram|existe)|sem (registro|movimento)/i.test(msg) ? { ...pedido, semMovimento: true, ms: Date.now() - t0 } : { ...pedido, erro: msg || "o Trier não gerou o relatório", ms: Date.now() - t0 };
+        }
+      } catch (e) {
+        resposta = { ...pedido, erro: e instanceof Error ? e.message : String(e), ms: Date.now() - t0 };
+      }
+      restantes.shift();
+      await aoReceber(resposta);
+      // sem conexão / tempo esgotado: o Trier está lento ou fora; não adianta seguir martelando nesta rodada
+      if (resposta.erro && /sem conex[aã]o|tempo esgotado/i.test(resposta.erro)) break;
+    }
+  } finally {
+    await trierSair(base, ck);
+  }
+  return { restantes, ms: Date.now() - comeco };
+}
