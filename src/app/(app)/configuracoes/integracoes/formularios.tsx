@@ -100,13 +100,19 @@ export function DiagnosticoTrierForm({ action, ontem, ultimo }: { action: AcaoDi
       <div>
         <h3 className="text-sm font-semibold">Relatórios de caixa (diferença de caixa)</h3>
         <p className="text-xs text-muted-foreground">
-          O robô entra no Trier, abre “Diferenças de Caixa”, “Conferência de Movimentos de Caixa”, “Fechamento de Caixa” e “Movimentos Caixa Balcão”, anota os campos de cada um e tenta gerá-los no dia escolhido. Só lê: não muda nada no Trier. Pode levar até 4 minutos.
+          O robô entra no Trier e gera, em Excel: “Diferenças de Caixa” do dia (todas as filiais), “Fechamento de Caixa” do caixa informado e “Conferência de Movimentos de Caixa” da filial no dia. Só lê: não muda nada no Trier. Pode levar até 4 minutos.
           {ultimo && ` Último diagnóstico: ${ultimo}.`}
         </p>
       </div>
       <div className="flex flex-wrap items-end gap-2">
         <Campo id="diag-dia" label="Dia dos caixas">
           <Input id="diag-dia" name="dia" type="date" defaultValue={ontem} className="w-44" />
+        </Campo>
+        <Campo id="diag-filial" label="Filial (nº no Trier)">
+          <Input id="diag-filial" name="filial" inputMode="numeric" defaultValue="2" className="w-28" />
+        </Campo>
+        <Campo id="diag-caixa" label="Nº do caixa">
+          <Input id="diag-caixa" name="caixa" inputMode="numeric" defaultValue="4667" className="w-28" />
         </Campo>
         <Button type="submit" variant="outline" disabled={pendente}>
           <Search data-icon="inline-start" />

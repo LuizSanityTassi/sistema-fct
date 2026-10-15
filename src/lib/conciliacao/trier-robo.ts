@@ -210,9 +210,9 @@ export async function buscarRelatorioTrier(cred: CredenciaisTrier, cfg: ConfigTr
 // ---------- diagnóstico: descobrir no menu as telas dos relatórios de caixa e os campos de cada uma ----------
 
 export type LinkMenuTrier = { pagina: string; rotulo: string; contexto: string };
-export type CampoTrier = { nome: string; tipo: string; valor: string; marcado?: boolean; opcoes?: { valor: string; texto: string; selecionada: boolean }[] };
-export type TentativaTrier = { campos: Record<string, string>; arquivo?: string; tamanho?: number; base64?: string; mensagem?: string; resposta?: string };
-export type RelatorioDiagnosticado = { pagina: string; rotulo: string; acessivel: boolean; campos: CampoTrier[]; padroes: Record<string, string>; html: string; inicio: string; tentativa?: TentativaTrier };
+export type CampoTrier = { nome: string; tipo: string; valor: string; marcado?: boolean; valorMarcado?: string; valorDesmarcado?: string; opcoes?: { valor: string; texto: string; selecionada: boolean }[] };
+export type TentativaTrier = { acao: string; campos: Record<string, string>; arquivo?: string; tamanho?: number; base64?: string; mensagem?: string; resposta?: string };
+export type RelatorioDiagnosticado = { pagina: string; rotulo: string; acessivel: boolean; campos: CampoTrier[]; padroes: Record<string, string>; html: string; inicio: string; tentativas: TentativaTrier[] };
 export type DiagnosticoTrier = { menuHtml: string; menuInicio: string; links: LinkMenuTrier[]; relatorios: RelatorioDiagnosticado[] };
 
 // entidades HTML que o Trier usa nos nomes do menu (&#32; &#234; &amp; …)
@@ -294,7 +294,11 @@ function camposDaTela(html: string): CampoTrier[] {
   for (const m of html.matchAll(/<input\b[^>]*>/gi)) {
     const nome = atributo(m[0], "name");
     if (!nome) continue;
-    campos.push({ nome, tipo: (atributo(m[0], "type") || "text").toLowerCase(), valor: atributo(m[0], "value"), marcado: /\bchecked\b/i.test(m[0]) });
+    const c: CampoTrier = { nome, tipo: (atributo(m[0], "type") || "text").toLowerCase(), valor: atributo(m[0], "value"), marcado: /\bchecked\b/i.test(m[0]) };
+    // caixas de marcar do Trier: data-valueChecked="S" data-valueUnchecked="N"
+    if (/data-valueChecked\s*=/i.test(m[0])) c.valorMarcado = atributo(m[0], "data-valueChecked");
+    if (/data-valueUnchecked\s*=/i.test(m[0])) c.valorDesmarcado = atributo(m[0], "data-valueUnchecked");
+    campos.push(c);
   }
   for (const m of html.matchAll(/<select\b([^>]*)>([\s\S]*?)<\/select>/gi)) {
     const nome = atributo(`<select ${m[1]}>`, "name");
@@ -317,8 +321,8 @@ function padroesDoInicio(js: string) {
   return out;
 }
 
-/** Monta o pedido do relatório com os valores da própria tela, datas de `dia` e saída em Excel quando houver. */
-function camposTentativa(campos: CampoTrier[], padroes: Record<string, string>, dia: string) {
+/** O formulário como a tela mandaria ao abrir: valores padrão, rádios marcados e caixas de marcar com S/N. */
+function camposTentativa(campos: CampoTrier[], padroes: Record<string, string>) {
   const out: Record<string, string> = {};
   for (const c of campos) {
     if (c.tipo === "button" || c.tipo === "submit" || c.tipo === "reset" || c.tipo === "image") continue;
@@ -329,35 +333,65 @@ function camposTentativa(campos: CampoTrier[], padroes: Record<string, string>, 
     }
     if (c.tipo === "checkbox") {
       const marcado = padroes[`${c.nome}#checked`] ? padroes[`${c.nome}#checked`] === "true" : c.marcado;
-      out[c.nome] = marcado ? c.valor || "S" : "";
+      out[c.nome] = marcado ? (c.valorMarcado ?? (c.valor || "S")) : (c.valorDesmarcado ?? "");
       continue;
     }
     out[c.nome] = padroes[c.nome] ?? c.valor;
-    if (c.tipo !== "hidden" && /^dat|^dt_|data/i.test(c.nome)) out[c.nome] = dia;
-    if (c.tipo === "select" && /saida/i.test(c.nome)) {
-      const excel = c.opcoes?.find((o) => /excel|xls|planilha/i.test(o.texto));
-      if (excel) out[c.nome] = excel.valor;
-    }
   }
   return out;
 }
 
 const corta = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…[cortado ${s.length - n}]` : s);
 
-/** Telas do Trier (achadas no menu em 15/10/2026, Relatórios > Financeiros), na ordem de prioridade do diagnóstico. */
-export const TELAS_CAIXA_TRIER = [
-  { pagina: "Rel_0122.pod", rotulo: "Relatório de Diferenças de Caixa" },
-  { pagina: "Rel_0275.pod", rotulo: "Conferência de Movimentos de Caixa" },
-  { pagina: "Rel_0031.pod", rotulo: "Fechamento de Caixa" },
-  { pagina: "Rel_0047.pod", rotulo: "Movimentos Caixa Balcão" },
-] as const;
+/** Uma ação do Trier numa tela: o nome (botão), os campos que mudam em relação ao padrão e se devolve arquivo. */
+type PassoTrier = { acao: string; ajustes: Record<string, string>; arquivo: boolean };
+type TelaTrier = { pagina: string; rotulo: string; passos: PassoTrier[] };
+
+const filialCampos = (filial: string): Record<string, string> => (filial ? { id_cod_filialEntrada: filial, id_cod_filial: filial } : {});
 
 /**
- * Entra no Trier, lê o menu (lista de telas) e abre as telas de caixa: anota os campos e os valores que cada uma
- * preenche sozinha e tenta gerar o relatório de `dia` (Excel se houver), enquanto houver tempo.
- * Só leitura: não altera nada no Trier.
+ * Telas do Trier achadas no menu em 15/10/2026 (Relatórios > Financeiros) e o que pedir em cada uma,
+ * na ordem de prioridade do diagnóstico. Opções conferidas no HTML de cada tela:
+ * Rel_0122 filtro 0=Caixa 1=Período · Rel_0275 sel_periodo 0=Nº do caixa 1=data de movimento, fil_filtros 0=Todos ·
+ * Rel_0031 sel_periodo 0=Nº de caixa 1=Data de emissão · saída 1=PDF 2=RTF 3=HTML 4=XLS 5=Matricial.
  */
-export async function diagnosticarTrier(cred: CredenciaisTrier, dia: string): Promise<DiagnosticoTrier> {
+export function telasCaixaTrier(dia: string, filial: string, caixa: string): TelaTrier[] {
+  const telas: TelaTrier[] = [
+    {
+      pagina: "Rel_0122.pod",
+      rotulo: "Relatório de Diferenças de Caixa",
+      passos: [
+        { acao: "habilitaComponentes", ajustes: { filtro: "1" }, arquivo: false },
+        { acao: "runReport", ajustes: { filtro: "1", dt_abertura: dia, dt_fechamento: dia, chk_detalhar_forma_pagamento: "S", chk_exibir_justificativa: "S", saida: "4" }, arquivo: true },
+      ],
+    },
+  ];
+  if (filial && caixa) {
+    telas.push({
+      pagina: "Rel_0031.pod",
+      rotulo: "Fechamento de Caixa",
+      passos: [{ acao: "runReport", ajustes: { sel_periodo: "0", ...filialCampos(filial), num_caixaEntrada: caixa, num_caixa: caixa, saida: "4" }, arquivo: true }],
+    });
+  }
+  if (filial) {
+    const conferencia = { sel_periodo: "1", ...filialCampos(filial), dat_inicio: dia, dat_fim: dia, hor_inicio: "00:00:00", hor_fim: "23:59:59", fil_filtros: "0" };
+    telas.push({
+      pagina: "Rel_0275.pod",
+      rotulo: "Conferência de Movimentos de Caixa",
+      passos: [
+        { acao: "consultar", ajustes: conferencia, arquivo: false },
+        { acao: "imprimirXls", ajustes: conferencia, arquivo: true },
+      ],
+    });
+  }
+  return telas;
+}
+
+/**
+ * Entra no Trier, lê o menu (lista de telas) e, em cada tela de caixa, anota os campos e executa os passos
+ * (consultar / gerar XLS) enquanto houver tempo, guardando a resposta e o arquivo. Só leitura: não altera nada no Trier.
+ */
+export async function diagnosticarTrier(cred: CredenciaisTrier, dia: string, filial = "", caixa = ""): Promise<DiagnosticoTrier> {
   const comeco = Date.now();
   const resta = () => 285_000 - (Date.now() - comeco); // a função tem 300 s na Vercel
   const ck: Cookies = {};
@@ -372,11 +406,11 @@ export async function diagnosticarTrier(cred: CredenciaisTrier, dia: string): Pr
     }
     const links = linksDoMenu(menu.html, menuInicio);
     const relatorios: RelatorioDiagnosticado[] = [];
-    for (const { pagina, rotulo } of TELAS_CAIXA_TRIER) {
-      if (resta() < 15_000) break;
+    for (const { pagina, rotulo, passos } of telasCaixaTrier(dia, filial, caixa)) {
+      if (resta() < 20_000) break;
       const p = await trierPagina(base, pagina, ck);
       if (!p.serial) {
-        relatorios.push({ pagina, rotulo, acessivel: false, campos: [], padroes: {}, html: corta(p.html || p.redir, 4000), inicio: "" });
+        relatorios.push({ pagina, rotulo, acessivel: false, campos: [], padroes: {}, html: corta(p.html || p.redir, 4000), inicio: "", tentativas: [] });
         continue;
       }
       let inicio = "";
@@ -387,25 +421,28 @@ export async function diagnosticarTrier(cred: CredenciaisTrier, dia: string): Pr
       }
       const campos = camposDaTela(p.html);
       const padroes = padroesDoInicio(inicio);
-      const rel: RelatorioDiagnosticado = { pagina, rotulo, acessivel: true, campos, padroes, html: corta(p.html, 300_000), inicio: corta(inicio, 100_000) };
-      // só tenta gerar se ainda sobra tempo para o relatório e o download
-      if (resta() > 60_000) {
-        const pedido = camposTentativa(campos, padroes, dia);
-        const t: TentativaTrier = { campos: pedido };
+      const rel: RelatorioDiagnosticado = { pagina, rotulo, acessivel: true, campos, padroes, html: corta(p.html, 300_000), inicio: corta(inicio, 100_000), tentativas: [] };
+      const formulario = camposTentativa(campos, padroes);
+      for (const passo of passos) {
+        if (resta() < 25_000) break;
+        const pedido = { ...formulario, ...passo.ajustes };
+        const t: TentativaTrier = { acao: passo.acao, campos: pedido };
         try {
-          const r = await trierAcao(base, p.serial, "runReport", pedido, ck, Math.min(110_000, resta() - 30_000), pagina);
-          t.resposta = corta(r, 20_000);
-          const m = /openReport\('([^']+)'/i.exec(r);
-          if (m) {
-            const arq = await httpPedido("GET", base + m[1].replace(/^\/+/, ""), null, ck, Math.max(10_000, Math.min(60_000, resta() - 10_000)));
-            t.arquivo = m[1];
-            t.tamanho = arq.corpo.length;
-            if (arq.cod === 200 && arq.corpo.length <= 6_000_000) t.base64 = arq.corpo.toString("base64");
-          } else t.mensagem = trierMsg(r) || "o Trier não devolveu arquivo";
+          const r = await trierAcao(base, p.serial, passo.acao, pedido, ck, Math.min(120_000, resta() - 20_000), pagina);
+          t.resposta = corta(r, passo.arquivo ? 20_000 : 400_000);
+          if (passo.arquivo) {
+            const m = /openReport\('([^']+)'/i.exec(r);
+            if (m) {
+              const arq = await httpPedido("GET", base + m[1].replace(/^\/+/, ""), null, ck, Math.max(10_000, Math.min(60_000, resta() - 10_000)));
+              t.arquivo = m[1];
+              t.tamanho = arq.corpo.length;
+              if (arq.cod === 200 && arq.corpo.length <= 6_000_000) t.base64 = arq.corpo.toString("base64");
+            } else t.mensagem = trierMsg(r) || "o Trier não devolveu arquivo";
+          } else t.mensagem = trierMsg(r);
         } catch (e) {
           t.mensagem = e instanceof Error ? e.message : String(e);
         }
-        rel.tentativa = t;
+        rel.tentativas.push(t);
       }
       relatorios.push(rel);
     }
@@ -416,4 +453,4 @@ export async function diagnosticarTrier(cred: CredenciaisTrier, dia: string): Pr
   }
 }
 
-export const _testeDiagnostico = { linksDoMenu, camposDaTela, padroesDoInicio, camposTentativa };
+export const _testeDiagnostico = { linksDoMenu, camposDaTela, padroesDoInicio, camposTentativa, telasCaixaTrier };

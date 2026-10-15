@@ -120,26 +120,28 @@ export async function diagnosticarRelatoriosTrier(_prev: EstadoDiagnostico, fd: 
   const iso = texto(fd, "dia");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return { erro: "Escolha o dia." };
   const dia = iso.split("-").reverse().join("/");
+  const filial = texto(fd, "filial").replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+  const caixa = texto(fd, "caixa").replace(/\D/g, "");
   const supabase = await createClient();
   const cred = await credenciaisTrier(supabase);
   if (!cred.usuario || !cred.senha) return { erro: "Cadastre antes o usuário e a senha do robô do Trier." };
   let diag;
   try {
-    diag = await diagnosticarTrier(cred, dia);
+    diag = await diagnosticarTrier(cred, dia, filial, caixa);
   } catch (e) {
     return { erro: `O robô não conseguiu ler o Trier: ${mensagem(e)}` };
   }
-  const gerado = (t: (typeof diag.relatorios)[number]["tentativa"]) => {
-    if (!t) return "";
-    if (t.base64) return `gerou ${t.arquivo?.split(".").pop()?.toUpperCase() ?? "arquivo"} (${Math.round((t.tamanho ?? 0) / 1024)} KB)`;
-    return `não gerou: ${t.mensagem ?? "sem arquivo"}`;
+  const passo = (t: (typeof diag.relatorios)[number]["tentativas"][number]) => {
+    if (t.base64) return `${t.acao}: gerou ${t.arquivo?.split(".").pop()?.toUpperCase() ?? "arquivo"} (${Math.round((t.tamanho ?? 0) / 1024)} KB)`;
+    if (t.arquivo || t.resposta === undefined || t.mensagem) return `${t.acao}: ${t.mensagem || "sem arquivo"}`;
+    return `${t.acao}: respondeu (${Math.round(t.resposta.length / 1024)} KB)`;
   };
-  const relatorios: RelatorioEncontrado[] = diag.relatorios.map((r) => ({ pagina: r.pagina, rotulo: r.rotulo, acessivel: r.acessivel, campos: r.campos.length, gerado: gerado(r.tentativa) }));
-  const resumo = { dia, telas_no_menu: diag.links.length, relatorios };
+  const relatorios: RelatorioEncontrado[] = diag.relatorios.map((r) => ({ pagina: r.pagina, rotulo: r.rotulo, acessivel: r.acessivel, campos: r.campos.length, gerado: r.tentativas.map(passo).join(" · ") }));
+  const resumo = { dia, filial, caixa, telas_no_menu: diag.links.length, relatorios };
   const { error } = await supabase.from("integracao_diagnosticos").insert({ sistema: "trier", resumo, dados: diag as unknown as Json });
   if (error) return { erro: `O diagnóstico rodou, mas não consegui guardar o resultado: ${error.message}` };
   await registrarAuditoria(supabase, { userId: sessao.id, acao: "criar", entidade: "integracoes", novo: { diagnostico_trier: { dia, relatorios: relatorios.length } } });
   if (!relatorios.length) return { erro: `Entrei no Trier e li o menu (${diag.links.length} telas), mas não consegui abrir os relatórios de caixa.` };
-  const gerados = diag.relatorios.filter((r) => r.tentativa?.base64).length;
-  return { ok: `Pronto: abri ${relatorios.length} relatório(s) de caixa no Trier e ${gerados} gerou(aram) arquivo. O resultado ficou guardado para montar a busca automática.`, relatorios };
+  const gerados = diag.relatorios.flatMap((r) => r.tentativas).filter((t) => t.base64).length;
+  return { ok: `Pronto: abri ${relatorios.length} relatório(s) de caixa no Trier e ${gerados} arquivo(s) foram gerados. O resultado ficou guardado para montar a busca automática.`, relatorios };
 }
