@@ -44,7 +44,9 @@ export function gerarPlanilhas(dados: DadosCompetencia, filtro: { branchId?: str
       saida.push({ ...base, buffer: null, erro: "filial sem CNPJ no cadastro" });
       continue;
     }
-    const buffer = gerarPlanilhaDominio({
+    let buffer: Buffer;
+    try {
+      buffer = gerarPlanilhaDominio({
       codigoEmpresa: codigo.codigo,
       razaoSocial: razaoSocialDaPlanilha(filial),
       cnpj: filial.cnpj,
@@ -56,7 +58,11 @@ export function gerarPlanilhas(dados: DadosCompetencia, filtro: { branchId?: str
         funcao: f.funcao,
         valores: Object.fromEntries(Object.entries(dados.valores.get(f.id) ?? {}).filter(([ev]) => !eventoNaoSeAplica(chavePorId.get(ev) ?? "", f.cargo))),
       })),
-    });
+      });
+    } catch (e) {
+      saida.push({ ...base, buffer: null, erro: e instanceof Error ? e.message : String(e) });
+      continue;
+    }
     saida.push({ ...base, buffer, erro: null });
   }
   return saida;

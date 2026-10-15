@@ -1,11 +1,12 @@
-// Gera a planilha "RELAÇÃO DE VALORES PARA FOLHA DE PAGAMENTO" (.xls, Excel 97-2003) que a contabilidade importa
-// na Domínio — uma por CNPJ. Layout copiado do modelo da contabilidade (09/2026, filial /0032):
-//   A1 título · A3..A6 código da empresa, razão social, CNPJ e competência (C3..C6)
-//   linha 9 nomes das colunas · linha 10 códigos dos eventos · dados a partir da linha 11
-//   (A = 11 tipo de cálculo, B = matrícula, C = nome, D = função, E.. = valores), 40 linhas de dados no mínimo,
-//   depois "S" na coluna A e a linha TOTAL. Só servidor (usa a biblioteca xlsx).
-// O formato .xls não guarda fórmulas nesta biblioteca: a linha TOTAL sai com os valores já somados.
-import * as XLSX from "xlsx";
+// Gera a planilha "RELAÇÃO DE VALORES PARA FOLHA DE PAGAMENTO" (.xls, Excel 97-2003) que a contabilidade importa na
+// Domínio, uma por CNPJ, preenchendo o PRÓPRIO modelo da contabilidade (09/2026, filial /0032): mesmas fontes,
+// cores, bordas, comentários, larguras, alturas, mesclagens e fórmulas da linha TOTAL. Só o conteúdo muda:
+//   C3 código da empresa · C4 razão social · C5 CNPJ · C6 competência (mm/yyyy)
+//   linhas 11 a 50: A = 11 (tipo de cálculo), B = matrícula, C = nome, D = função, E..R = valores dos eventos
+//   linha 52: as fórmulas do modelo (COUNTA(B11:B51), =C10, SUM(X12:X51)) com o resultado já calculado.
+// Os eventos são ligados às colunas pelo código da linha 10 do modelo. Só servidor.
+import { MODELO_DOMINIO_B64 } from "./modelo-dominio-b64";
+import { definirResultadoFormula, definirValor, gravarModelo, lerModelo, valorNoModelo, type ModeloXls } from "./modelo-xls";
 
 export type ColunaEvento = { id: string; codigo: number; nome: string };
 
@@ -28,14 +29,16 @@ export type DadosPlanilha = {
 };
 
 export const TIPO_CALCULO_FOLHA = 11;
-const LINHAS_MINIMAS = 40;
-const PRIMEIRA_LINHA = 11; // linha 11 do Excel
+/** Linhas de funcionários do modelo (11 a 50). */
+export const MAX_FUNCIONARIOS = 40;
 
-// Larguras das colunas do modelo (em caracteres), por código do evento.
-const LARGURA_EVENTO: Record<number, number> = {
-  150: 22.8, 160: 22.8, 200: 23.9, 2: 20.8, 259: 25.6, 262: 26.8, 37: 14.2,
-  8069: 20.5, 981: 19.9, 231: 13.1, 238: 29.1, 48: 21.1, 265: 15.9, 9999: 20.5,
-};
+// posições no modelo (base 0)
+const L_CODIGOS = 9; // linha 10: códigos dos eventos
+const L_NOMES = 8; // linha 9: nomes dos eventos
+const L_DADOS = 10; // linha 11
+const L_TOTAL = 51; // linha 52
+const C_PRIMEIRO_EVENTO = 4; // coluna E
+const C_ULTIMO_MODELO = 17; // coluna R
 
 /** Data Excel (número de dias desde 30/12/1899) do dia 1 da competência. */
 export function serialExcel(competencia: string) {
@@ -45,73 +48,74 @@ export function serialExcel(competencia: string) {
 
 const arred = (v: number) => Math.round(v * 100) / 100;
 
-export function montarPlanilhaDominio(d: DadosPlanilha): XLSX.WorkSheet {
-  const ws: XLSX.WorkSheet = {};
-  const cel = (c: number, r: number) => XLSX.utils.encode_cell({ c, r: r - 1 });
-  const texto = (c: number, r: number, v: string) => {
-    ws[cel(c, r)] = { t: "s", v };
-  };
-  const numero = (c: number, r: number, v: number, z?: string) => {
-    ws[cel(c, r)] = z ? { t: "n", v, z } : { t: "n", v };
-  };
-
-  texto(0, 1, "RELAÇÃO DE VALORES PARA FOLHA DE PAGAMENTO");
-  texto(0, 3, "Codigo Empresa:");
-  numero(2, 3, d.codigoEmpresa, "0000000");
-  texto(0, 4, "Razão Social:");
-  texto(2, 4, d.razaoSocial);
-  texto(0, 5, "Inscrição Cnpj:");
-  texto(2, 5, d.cnpj);
-  texto(0, 6, "Competencia:");
-  numero(2, 6, serialExcel(d.competencia), "mm/yyyy");
-
-  ["Tipo de", "Código", "Nome dos", "Função"].forEach((t, c) => texto(c, 9, t));
-  ["Calculo", "Folha", "Colaboradores"].forEach((t, c) => texto(c, 10, t));
-  d.eventos.forEach((e, i) => {
-    texto(4 + i, 9, e.nome);
-    numero(4 + i, 10, e.codigo, "0000");
-  });
-
-  const totais = d.eventos.map(() => 0);
-  d.linhas.forEach((l, i) => {
-    const r = PRIMEIRA_LINHA + i;
-    numero(0, r, TIPO_CALCULO_FOLHA);
-    if (typeof l.matricula === "number") numero(1, r, l.matricula, "00000");
-    else texto(1, r, l.matricula);
-    texto(2, r, l.nome);
-    texto(3, r, l.funcao);
-    d.eventos.forEach((e, j) => {
-      const v = arred(l.valores[e.id] ?? 0);
-      if (v > 0) {
-        numero(4 + j, r, v, "0.00");
-        totais[j] += v;
-      }
-    });
-  });
-
-  const slots = Math.max(LINHAS_MINIMAS, d.linhas.length);
-  const linhaS = PRIMEIRA_LINHA + slots;
-  const linhaTotal = linhaS + 1;
-  texto(0, linhaS, "S");
-  texto(0, linhaTotal, "TOTAL");
-  numero(1, linhaTotal, d.linhas.length);
-  texto(2, linhaTotal, "Colaboradores");
-  numero(3, linhaTotal, 0, "#,##0.00");
-  totais.forEach((t, j) => numero(4 + j, linhaTotal, arred(t), "#,##0.00"));
-
-  const ultimaColuna = Math.max(3, 3 + d.eventos.length);
-  ws["!ref"] = XLSX.utils.encode_range({ s: { c: 0, r: 0 }, e: { c: ultimaColuna, r: linhaTotal - 1 } });
-  ws["!merges"] = ["A3:B3", "A4:B4", "C4:D4", "A5:B5", "A6:B6", "D9:D10"].map((m) => XLSX.utils.decode_range(m));
-  // a biblioteca soma a margem da célula (~0,47 caractere) ao gravar: desconta para sair com a largura do modelo
-  ws["!cols"] = [8.6, 8.5, 38.1, 17.8, ...d.eventos.map((e) => LARGURA_EVENTO[e.codigo] ?? 20)].map((w) => ({ wch: Math.round((w - 0.47) * 100) / 100 }));
-  ws["!rows"] = [];
-  ws["!rows"][PRIMEIRA_LINHA - 1] = { hpt: 16.5 };
-  return ws;
+/** Colunas de evento do modelo: código da linha 10 → coluna. */
+function colunasDoModelo(m: ModeloXls) {
+  const mapa = new Map<number, number>();
+  for (let c = C_PRIMEIRO_EVENTO; c <= C_ULTIMO_MODELO; c++) {
+    const v = valorNoModelo(m, L_CODIGOS, c);
+    if (typeof v === "number") mapa.set(v, c);
+  }
+  return mapa;
 }
 
-/** Arquivo .xls (BIFF8) pronto para download. */
+export function preencherModeloDominio(d: DadosPlanilha): ModeloXls {
+  if (d.linhas.length > MAX_FUNCIONARIOS) {
+    throw new Error(`${d.linhas.length} funcionários neste CNPJ: o modelo da contabilidade tem ${MAX_FUNCIONARIOS} linhas`);
+  }
+  const m = lerModelo(Buffer.from(MODELO_DOMINIO_B64, "base64"));
+  const doModelo = colunasDoModelo(m);
+
+  // eventos com código que o modelo não tem viram colunas novas depois da R, com o estilo da coluna R
+  const colunaDoEvento = new Map<string, number>();
+  let proxima = C_ULTIMO_MODELO + 1;
+  const extras: number[] = [];
+  for (const e of d.eventos) {
+    const c = doModelo.get(e.codigo);
+    if (c !== undefined) {
+      colunaDoEvento.set(e.id, c);
+      continue;
+    }
+    const nova = proxima++;
+    extras.push(nova);
+    colunaDoEvento.set(e.id, nova);
+    for (let r = 0; r <= L_TOTAL; r++) {
+      const xf = m.celulas.get(r * 1024 + C_ULTIMO_MODELO)?.xf;
+      if (xf !== undefined && r !== L_TOTAL) definirValor(m, r, nova, null, xf);
+    }
+    definirValor(m, L_NOMES, nova, e.nome);
+    definirValor(m, L_CODIGOS, nova, e.codigo);
+  }
+
+  definirValor(m, 2, 2, d.codigoEmpresa);
+  definirValor(m, 3, 2, d.razaoSocial);
+  definirValor(m, 4, 2, d.cnpj);
+  definirValor(m, 5, 2, serialExcel(d.competencia));
+
+  // somas como as fórmulas do modelo: SUM(X12:X51) começa na 2ª linha de funcionário (a 1ª fica de fora, igual ao modelo)
+  const somas = new Map<number, number>();
+  d.linhas.forEach((l, i) => {
+    const r = L_DADOS + i;
+    definirValor(m, r, 0, TIPO_CALCULO_FOLHA);
+    definirValor(m, r, 1, l.matricula);
+    definirValor(m, r, 2, l.nome);
+    definirValor(m, r, 3, l.funcao);
+    for (const e of d.eventos) {
+      const c = colunaDoEvento.get(e.id)!;
+      const v = arred(l.valores[e.id] ?? 0);
+      definirValor(m, r, c, v > 0 ? v : null);
+      if (v > 0 && i >= 1) somas.set(c, (somas.get(c) ?? 0) + v); // soma na ordem, sem arredondar, como o Excel
+    }
+  });
+
+  definirResultadoFormula(m, L_TOTAL, 1, d.linhas.length);
+  for (let c = 3; c <= C_ULTIMO_MODELO; c++) definirResultadoFormula(m, L_TOTAL, c, somas.get(c) ?? 0);
+  const xfTotal = m.celulas.get(L_TOTAL * 1024 + C_ULTIMO_MODELO)?.xf ?? 15;
+  for (const c of extras) definirValor(m, L_TOTAL, c, somas.get(c) ?? 0, xfTotal);
+  return m;
+}
+
+/** Arquivo .xls pronto para download. */
 export function gerarPlanilhaDominio(d: DadosPlanilha): Buffer {
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, montarPlanilhaDominio(d), "PLANILHA");
-  return XLSX.write(wb, { type: "buffer", bookType: "biff8" }) as Buffer;
+  const m = preencherModeloDominio(d);
+  return gravarModelo(m, { ordemSst: m.sst.map((t) => t.s) });
 }

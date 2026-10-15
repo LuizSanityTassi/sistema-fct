@@ -106,10 +106,13 @@ O RH lança durante o mês os eventos variáveis de cada funcionário (horas ext
 domingo, comissões, faltas parciais, adiantamento, farmácia, quebra de caixa, VT, consignado, outros) numa grade por
 filial, e no fechamento baixa a planilha **RELAÇÃO DE VALORES PARA FOLHA DE PAGAMENTO** que a contabilidade importa na
 Domínio: um `.xls` (Excel 97-2003) por CNPJ, nome "<nº da filial no CNPJ> <MÊS>.xls" (30.598.529/**0032**-16 → `32 SETEMBRO.xls`),
-ou um `.zip` com todos (`/api/folha-lancamentos/planilha`). Layout copiado do modelo de 09/2026: cabeçalho em A3..C6
-(código da empresa, razão social, CNPJ, competência mm/yyyy), nomes dos eventos na linha 9, códigos na linha 10, dados a
-partir da linha 11 (A = 11 tipo de cálculo, B = matrícula 00000, C = nome, D = função, valores 0.00), 40 linhas no mínimo,
-"S" e a linha TOTAL. A biblioteca não grava fórmulas em .xls: o TOTAL sai somado (o modelo somava a partir da linha 12).
+ou um `.zip` com todos (`/api/folha-lancamentos/planilha`). O arquivo é o **próprio modelo da contabilidade preenchido**
+(`src/lib/rh/modelo-dominio-b64.ts` = o arquivo de 09/2026 da /0032 sem os dados; `modelo-xls.ts` lê e regrava o BIFF8
+mantendo fontes, cores, bordas, comentários, tema, impressão, larguras, alturas, mesclagens e as fórmulas da linha TOTAL,
+com o resultado já calculado). Teste: preenchido com os mesmos dados do arquivo da contabilidade, o conteúdo sai idêntico
+byte a byte (826 registros); só a autora nas propriedades do arquivo virou "Sistema FCT". O modelo tem 40 linhas de
+funcionário (11 a 50): CNPJ com mais que isso não gera arquivo. Evento com código que o modelo não tem vira coluna nova
+depois da R, com o estilo da R.
 
 - O arquivo é separado pelo **CNPJ de registro** do funcionário (`employees.branch_id`), que é como a contabilidade separa.
 - Eventos e códigos da Domínio em `folha_eventos` (tela Configurar). "Horas Extras 75%" ainda não tem código: é
