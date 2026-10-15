@@ -213,7 +213,7 @@ export type LinkMenuTrier = { pagina: string; rotulo: string; contexto: string }
 export type CampoTrier = { nome: string; tipo: string; valor: string; marcado?: boolean; valorMarcado?: string; valorDesmarcado?: string; opcoes?: { valor: string; texto: string; selecionada: boolean }[] };
 export type TentativaTrier = { acao: string; campos: Record<string, string>; arquivo?: string; tamanho?: number; base64?: string; mensagem?: string; resposta?: string };
 export type RelatorioDiagnosticado = { pagina: string; rotulo: string; acessivel: boolean; campos: CampoTrier[]; padroes: Record<string, string>; html: string; inicio: string; tentativas: TentativaTrier[] };
-export type DiagnosticoTrier = { menuHtml: string; menuInicio: string; links: LinkMenuTrier[]; relatorios: RelatorioDiagnosticado[] };
+export type DiagnosticoTrier = { menuHtml: string; menuInicio: string; links: LinkMenuTrier[]; scripts: Record<string, string>; relatorios: RelatorioDiagnosticado[] };
 
 // entidades HTML que o Trier usa nos nomes do menu (&#32; &#234; &amp; …)
 const entidades = (s: string) =>
@@ -355,43 +355,29 @@ const filialCampos = (filial: string): Record<string, string> => (filial ? { id_
  * Rel_0122 filtro 0=Caixa 1=Período · Rel_0275 sel_periodo 0=Nº do caixa 1=data de movimento, fil_filtros 0=Todos ·
  * Rel_0031 sel_periodo 0=Nº de caixa 1=Data de emissão · saída 1=PDF 2=RTF 3=HTML 4=XLS 5=Matricial.
  */
-export function telasCaixaTrier(dia: string, filial: string, caixa: string): TelaTrier[] {
-  const telas: TelaTrier[] = [
+export function telasCaixaTrier(dia: string, filial: string): TelaTrier[] {
+  // no modo Período a tela desliga "exibir justificativa" (habilitaComponentes): vai N, como o navegador mandaria
+  const diferencas = { filtro: "1", ...filialCampos(filial), dt_abertura: dia, dt_fechamento: dia, chk_detalhar_forma_pagamento: "S", chk_exibir_justificativa: "N", saida: "4" };
+  return [
     {
       pagina: "Rel_0122.pod",
       rotulo: "Relatório de Diferenças de Caixa",
       passos: [
         { acao: "habilitaComponentes", ajustes: { filtro: "1" }, arquivo: false },
-        { acao: "runReport", ajustes: { filtro: "1", dt_abertura: dia, dt_fechamento: dia, chk_detalhar_forma_pagamento: "S", chk_exibir_justificativa: "S", saida: "4" }, arquivo: true },
+        { acao: "runReport", ajustes: diferencas, arquivo: true },
       ],
     },
   ];
-  if (filial && caixa) {
-    telas.push({
-      pagina: "Rel_0031.pod",
-      rotulo: "Fechamento de Caixa",
-      passos: [{ acao: "runReport", ajustes: { sel_periodo: "0", ...filialCampos(filial), num_caixaEntrada: caixa, num_caixa: caixa, saida: "4" }, arquivo: true }],
-    });
-  }
-  if (filial) {
-    const conferencia = { sel_periodo: "1", ...filialCampos(filial), dat_inicio: dia, dat_fim: dia, hor_inicio: "00:00:00", hor_fim: "23:59:59", fil_filtros: "0" };
-    telas.push({
-      pagina: "Rel_0275.pod",
-      rotulo: "Conferência de Movimentos de Caixa",
-      passos: [
-        { acao: "consultar", ajustes: conferencia, arquivo: false },
-        { acao: "imprimirXls", ajustes: conferencia, arquivo: true },
-      ],
-    });
-  }
-  return telas;
 }
+
+/** Scripts das telas de caixa (só código da página, sem dados): mostram como pedir a lista de caixas (lupa) e cada botão. */
+const SCRIPTS_TRIER = ["js/Rel_0122.js", "js/Rel_0031.js", "js/Rel_0275.js", "js/sgfpod1.js", "pfw/js/ajax.js", "pfw/js/pfw.js", "pfw/js/pfwListSearch.js"];
 
 /**
  * Entra no Trier, lê o menu (lista de telas) e, em cada tela de caixa, anota os campos e executa os passos
  * (consultar / gerar XLS) enquanto houver tempo, guardando a resposta e o arquivo. Só leitura: não altera nada no Trier.
  */
-export async function diagnosticarTrier(cred: CredenciaisTrier, dia: string, filial = "", caixa = ""): Promise<DiagnosticoTrier> {
+export async function diagnosticarTrier(cred: CredenciaisTrier, dia: string, filial = ""): Promise<DiagnosticoTrier> {
   const comeco = Date.now();
   const resta = () => 285_000 - (Date.now() - comeco); // a função tem 300 s na Vercel
   const ck: Cookies = {};
@@ -405,8 +391,17 @@ export async function diagnosticarTrier(cred: CredenciaisTrier, dia: string, fil
       menuInicio = `[erro no httpStart do menu: ${e instanceof Error ? e.message : String(e)}]`;
     }
     const links = linksDoMenu(menu.html, menuInicio);
+    const scripts: Record<string, string> = {};
+    for (const js of SCRIPTS_TRIER) {
+      try {
+        const r = await httpPedido("GET", base + js, null, ck, 20_000);
+        scripts[js] = r.cod === 200 ? corta(r.corpo.toString("latin1"), 400_000) : `[HTTP ${r.cod}]`;
+      } catch (e) {
+        scripts[js] = `[erro: ${e instanceof Error ? e.message : String(e)}]`;
+      }
+    }
     const relatorios: RelatorioDiagnosticado[] = [];
-    for (const { pagina, rotulo, passos } of telasCaixaTrier(dia, filial, caixa)) {
+    for (const { pagina, rotulo, passos } of telasCaixaTrier(dia, filial)) {
       if (resta() < 20_000) break;
       const p = await trierPagina(base, pagina, ck);
       if (!p.serial) {
@@ -428,7 +423,7 @@ export async function diagnosticarTrier(cred: CredenciaisTrier, dia: string, fil
         const pedido = { ...formulario, ...passo.ajustes };
         const t: TentativaTrier = { acao: passo.acao, campos: pedido };
         try {
-          const r = await trierAcao(base, p.serial, passo.acao, pedido, ck, Math.min(120_000, resta() - 20_000), pagina);
+          const r = await trierAcao(base, p.serial, passo.acao, pedido, ck, Math.min(200_000, resta() - 20_000), pagina);
           t.resposta = corta(r, passo.arquivo ? 20_000 : 400_000);
           if (passo.arquivo) {
             const m = /openReport\('([^']+)'/i.exec(r);
@@ -447,7 +442,7 @@ export async function diagnosticarTrier(cred: CredenciaisTrier, dia: string, fil
       relatorios.push(rel);
     }
     // o menu inteiro já foi guardado no 1º diagnóstico; agora basta a lista de telas
-    return { menuHtml: links.length ? "" : corta(menu.html, 1_500_000), menuInicio: links.length ? "" : corta(menuInicio, 1_500_000), links, relatorios };
+    return { menuHtml: links.length ? "" : corta(menu.html, 1_500_000), menuInicio: links.length ? "" : corta(menuInicio, 1_500_000), links, scripts, relatorios };
   } finally {
     await trierSair(base, ck);
   }

@@ -121,13 +121,12 @@ export async function diagnosticarRelatoriosTrier(_prev: EstadoDiagnostico, fd: 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return { erro: "Escolha o dia." };
   const dia = iso.split("-").reverse().join("/");
   const filial = texto(fd, "filial").replace(/\D/g, "").replace(/^0+(?=\d)/, "");
-  const caixa = texto(fd, "caixa").replace(/\D/g, "");
   const supabase = await createClient();
   const cred = await credenciaisTrier(supabase);
   if (!cred.usuario || !cred.senha) return { erro: "Cadastre antes o usuário e a senha do robô do Trier." };
   let diag;
   try {
-    diag = await diagnosticarTrier(cred, dia, filial, caixa);
+    diag = await diagnosticarTrier(cred, dia, filial);
   } catch (e) {
     return { erro: `O robô não conseguiu ler o Trier: ${mensagem(e)}` };
   }
@@ -137,7 +136,7 @@ export async function diagnosticarRelatoriosTrier(_prev: EstadoDiagnostico, fd: 
     return `${t.acao}: respondeu (${Math.round(t.resposta.length / 1024)} KB)`;
   };
   const relatorios: RelatorioEncontrado[] = diag.relatorios.map((r) => ({ pagina: r.pagina, rotulo: r.rotulo, acessivel: r.acessivel, campos: r.campos.length, gerado: r.tentativas.map(passo).join(" · ") }));
-  const resumo = { dia, filial, caixa, telas_no_menu: diag.links.length, relatorios };
+  const resumo = { dia, filial, telas_no_menu: diag.links.length, scripts: Object.keys(diag.scripts).length, relatorios };
   const { error } = await supabase.from("integracao_diagnosticos").insert({ sistema: "trier", resumo, dados: diag as unknown as Json });
   if (error) return { erro: `O diagnóstico rodou, mas não consegui guardar o resultado: ${error.message}` };
   await registrarAuditoria(supabase, { userId: sessao.id, acao: "criar", entidade: "integracoes", novo: { diagnostico_trier: { dia, relatorios: relatorios.length } } });

@@ -100,7 +100,7 @@ export function DiagnosticoTrierForm({ action, ontem, ultimo }: { action: AcaoDi
       <div>
         <h3 className="text-sm font-semibold">Relatórios de caixa (diferença de caixa)</h3>
         <p className="text-xs text-muted-foreground">
-          O robô entra no Trier e gera, em Excel: “Diferenças de Caixa” do dia (todas as filiais), “Fechamento de Caixa” do caixa informado e “Conferência de Movimentos de Caixa” da filial no dia. Só lê: não muda nada no Trier. Pode levar até 4 minutos.
+          Teste da leitura: o robô gera no Trier o “Relatório de Diferenças de Caixa” do dia (todos os caixas da filial informada, em Excel) e baixa os scripts das telas de caixa. Na versão final ele percorre todas as filiais sozinho. Só lê: não muda nada no Trier. Pode levar até 4 minutos.
           {ultimo && ` Último diagnóstico: ${ultimo}.`}
         </p>
       </div>
@@ -108,11 +108,8 @@ export function DiagnosticoTrierForm({ action, ontem, ultimo }: { action: AcaoDi
         <Campo id="diag-dia" label="Dia dos caixas">
           <Input id="diag-dia" name="dia" type="date" defaultValue={ontem} className="w-44" />
         </Campo>
-        <Campo id="diag-filial" label="Filial (nº no Trier)">
+        <Campo id="diag-filial" label="Filial do teste (nº no Trier)">
           <Input id="diag-filial" name="filial" inputMode="numeric" defaultValue="2" className="w-28" />
-        </Campo>
-        <Campo id="diag-caixa" label="Nº do caixa">
-          <Input id="diag-caixa" name="caixa" inputMode="numeric" defaultValue="4667" className="w-28" />
         </Campo>
         <Button type="submit" variant="outline" disabled={pendente}>
           <Search data-icon="inline-start" />
