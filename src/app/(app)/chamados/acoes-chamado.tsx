@@ -39,7 +39,7 @@ export function ComentarioForm({ action }: { action: Acao }) {
         placeholder="Escreva uma atualização…"
         aria-label="Comentário"
         aria-invalid={!!estado.erros?.comentario}
-        className="w-full rounded-lg border border-input bg-background px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="w-full rounded-lg border border-input bg-background px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
       />
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
@@ -99,7 +99,7 @@ export function AlterarStatusChamado({
                 name="comentario"
                 rows={3}
                 maxLength={4000}
-                className="w-full rounded-lg border border-input bg-background px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="w-full rounded-lg border border-input bg-background px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
               />
             </Campo>
             <DialogFooter>

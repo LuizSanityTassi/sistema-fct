@@ -74,7 +74,7 @@ export function AcessoForm({ action, unidades, unidadePadrao, nomePadrao }: Prop
               rows={4}
               maxLength={2000}
               aria-invalid={!!erro("justificativa")}
-              className="w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
             />
           </Campo>
           <label className="flex items-center gap-2 text-sm sm:col-span-2">

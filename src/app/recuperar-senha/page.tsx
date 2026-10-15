@@ -2,50 +2,37 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
+import { ArrowLeft, Send } from "lucide-react";
+import { AvisoSucesso, Campo, ErroFormulario } from "@/components/form/campo";
+import { TelaAcesso } from "@/components/layout/tela-acesso";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { requestReset, type AuthState } from "../login/actions";
 
 export default function RecuperarSenhaPage() {
   const [state, formAction, pending] = useActionState<AuthState, FormData>(requestReset, {});
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
-      <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="text-lg font-bold text-slate-900">Recuperar senha</h1>
-        <p className="mb-5 text-sm text-slate-500">
-          Informe seu e-mail e enviaremos um link para redefinir a senha.
-        </p>
-        <form action={formAction} className="space-y-4">
-          <div>
-            <label htmlFor="email" className="mb-1 block text-xs font-medium text-slate-600">
-              E-mail
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600"
-            />
-          </div>
-          {state.erro && (
-            <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{state.erro}</div>
-          )}
-          {state.ok && (
-            <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{state.ok}</div>
-          )}
-          <button
-            type="submit"
-            disabled={pending}
-            className="w-full rounded-md bg-amber-400 px-3 py-2 text-sm font-semibold text-slate-900 transition hover:bg-amber-300 disabled:opacity-60"
-          >
-            {pending ? "Enviando…" : "Enviar link"}
-          </button>
-        </form>
-        <div className="mt-4 text-center">
-          <Link href="/login" className="text-xs text-slate-500 underline hover:text-slate-700">
-            Voltar ao login
-          </Link>
-        </div>
-      </div>
-    </main>
+    <TelaAcesso
+      titulo="Recuperar senha"
+      descricao="Informe seu e-mail e enviaremos um link para definir uma nova senha."
+      rodape={
+        <Link href="/login" className="inline-flex items-center gap-1.5 font-medium text-fct-navy underline-offset-4 hover:underline">
+          <ArrowLeft className="size-4" aria-hidden />
+          Voltar ao login
+        </Link>
+      }
+    >
+      <form action={formAction} className="space-y-4">
+        <Campo id="email" label="E-mail">
+          <Input id="email" name="email" type="email" autoComplete="email" inputMode="email" required className="h-10" />
+        </Campo>
+        <ErroFormulario mensagem={state.erro} />
+        <AvisoSucesso mensagem={state.ok} />
+        <Button type="submit" disabled={pending} className="h-10 w-full bg-fct-yellow text-base font-semibold text-fct-navy hover:bg-fct-yellow/85">
+          <Send data-icon="inline-start" />
+          {pending ? "Enviando…" : "Enviar link"}
+        </Button>
+      </form>
+    </TelaAcesso>
   );
 }

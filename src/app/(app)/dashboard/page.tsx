@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, TriangleAlert } from "lucide-react";
+import { ArrowRight, Building2, LifeBuoy, Stethoscope, TriangleAlert, Users, Wallet, type LucideIcon } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { getSessao } from "@/lib/auth/session";
 import { PRIORIDADE_LABEL, STATUS_CHAMADO_LABEL } from "@/lib/chamados/rotulos";
@@ -7,22 +7,29 @@ import { carregarDashboard } from "@/lib/data/dashboard";
 import { formatarData, formatarMoeda, pluralizar } from "@/lib/formatos";
 import { navParaPapel } from "@/lib/nav";
 import { rotuloCompetencia } from "@/lib/rh/competencia";
-import { ASO_TIPO_LABEL, situacaoAso } from "@/lib/rh/rotulos";
+import { ASO_TIPO_LABEL } from "@/lib/rh/rotulos";
 import { PAPEL_LABEL } from "@/lib/roles";
 import { BadgeAso } from "../rh/funcionarios/[id]/documentos-aso";
 
 export const metadata = { title: "Dashboard" };
 
-function Kpi({ rotulo, valor, nota, href, tom }: { rotulo: string; valor: string | number; nota?: string | null; href?: string; tom?: string }) {
+function Kpi({ rotulo, valor, nota, href, tom, icone: Icone }: { rotulo: string; valor: string | number; nota?: string | null; href?: string; tom?: string; icone?: LucideIcon }) {
   const conteudo = (
     <>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{rotulo}</p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{rotulo}</p>
+        {Icone && (
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-fct-navy/6 text-fct-navy">
+            <Icone className="size-4" aria-hidden />
+          </span>
+        )}
+      </div>
       <p className={`mt-1 text-2xl font-semibold tabular-nums ${tom ?? ""}`}>{valor}</p>
       {nota && <p className="text-xs text-muted-foreground">{nota}</p>}
     </>
   );
   return href ? (
-    <Link href={href} className="block rounded-xl border bg-card px-4 py-3 transition-colors hover:border-fct-navy/40">
+    <Link href={href} className="block rounded-xl border bg-card px-4 py-3 transition-all hover:-translate-y-px hover:border-fct-navy/30 hover:shadow-md">
       {conteudo}
     </Link>
   ) : (
@@ -39,13 +46,15 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const d = await carregarDashboard({ incluirFolha: veFolha });
   const grupos = navParaPapel(sessao.papel).filter((g) => g.titulo);
   const emAtividade = d.funcionarios.ativo + d.funcionarios.afastado + d.funcionarios.ferias;
+  const hojeTexto = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Sao_Paulo" }).format(new Date());
+  const hoje = hojeTexto.charAt(0).toUpperCase() + hojeTexto.slice(1);
 
   return (
     <>
       <PageHeader
         eyebrow="Visão geral"
         titulo={`Olá, ${primeiroNome}`}
-        descricao={`${PAPEL_LABEL[sessao.papel]} · ${sessao.papel === "gerente" || sessao.papel === "usuario" ? "números da sua unidade" : "números de todas as unidades"}.`}
+        descricao={`${hoje} · ${PAPEL_LABEL[sessao.papel]} · ${sessao.papel === "gerente" || sessao.papel === "usuario" ? "números da sua unidade" : "números de todas as unidades"}.`}
       />
 
       {erro === "sem_permissao" && (
@@ -64,14 +73,16 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             valor={emAtividade}
             nota={d.funcionarios.afastado + d.funcionarios.ferias > 0 ? `${d.funcionarios.afastado} afastados · ${d.funcionarios.ferias} em férias` : null}
             href="/rh/funcionarios"
+            icone={Users}
           />
         )}
-        <Kpi rotulo="Unidades ativas" valor={d.unidadesAtivas} href="/filiais" />
+        <Kpi rotulo="Unidades ativas" valor={d.unidadesAtivas} href="/filiais" icone={Building2} />
         <Kpi
           rotulo="Chamados em aberto"
           valor={d.chamados.abertos}
           nota={d.chamados.abertos > 0 ? `${d.chamados.semResponsavel} sem responsável · ${d.chamados.urgentes} alta/crítica` : "nenhum pendente"}
           href="/chamados"
+          icone={LifeBuoy}
           tom={d.chamados.urgentes > 0 ? "text-amber-700" : undefined}
         />
         {veRh && (
@@ -80,6 +91,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             valor={d.aso.vencidos}
             nota={`${d.aso.proximos} vencem em 30 dias · ${d.aso.semAso} sem ASO`}
             href="/rh/aso?situacao=vencidos"
+            icone={Stethoscope}
             tom={d.aso.vencidos > 0 ? "text-red-700" : "text-emerald-700"}
           />
         )}
@@ -97,6 +109,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                     : `${d.folha.total} registros · em elaboração`
             }
             href={`/rh/folha?competencia=${d.competencia}`}
+            icone={Wallet}
           />
         )}
       </section>

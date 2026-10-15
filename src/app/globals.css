@@ -60,7 +60,7 @@
   --fct-navy: oklch(0.25 0.09 265);      /* #0E2148 — títulos / informação */
   --font-sans: var(--font-geist-sans);
 
-  --background: oklch(0.97 0.004 260);   /* cinza-azulado bem claro (densidade SaaS) */
+  --background: oklch(0.975 0.004 260);  /* cinza-azulado bem claro (densidade SaaS) */
   --foreground: var(--fct-navy);
   --card: oklch(1 0 0);
   --card-foreground: var(--fct-navy);
@@ -71,19 +71,19 @@
   --secondary: oklch(0.95 0.006 260);
   --secondary-foreground: var(--fct-navy);
   --muted: oklch(0.955 0.005 260);
-  --muted-foreground: oklch(0.5 0.02 260);
+  --muted-foreground: oklch(0.48 0.02 260); /* 6:1 sobre o fundo */
   --accent: oklch(0.945 0.01 260);
   --accent-foreground: var(--fct-navy);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.9 0.008 260);
-  --input: oklch(0.9 0.008 260);
-  --ring: oklch(0.55 0.08 265);
+  --destructive: oklch(0.5 0.19 27);     /* 5,6:1 mesmo sobre o fundo rosado dos botões de excluir */
+  --border: oklch(0.91 0.007 260);       /* divisórias e cartões (decorativo) */
+  --input: oklch(0.64 0.02 262);         /* borda de campo: 3:1 sobre branco e sobre o fundo (WCAG 1.4.11) */
+  --ring: oklch(0.47 0.13 264);          /* anel de foco do teclado: 6,5:1 */
   --chart-1: var(--fct-navy);
   --chart-2: var(--fct-red);
   --chart-3: var(--fct-yellow);
   --chart-4: oklch(0.6 0.08 230);
   --chart-5: oklch(0.65 0.12 160);
-  --radius: 0.5rem;
+  --radius: 0.625rem;
 
   /* Menu lateral: navy escuro com destaque amarelo */
   --sidebar: oklch(0.21 0.065 265);
@@ -132,12 +132,52 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
   }
   body {
     @apply bg-background text-foreground;
   }
   html {
     @apply font-sans;
+    scroll-padding-top: 4.5rem; /* âncoras não ficam escondidas atrás do cabeçalho fixo */
+    -webkit-font-smoothing: antialiased;
+  }
+  /* foco do teclado sempre visível (links, resumos, caixas de seleção e o que não tem estilo próprio) */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  .menu-lateral :focus-visible {
+    outline-color: var(--sidebar-ring);
+  }
+  ::selection {
+    background: oklch(0.84 0.17 92 / 0.45);
+    color: var(--fct-navy);
+  }
+  table {
+    font-variant-numeric: tabular-nums;
+  }
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: var(--fct-navy);
+  }
+}
+
+@layer components {
+  /* cartões ganham uma elevação discreta */
+  .bg-card.border {
+    box-shadow: 0 1px 2px 0 oklch(0.25 0.09 265 / 0.05), 0 1px 1px -1px oklch(0.25 0.09 265 / 0.04);
+  }
+}
+
+/* quem pede menos movimento no sistema operacional não vê animações */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -168,7 +168,7 @@ export function FuncionarioForm({ action, unidades, valores = {}, podeSalario, v
             defaultValue={v("observacoes")}
             maxLength={2000}
             rows={3}
-            className="w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
           />
         </Campo>
       </section>
