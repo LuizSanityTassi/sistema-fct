@@ -17,6 +17,8 @@ export const ENTIDADES_AUDITADAS: Record<string, string> = {
   folha_lancamentos: "Lançamentos da folha",
   folha_eventos: "Eventos da folha",
   folha_empresas_dominio: "Empresas na Domínio",
+  denuncias: "Canal de denúncias",
+  denuncia_responsaveis: "Acesso às denúncias",
 };
 
 export const ACOES_AUDITADAS: Record<string, string> = {

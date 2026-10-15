@@ -33,6 +33,7 @@ export default async function EditarUsuarioPage({ params }: PageProps<"/configur
           branch_id: usuario.branch_id,
           ativo: usuario.ativo,
           filiaisAdicionais: usuario.filiaisAdicionais,
+          respondeDenuncias: usuario.respondeDenuncias,
         }}
         ehProprioUsuario={usuario.id === sessao.id}
       />

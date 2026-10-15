@@ -1601,6 +1601,135 @@ export type Database = {
           },
         ]
       }
+      denuncia_mensagens: {
+        Row: {
+          autor: string
+          criada_em: string
+          denuncia_id: string
+          id: string
+          interna: boolean
+          responsavel_id: string | null
+          responsavel_nome: string | null
+          seq: number
+          texto: string
+        }
+        Insert: {
+          autor: string
+          criada_em?: string
+          denuncia_id: string
+          id?: string
+          interna?: boolean
+          responsavel_id?: string | null
+          responsavel_nome?: string | null
+          seq?: never
+          texto: string
+        }
+        Update: {
+          autor?: string
+          criada_em?: string
+          denuncia_id?: string
+          id?: string
+          interna?: boolean
+          responsavel_id?: string | null
+          responsavel_nome?: string | null
+          seq?: never
+          texto?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "denuncia_mensagens_denuncia_id_fkey"
+            columns: ["denuncia_id"]
+            isOneToOne: false
+            referencedRelation: "denuncias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "denuncia_mensagens_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      denuncia_responsaveis: {
+        Row: {
+          liberado_em: string
+          liberado_por: string | null
+          user_id: string
+        }
+        Insert: {
+          liberado_em?: string
+          liberado_por?: string | null
+          user_id: string
+        }
+        Update: {
+          liberado_em?: string
+          liberado_por?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "denuncia_responsaveis_liberado_por_fkey"
+            columns: ["liberado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "denuncia_responsaveis_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      denuncias: {
+        Row: {
+          categoria: string
+          chave_hash: string
+          descricao: string
+          envolvidos: string | null
+          id: string
+          identificacao: string | null
+          local_texto: string | null
+          protocolo: string
+          quando: string | null
+          recebida_em: string
+          seq: number
+          status: string
+        }
+        Insert: {
+          categoria: string
+          chave_hash: string
+          descricao: string
+          envolvidos?: string | null
+          id?: string
+          identificacao?: string | null
+          local_texto?: string | null
+          protocolo: string
+          quando?: string | null
+          recebida_em?: string
+          seq?: never
+          status?: string
+        }
+        Update: {
+          categoria?: string
+          chave_hash?: string
+          descricao?: string
+          envolvidos?: string | null
+          id?: string
+          identificacao?: string | null
+          local_texto?: string | null
+          protocolo?: string
+          quando?: string | null
+          recebida_em?: string
+          seq?: never
+          status?: string
+        }
+        Relationships: []
+      }
       it_assets: {
         Row: {
           ativo: boolean

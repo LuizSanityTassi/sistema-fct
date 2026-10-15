@@ -13,6 +13,7 @@ import {
   LifeBuoy,
   MonitorCog,
   ScrollText,
+  ShieldAlert,
   Send,
   ShieldCheck,
   Stethoscope,
@@ -100,6 +101,12 @@ export const NAV: NavGrupo[] = [
         href: "/chamados",
         icon: LifeBuoy,
         descricao: "Abertura e acompanhamento de chamados.",
+      },
+      {
+        label: "Canal de denúncias",
+        href: "/denuncias",
+        icon: ShieldAlert,
+        descricao: "Denúncia anônima de assédio, fraude ou conduta errada; o comitê autorizado lê e responde.",
       },
       {
         label: "Filiais",

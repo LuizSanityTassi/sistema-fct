@@ -157,6 +157,17 @@ export async function salvarUsuario(id: string, _prev: EstadoUsuario, fd: FormDa
     }
   }
 
+  // comitê do canal de denúncias
+  const querComite = fd.get("responde_denuncias") === "on";
+  const { data: noComite } = await supabase.from("denuncia_responsaveis").select("user_id").eq("user_id", id).maybeSingle();
+  if (querComite !== !!noComite) {
+    const { error: erroComite } = querComite
+      ? await supabase.from("denuncia_responsaveis").insert({ user_id: id, liberado_por: sessao.id })
+      : await supabase.from("denuncia_responsaveis").delete().eq("user_id", id);
+    if (erroComite) return { erro: `Perfil salvo, mas o acesso ao canal de denúncias falhou: ${erroComite.message}` };
+    await registrarAuditoria(supabase, { userId: sessao.id, acao: querComite ? "criar" : "excluir", entidade: "denuncia_responsaveis", registroId: id, novo: { comite: querComite } });
+  }
+
   const dif = diferencas({ ...atual, filiais_adicionais: antes }, { ...patch, filiais_adicionais: depois });
   await registrarAuditoria(supabase, {
     userId: sessao.id,

@@ -43,7 +43,7 @@ organization (grupo: VARELA, NAZÁRIO) → branch (unidade: F001…, F301…, AD
 depara, aprendizado, enviados_omie, config, agentes) · `folha_*` (eventos, empresas_dominio, lancamentos, observacoes) · `audit_logs`
 Views: `employee_current_salary`, `branch_employee_counts`, `fin_resumo_mensal`, `fin_resumo_categoria`
 (todas `security_invoker`). Função `fin_totais()` soma receber/pagar com filtros, respeitando o RLS. Dinheiro em `numeric(14,2)`; exclusão
-**lógica**; PKs `uuid`. Migrations versionadas em `supabase/migrations/` (0001–0024).
+**lógica**; PKs `uuid`. Migrations versionadas em `supabase/migrations/` (0001–0026).
 Storage: buckets privados `conciliacao` (arquivos da conciliação) e `documentos` (`funcionarios/<id>/…`, `folha/<id>/…`, `chamados/<id>/…`),
 download sempre por URL assinada de 60 s (`/api/arquivos/[tipo]/[id]`).
 
@@ -126,6 +126,19 @@ depois da R, com o estilo da R.
   bloqueia a célula, a gravação recusa, a importação ignora e a planilha nunca leva). Casa pelo nome (exato, sem "de/da/dos", ou até 2 letras de diferença com o mesmo primeiro nome); o CPF
   da aba de quebra não é lido. Valores existentes que não estão na planilha não são apagados.
 - Acesso: admin e RH (RLS nas 4 tabelas). Auditoria registra gravação, importação e exportação só com contagens.
+
+## Canal de denúncias (Operação → Canal de denúncias)
+
+Todo usuário envia denúncia anônima (assédio, discriminação, fraude, conduta, segurança…). **Anonimato:** o envio e o
+acompanhamento rodam no servidor com a chave de serviço e não leem nem gravam quem está logado (nem o "último acesso"),
+então a denúncia não fica ligada a usuário nenhum, nem no registro de requisições do banco; guarda-se só o DIA. Quem
+denuncia recebe **protocolo + chave** (só o hash da chave fica no banco) para acompanhar e conversar com o comitê sem se
+identificar; pode se identificar se quiser. **Comitê:** o admin libera em Configurações → Usuários → editar ("Faz parte do
+comitê"), tabela `denuncia_responsaveis`; os nomes aparecem para quem vai denunciar. Só o comitê lê (RLS
+`private.responde_denuncias()`; o admin fora do comitê não lê), responde (mensagem ou anotação interna) e muda a
+situação (recebida, em análise, concluída, arquivada); ninguém altera o relato nem apaga (migração 0026, testado).
+Limite conhecido: os registros técnicos da hospedagem (Vercel/Supabase, guardados por horas) têm horário e endereço de
+acesso das páginas, mas não o conteúdo; só o dono dessas contas os vê.
 
 ## Integrações (Configurações → Integrações, só admin)
 

@@ -23,6 +23,7 @@ type Props = {
     branch_id?: string | null;
     ativo?: boolean;
     filiaisAdicionais?: string[];
+    respondeDenuncias?: boolean;
   };
   ehProprioUsuario?: boolean;
 };
@@ -98,6 +99,18 @@ export function UsuarioForm({ action, unidades, modo, valores, ehProprioUsuario 
           )}
         </div>
       </section>
+
+      {modo === "edicao" && (
+        <section className="rounded-xl border bg-card p-5">
+          <h2 className="mb-1 text-sm font-semibold">Canal de denúncias</h2>
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" name="responde_denuncias" defaultChecked={valores.respondeDenuncias ?? false} className="mt-0.5 size-4 accent-fct-navy" />
+            <span>
+              <strong>Faz parte do comitê:</strong> pode ler e responder as denúncias recebidas. O nome aparece para quem vai denunciar.
+            </span>
+          </label>
+        </section>
+      )}
 
       {modo === "edicao" && (
         <section className="rounded-xl border bg-card p-5">
