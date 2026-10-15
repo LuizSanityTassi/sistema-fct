@@ -1745,6 +1745,7 @@ export type Database = {
           competencia: string
           decidida_em: string | null
           decidida_por: string | null
+          decidida_por_nome: string | null
           decisao_obs: string | null
           dia: string
           diferenca: number
@@ -1755,6 +1756,7 @@ export type Database = {
           informado: number
           justificada_em: string | null
           justificada_por: string | null
+          justificada_por_nome: string | null
           justificativa: string | null
           nome_operador: string
           numero_caixa: number
@@ -1767,6 +1769,7 @@ export type Database = {
           coletado_em?: string
           decidida_em?: string | null
           decidida_por?: string | null
+          decidida_por_nome?: string | null
           decisao_obs?: string | null
           dia: string
           diferenca: number
@@ -1777,6 +1780,7 @@ export type Database = {
           informado: number
           justificada_em?: string | null
           justificada_por?: string | null
+          justificada_por_nome?: string | null
           justificativa?: string | null
           nome_operador: string
           numero_caixa: number
@@ -1788,6 +1792,7 @@ export type Database = {
           coletado_em?: string
           decidida_em?: string | null
           decidida_por?: string | null
+          decidida_por_nome?: string | null
           decisao_obs?: string | null
           dia?: string
           diferenca?: number
@@ -1798,6 +1803,7 @@ export type Database = {
           informado?: number
           justificada_em?: string | null
           justificada_por?: string | null
+          justificada_por_nome?: string | null
           justificativa?: string | null
           nome_operador?: string
           numero_caixa?: number
@@ -2413,6 +2419,21 @@ export type Database = {
       }
     }
     Views: {
+      caixa_operadores_resumo: {
+        Row: {
+          caixas: number | null
+          cod_operador: number | null
+          employee_id: string | null
+          filiais: string[] | null
+          nome_trier: string | null
+          quebras: number | null
+          quebras_sem_funcionario: number | null
+          ultimo_dia: string | null
+          vinculado_em: string | null
+          visto_em: string | null
+        }
+        Relationships: []
+      }
       branch_employee_counts: {
         Row: {
           branch_id: string | null
@@ -2629,6 +2650,18 @@ export type Database = {
           qtd: number
           tipo: Database["public"]["Enums"]["fin_tipo"]
           total: number
+        }[]
+      }
+      caixa_funcionarios: {
+        Args: never
+        Returns: {
+          branch_id: string
+          cargo: string | null
+          filial: string
+          id: string
+          matricula: string | null
+          nome: string
+          status: string
         }[]
       }
       caixa_justificar: {

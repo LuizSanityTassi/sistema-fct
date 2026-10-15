@@ -2,9 +2,11 @@ import type { LucideIcon } from "lucide-react";
 import {
   ArrowLeftRight,
   Bot,
+  Banknote,
   Building2,
   ChartColumn,
   ClipboardList,
+  Coins,
   FileText,
   FolderOpen,
   KeyRound,
@@ -103,6 +105,13 @@ export const NAV: NavGrupo[] = [
         descricao: "Abertura e acompanhamento de chamados.",
       },
       {
+        label: "Quebras de caixa",
+        href: "/caixa",
+        icon: Coins,
+        papeis: ["admin", "financeiro", "gerente", "usuario"],
+        descricao: "Justificar as quebras de caixa (diferença acima de R$ 2,00) do seu caixa ou da sua loja.",
+      },
+      {
         label: "Canal de denúncias",
         href: "/denuncias",
         icon: ShieldAlert,
@@ -189,6 +198,13 @@ export const NAV: NavGrupo[] = [
         icon: Wallet,
         papeis: ["admin", "financeiro", "contador", "gerente"],
         descricao: "Fluxo diário (foto do dia), mensal (provisão × realizado) e semanal.",
+      },
+      {
+        label: "Diferença de caixa",
+        href: "/financeiro/diferenca-caixa",
+        icon: Banknote,
+        papeis: ["admin", "financeiro"],
+        descricao: "Declarado × movimentado de cada caixa (Trier): tolerância, quebras, justificativas e desconto na folha.",
       },
       {
         label: "Inadimplência e ranking",

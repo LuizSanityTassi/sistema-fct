@@ -11,6 +11,7 @@ import { PAPEIS, PAPEL_LABEL, type AppRole } from "@/lib/roles";
 import type { EstadoUsuario } from "./actions";
 
 export type OpcaoUnidade = { id: string; codigo: string; nome: string; ativo: boolean; grupo: string };
+export type OpcaoFuncionario = { id: string; rotulo: string };
 
 type Props = {
   action: (prev: EstadoUsuario, fd: FormData) => Promise<EstadoUsuario>;
@@ -24,7 +25,9 @@ type Props = {
     ativo?: boolean;
     filiaisAdicionais?: string[];
     respondeDenuncias?: boolean;
+    employee_id?: string | null;
   };
+  funcionarios?: OpcaoFuncionario[];
   ehProprioUsuario?: boolean;
 };
 
@@ -38,7 +41,7 @@ const DESCRICAO_PAPEL: Record<AppRole, string> = {
   usuario: "Abre e acompanha os próprios chamados.",
 };
 
-export function UsuarioForm({ action, unidades, modo, valores, ehProprioUsuario }: Props) {
+export function UsuarioForm({ action, unidades, modo, valores, ehProprioUsuario, funcionarios }: Props) {
   const [estado, formAction] = useActionState(action, {});
   const erro = (c: string) => estado.erros?.[c];
   const [papel, setPapel] = React.useState<AppRole>(valores.papel ?? "usuario");
@@ -99,6 +102,23 @@ export function UsuarioForm({ action, unidades, modo, valores, ehProprioUsuario 
           )}
         </div>
       </section>
+
+      {modo === "edicao" && funcionarios && (
+        <section className="rounded-xl border bg-card p-5">
+          <h2 className="mb-1 text-sm font-semibold">Cadastro de funcionário</h2>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Ligue o usuário ao funcionário do cadastro do RH. É assim que as quebras de caixa do funcionário aparecem para ele justificar (e, se ele for o responsável pela loja, as da loja).
+          </p>
+          <SelectNativo id="employee_id" name="employee_id" defaultValue={valores.employee_id ?? ""} aria-label="Funcionário ligado ao usuário">
+            <option value="">— não é funcionário / não ligar —</option>
+            {funcionarios.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.rotulo}
+              </option>
+            ))}
+          </SelectNativo>
+        </section>
+      )}
 
       {modo === "edicao" && (
         <section className="rounded-xl border bg-card p-5">

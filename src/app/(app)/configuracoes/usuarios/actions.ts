@@ -136,12 +136,18 @@ export async function salvarUsuario(id: string, _prev: EstadoUsuario, fd: FormDa
 
   const supabase = await createClient();
   const [{ data: atual }, { data: acessosAtuais }] = await Promise.all([
-    supabase.from("profiles").select("id, nome, papel, branch_id, ativo").eq("id", id).maybeSingle(),
+    supabase.from("profiles").select("id, nome, papel, branch_id, ativo, employee_id").eq("id", id).maybeSingle(),
     supabase.from("user_branch_access").select("branch_id").eq("user_id", id),
   ]);
   if (!atual) return { erro: "Usuário não encontrado." };
 
-  const patch = { nome: r.data.nome, papel: r.data.papel, branch_id: r.data.branch_id ?? null, ativo };
+  const empTexto = texto(fd, "employee_id") ?? "";
+  const employee_id = fd.has("employee_id") ? (ehUuid(empTexto) ? empTexto : null) : atual.employee_id;
+  if (employee_id && employee_id !== atual.employee_id) {
+    const { data: outro } = await supabase.from("profiles").select("nome").eq("employee_id", employee_id).neq("id", id).maybeSingle();
+    if (outro) return { erro: `Esse funcionário já está ligado ao usuário ${outro.nome || "(sem nome)"}.` };
+  }
+  const patch = { nome: r.data.nome, papel: r.data.papel, branch_id: r.data.branch_id ?? null, ativo, employee_id };
   const { error } = await supabase.from("profiles").update(patch).eq("id", id);
   if (error) return { erro: `Não foi possível salvar: ${error.message}` };
 

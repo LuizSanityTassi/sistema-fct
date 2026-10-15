@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { getSessao } from "@/lib/auth/session";
 import { PRIORIDADE_LABEL, STATUS_CHAMADO_LABEL } from "@/lib/chamados/rotulos";
 import { carregarDashboard } from "@/lib/data/dashboard";
+import { contarQuebrasDoPainel } from "@/lib/data/diferenca-caixa";
 import { formatarData, formatarMoeda, pluralizar } from "@/lib/formatos";
 import { navParaPapel } from "@/lib/nav";
 import { rotuloCompetencia } from "@/lib/rh/competencia";
@@ -43,7 +44,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const primeiroNome = sessao.nome.split(" ")[0];
   const veRh = sessao.papel === "admin" || sessao.papel === "rh" || sessao.papel === "gerente";
   const veFolha = sessao.papel === "admin" || sessao.papel === "rh";
-  const d = await carregarDashboard({ incluirFolha: veFolha });
+  const veQuebras = sessao.papel !== "rh" && sessao.papel !== "ti" && sessao.papel !== "contador";
+  const [d, quebras] = await Promise.all([carregarDashboard({ incluirFolha: veFolha }), veQuebras ? contarQuebrasDoPainel(sessao.papel) : null]);
   const grupos = navParaPapel(sessao.papel).filter((g) => g.titulo);
   const emAtividade = d.funcionarios.ativo + d.funcionarios.afastado + d.funcionarios.ferias;
   const hojeTexto = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Sao_Paulo" }).format(new Date());
@@ -64,6 +66,16 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             <strong>Acesso não permitido.</strong> Seu perfil não tem permissão para a página solicitada.
           </p>
         </div>
+      )}
+
+      {quebras && quebras.quantidade > 0 && (
+        <Link href={quebras.href} className="mb-6 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 hover:border-amber-400">
+          <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <span>
+            <strong>{quebras.titulo}</strong> {quebras.texto}
+          </span>
+          <ArrowRight className="mt-0.5 ml-auto size-4 shrink-0" aria-hidden />
+        </Link>
       )}
 
       <section className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">

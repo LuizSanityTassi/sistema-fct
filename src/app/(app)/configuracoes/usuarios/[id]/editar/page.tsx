@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { exigirAcesso } from "@/lib/auth/session";
 import { listarUnidadesParaSelecao } from "@/lib/data/funcionarios";
 import { obterUsuario } from "@/lib/data/usuarios";
+import { funcionariosDoCaixa } from "@/lib/data/diferenca-caixa";
 import { formatarDataHora } from "@/lib/formatos";
 import { salvarUsuario } from "../../actions";
 import { UsuarioForm } from "../../usuario-form";
@@ -12,8 +13,11 @@ export const metadata = { title: "Editar usuário" };
 export default async function EditarUsuarioPage({ params }: PageProps<"/configuracoes/usuarios/[id]/editar">) {
   const [sessao, { id }] = await Promise.all([exigirAcesso("/configuracoes/usuarios"), params]);
   if (sessao.papel !== "admin") redirect("/dashboard?erro=sem_permissao");
-  const [usuario, unidades] = await Promise.all([obterUsuario(id), listarUnidadesParaSelecao()]);
+  const [usuario, unidades, funcionarios] = await Promise.all([obterUsuario(id), listarUnidadesParaSelecao(), funcionariosDoCaixa()]);
   if (!usuario) notFound();
+  const opcoesFuncionario = funcionarios
+    .filter((f) => f.status !== "desligado" || f.id === usuario.employee_id)
+    .map((f) => ({ id: f.id, rotulo: `${f.nome} — ${f.filial}${f.matricula ? ` · mat. ${f.matricula}` : ""}${f.cargo ? ` · ${f.cargo}` : ""}` }));
 
   return (
     <>
@@ -34,7 +38,9 @@ export default async function EditarUsuarioPage({ params }: PageProps<"/configur
           ativo: usuario.ativo,
           filiaisAdicionais: usuario.filiaisAdicionais,
           respondeDenuncias: usuario.respondeDenuncias,
+          employee_id: usuario.employee_id,
         }}
+        funcionarios={opcoesFuncionario}
         ehProprioUsuario={usuario.id === sessao.id}
       />
     </>
