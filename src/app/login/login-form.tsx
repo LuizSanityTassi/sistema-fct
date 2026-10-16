@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { signIn, type AuthState } from "./actions";
 
-export function LoginForm({ aviso }: { aviso?: string }) {
+export function LoginForm({ aviso, voltar }: { aviso?: string; voltar?: string }) {
   const [state, formAction, pending] = useActionState<AuthState, FormData>(signIn, {});
   return (
     <TelaAcesso
@@ -23,6 +23,7 @@ export function LoginForm({ aviso }: { aviso?: string }) {
       }
     >
       <form action={formAction} className="space-y-4">
+        {voltar && <input type="hidden" name="voltar" value={voltar} />}
         <AvisoAtencao mensagem={aviso} />
         <Campo id="email" label="E-mail">
           <Input id="email" name="email" type="email" autoComplete="username" inputMode="email" required className="h-10" />

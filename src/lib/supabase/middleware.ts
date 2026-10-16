@@ -40,7 +40,11 @@ export async function updateSession(request: NextRequest) {
   // Sem sessão em rota privada → manda para o login
   if (!user && !publica) {
     const url = request.nextUrl.clone();
+    const destino = path + request.nextUrl.search;
     url.pathname = "/login";
+    url.search = "";
+    // volta para onde a pessoa ia depois do login (ex.: QR do equipamento); só caminhos internos
+    if (path !== "/" && !path.startsWith("/api/")) url.searchParams.set("voltar", destino);
     return NextResponse.redirect(url);
   }
   // Já logado tentando ver o login → manda para o dashboard

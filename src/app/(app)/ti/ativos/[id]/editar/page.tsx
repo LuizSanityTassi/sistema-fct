@@ -35,6 +35,11 @@ export default async function EditarAtivoPage({ params }: PageProps<"/ti/ativos/
           valor: a.valor,
           fornecedor: a.fornecedor,
           observacoes: a.observacoes,
+          setor: a.setor,
+          hostname: a.hostname,
+          ip: a.ip,
+          anydesk: a.anydesk,
+          garantia_ate: a.garantia_ate,
         }}
         voltarPara={`/ti/ativos/${a.id}`}
       />

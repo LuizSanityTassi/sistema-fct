@@ -8,7 +8,7 @@ import { getSessao } from "@/lib/auth/session";
 import { lerDecimal } from "@/lib/formatos";
 import { createClient } from "@/lib/supabase/server";
 import { Constants } from "@/lib/supabase/types";
-import { TIPOS_ATIVO } from "@/lib/ti/rotulos";
+import { EVENTOS_MANUAIS, prefixoPatrimonio, proximoPatrimonio, TIPOS_ATIVO, type TipoEventoAtivo } from "@/lib/ti/rotulos";
 
 export type EstadoAtivo = { erro?: string; erros?: Record<string, string> };
 
@@ -51,9 +51,22 @@ const esquema = z.object({
   ),
   fornecedor: z.string().trim().max(80, "Máximo de 80 caracteres.").optional(),
   observacoes: z.string().trim().max(1000, "Máximo de 1000 caracteres.").optional(),
+  setor: z.string().trim().max(60, "Máximo de 60 caracteres.").optional(),
+  hostname: z.string().trim().max(60, "Máximo de 60 caracteres.").optional(),
+  ip: z.string().trim().max(45, "Máximo de 45 caracteres.").regex(/^[0-9a-fA-F.:/]+$/, "IP inválido (ex.: 192.168.0.10).").optional(),
+  anydesk: z.string().trim().max(30, "Máximo de 30 caracteres.").optional(),
+  garantia_ate: z.iso.date({ error: "Data inválida." }).optional(),
 });
 
-const CAMPOS = ["branch_id", "tipo", "descricao", "patrimonio", "numero_serie", "status", "responsavel_employee_id", "data_aquisicao", "valor", "fornecedor", "observacoes"] as const;
+const CAMPOS = ["branch_id", "tipo", "descricao", "patrimonio", "numero_serie", "status", "responsavel_employee_id", "data_aquisicao", "valor", "fornecedor", "observacoes", "setor", "hostname", "ip", "anydesk", "garantia_ate"] as const;
+
+/** Código patrimonial livre para a loja e o tipo (TI-F009-PC-003). */
+async function gerarPatrimonio(supabase: Awaited<ReturnType<typeof createClient>>, branchId: string, tipo: string) {
+  const { data: loja } = await supabase.from("branches").select("codigo").eq("id", branchId).maybeSingle();
+  const prefixo = prefixoPatrimonio(loja?.codigo ?? "LOJA", tipo);
+  const { data: usados } = await supabase.from("it_assets").select("patrimonio").like("patrimonio", `${prefixo}%`);
+  return proximoPatrimonio(prefixo, (usados ?? []).map((u) => u.patrimonio));
+}
 
 export async function salvarAtivo(id: string | null, _prev: EstadoAtivo, fd: FormData): Promise<EstadoAtivo> {
   const sessao = await exigirTi();
@@ -74,9 +87,16 @@ export async function salvarAtivo(id: string | null, _prev: EstadoAtivo, fd: For
     valor: d.valor ?? null,
     fornecedor: d.fornecedor ?? null,
     observacoes: d.observacoes ?? null,
+    setor: d.setor ?? null,
+    hostname: d.hostname ?? null,
+    ip: d.ip ?? null,
+    anydesk: d.anydesk ?? null,
+    garantia_ate: d.garantia_ate ?? null,
   };
 
   const supabase = await createClient();
+  // patrimônio em branco: o sistema gera o código da etiqueta (TI-loja-tipo-número)
+  if (!registro.patrimonio) registro.patrimonio = await gerarPatrimonio(supabase, registro.branch_id, registro.tipo);
   let destino = id;
   if (id) {
     const { data: atual } = await supabase.from("it_assets").select("*").eq("id", id).maybeSingle();
@@ -120,4 +140,23 @@ export async function alterarStatusAtivo(fd: FormData) {
   revalidatePath("/ti");
   revalidatePath("/ti/ativos");
   revalidatePath(`/ti/ativos/${id}`);
+}
+
+export type EstadoEvento = { erro?: string; ok?: string };
+
+/** Registro manual no histórico do equipamento (manutenção, troca de peça, anotação). */
+export async function registrarEventoAtivo(assetId: string, _prev: EstadoEvento, fd: FormData): Promise<EstadoEvento> {
+  const sessao = await exigirTi();
+  if (!sessao) return { erro: "Só Administrador e TI registram no histórico." };
+  const tipo = texto(fd, "tipo") as TipoEventoAtivo | undefined;
+  const descricao = (texto(fd, "descricao") ?? "").slice(0, 1000);
+  const data = texto(fd, "data");
+  if (!tipo || !EVENTOS_MANUAIS.includes(tipo)) return { erro: "Escolha o tipo." };
+  if (descricao.length < 2) return { erro: "Descreva o que foi feito." };
+  if (data && !/^\d{4}-\d{2}-\d{2}$/.test(data)) return { erro: "Data inválida." };
+  const supabase = await createClient();
+  const { error } = await supabase.from("it_asset_eventos").insert({ asset_id: assetId, tipo, descricao, autor_nome: sessao.nome, ...(data ? { data } : {}) });
+  if (error) return { erro: `Não foi possível registrar: ${error.message}` };
+  revalidatePath(`/ti/ativos/${assetId}`);
+  return { ok: "Registrado no histórico." };
 }

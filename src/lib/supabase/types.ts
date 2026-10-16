@@ -1995,8 +1995,46 @@ export type Database = {
         }
         Relationships: []
       }
+      it_asset_eventos: {
+        Row: {
+          asset_id: string
+          autor_id: string | null
+          autor_nome: string | null
+          created_at: string
+          data: string
+          descricao: string
+          id: string
+          tipo: string
+        }
+        Insert: {
+          asset_id: string
+          autor_id?: string | null
+          autor_nome?: string | null
+          created_at?: string
+          data?: string
+          descricao: string
+          id?: string
+          tipo: string
+        }
+        Update: {
+          asset_id?: string
+          autor_id?: string | null
+          autor_nome?: string | null
+          created_at?: string
+          data?: string
+          descricao?: string
+          id?: string
+          tipo?: string
+        }
+        Relationships: []
+      }
       it_assets: {
         Row: {
+          anydesk: string | null
+          garantia_ate: string | null
+          hostname: string | null
+          ip: string | null
+          setor: string | null
           ativo: boolean
           branch_id: string
           created_at: string
@@ -2014,6 +2052,11 @@ export type Database = {
           valor: number | null
         }
         Insert: {
+          anydesk?: string | null
+          garantia_ate?: string | null
+          hostname?: string | null
+          ip?: string | null
+          setor?: string | null
           ativo?: boolean
           branch_id: string
           created_at?: string
@@ -2031,6 +2074,11 @@ export type Database = {
           valor?: number | null
         }
         Update: {
+          anydesk?: string | null
+          garantia_ate?: string | null
+          hostname?: string | null
+          ip?: string | null
+          setor?: string | null
           ativo?: boolean
           branch_id?: string
           created_at?: string

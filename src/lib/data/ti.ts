@@ -136,3 +136,12 @@ export async function obterAtivo(id: string) {
   if (error) throw error;
   return data;
 }
+
+/** Histórico do equipamento (eventos automáticos e registros da TI), do mais novo para o mais antigo. */
+export async function listarEventosDoAtivo(assetId: string) {
+  if (!ehUuid(assetId)) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("it_asset_eventos").select("id, data, tipo, descricao, autor_nome, created_at").eq("asset_id", assetId).order("data", { ascending: false }).order("created_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}

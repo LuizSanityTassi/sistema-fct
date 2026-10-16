@@ -62,3 +62,52 @@ export const TIPOS_SOLICITACAO_ACESSO = {
   alteracao: "Alteração de permissões",
   remocao: "Remoção de acesso (desligamento/troca)",
 } as const;
+
+/** Sigla do tipo no código patrimonial: TI-F009-PC-003. */
+export const SIGLA_TIPO_ATIVO: Record<string, string> = {
+  computador: "PC",
+  notebook: "NB",
+  servidor: "SRV",
+  monitor: "MON",
+  impressora: "IMP",
+  impressora_termica: "IMT",
+  tef: "TEF",
+  leitor: "LEI",
+  biometria: "BIO",
+  nobreak: "NBK",
+  estabilizador: "EST",
+  dvr: "DVR",
+  camera: "CAM",
+  rede: "RED",
+  celular: "CEL",
+  mouse: "MOU",
+  teclado: "TEC",
+  outro: "OUT",
+};
+
+/** Prefixo do código patrimonial para a loja e o tipo (sem o número): "TI-F009-PC-". */
+export const prefixoPatrimonio = (codigoLoja: string, tipo: string) => `TI-${codigoLoja.toUpperCase().replace(/[^A-Z0-9]/g, "")}-${SIGLA_TIPO_ATIVO[tipo] ?? "OUT"}-`;
+
+/** Próximo código livre: maior número já usado com o prefixo + 1, com 3 dígitos. */
+export function proximoPatrimonio(prefixo: string, existentes: (string | null)[]) {
+  let maior = 0;
+  for (const p of existentes) {
+    if (!p?.startsWith(prefixo)) continue;
+    const n = Number.parseInt(p.slice(prefixo.length), 10);
+    if (Number.isFinite(n) && n > maior) maior = n;
+  }
+  return `${prefixo}${String(maior + 1).padStart(3, "0")}`;
+}
+
+export const TIPOS_EVENTO_ATIVO = {
+  cadastro: "Cadastro",
+  transferencia: "Transferência",
+  situacao: "Situação",
+  responsavel: "Responsável",
+  manutencao: "Manutenção",
+  troca_peca: "Troca de peça",
+  outro: "Anotação",
+} as const;
+export type TipoEventoAtivo = keyof typeof TIPOS_EVENTO_ATIVO;
+/** Eventos que a TI registra à mão (os outros o sistema registra sozinho). */
+export const EVENTOS_MANUAIS: TipoEventoAtivo[] = ["manutencao", "troca_peca", "outro"];

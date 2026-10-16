@@ -8,5 +8,6 @@ const AVISOS: Record<string, string> = {
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const sp = await searchParams;
   const erro = typeof sp.erro === "string" ? sp.erro : undefined;
-  return <LoginForm aviso={erro ? AVISOS[erro] : undefined} />;
+  const voltar = typeof sp.voltar === "string" ? sp.voltar.slice(0, 500) : undefined;
+  return <LoginForm aviso={erro ? AVISOS[erro] : undefined} voltar={voltar} />;
 }

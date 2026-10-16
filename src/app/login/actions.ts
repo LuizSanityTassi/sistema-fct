@@ -21,7 +21,13 @@ export async function signIn(_prev: AuthState, formData: FormData): Promise<Auth
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
   if (error) return { erro: "E-mail ou senha inválidos." };
-  redirect("/dashboard");
+  redirect(destinoSeguro(formData.get("voltar")));
+}
+
+/** Para onde voltar depois do login: só caminho interno do sistema (nada de outro site nem //host). */
+function destinoSeguro(v: FormDataEntryValue | null) {
+  const s = typeof v === "string" ? v.trim() : "";
+  return /^\/(?![/\\])\S*$/.test(s) && !s.startsWith("/login") && !s.startsWith("/auth") ? s : "/dashboard";
 }
 
 export async function signOut() {

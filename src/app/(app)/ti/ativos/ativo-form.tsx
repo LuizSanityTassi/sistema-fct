@@ -25,6 +25,11 @@ export type ValoresAtivo = Partial<{
   valor: number | string | null;
   fornecedor: string | null;
   observacoes: string | null;
+  setor: string | null;
+  hostname: string | null;
+  ip: string | null;
+  anydesk: string | null;
+  garantia_ate: string | null;
 }>;
 
 type Props = {
@@ -78,7 +83,7 @@ export function AtivoForm({ action, unidades, funcionarios, valores = {}, voltar
           <Campo id="descricao" label="Marca / modelo" obrigatorio erro={erro("descricao")} className="lg:col-span-2">
             <Input id="descricao" name="descricao" defaultValue={v("descricao")} maxLength={120} aria-invalid={!!erro("descricao")} />
           </Campo>
-          <Campo id="patrimonio" label="Patrimônio" erro={erro("patrimonio")} dica="Etiqueta/código interno, único">
+          <Campo id="patrimonio" label="Patrimônio" erro={erro("patrimonio")} dica="Deixe em branco para o sistema gerar (ex.: TI-F009-PC-003)">
             <Input id="patrimonio" name="patrimonio" defaultValue={v("patrimonio")} maxLength={40} aria-invalid={!!erro("patrimonio")} />
           </Campo>
           <Campo id="numero_serie" label="Número de série" erro={erro("numero_serie")}>
@@ -133,6 +138,24 @@ export function AtivoForm({ action, unidades, funcionarios, valores = {}, voltar
       </section>
 
       <section className="rounded-xl border bg-card p-5">
+        <h2 className="mb-4 text-sm font-semibold">Rede e suporte</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Campo id="setor" label="Setor" erro={erro("setor")} dica="Ex.: caixa 1, balcão, gerência">
+            <Input id="setor" name="setor" defaultValue={v("setor")} maxLength={60} />
+          </Campo>
+          <Campo id="hostname" label="Nome na rede" erro={erro("hostname")} dica="Nome do computador">
+            <Input id="hostname" name="hostname" defaultValue={v("hostname")} maxLength={60} className="font-mono" />
+          </Campo>
+          <Campo id="ip" label="IP" erro={erro("ip")}>
+            <Input id="ip" name="ip" defaultValue={v("ip")} maxLength={45} inputMode="decimal" placeholder="192.168.0.10" className="font-mono" aria-invalid={!!erro("ip")} />
+          </Campo>
+          <Campo id="anydesk" label="AnyDesk" erro={erro("anydesk")}>
+            <Input id="anydesk" name="anydesk" defaultValue={v("anydesk")} maxLength={30} inputMode="numeric" className="font-mono" />
+          </Campo>
+        </div>
+      </section>
+
+      <section className="rounded-xl border bg-card p-5">
         <h2 className="mb-4 text-sm font-semibold">Aquisição</h2>
         <div className="grid gap-4 sm:grid-cols-3">
           <Campo id="valor" label={infoTipo?.mensal ? "Valor mensal (R$)" : "Valor (R$)"} erro={erro("valor")} dica="Preenchido com a referência ao escolher o tipo">
@@ -144,7 +167,10 @@ export function AtivoForm({ action, unidades, funcionarios, valores = {}, voltar
           <Campo id="fornecedor" label="Fornecedor" erro={erro("fornecedor")}>
             <Input id="fornecedor" name="fornecedor" defaultValue={v("fornecedor")} maxLength={80} />
           </Campo>
-          <Campo id="observacoes" label="Observações" erro={erro("observacoes")} className="sm:col-span-3">
+          <Campo id="garantia_ate" label="Garantia até" erro={erro("garantia_ate")}>
+            <Input id="garantia_ate" name="garantia_ate" type="date" defaultValue={v("garantia_ate")} aria-invalid={!!erro("garantia_ate")} />
+          </Campo>
+          <Campo id="observacoes" label="Observações" erro={erro("observacoes")} className="sm:col-span-2">
             <Input id="observacoes" name="observacoes" defaultValue={v("observacoes")} maxLength={1000} />
           </Campo>
         </div>

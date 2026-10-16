@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, Search } from "lucide-react";
+import { Plus, Printer, Search } from "lucide-react";
 import { AvisoSucesso, SelectNativo } from "@/components/form/campo";
 import { PageHeader } from "@/components/layout/page-header";
 import { Paginacao } from "@/components/layout/paginacao";
@@ -28,13 +28,21 @@ export default async function AtivosPage({ searchParams }: PageProps<"/ti/ativos
       <PageHeader
         eyebrow="TI"
         titulo="Ativos de TI"
-        descricao="Equipamentos por unidade, com patrimônio, situação e valor de referência."
+        descricao="Equipamentos por unidade, com patrimônio, situação, rede e histórico. Filtre uma loja para imprimir as etiquetas com QR Code de todos os equipamentos dela."
         acoes={
           podeEditar ? (
-            <Button className="bg-fct-yellow text-fct-navy hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/ti/ativos/novo" />}>
-              <Plus data-icon="inline-start" />
-              Novo ativo
-            </Button>
+            <>
+              {filtros.filial && (
+                <Button variant="outline" nativeButton={false} render={<a href={`/etiquetas/ti?filial=${filtros.filial}`} target="_blank" rel="noopener" />}>
+                  <Printer data-icon="inline-start" />
+                  Etiquetas da loja
+                </Button>
+              )}
+              <Button className="bg-fct-yellow text-fct-navy hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/ti/ativos/novo" />}>
+                <Plus data-icon="inline-start" />
+                Novo ativo
+              </Button>
+            </>
           ) : undefined
         }
       />
