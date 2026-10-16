@@ -2,10 +2,11 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Banknote, Building2, ClipboardList, CornerDownLeft, LifeBuoy, Loader2, MonitorCog, Search, Store, UserCog, Users, type LucideIcon } from "lucide-react";
+import { Banknote, Building2, ClipboardList, CornerDownLeft, LifeBuoy, Loader2, MessageCircleQuestion, MonitorCog, Search, Store, UserCog, Users, type LucideIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { buscaValida, type GrupoBusca, type TipoBusca } from "@/lib/busca";
 import { navParaPapel } from "@/lib/nav";
+import { perguntasDoPapel } from "@/lib/perguntas/catalogo";
 import type { AppRole } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 
@@ -55,10 +56,23 @@ export function BuscaRapida({ papel, variante = "cabecalho" }: { papel: AppRole;
       .sort((a, b) => Number(!normalizar(a.label).includes(palavras[0])) - Number(!normalizar(b.label).includes(palavras[0])))
       .slice(0, 6);
   }, [termo, itens]);
+  // perguntas prontas entram quando há termo (sem termo, a lista de telas já mostra "Perguntas prontas")
+  const todasPerguntas = React.useMemo(() => perguntasDoPapel(papel), [papel]);
+  const perguntas = React.useMemo(() => {
+    const t = normalizar(termo.trim());
+    if (!t) return [];
+    const palavras = t.split(/\s+/);
+    return todasPerguntas.filter((p) => palavras.every((w) => normalizar(`${p.pergunta} ${p.area} ${p.descricao}`).includes(w))).slice(0, 4);
+  }, [termo, todasPerguntas]);
 
   const secoes = React.useMemo<Secao[]>(() => {
     const deTelas: Opcao[] = telas.map((i) => ({ chave: `tela:${i.href}`, href: i.href, titulo: i.label, detalhe: `${i.grupo} · ${i.descricao}`, icone: i.icon }));
     const lista: Secao[] = deTelas.length ? [{ rotulo: termo.trim() ? "Telas" : null, opcoes: deTelas }] : [];
+    if (perguntas.length)
+      lista.push({
+        rotulo: "Perguntas prontas",
+        opcoes: perguntas.map((p) => ({ chave: `pergunta:${p.id}`, href: `/perguntas/${p.id}`, titulo: p.pergunta, detalhe: `${p.area} · ${p.descricao}`, icone: MessageCircleQuestion })),
+      });
     for (const g of grupos) {
       lista.push({
         rotulo: g.rotulo,
@@ -66,7 +80,7 @@ export function BuscaRapida({ papel, variante = "cabecalho" }: { papel: AppRole;
       });
     }
     return lista;
-  }, [telas, grupos, termo]);
+  }, [telas, perguntas, grupos, termo]);
   const opcoes = React.useMemo(() => secoes.flatMap((s) => s.opcoes), [secoes]);
   const atual = opcoes.length ? Math.min(ativo, opcoes.length - 1) : 0;
 
