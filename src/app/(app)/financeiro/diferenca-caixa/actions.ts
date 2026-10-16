@@ -139,3 +139,122 @@ export async function vincularOperador(cod: number, _prev: EstadoVinculo, fd: Fo
   revalidatePath("/financeiro/diferenca-caixa/operadores");
   return { ok: emp ? "Ligado." : "Desligado." };
 }
+
+// ---------- quebra manual e gestores ----------
+
+export type EstadoManual = { erro?: string; ok?: string; id?: string; erros?: Record<string, string> };
+
+/** Lançamento à mão pelo financeiro (vale mesmo abaixo de R$ 2,00): entra no desconto da folha e vai para o gestor. */
+export async function lancarQuebraManual(_prev: EstadoManual, fd: FormData): Promise<EstadoManual> {
+  const sessao = await exigirFinanceiro();
+  if (!sessao) return { erro: "Só o financeiro e o administrador lançam quebras." };
+  const employeeId = texto(fd, "employee_id");
+  const branchId = texto(fd, "branch_id");
+  const dia = texto(fd, "dia");
+  const tipo = texto(fd, "tipo");
+  const descricao = texto(fd, "descricao").slice(0, 2000);
+  const valorTexto = texto(fd, "valor").replace(/\s/g, "").replace(/^R\$/i, "");
+  const normal = valorTexto.includes(",") ? valorTexto.replace(/\./g, "").replace(",", ".") : valorTexto;
+  const valor = /^\d+(\.\d{1,2})?$/.test(normal) ? Number(normal) : Number.NaN;
+  const erros: Record<string, string> = {};
+  if (!UUID.test(employeeId)) erros.employee_id = "Escolha o colaborador.";
+  if (!DIA.test(dia)) erros.dia = "Informe a data.";
+  if (tipo !== "falta" && tipo !== "sobra") erros.tipo = "Falta ou sobra?";
+  if (!Number.isFinite(valor) || valor <= 0 || valor > 100_000) erros.valor = "Valor inválido (ex.: 15,40).";
+  if (descricao.length < 5) erros.descricao = "Conte o motivo da quebra.";
+  if (Object.keys(erros).length) return { erro: "Confira os campos destacados.", erros };
+
+  const supabase = await createClient();
+  const { data: funcionarios, error: e0 } = await supabase.rpc("caixa_funcionarios");
+  if (e0) return { erro: e0.message };
+  const func = (funcionarios ?? []).find((f) => f.id === employeeId);
+  if (!func) return { erro: "Colaborador não encontrado.", erros: { employee_id: "Colaborador não encontrado." } };
+  if (/FARMAC[EÊ]UTIC/i.test(func.cargo ?? "")) return { erro: "Farmacêutico não tem quebra de caixa.", erros: { employee_id: "Farmacêutico não tem quebra de caixa." } };
+  const loja = UUID.test(branchId) ? branchId : func.branch_id;
+  const { data, error } = await supabase
+    .from("caixa_diferencas")
+    .insert({
+      branch_id: loja,
+      dia,
+      nome_operador: func.nome,
+      employee_id: func.id,
+      informado: 0,
+      diferenca: tipo === "falta" ? valor : -valor,
+      origem: "manual",
+      descricao,
+      lancada_por: sessao.id,
+      lancada_por_nome: sessao.nome,
+    })
+    .select("id")
+    .single();
+  if (error) return { erro: `Não consegui lançar: ${error.message}` };
+  await registrarAuditoria(supabase, { userId: sessao.id, acao: "criar", entidade: "caixa_diferencas", registroId: data.id, novo: { origem: "manual", dia, tipo, valor } });
+  revalidar();
+  return { ok: "Quebra lançada.", id: data.id };
+}
+
+/** Só a quebra lançada à mão pode ser excluída (lançada por engano); o desconto sai da folha. */
+export async function excluirQuebraManual(id: string): Promise<EstadoDecisao> {
+  const sessao = await exigirFinanceiro();
+  if (!sessao) return { erro: "Só o financeiro exclui quebras." };
+  if (!UUID.test(id)) return { erro: "Quebra inválida." };
+  const supabase = await createClient();
+  const { data: atual } = await supabase.from("caixa_diferencas").select("id, origem, dia, diferenca, employee_id").eq("id", id).maybeSingle();
+  if (!atual) return { erro: "Quebra não encontrada." };
+  if (atual.origem !== "manual") return { erro: "A quebra que veio do Trier não se exclui: abone, se for o caso." };
+  const { error } = await supabase.from("caixa_diferencas").delete().eq("id", id);
+  if (error) return { erro: `Não consegui excluir: ${error.message}` };
+  await registrarAuditoria(supabase, { userId: sessao.id, acao: "excluir", entidade: "caixa_diferencas", registroId: id, anterior: { origem: "manual", dia: atual.dia, diferenca: atual.diferenca } });
+  revalidar();
+  return { ok: "Quebra excluída." };
+}
+
+/** Troca o gestor que justifica uma quebra (ex.: gerente de férias, colaborador emprestado de outra loja). */
+export async function moverGestorQuebra(id: string, _prev: EstadoDecisao, fd: FormData): Promise<EstadoDecisao> {
+  const sessao = await exigirFinanceiro();
+  if (!sessao) return { erro: "Só o financeiro troca o gestor." };
+  if (!UUID.test(id)) return { erro: "Quebra inválida." };
+  const gestor = texto(fd, "gestor_id");
+  if (gestor && !UUID.test(gestor)) return { erro: "Gestor inválido." };
+  const supabase = await createClient();
+  const { data: atual } = await supabase.from("caixa_diferencas").select("gestor_id").eq("id", id).maybeSingle();
+  if (!atual) return { erro: "Quebra não encontrada." };
+  const { error } = await supabase.from("caixa_diferencas").update({ gestor_id: gestor || null }).eq("id", id);
+  if (error) return { erro: `Não consegui trocar: ${error.message}` };
+  await registrarAuditoria(supabase, { userId: sessao.id, acao: "editar", entidade: "caixa_diferencas", registroId: id, anterior: { gestor_id: atual.gestor_id }, novo: { gestor_id: gestor || null } });
+  revalidar();
+  revalidatePath(`/financeiro/diferenca-caixa/${id}`);
+  return { ok: gestor ? "Gestor trocado: a quebra aparece para ele justificar." : "Sem gestor: fica com o gerente da loja." };
+}
+
+/** Define (ou troca) o gestor das quebras de uma loja; opcionalmente leva junto as quebras em aberto da loja. */
+export async function definirGestorLoja(branchId: string, _prev: EstadoDecisao, fd: FormData): Promise<EstadoDecisao> {
+  const sessao = await exigirFinanceiro();
+  if (!sessao) return { erro: "Só o financeiro define gestores." };
+  if (!UUID.test(branchId)) return { erro: "Loja inválida." };
+  const gestor = texto(fd, "gestor_id");
+  if (gestor && !UUID.test(gestor)) return { erro: "Gestor inválido." };
+  const moverAbertas = texto(fd, "mover") === "1";
+  const supabase = await createClient();
+  const { data: antes } = await supabase.from("caixa_gestores").select("profile_id").eq("branch_id", branchId).maybeSingle();
+  const { error } = gestor
+    ? await supabase.from("caixa_gestores").upsert({ branch_id: branchId, profile_id: gestor, definido_por: sessao.id, definido_em: new Date().toISOString() }, { onConflict: "branch_id" })
+    : await supabase.from("caixa_gestores").delete().eq("branch_id", branchId);
+  if (error) return { erro: `Não consegui salvar: ${error.message}` };
+  let movidas = 0;
+  if (moverAbertas) {
+    const { data: abertas, error: e2 } = await supabase
+      .from("caixa_diferencas")
+      .update({ gestor_id: gestor || null })
+      .eq("branch_id", branchId)
+      .eq("classe", "quebra")
+      .in("andamento", ["pendente", "justificada"])
+      .select("id");
+    if (e2) return { erro: `Gestor salvo, mas não consegui mover as quebras: ${e2.message}` };
+    movidas = abertas?.length ?? 0;
+  }
+  await registrarAuditoria(supabase, { userId: sessao.id, acao: "editar", entidade: "caixa_gestores", registroId: branchId, anterior: { gestor: antes?.profile_id ?? null }, novo: { gestor: gestor || null, quebras_movidas: movidas } });
+  revalidar();
+  revalidatePath("/financeiro/diferenca-caixa/gestores");
+  return { ok: `${gestor ? "Gestor salvo" : "Gestor removido"}${moverAbertas ? ` · ${movidas} quebra(s) em aberto passaram para ${gestor ? "ele" : "o gerente da loja"}` : ""}.` };
+}

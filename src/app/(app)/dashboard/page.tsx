@@ -45,7 +45,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const veRh = sessao.papel === "admin" || sessao.papel === "rh" || sessao.papel === "gerente";
   const veFolha = sessao.papel === "admin" || sessao.papel === "rh";
   const veQuebras = sessao.papel !== "rh" && sessao.papel !== "ti" && sessao.papel !== "contador";
-  const [d, quebras] = await Promise.all([carregarDashboard({ incluirFolha: veFolha }), veQuebras ? contarQuebrasDoPainel(sessao.papel) : null]);
+  const [d, quebras] = await Promise.all([carregarDashboard({ incluirFolha: veFolha }), veQuebras ? contarQuebrasDoPainel(sessao.papel, sessao.id) : null]);
   const grupos = navParaPapel(sessao.papel).filter((g) => g.titulo);
   const emAtividade = d.funcionarios.ativo + d.funcionarios.afastado + d.funcionarios.ferias;
   const hojeTexto = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Sao_Paulo" }).format(new Date());

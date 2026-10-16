@@ -107,7 +107,7 @@ export function UsuarioForm({ action, unidades, modo, valores, ehProprioUsuario,
         <section className="rounded-xl border bg-card p-5">
           <h2 className="mb-1 text-sm font-semibold">Cadastro de funcionário</h2>
           <p className="mb-3 text-xs text-muted-foreground">
-            Ligue o usuário ao funcionário do cadastro do RH. É assim que as quebras de caixa do funcionário aparecem para ele justificar (e, se ele for o responsável pela loja, as da loja).
+            Ligue o usuário ao funcionário do cadastro do RH. É assim que o colaborador vê as quebras de caixa dele (quem justifica é o gestor da loja, escolhido pelo financeiro).
           </p>
           <SelectNativo id="employee_id" name="employee_id" defaultValue={valores.employee_id ?? ""} aria-label="Funcionário ligado ao usuário">
             <option value="">— não é funcionário / não ligar —</option>

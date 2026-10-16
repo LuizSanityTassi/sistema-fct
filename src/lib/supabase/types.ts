@@ -1737,6 +1737,11 @@ export type Database = {
       }
       caixa_diferencas: {
         Row: {
+          descricao: string | null
+          gestor_id: string | null
+          lancada_por: string | null
+          lancada_por_nome: string | null
+          origem: string
           andamento: string
           branch_id: string
           classe: string
@@ -1759,10 +1764,15 @@ export type Database = {
           justificada_por_nome: string | null
           justificativa: string | null
           nome_operador: string
-          numero_caixa: number
+          numero_caixa: number | null
           valor_quebra: number
         }
         Insert: {
+          descricao?: string | null
+          gestor_id?: string | null
+          lancada_por?: string | null
+          lancada_por_nome?: string | null
+          origem?: string
           andamento?: string
           branch_id: string
           cod_operador?: number | null
@@ -1783,9 +1793,14 @@ export type Database = {
           justificada_por_nome?: string | null
           justificativa?: string | null
           nome_operador: string
-          numero_caixa: number
+          numero_caixa?: number | null
         }
         Update: {
+          descricao?: string | null
+          gestor_id?: string | null
+          lancada_por?: string | null
+          lancada_por_nome?: string | null
+          origem?: string
           andamento?: string
           branch_id?: string
           cod_operador?: number | null
@@ -1806,7 +1821,7 @@ export type Database = {
           justificada_por_nome?: string | null
           justificativa?: string | null
           nome_operador?: string
-          numero_caixa?: number
+          numero_caixa?: number | null
         }
         Relationships: [
           {
@@ -1838,6 +1853,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      caixa_gestores: {
+        Row: {
+          branch_id: string
+          definido_em: string
+          definido_por: string | null
+          profile_id: string
+        }
+        Insert: {
+          branch_id: string
+          definido_em?: string
+          definido_por?: string | null
+          profile_id: string
+        }
+        Update: {
+          branch_id?: string
+          definido_em?: string
+          definido_por?: string | null
+          profile_id?: string
+        }
+        Relationships: []
       }
       caixa_operadores: {
         Row: {
@@ -2667,6 +2703,16 @@ export type Database = {
       caixa_justificar: {
         Args: { p_id: string; p_texto: string }
         Returns: undefined
+      }
+      caixa_usuarios: {
+        Args: never
+        Returns: {
+          branch_id: string | null
+          filial: string | null
+          id: string
+          nome: string
+          papel: string
+        }[]
       }
       integracao_ler_segredos: {
         Args: { p_nomes: string[] }

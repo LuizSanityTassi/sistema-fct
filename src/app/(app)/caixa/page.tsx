@@ -21,7 +21,7 @@ export default async function QuebrasCaixaPage({ searchParams }: PageProps<"/cai
       <PageHeader
         eyebrow="Operação"
         titulo="Quebras de caixa"
-        descricao={`Quando a diferença do caixa passa de ${formatarMoeda(TOLERANCIA_CAIXA)} (faltando ou sobrando), ela vira quebra e entra no desconto da folha. Aqui o colaborador do caixa, o responsável ou o gerente da loja contam o que aconteceu; o financeiro decide se mantém o desconto ou abona.`}
+        descricao={`Quando a diferença do caixa passa de ${formatarMoeda(TOLERANCIA_CAIXA)} (faltando ou sobrando), ela vira quebra e entra no desconto da folha. Aqui o gestor da loja registra a justificativa (o colaborador vê a quebra dele e justifica para o gestor); o financeiro decide se mantém o desconto ou abona.`}
       />
 
       {financeiro ? (
@@ -46,7 +46,7 @@ export default async function QuebrasCaixaPage({ searchParams }: PageProps<"/cai
           {quebras.length === 0 ? (
             <p className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
               {todas ? "Nenhuma quebra de caixa ligada a você ou à sua loja." : "Nada para justificar. 🎉"}
-              <span className="mt-1 block text-xs">Se você opera caixa e acha que deveria ver algo aqui, peça ao administrador para ligar o seu usuário ao seu cadastro de funcionário.</span>
+              <span className="mt-1 block text-xs">Se você opera caixa e acha que deveria ver algo aqui, peça ao administrador para ligar o seu usuário ao seu cadastro de funcionário. Se você é gestor, peça ao financeiro para te colocar como gestor da loja.</span>
             </p>
           ) : (
             <ul className="space-y-4">
@@ -54,30 +54,40 @@ export default async function QuebrasCaixaPage({ searchParams }: PageProps<"/cai
                 const st = situacaoDoCaixa(q.classe, q.andamento);
                 const dif = Number(q.diferenca);
                 const aberta = q.andamento === "pendente" || q.andamento === "justificada";
+                // quem justifica é o gestor da quebra (sem gestor definido: o gerente da loja); o colaborador só vê
+                const souGestor = q.gestor_id === sessao.id || (!q.gestor_id && sessao.papel === "gerente");
+                const manual = q.origem === "manual";
                 return (
                   <li key={q.id} className="rounded-xl border bg-card p-5">
                     <div className="mb-3 flex flex-wrap items-center gap-2">
                       <h2 className="text-base font-semibold">
-                        Caixa {q.numero_caixa} · {q.filial?.codigo} · {formatarData(q.dia)}
+                        {manual ? "Quebra lançada pelo financeiro" : `Caixa ${q.numero_caixa}`} · {q.filial?.codigo} · {formatarData(q.dia)}
                       </h2>
                       <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${COR_SITUACAO[st]}`}>{ROTULO_SITUACAO[st]}</span>
                     </div>
                     <dl className="mb-4 grid gap-3 text-sm sm:grid-cols-3">
                       <div>
-                        <dt className="text-xs text-muted-foreground">Operador</dt>
+                        <dt className="text-xs text-muted-foreground">{manual ? "Colaborador" : "Operador"}</dt>
                         <dd className="font-medium">{q.nome_operador}</dd>
                       </div>
                       <div>
-                        <dt className="text-xs text-muted-foreground">Declarado em dinheiro</dt>
-                        <dd className="font-medium tabular-nums">{formatarMoeda(Number(q.informado))}</dd>
+                        <dt className="text-xs text-muted-foreground">{manual ? "Motivo" : "Declarado em dinheiro"}</dt>
+                        <dd className={manual ? "text-sm" : "font-medium tabular-nums"}>{manual ? (q.descricao ?? "—") : formatarMoeda(Number(q.informado))}</dd>
                       </div>
                       <div>
                         <dt className="text-xs text-muted-foreground">Diferença</dt>
                         <dd className={`font-semibold tabular-nums ${dif > 0 ? "text-red-700" : "text-sky-700"}`}>{textoDiferenca(dif)}</dd>
                       </div>
                     </dl>
-                    {aberta ? (
+                    {aberta && souGestor ? (
                       <JustificativaForm action={justificarQuebra.bind(null, q.id)} id={q.id} atual={q.justificativa} />
+                    ) : aberta ? (
+                      <div className="space-y-2 text-sm">
+                        {q.justificativa && <p className="rounded-lg border bg-muted/30 p-3 whitespace-pre-wrap">{q.justificativa}</p>}
+                        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
+                          {q.andamento === "justificada" ? "Seu gestor já justificou. Agora o financeiro decide se mantém o desconto ou abona." : "Justifique para o seu gestor: é ele quem registra a justificativa aqui no sistema."}
+                        </p>
+                      </div>
                     ) : (
                       <div className="space-y-2 text-sm">
                         {q.justificativa && <p className="rounded-lg border bg-muted/30 p-3 whitespace-pre-wrap">{q.justificativa}</p>}

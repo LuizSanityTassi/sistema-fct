@@ -109,7 +109,7 @@ export const NAV: NavGrupo[] = [
         href: "/caixa",
         icon: Coins,
         papeis: ["admin", "financeiro", "gerente", "usuario"],
-        descricao: "Justificar as quebras de caixa (diferença acima de R$ 2,00) do seu caixa ou da sua loja.",
+        descricao: "Quebras de caixa: o gestor da loja justifica; o colaborador vê as do caixa dele.",
       },
       {
         label: "Canal de denúncias",

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Search, UserRoundCog } from "lucide-react";
+import { Plus, Search, UserRoundCog, UsersRound } from "lucide-react";
 import { SelectNativo } from "@/components/form/campo";
 import { PageHeader } from "@/components/layout/page-header";
 import { Paginacao } from "@/components/layout/paginacao";
@@ -45,12 +45,22 @@ export default async function DiferencaCaixaPage({ searchParams }: PageProps<"/f
       <PageHeader
         eyebrow="Financeiro"
         titulo="Diferença de caixa"
-        descricao={`Declarado × movimentado de cada caixa, lido do Trier (Relatório de Diferenças de Caixa). Até ${formatarMoeda(TOLERANCIA_CAIXA)} é tolerância e só aparece aqui; acima vira quebra: entra no desconto da folha e vai para o colaborador ou o gerente justificar.`}
+        descricao={`Declarado × movimentado de cada caixa, lido do Trier (Relatório de Diferenças de Caixa). Até ${formatarMoeda(TOLERANCIA_CAIXA)} é tolerância e só aparece aqui; acima vira quebra: entra no desconto da folha e vai para o gestor da loja justificar (o colaborador só vê).`}
         acoes={
-          <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/financeiro/diferenca-caixa/operadores" />}>
-            <UserRoundCog data-icon="inline-start" />
-            Operadores × funcionários
-          </Button>
+          <>
+            <Button size="sm" className="bg-fct-yellow font-semibold text-fct-navy hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/financeiro/diferenca-caixa/nova" />}>
+              <Plus data-icon="inline-start" />
+              Lançar quebra manual
+            </Button>
+            <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/financeiro/diferenca-caixa/gestores" />}>
+              <UsersRound data-icon="inline-start" />
+              Gestores das lojas
+            </Button>
+            <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/financeiro/diferenca-caixa/operadores" />}>
+              <UserRoundCog data-icon="inline-start" />
+              Operadores × funcionários
+            </Button>
+          </>
         }
       />
 
@@ -148,15 +158,23 @@ export default async function DiferencaCaixaPage({ searchParams }: PageProps<"/f
                     <TableCell className="font-mono text-xs text-fct-navy">{c.filial?.codigo ?? "—"}</TableCell>
                     <TableCell>
                       <Link href={`/financeiro/diferenca-caixa/${c.id}`} className="font-mono font-semibold text-fct-navy hover:underline">
-                        {c.numero_caixa}
+                        {c.origem === "manual" ? "manual" : c.numero_caixa}
                       </Link>
                     </TableCell>
                     <TableCell>
                       <span className="block">{c.nome_operador}</span>
-                      <span className={`block text-xs ${c.employee_id ? "text-muted-foreground" : "text-amber-800"}`}>{c.employee_id ? (nomeFuncionario.get(c.employee_id) ?? "funcionário ligado") : "sem funcionário ligado"}</span>
+                      {c.origem === "manual" ? (
+                        <span className="block max-w-72 truncate text-xs text-muted-foreground" title={c.descricao ?? ""}>
+                          lançada à mão{c.descricao ? ` · ${c.descricao}` : ""}
+                        </span>
+                      ) : (
+                        <span className={`block text-xs ${c.employee_id ? "text-muted-foreground" : "text-amber-800"}`}>{c.employee_id ? (nomeFuncionario.get(c.employee_id) ?? "funcionário ligado") : "sem funcionário ligado"}</span>
+                      )}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">{formatarMoeda(Number(c.informado))}</TableCell>
-                    <TableCell className="hidden text-right tabular-nums md:table-cell">{formatarMoeda(movimentadoDoCaixa({ informadoDinheiro: Number(c.informado), calculadoDinheiro: dif }))}</TableCell>
+                    <TableCell className="text-right tabular-nums">{c.origem === "manual" ? "—" : formatarMoeda(Number(c.informado))}</TableCell>
+                    <TableCell className="hidden text-right tabular-nums md:table-cell">
+                      {c.origem === "manual" ? "—" : formatarMoeda(movimentadoDoCaixa({ informadoDinheiro: Number(c.informado), calculadoDinheiro: dif }))}
+                    </TableCell>
                     <TableCell className={`text-right font-medium whitespace-nowrap tabular-nums ${c.classe === "quebra" ? (dif > 0 ? "text-red-700" : "text-sky-700") : "text-muted-foreground"}`}>{textoDiferenca(dif)}</TableCell>
                     <TableCell>
                       <span className={`inline-block rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap ${COR_SITUACAO[st]}`}>{ROTULO_CURTO[st]}</span>

@@ -22,7 +22,7 @@ export function lerFiltrosCaixa(sp: Record<string, string | string[] | undefined
 
 // o financeiro não lê employees (RLS do RH): o nome do funcionário vem de funcionariosDoCaixa()
 const COLUNAS =
-  "id, dia, numero_caixa, cod_operador, nome_operador, informado, diferenca, classe, andamento, valor_quebra, employee_id, justificada_em, filial:branches!caixa_diferencas_branch_id_fkey(id, codigo, nome)";
+  "id, dia, numero_caixa, cod_operador, nome_operador, informado, diferenca, classe, andamento, valor_quebra, employee_id, gestor_id, origem, descricao, justificada_em, filial:branches!caixa_diferencas_branch_id_fkey(id, codigo, nome)";
 
 function aplicarSituacao<Q extends { eq: (c: string, v: string) => Q }>(consulta: Q, situacao: string): Q {
   if (situacao === "quebras") return consulta.eq("classe", "quebra");
@@ -117,7 +117,7 @@ export async function listarOperadores() {
   return data ?? [];
 }
 
-/** Quebras que a pessoa logada responde (colaborador do caixa, responsável ou gerente da filial). */
+/** Quebras que a pessoa logada vê: as que ela justifica como gestor e, se for colaborador de caixa, as dela (só ver). */
 export async function minhasQuebras(abertas: boolean) {
   const supabase = await createClient();
   let q = supabase.from("caixa_diferencas").select(`${COLUNAS}, justificativa, decisao_obs`).eq("classe", "quebra");
@@ -128,18 +128,22 @@ export async function minhasQuebras(abertas: boolean) {
 }
 
 /** Aviso do painel: para o financeiro, as justificadas esperando decisão; para os outros, as quebras a justificar. */
-export async function contarQuebrasDoPainel(papel: string) {
+export async function contarQuebrasDoPainel(papel: string, userId: string) {
   const supabase = await createClient();
-  const financeiro = papel === "admin" || papel === "financeiro";
-  const { count } = await supabase
-    .from("caixa_diferencas")
-    .select("id", { count: "exact", head: true })
-    .eq("classe", "quebra")
-    .eq("andamento", financeiro ? "justificada" : "pendente");
-  const n = count ?? 0;
-  return financeiro
-    ? { quantidade: n, href: "/financeiro/diferenca-caixa?situacao=justificada", titulo: `${n} quebra(s) de caixa justificada(s)`, texto: "esperando a decisão do financeiro (manter o desconto ou abonar)." }
-    : { quantidade: n, href: "/caixa", titulo: `${n} quebra(s) de caixa para justificar.`, texto: "Conte o que aconteceu antes do fechamento da folha." };
+  const contar = async (filtro: (q: ReturnType<typeof base>) => ReturnType<typeof base>) => (await filtro(base())).count ?? 0;
+  function base() {
+    return supabase.from("caixa_diferencas").select("id", { count: "exact", head: true }).eq("classe", "quebra");
+  }
+  if (papel === "admin" || papel === "financeiro") {
+    const n = await contar((q) => q.eq("andamento", "justificada"));
+    return { quantidade: n, href: "/financeiro/diferenca-caixa?situacao=justificada", titulo: `${n} quebra(s) de caixa justificada(s)`, texto: "esperando a decisão do financeiro (manter o desconto ou abonar)." };
+  }
+  // gestor: as que ele justifica (sem gestor definido, o gerente da loja); a RLS já limita às lojas dele
+  const comoGestor = await contar((q) => (papel === "gerente" ? q.eq("andamento", "pendente").or(`gestor_id.eq.${userId},gestor_id.is.null`) : q.eq("andamento", "pendente").eq("gestor_id", userId)));
+  if (comoGestor > 0) return { quantidade: comoGestor, href: "/caixa", titulo: `${comoGestor} quebra(s) de caixa para justificar.`, texto: "Registre o que aconteceu antes do fechamento da folha." };
+  // colaborador: só vê as dele
+  const minhas = await contar((q) => q.eq("andamento", "pendente"));
+  return { quantidade: minhas, href: "/caixa", titulo: `Você tem ${minhas} quebra(s) de caixa.`, texto: "Justifique para o seu gestor: é ele quem registra no sistema." };
 }
 
 export type FuncionarioCaixa = { id: string; nome: string; cargo: string | null; matricula: string | null; branch_id: string; filial: string; status: string };
@@ -150,4 +154,46 @@ export async function funcionariosDoCaixa(): Promise<FuncionarioCaixa[]> {
   const { data, error } = await supabase.rpc("caixa_funcionarios");
   if (error) throw new Error(error.message);
   return data ?? [];
+}
+
+export type UsuarioCaixa = { id: string; nome: string; papel: string; branch_id: string | null; filial: string | null };
+
+/** Usuários ativos que o financeiro pode escolher como gestor (nome, papel e loja). */
+export async function usuariosDoCaixa(): Promise<UsuarioCaixa[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("caixa_usuarios");
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+/** Gestor das quebras de cada loja (definido pelo financeiro). */
+export async function gestoresDasLojas() {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("caixa_gestores").select("branch_id, profile_id, definido_em");
+  if (error) throw new Error(error.message);
+  return new Map((data ?? []).map((g) => [g.branch_id, g]));
+}
+
+/** Quebras em aberto (aguardando justificativa ou decisão) por loja e quantas estão sem gestor. */
+export async function quebrasAbertasPorLoja() {
+  const supabase = await createClient();
+  const porLoja = new Map<string, { abertas: number; semGestor: number }>();
+  for (let de = 0; ; de += 1000) {
+    const { data, error } = await supabase
+      .from("caixa_diferencas")
+      .select("branch_id, gestor_id")
+      .eq("classe", "quebra")
+      .in("andamento", ["pendente", "justificada"])
+      .order("id")
+      .range(de, de + 999);
+    if (error) throw new Error(error.message);
+    for (const r of data ?? []) {
+      const x = porLoja.get(r.branch_id) ?? { abertas: 0, semGestor: 0 };
+      x.abertas++;
+      if (!r.gestor_id) x.semGestor++;
+      porLoja.set(r.branch_id, x);
+    }
+    if ((data ?? []).length < 1000) break;
+  }
+  return porLoja;
 }
