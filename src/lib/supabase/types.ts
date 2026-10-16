@@ -605,6 +605,7 @@ export type Database = {
           historico: Json
           motivo: string | null
           problema: string
+          regra_id: string | null
           responsavel: string | null
           status: Database["public"]["Enums"]["conc_status_pendencia"]
           valor: number
@@ -628,6 +629,7 @@ export type Database = {
           historico?: Json
           motivo?: string | null
           problema: string
+          regra_id?: string | null
           responsavel?: string | null
           status?: Database["public"]["Enums"]["conc_status_pendencia"]
           valor?: number
@@ -651,6 +653,7 @@ export type Database = {
           historico?: Json
           motivo?: string | null
           problema?: string
+          regra_id?: string | null
           responsavel?: string | null
           status?: Database["public"]["Enums"]["conc_status_pendencia"]
           valor?: number
@@ -680,8 +683,89 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "conc_pendencias_regra_id_fkey"
+            columns: ["regra_id"]
+            isOneToOne: false
+            referencedRelation: "conc_regras"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "conc_pendencias_responsavel_fkey"
             columns: ["responsavel"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conc_regras: {
+        Row: {
+          ativo: boolean
+          categoria_omie: string | null
+          cnpj_raiz: string | null
+          created_at: string
+          criado_por: string | null
+          departamento_omie: string | null
+          filiais: number[]
+          id: string
+          nome: string
+          nome_contem: string | null
+          ordem: number
+          pendencia_acao: Database["public"]["Enums"]["conc_status_pendencia"] | null
+          pendencia_motivo: string | null
+          problemas: string[]
+          ultima_vez: string | null
+          updated_at: string
+          valor_max: number | null
+          valor_min: number | null
+          vezes: number
+        }
+        Insert: {
+          ativo?: boolean
+          categoria_omie?: string | null
+          cnpj_raiz?: string | null
+          created_at?: string
+          criado_por?: string | null
+          departamento_omie?: string | null
+          filiais?: number[]
+          id?: string
+          nome: string
+          nome_contem?: string | null
+          ordem?: number
+          pendencia_acao?: Database["public"]["Enums"]["conc_status_pendencia"] | null
+          pendencia_motivo?: string | null
+          problemas?: string[]
+          ultima_vez?: string | null
+          updated_at?: string
+          valor_max?: number | null
+          valor_min?: number | null
+          vezes?: number
+        }
+        Update: {
+          ativo?: boolean
+          categoria_omie?: string | null
+          cnpj_raiz?: string | null
+          created_at?: string
+          criado_por?: string | null
+          departamento_omie?: string | null
+          filiais?: number[]
+          id?: string
+          nome?: string
+          nome_contem?: string | null
+          ordem?: number
+          pendencia_acao?: Database["public"]["Enums"]["conc_status_pendencia"] | null
+          pendencia_motivo?: string | null
+          problemas?: string[]
+          ultima_vez?: string | null
+          updated_at?: string
+          valor_max?: number | null
+          valor_min?: number | null
+          vezes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conc_regras_criado_por_fkey"
+            columns: ["criado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -2689,6 +2773,10 @@ export type Database = {
           ultimo: string
           ultimo_venc: string
         }[]
+      }
+      conc_regras_registrar_uso: {
+        Args: { p_ids: string[]; p_qtds: number[] }
+        Returns: undefined
       }
       conc_fornecedor_historico: {
         Args: { p_raizes: string[] }

@@ -9,6 +9,7 @@ import type { Inserir, Linha } from "@/lib/tipos";
 import { detectarTipo, filialDoNome, lerDDA, lerTrier } from "./leitores";
 import { Motor, type ArquivoDDA, type ResultadoConciliacao, type ResultadoTrier, type TituloTrier } from "./motor";
 import { Omie, type GruposOmie, type ItemOmie } from "./omie";
+import { aplicarDecisao, alvoDeItem, contarUso, decidirPendencia, gravarUso, motivoDaRegra, primeiraRegra, regrasAtivas, type AlvoRegra, type StatusRegra, type Uso } from "./regras";
 import { PROBLEMAS, type GrupoItem, type TipoArquivoConc } from "./rotulos";
 
 export const BUCKET_CONCILIACAO = "conciliacao";
@@ -411,6 +412,9 @@ type Historico = { status: string; quando: string; por: string; motivo: string }
 
 async function registrarPendencias(supabase: Cliente, conciliacaoId: string, grupos: GruposOmie, filiais: Filiais) {
   const agora = new Date().toISOString();
+  const regras = await regrasAtivas(supabase);
+  const alvos = new Map<string, AlvoRegra>();
+  const uso: Uso = new Map();
   const itens: Omit<Inserir<"conc_pendencias">, "status">[] = [];
   const ok: string[] = [];
   for (const k of Object.keys(GRUPO) as (keyof GruposOmie)[]) {
@@ -421,6 +425,7 @@ async function registrarPendencias(supabase: Cliente, conciliacaoId: string, gru
         if (k !== "soTrier") ok.push(chave);
         continue;
       }
+      if (!alvos.has(chave)) alvos.set(chave, alvoDeItem(it, prob));
       const d = it.d;
       const t = it.ts[0];
       const venc = d ? d.venc : t?.venc;
@@ -469,38 +474,57 @@ async function registrarPendencias(supabase: Cliente, conciliacaoId: string, gru
   let novas = 0;
   let reabertas = 0;
   let resolvidas = 0;
+  let porRegra = 0;
   const gravar: Inserir<"conc_pendencias">[] = [];
   for (const it of itensUnicos) {
     const ex = existentes.get(it.chave);
+    const rp = primeiraRegra(regras, alvos.get(it.chave)!, "pendencia");
     if (!ex) {
       novas += 1;
-      gravar.push({ ...it, status: "pendente", criado_em: agora, historico: [{ status: "pendente", quando: agora, por: "sistema", motivo: "Encontrada na conciliação" }] });
+      let nova: Inserir<"conc_pendencias"> = { ...it, status: "pendente", criado_em: agora, historico: [{ status: "pendente", quando: agora, por: "sistema", motivo: "Encontrada na conciliação" }] };
+      if (rp) {
+        nova = aplicarDecisao(nova, { status: rp.pendencia_acao as StatusRegra, regra: rp, motivo: motivoDaRegra(rp) }, agora);
+        porRegra += 1;
+        contarUso(uso, rp);
+      }
+      gravar.push(nova);
       continue;
     }
     const hist = [...((ex.historico as Historico | null) ?? [])];
     let status = ex.status;
     let auto = ex.auto;
-    if (ex.status === "resolvido" && ex.auto) {
+    if (ex.status === "resolvido" && ex.auto && !ex.regra_id) {
       status = "pendente";
       auto = false;
       hist.push({ status: "pendente", quando: agora, por: "sistema", motivo: "Voltou a aparecer na conciliação" });
       reabertas += 1;
     }
-    // decisão de alguém (resolvido/justificado à mão) continua valendo; só atualizamos os dados vistos
-    gravar.push({ ...ex, ...it, status, auto, historico: hist });
+    // decisão de alguém (resolvido/justificado à mão) continua valendo; só atualizamos os dados vistos.
+    // Regra só trata a que está pendente ou a que ela mesma tratou (e reabre se não vale mais).
+    let linha: Inserir<"conc_pendencias"> = { ...ex, ...it, status, auto, historico: hist };
+    const dec = decidirPendencia({ status, auto, regra_id: ex.regra_id }, rp);
+    if (dec) {
+      linha = aplicarDecisao(linha, dec, agora);
+      if (dec.regra) {
+        porRegra += 1;
+        contarUso(uso, dec.regra);
+      } else reabertas += 1;
+    }
+    gravar.push(linha);
   }
   for (const chave of okUnicos) {
     const ex = existentes.get(chave);
     if (!ex || (ex.status !== "pendente" && ex.status !== "em_analise")) continue;
     const hist = [...((ex.historico as Historico | null) ?? []), { status: "resolvido", quando: agora, por: "sistema", motivo: "Conciliou automaticamente" }];
-    gravar.push({ ...ex, status: "resolvido", auto: true, motivo: "Conciliou automaticamente", decidido_por: null, decidido_em: agora, historico: hist, visto_em: agora, conciliacao_id: conciliacaoId });
+    gravar.push({ ...ex, status: "resolvido", auto: true, motivo: "Conciliou automaticamente", decidido_por: null, decidido_em: agora, regra_id: null, historico: hist, visto_em: agora, conciliacao_id: conciliacaoId });
     resolvidas += 1;
   }
   for (let i = 0; i < gravar.length; i += LOTE) {
     const { error } = await supabase.from("conc_pendencias").upsert(gravar.slice(i, i + LOTE), { onConflict: "chave" });
     if (error) throw new Error(`Pendências: ${error.message}`);
   }
-  return { novas, reabertas, resolvidasAuto: resolvidas, abertasNaLeva: itensUnicos.length };
+  await gravarUso(supabase, uso);
+  return { novas, reabertas, resolvidasAuto: resolvidas, abertasNaLeva: itensUnicos.length, porRegra };
 }
 
 // ---------- aprendizado (fornecedor do Trier ↔ CNPJ do boleto) ----------

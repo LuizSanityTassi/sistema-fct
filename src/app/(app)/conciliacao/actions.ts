@@ -126,6 +126,7 @@ export async function alterarStatusPendencias(fd: FormData) {
     status,
     motivo: motivo ?? null,
     auto: false,
+    regra_id: null, // decisão de pessoa: regra nenhuma mexe mais
     decidido_por: sessao.id,
     decidido_em: agora,
     historico: [...(((p.historico as Historico | null) ?? [])), { status, quando: agora, por: sessao.nome, motivo: motivo ?? "" }] as Json,

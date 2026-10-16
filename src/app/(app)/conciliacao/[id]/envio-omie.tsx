@@ -183,7 +183,14 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, vali
                       {c.fornecedorReal ? ` · real: ${c.fornecedorReal}` : ""}
                       {c.semDepartamento ? " · sem departamento no Omie" : ""}
                     </p>
-                    {c.alerta && <p className="text-xs font-semibold text-red-700">ALERTA: {c.alerta}</p>}
+                    {c.regras && (
+                      <p className="text-xs text-violet-800" title={`Regra automática: ${c.regras.nomes}`}>
+                        Regra {c.regras.nomes}
+                        {c.regras.categoria ? ` → categoria ${c.regras.categoria}` : ""}
+                        {c.regras.departamento ? ` → departamento ${c.regras.departamento}` : ""}
+                      </p>
+                    )}
+                    {c.alerta &&<p className="text-xs font-semibold text-red-700">ALERTA: {c.alerta}</p>}
                   </td>
                   <td className="p-2 text-right tabular-nums">{moeda(c.valor)}</td>
                   <td className="hidden p-2 text-xs md:table-cell">

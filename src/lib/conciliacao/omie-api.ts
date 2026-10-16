@@ -116,6 +116,8 @@ export type CacheOmie = {
   todos: Departamento[];
   opcoesConta: string[];
   opcoesCategoria: string[];
+  /** Categorias de despesa com código (para as regras automáticas). Cache antigo não tem: buscar os cadastros de novo. */
+  categorias?: { codigo: string; nome: string }[];
 };
 
 /** Busca na Omie as contas correntes, categorias e departamentos e liga pelos nomes. */
@@ -153,6 +155,7 @@ export async function buscarCadastros(ch: Chaves, emp: EmpresaOmie, nomeConta: s
     todos: deps,
     opcoesConta: contas.map((c) => c.descricao),
     opcoesCategoria: cats.filter((c) => c.conta_despesa === "S").map((c) => c.descricao),
+    categorias: cats.filter((c) => c.conta_despesa === "S").map((c) => ({ codigo: String(c.codigo), nome: c.descricao })),
   };
 }
 
@@ -230,6 +233,10 @@ export type ContaApi = {
   obs: string;
   departamento: string;
   fil: number | null;
+  /** Categoria vinda de uma regra automática (sem regra: a categoria padrão). */
+  categoria?: string;
+  /** O departamento veio de uma regra: não cai para o da filial se não for achado. */
+  departamentoFixo?: boolean;
 };
 
 export type ResultadoLancamento = { chave: string; ok: boolean; codigoOmie?: string | null; msg?: string; erro?: string };
@@ -245,6 +252,24 @@ export async function lancarContas(ch: Chaves, emp: EmpresaOmie, cache: CacheOmi
     const r: ResultadoLancamento = { chave: c.chave, ok: false };
     try {
       let dep = cache.departamentos[c.departamento] ?? null;
+      if (!dep && c.departamentoFixo) {
+        const prefixo = /^(F?\d{1,3}|TRIO)\b/i.exec(c.departamento.trim());
+        const x = cache.todos.find((d) => normOmie(d.descricao) === normOmie(c.departamento)) ?? (prefixo ? departamentoPorPrefixo(cache.todos, prefixo[1]) : null);
+        if (!x) throw new OmieErro(`o departamento “${c.departamento}” (regra automática) não foi achado na Omie da ${EMPRESAS_OMIE[emp]}; confira o nome na regra.`);
+        dep = { codigo: x.codigo, nome: x.descricao };
+      }
+      let codigoCategoria = cache.categoria.codigo;
+      if (c.categoria) {
+        const nome = c.categoria;
+        const cat = cache.categorias?.find((x) => normOmie(x.nome) === normOmie(nome));
+        if (!cat)
+          throw new OmieErro(
+            cache.categorias
+              ? `a categoria “${nome}” (regra automática) não existe na Omie da ${EMPRESAS_OMIE[emp]}; confira o nome na regra.`
+              : `busque os cadastros na Omie da ${EMPRESAS_OMIE[emp]} de novo (Conciliação → Omie) para o sistema conhecer as categorias das regras automáticas.`,
+          );
+        codigoCategoria = cat.codigo;
+      }
       if (!dep && c.fil != null) {
         const x = departamentoPorPrefixo(cache.todos, String(c.fil));
         if (x) dep = { codigo: x.codigo, nome: x.descricao };
@@ -263,7 +288,7 @@ export async function lancarContas(ch: Chaves, emp: EmpresaOmie, cache: CacheOmi
         data_emissao: c.venc,
         data_entrada: c.venc,
         valor_documento: valor,
-        codigo_categoria: cache.categoria.codigo,
+        codigo_categoria: codigoCategoria,
         id_conta_corrente: cache.conta.id,
         numero_documento: c.numdoc.slice(0, 20),
         observacao: c.obs.slice(0, 2000),

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Search, TriangleAlert } from "lucide-react";
+import { Search, TriangleAlert, Workflow } from "lucide-react";
 import { AvisoSucesso, SelectNativo } from "@/components/form/campo";
 import { PageHeader } from "@/components/layout/page-header";
 import { Paginacao } from "@/components/layout/paginacao";
@@ -41,7 +41,7 @@ type Resumo = {
   taxas?: { fornecedor: string; taxas: number[] }[];
   arquivos?: { id: string; nome: string; tipo: string }[];
   avisos?: string[];
-  pendencias?: { novas: number; reabertas: number; resolvidasAuto: number; abertasNaLeva: number };
+  pendencias?: { novas: number; reabertas: number; resolvidasAuto: number; abertasNaLeva: number; porRegra?: number };
   cobertura?: { ini: string | null; fim: string | null; bancoVencIni: string | null };
   anomalias?: number;
   anomaliasGraves?: number;
@@ -138,7 +138,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
       {sp.nova === "1" && (
         <div className="mb-4">
           <AvisoSucesso
-            mensagem={`Conciliação concluída.${r.pendencias ? ` Pendências: ${r.pendencias.novas} nova(s), ${r.pendencias.reabertas} reaberta(s), ${r.pendencias.resolvidasAuto} resolvida(s) automaticamente.` : ""}`}
+            mensagem={`Conciliação concluída.${r.pendencias ? ` Pendências: ${r.pendencias.novas} nova(s), ${r.pendencias.reabertas} reaberta(s), ${r.pendencias.resolvidasAuto} resolvida(s) automaticamente${r.pendencias.porRegra ? `, ${r.pendencias.porRegra} tratada(s) por regra` : ""}.` : ""}`}
           />
         </div>
       )}
@@ -164,6 +164,17 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
           </div>
         ))}
       </section>
+
+      <p className="mb-4 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
+        <Workflow className="size-3.5" aria-hidden />
+        <span>
+          Motor: {pluralizar(r.bateu ?? 0, "título conciliado", "títulos conciliados")} automaticamente · {r.conferir ?? 0} sugerido(s) para conferir · {(r.soTrier ?? 0) + (r.soDDA ?? 0)} para análise
+          {r.pendencias?.porRegra !== undefined ? ` · ${pluralizar(r.pendencias.porRegra, "pendência tratada", "pendências tratadas")} por regra` : ""} ·
+        </span>
+        <Link href="/conciliacao/regras" className="text-fct-navy underline">
+          Regras automáticas
+        </Link>
+      </p>
 
       {(r.anomaliasLista ?? []).length > 0 && (
         <details id="anomalias" className="mb-4 rounded-xl border border-orange-200 bg-orange-50/50">

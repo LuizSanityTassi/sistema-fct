@@ -12,6 +12,7 @@ import { Omie, type ConfigOmie, type ItemOmie, type LinhaOmie } from "./omie";
 import { mapaFiliais, obterConfig } from "@/lib/data/conciliacao";
 import { buscarCadastros, chavesOmie, EMPRESAS_OMIE, lancarContas, type CacheOmie, type Chaves, type ContaApi, type EmpresaOmie, type ResultadoLancamento } from "./omie-api";
 import { OMIE_MODELO_B64 } from "./omie-modelo";
+import { alvoDeLinha, aplicarNasLinhas, contarUso, gravarUso, regrasAtivas, regrasDaConta, regrasUsadas, type Regra, type RegrasDaConta, type Uso } from "./regras";
 import { BUCKET_CONCILIACAO } from "./servico";
 
 /** Busca na Omie conta corrente, categoria e departamentos da empresa e guarda em conc_config (omie_cache_<empresa>). */
@@ -121,13 +122,18 @@ export type ContaEnvio = {
   pendencia: { status: string; motivo: string | null } | null;
   /** Avisos da detecção de anomalias (histórico do fornecedor). */
   anomalias: string[];
+  /** Regras automáticas que valem para a conta (categoria e/ou departamento da Omie). */
+  regras: { nomes: string; categoria: string | null; departamento: string | null } | null;
 };
 
-export function contaDeLinha(l: ItemConciliacao, enviado: { enviado_em: string; via: string } | undefined, pendencia: { status: string; motivo: string | null } | undefined): ContaEnvio {
+export function contaDeLinha(l: ItemConciliacao, enviado: { enviado_em: string; via: string } | undefined, pendencia: { status: string; motivo: string | null } | undefined, regras: Regra[] = []): ContaEnvio {
   const it = itemDeLinha(l);
   const dep = Omie.departamento(Omie.filialDe(it), it.d ? it.d.pagadorCnpj || it.d.pagador : null);
   const anomalias = Array.isArray((l.dados as DadosItem | null)?.anomalias) ? ((l.dados as DadosItem).anomalias as string[]) : [];
+  const rr = regrasDaConta(regras, alvoDeLinha(l));
+  const usadas = regrasUsadas(rr);
   return {
+    regras: usadas.length ? { nomes: usadas.map((r) => r.nome).join(", "), categoria: rr.categoria?.categoria_omie ?? null, departamento: rr.departamento?.departamento_omie ?? null } : null,
     anomalias,
     chave: l.chave,
     grupo: l.grupo,
@@ -140,7 +146,7 @@ export function contaDeLinha(l: ItemConciliacao, enviado: { enviado_em: string; 
     vencimento: l.vencimento,
     alerta: l.alerta,
     fornecedorReal: l.fornecedor_real,
-    semDepartamento: !dep,
+    semDepartamento: !dep && !rr.departamento,
     empresa: Omie.empresaDe(it, dep),
     barra: l.barra,
     raiz: it.d?.raiz ?? Motor.norm(l.fornecedor),
@@ -174,7 +180,8 @@ export async function contasDaConciliacao(supabase: Cliente, conciliacaoId: stri
     for (const e of env ?? []) enviados.set(e.chave, { enviado_em: e.enviado_em, via: e.via });
     for (const p of pend ?? []) pendencias.set(p.chave, { status: p.status, motivo: p.motivo });
   }
-  return unicos.map((l) => contaDeLinha(l, enviados.get(l.chave), pendencias.get(l.chave)));
+  const regras = await regrasAtivas(supabase);
+  return unicos.map((l) => contaDeLinha(l, enviados.get(l.chave), pendencias.get(l.chave), regras));
 }
 
 // ---------- validação ----------
@@ -292,12 +299,20 @@ async function resolverPendencias(supabase: Cliente, userId: string, chaves: str
 
 // ---------- planilha ----------
 
+/** Uma contagem por regra e conta (a mesma regra dando categoria e departamento conta uma vez). */
+function usoDasRegras(lista: RegrasDaConta[]): Uso {
+  const uso: Uso = new Map();
+  for (const rr of lista) for (const r of regrasUsadas(rr)) contarUso(uso, r);
+  return uso;
+}
+
 export async function gerarPlanilhaOmie(supabase: Cliente, userId: string, conc: Conciliacao, chaves: string[], cfg: ConfigOmie) {
   if (!chaves.length) throw new Error("Nenhuma conta selecionada.");
   if (chaves.length > 10_000) throw new Error("O modelo do Omie aceita até 10.000 linhas por planilha.");
   const linhasItens = await itensPorChave(supabase, conc.id, chaves);
   const itens = linhasItens.map((l) => itemDeLinha(l));
   const linhas: LinhaOmie[] = Omie.montarLinhas(itens, cfg, Motor.ROTULO);
+  const porRegra = aplicarNasLinhas(linhas, linhasItens.map(alvoDeLinha), await regrasAtivas(supabase));
   const buffer = (await Omie.gerar(JSZip, OMIE_MODELO_B64, linhas)) as Buffer;
   const hoje = hojeIso();
   const nome = `Omie_Contas_Pagar_${conc.fil_min}-${conc.fil_max}_${hoje}.xlsx`;
@@ -334,7 +349,15 @@ export async function gerarPlanilhaOmie(supabase: Cliente, userId: string, conc:
     "planilha",
     arq.id,
   );
-  await registrarAuditoria(supabase, { userId, acao: "criar", entidade: "conc_enviados_omie", registroId: arq.id, novo: { via: "planilha", conciliacao: conc.id, contas: linhas.length, total, arquivo: nome } });
+  const uso = usoDasRegras(porRegra);
+  await gravarUso(supabase, uso);
+  await registrarAuditoria(supabase, {
+    userId,
+    acao: "criar",
+    entidade: "conc_enviados_omie",
+    registroId: arq.id,
+    novo: { via: "planilha", conciliacao: conc.id, contas: linhas.length, total, arquivo: nome, porRegra: [...uso.values()].reduce((s, n) => s + n, 0) },
+  });
   return { arquivoId: arq.id, nome, qtd: linhas.length, total };
 }
 
@@ -351,13 +374,14 @@ export async function lancarPorApi(supabase: Cliente, userId: string, conc: Conc
   const linhasItens = await itensPorChave(supabase, conc.id, chaves);
   const itens = linhasItens.map((l) => itemDeLinha(l));
   const linhas = Omie.montarLinhas(itens, cfg, Motor.ROTULO);
+  const porRegra = aplicarNasLinhas(linhas, linhasItens.map(alvoDeLinha), await regrasAtivas(supabase));
   const { data: cfgs } = await supabase.from("conc_config").select("chave, valor").in("chave", ["omie_cache_nazario", "omie_cache_varela", "omie_nazario", "omie_varela"]);
   const cfgMap = new Map((cfgs ?? []).map((c) => [c.chave, c.valor]));
   const cache = (emp: EmpresaOmie) => cfgMap.get(`omie_cache_${emp}`) as CacheOmie | undefined;
   const testado = (emp: EmpresaOmie) => !!(cfgMap.get(`omie_${emp}`) as { testado?: boolean } | undefined)?.testado;
   const credOmie: Record<EmpresaOmie, Chaves | null> = { nazario: await chavesOmie(supabase, "nazario"), varela: await chavesOmie(supabase, "varela") };
 
-  const porEmpresa: Record<EmpresaOmie, { linha: ItemConciliacao; item: ItemOmie; conta: ContaApi }[]> = { nazario: [], varela: [] };
+  const porEmpresa: Record<EmpresaOmie, { linha: ItemConciliacao; item: ItemOmie; conta: ContaApi; regras: RegrasDaConta }[]> = { nazario: [], varela: [] };
   const fora: ResultadoApi["fora"] = [];
   linhasItens.forEach((linha, i) => {
     const item = itens[i];
@@ -378,6 +402,7 @@ export async function lancarPorApi(supabase: Cliente, userId: string, conc: Conc
     porEmpresa[emp].push({
       linha,
       item,
+      regras: porRegra[i],
       conta: {
         chave: linha.chave,
         codigo: l.B,
@@ -391,6 +416,8 @@ export async function lancarPorApi(supabase: Cliente, userId: string, conc: Conc
         obs: l.S,
         departamento: l.AX,
         fil: Omie.filialDe(item),
+        categoria: porRegra[i].categoria ? l.D : undefined,
+        departamentoFixo: !!porRegra[i].departamento,
       },
     });
   });
@@ -406,6 +433,7 @@ export async function lancarPorApi(supabase: Cliente, userId: string, conc: Conc
     }
     const res = await lancarContas(credOmie[emp]!, emp, cache(emp)!, lista.map((x) => x.conta), cadastrarFornecedor);
     const ok = res.filter((r) => r.ok);
+    await gravarUso(supabase, usoDasRegras(lista.filter((x) => ok.some((r) => r.chave === x.linha.chave)).map((x) => x.regras)));
     await marcarEnviados(
       supabase,
       userId,

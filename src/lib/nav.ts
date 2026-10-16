@@ -18,6 +18,7 @@ import {
   ScrollText,
   ShieldAlert,
   Send,
+  Workflow,
   ShieldCheck,
   Stethoscope,
   Store,
@@ -268,6 +269,13 @@ export const NAV: NavGrupo[] = [
         icon: ArrowLeftRight,
         papeis: ["admin", "financeiro", "contador"],
         descricao: "Boleto em nome de terceiro → fornecedor real; correspondências aprendidas.",
+      },
+      {
+        label: "Regras automáticas",
+        href: "/conciliacao/regras",
+        icon: Workflow,
+        papeis: ["admin", "financeiro", "contador"],
+        descricao: "Nome contém CLARO → categoria Telefonia: categoria e departamento da Omie e pendências tratadas sozinhas.",
       },
       {
         label: "Omie",
