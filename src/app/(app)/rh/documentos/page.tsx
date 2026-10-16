@@ -24,7 +24,7 @@ export default async function DocumentosPage({ searchParams }: PageProps<"/rh/do
   return (
     <>
       <PageHeader
-        eyebrow="Recursos Humanos"
+        eyebrow="Pessoas"
         titulo="Documentos"
         descricao="Todos os documentos enviados para as fichas dos funcionários. O envio é feito na ficha de cada um."
       />

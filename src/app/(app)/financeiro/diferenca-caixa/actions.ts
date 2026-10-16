@@ -57,7 +57,7 @@ export async function buscarDoTrier(_prev: EstadoBusca, fd: FormData): Promise<E
 
   const supabase = await createClient();
   const cred = await credenciaisTrier(supabase);
-  if (!cred.usuario || !cred.senha) return { erro: "O robô do Trier ainda não tem usuário e senha (Configurações → Integrações)." };
+  if (!cred.usuario || !cred.senha) return { erro: "O robô do Trier ainda não tem usuário e senha (Administração → Integrações)." };
   const todas = await filiaisDoTrier(supabase);
   const filiais = UUID.test(filialEscolhida) ? todas.filter((f) => f.id === filialEscolhida) : todas;
   if (!filiais.length) return { erro: "Nenhuma loja do Trier no cadastro de filiais (códigos F001, F002…)." };

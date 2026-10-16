@@ -1,5 +1,5 @@
 // Cliente da API do Omie (só servidor). Duas empresas, cada uma com suas chaves (app_key/app_secret), que vêm de
-// `chavesOmie(supabase, empresa)`: o que o administrador gravou em Configurações → Integrações (Vault) ou, se não
+// `chavesOmie(supabase, empresa)`: o que o administrador gravou em Administração → Integrações (Vault) ou, se não
 // houver, as variáveis OMIE_<EMPRESA>_APP_KEY/APP_SECRET. Nunca vão para o navegador. Portado do api.php anterior.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { chavesOmieDe, type ChavesOmie } from "@/lib/integracoes/segredos";
@@ -30,7 +30,7 @@ export async function statusChaves(supabase: SupabaseClient<Database>): Promise<
 type Resposta = Record<string, unknown>;
 
 async function chamar(ch: Chaves, emp: EmpresaOmie, caminho: string, call: string, param: Record<string, unknown>): Promise<Resposta> {
-  if (!ch?.app_key || !ch.app_secret) throw new OmieErro(`As chaves da Omie da ${EMPRESAS_OMIE[emp]} não estão configuradas (Configurações → Integrações).`);
+  if (!ch?.app_key || !ch.app_secret) throw new OmieErro(`As chaves da Omie da ${EMPRESAS_OMIE[emp]} não estão configuradas (Administração → Integrações).`);
   const corpo = JSON.stringify({ call, app_key: ch.app_key, app_secret: ch.app_secret, param: [param] });
   let ultimo = "";
   for (let tentativa = 0; tentativa < 3; tentativa++) {

@@ -40,7 +40,7 @@ export default async function FuncionariosPage({ searchParams }: PageProps<"/rh/
   return (
     <>
       <PageHeader
-        eyebrow="Recursos Humanos"
+        eyebrow="Pessoas"
         titulo="Funcionários"
         descricao={
           sessao.papel === "gerente"

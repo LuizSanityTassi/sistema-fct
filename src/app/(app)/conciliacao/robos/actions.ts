@@ -12,7 +12,7 @@ import { ehUuid } from "@/lib/data/filiais";
 import { credenciaisTrier } from "@/lib/integracoes/segredos";
 import { createClient } from "@/lib/supabase/server";
 
-const SEM_CREDENCIAIS = "O robô ainda não tem usuário e senha do Trier: o administrador cadastra em Configurações → Integrações.";
+const SEM_CREDENCIAIS = "O robô ainda não tem usuário e senha do Trier: o administrador cadastra em Administração → Integrações.";
 
 export type EstadoTrier = { erro?: string; ok?: string; resultado?: ResultadoUpload; periodo?: string };
 export type EstadoAgente = { erro?: string; token?: string; nome?: string };

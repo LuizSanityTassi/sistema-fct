@@ -15,7 +15,7 @@ export default async function NovoUsuarioPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Configurações"
+        eyebrow="Administração"
         titulo="Convidar usuário"
         descricao="A pessoa recebe um e-mail com link para criar a senha. O papel define o que ela enxerga."
       />

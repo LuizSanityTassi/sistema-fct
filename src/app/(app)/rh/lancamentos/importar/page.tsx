@@ -16,7 +16,7 @@ export default async function ImportarPlanilhaRhPage({ searchParams }: PageProps
   return (
     <>
       <PageHeader
-        eyebrow="Recursos Humanos"
+        eyebrow="Pessoas"
         titulo="Importar planilha do RH"
         descricao="Traz para os lançamentos do mês o que já foi preenchido na planilha do Google (extras, adicional noturno, faltas, reembolsos e quebra de caixa). Serve para a transição: daqui pra frente dá para lançar direto no sistema."
         acoes={

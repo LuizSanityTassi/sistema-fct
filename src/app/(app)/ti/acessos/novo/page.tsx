@@ -13,7 +13,7 @@ export default async function SolicitarAcessoPage() {
   return (
     <>
       <PageHeader
-        eyebrow="TI"
+        eyebrow="Tecnologia"
         titulo="Solicitar acesso a um sistema"
         descricao="Vira um chamado de TI com as informações padronizadas. Você acompanha a resposta em Chamados."
       />

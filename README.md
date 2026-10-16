@@ -133,14 +133,14 @@ Todo usuário envia denúncia anônima (assédio, discriminação, fraude, condu
 acompanhamento rodam no servidor com a chave de serviço e não leem nem gravam quem está logado (nem o "último acesso"),
 então a denúncia não fica ligada a usuário nenhum, nem no registro de requisições do banco; guarda-se só o DIA. Quem
 denuncia recebe **protocolo + chave** (só o hash da chave fica no banco) para acompanhar e conversar com o comitê sem se
-identificar; pode se identificar se quiser. **Comitê:** o admin libera em Configurações → Usuários → editar ("Faz parte do
+identificar; pode se identificar se quiser. **Comitê:** o admin libera em Administração → Usuários → editar ("Faz parte do
 comitê"), tabela `denuncia_responsaveis`; os nomes aparecem para quem vai denunciar. Só o comitê lê (RLS
 `private.responde_denuncias()`; o admin fora do comitê não lê), responde (mensagem ou anotação interna) e muda a
 situação (recebida, em análise, concluída, arquivada); ninguém altera o relato nem apaga (migração 0026, testado).
 Limite conhecido: os registros técnicos da hospedagem (Vercel/Supabase, guardados por horas) têm horário e endereço de
 acesso das páginas, mas não o conteúdo; só o dono dessas contas os vê.
 
-## Integrações (Configurações → Integrações, só admin)
+## Integrações (Administração → Integrações, só admin)
 
 Tudo que precisa de chave ou senha é cadastrado **pela tela**, não por variável de ambiente: usuário/senha do robô do
 Trier e app_key/app_secret da Omie (Nazário e Varela). Os valores vão para o **Supabase Vault** (criptografado) pelas
@@ -194,7 +194,7 @@ já enviados ficam de fora), validação 🟢/🟡/🔴 (já enviada, sem depart
 `OMIE_NAZARIO_APP_KEY/SECRET` e `OMIE_VARELA_APP_KEY/SECRET` (env). Tudo que vai registra `conc_enviados_omie` (chave da conta),
 resolve a pendência e pode ser desfeito com motivo (reabre pendências). Regra do financeiro: emissão/registro/vencimento/previsão
 = vencimento do boleto; categoria e conta padrão em `conc_config` ("omie").
-**Robôs e agente** (C3, tela Conciliação → Robôs e agente):
+**Robôs e agente** (C3, tela Automações → Robôs e agente):
 - **Robô do Trier** (`trier-robo.ts`, porta fiel do `api.php` anterior): entra no Trier web (Podium: `Login.pod` → `httpStart`
   → `save`, com `Origin`/`Referer`), abre `Rel_0010.pod`, roda `runReport` (todas as filiais, a pagar, detalhado, por
   vencimento, saída Excel), baixa o .xlsx e guarda como arquivo `trier` com origem `robo_trier`. Credenciais só em

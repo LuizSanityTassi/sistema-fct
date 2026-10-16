@@ -22,7 +22,7 @@ export default async function EditarUsuarioPage({ params }: PageProps<"/configur
   return (
     <>
       <PageHeader
-        eyebrow="Configurações"
+        eyebrow="Administração"
         titulo={usuario.nome || usuario.email || "Usuário"}
         descricao={`Criado em ${formatarDataHora(usuario.created_at)} · último acesso ${usuario.ultimo_acesso ? formatarDataHora(usuario.ultimo_acesso) : "nunca"}`}
       />

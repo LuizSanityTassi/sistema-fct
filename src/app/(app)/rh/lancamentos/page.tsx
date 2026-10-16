@@ -85,7 +85,7 @@ export default async function LancamentosFolhaPage({ searchParams }: PageProps<"
   return (
     <>
       <PageHeader
-        eyebrow="Recursos Humanos"
+        eyebrow="Pessoas"
         titulo="Lançamentos da folha"
         descricao="Horas extras, adicional noturno, quebra de caixa e os demais eventos do mês por funcionário. No fechamento, gera a planilha da contabilidade (Domínio), um arquivo por CNPJ."
         acoes={

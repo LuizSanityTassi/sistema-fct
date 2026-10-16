@@ -1,6 +1,6 @@
 // Robô do Trier (só servidor): entra no Trier web (Podium), gera o relatório "Contas a Pagar ou Pagas" (Rel_0010)
 // de todas as filiais em Excel e devolve o arquivo — porta fiel das funções trier_* do api.php da ferramenta anterior.
-// As credenciais vêm de `credenciaisTrier()` (tela Configurações → Integrações, guardadas no Vault; ou TRIER_* do ambiente)
+// As credenciais vêm de `credenciaisTrier()` (tela Administração → Integrações, guardadas no Vault; ou TRIER_* do ambiente)
 // e nunca aparecem no navegador, no código ou no Git.
 import http from "node:http";
 import https from "node:https";
@@ -114,7 +114,7 @@ function trierMsg(js: string) {
 }
 
 async function trierEntrar(cfg: CredenciaisTrier, ck: Cookies) {
-  if (!cfg.usuario || !cfg.senha) throw new TrierErro("usuário e senha do Trier não configurados (Configurações → Integrações).");
+  if (!cfg.usuario || !cfg.senha) throw new TrierErro("usuário e senha do Trier não configurados (Administração → Integrações).");
   const base = cfg.url;
   const p = await trierPagina(base, "Login.pod", ck);
   if (!p.serial) throw new TrierErro("não consegui abrir a tela de login do Trier (endereço certo? servidor ligado?).");

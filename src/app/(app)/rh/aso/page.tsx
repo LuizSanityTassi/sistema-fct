@@ -32,7 +32,7 @@ export default async function AsoPage({ searchParams }: PageProps<"/rh/aso">) {
   return (
     <>
       <PageHeader
-        eyebrow="Recursos Humanos"
+        eyebrow="Pessoas"
         titulo="ASO"
         descricao="Atestados de Saúde Ocupacional dos funcionários em atividade. O registro é feito na ficha de cada um."
       />

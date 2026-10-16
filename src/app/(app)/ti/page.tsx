@@ -28,7 +28,7 @@ export default async function TiPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Operação"
+        eyebrow="Tecnologia"
         titulo="TI"
         descricao="Fila de chamados de TI, solicitações de acesso e inventário de equipamentos por unidade."
         acoes={

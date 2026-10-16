@@ -16,7 +16,7 @@ export default async function NovoFuncionarioPage({ searchParams }: PageProps<"/
 
   return (
     <>
-      <PageHeader eyebrow="Recursos Humanos" titulo="Novo funcionário" descricao="Admissão de um funcionário em uma unidade." />
+      <PageHeader eyebrow="Pessoas" titulo="Novo funcionário" descricao="Admissão de um funcionário em uma unidade." />
       <FuncionarioForm
         action={salvarFuncionario.bind(null, null)}
         unidades={unidades.filter((u) => u.ativo || u.id === filialInicial)}

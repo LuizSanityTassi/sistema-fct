@@ -50,7 +50,7 @@ export default async function ConfiguracaoLancamentosPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Recursos Humanos"
+        eyebrow="Pessoas"
         titulo="Configurar lançamentos da folha"
         descricao="Os eventos viram as colunas da planilha da contabilidade, na ordem abaixo. O “Codigo Empresa” do cabeçalho é o código da empresa na Domínio (a filial /0032 é 801). Enquanto não for informado, a planilha sai com o número da filial no CNPJ (provisório)."
         acoes={

@@ -18,7 +18,7 @@ export default async function EditarFuncionarioPage({ params }: PageProps<"/rh/f
 
   return (
     <>
-      <PageHeader eyebrow="Recursos Humanos" titulo={`Editar ${f.nome}`} />
+      <PageHeader eyebrow="Pessoas" titulo={`Editar ${f.nome}`} />
       <FuncionarioForm
         action={salvarFuncionario.bind(null, f.id)}
         unidades={unidades.filter((u) => u.ativo || u.id === f.branch_id)}

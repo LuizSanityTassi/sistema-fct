@@ -114,7 +114,7 @@ export async function buscarCadastrosOmie(fd: FormData) {
   if (!ehEmpresaOmie(empresa)) return;
   const supabase = await createClient();
   const ch = await chavesOmie(supabase, empresa);
-  if (!ch) redirect(`/conciliacao/omie?erro=${encodeURIComponent(`As chaves da Omie da ${EMPRESAS_OMIE[empresa]} não estão configuradas (Configurações → Integrações).`)}`);
+  if (!ch) redirect(`/conciliacao/omie?erro=${encodeURIComponent(`As chaves da Omie da ${EMPRESAS_OMIE[empresa]} não estão configuradas (Administração → Integrações).`)}`);
   try {
     await atualizarCadastrosOmie(supabase, ch, empresa, sessao);
   } catch (e) {

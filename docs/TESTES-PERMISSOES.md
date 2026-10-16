@@ -2,7 +2,7 @@
 
 Executados em 13/10/2026 direto no banco, com o RLS aplicado, usando `private.teste_permissoes(uuid[])`
 (migração 0013). Os usuários de teste têm e-mail `teste.*@fct.local` e senha aleatória — não conseguem
-logar; existem só para estes testes. Podem ser desativados ou apagados em Configurações → Usuários /
+logar; existem só para estes testes. Podem ser desativados ou apagados em Administração → Usuários /
 Supabase → Authentication.
 
 Base no momento do teste: 53 unidades, 358 funcionários (todos com salário vigente), folha de

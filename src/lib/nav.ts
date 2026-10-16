@@ -10,6 +10,7 @@ import {
   FileText,
   FolderOpen,
   KeyRound,
+  Laptop,
   ListChecks,
   Scale,
   LayoutDashboard,
@@ -50,7 +51,7 @@ export const NAV: NavGrupo[] = [
   {
     itens: [
       {
-        label: "Dashboard",
+        label: "Início",
         href: "/dashboard",
         icon: LayoutDashboard,
         descricao: "Visão geral e acesso rápido aos módulos.",
@@ -64,7 +65,7 @@ export const NAV: NavGrupo[] = [
     ],
   },
   {
-    titulo: "Recursos Humanos",
+    titulo: "Pessoas",
     itens: [
       {
         label: "Funcionários",
@@ -101,6 +102,12 @@ export const NAV: NavGrupo[] = [
         papeis: ["admin", "rh"],
         descricao: "Horas extras, quebra de caixa e eventos do mês; gera a planilha da contabilidade (Domínio) por CNPJ.",
       },
+      {
+        label: "Canal de denúncias",
+        href: "/denuncias",
+        icon: ShieldAlert,
+        descricao: "Denúncia anônima de assédio, fraude ou conduta errada; o comitê autorizado lê e responde.",
+      },
     ],
   },
   {
@@ -128,12 +135,6 @@ export const NAV: NavGrupo[] = [
         descricao: "Quebras de caixa: o gestor da loja justifica; o colaborador vê as do caixa dele.",
       },
       {
-        label: "Canal de denúncias",
-        href: "/denuncias",
-        icon: ShieldAlert,
-        descricao: "Denúncia anônima de assédio, fraude ou conduta errada; o comitê autorizado lê e responde.",
-      },
-      {
         label: "Filiais",
         href: "/filiais",
         icon: Building2,
@@ -141,11 +142,30 @@ export const NAV: NavGrupo[] = [
         descricao: "Empresas, filiais e departamentos.",
       },
       {
-        label: "TI",
+        label: "Relatórios",
+        href: "/relatorios",
+        icon: ChartColumn,
+        papeis: ["admin", "rh", "financeiro", "gerente"],
+        descricao: "Consolidados por filial e período.",
+      },
+    ],
+  },
+  {
+    titulo: "Tecnologia",
+    itens: [
+      {
+        label: "Painel de TI",
         href: "/ti",
         icon: MonitorCog,
         papeis: ["admin", "ti"],
         descricao: "Fila de TI, ativos e acessos.",
+      },
+      {
+        label: "Equipamentos",
+        href: "/ti/ativos",
+        icon: Laptop,
+        papeis: ["admin", "ti"],
+        descricao: "Inventário por loja, patrimônio, histórico e etiqueta com QR Code.",
       },
       {
         label: "Solicitar acesso",
@@ -153,13 +173,6 @@ export const NAV: NavGrupo[] = [
         icon: MonitorCog,
         descricao: "Pedir acesso a um sistema (vira chamado de TI).",
         oculto: true,
-      },
-      {
-        label: "Relatórios",
-        href: "/relatorios",
-        icon: ChartColumn,
-        papeis: ["admin", "rh", "financeiro", "gerente"],
-        descricao: "Consolidados por filial e período.",
       },
     ],
   },
@@ -291,6 +304,11 @@ export const NAV: NavGrupo[] = [
         papeis: ["admin", "financeiro", "contador"],
         descricao: "Ficha por fornecedor (raiz do CNPJ): histórico de boletos, faixa normal de valores, bancos e anomalias.",
       },
+    ],
+  },
+  {
+    titulo: "Automações",
+    itens: [
       {
         label: "Robôs e agente",
         href: "/conciliacao/robos",
@@ -301,7 +319,7 @@ export const NAV: NavGrupo[] = [
     ],
   },
   {
-    titulo: "Configurações",
+    titulo: "Administração",
     itens: [
       {
         label: "Usuários",

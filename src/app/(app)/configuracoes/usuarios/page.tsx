@@ -27,7 +27,7 @@ export default async function UsuariosPage({ searchParams }: PageProps<"/configu
   return (
     <>
       <PageHeader
-        eyebrow="Configurações"
+        eyebrow="Administração"
         titulo="Usuários"
         descricao="Quem acessa o sistema, com qual papel e em quais unidades."
         acoes={
@@ -57,7 +57,7 @@ export default async function UsuariosPage({ searchParams }: PageProps<"/configu
         <div role="note" className="mb-4 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
           <p>
-            Sem <code>SUPABASE_SERVICE_ROLE_KEY</code> no servidor, “Convidar” cria a conta e manda o e-mail de <strong>confirmação</strong> do Supabase (a pessoa define a senha no primeiro acesso) em vez do convite formal. Para o convite formal e para o agente do Itaú, veja Configurações → Integrações.
+            Sem <code>SUPABASE_SERVICE_ROLE_KEY</code> no servidor, “Convidar” cria a conta e manda o e-mail de <strong>confirmação</strong> do Supabase (a pessoa define a senha no primeiro acesso) em vez do convite formal. Para o convite formal e para o agente do Itaú, veja Administração → Integrações.
           </p>
         </div>
       )}

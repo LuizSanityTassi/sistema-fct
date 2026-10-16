@@ -57,7 +57,7 @@ export default async function AuditoriaPage({ searchParams }: PageProps<"/config
   return (
     <>
       <PageHeader
-        eyebrow="Configurações"
+        eyebrow="Administração"
         titulo="Auditoria"
         descricao="Quem alterou o quê e quando, com o valor anterior e o novo. Somente leitura."
       />

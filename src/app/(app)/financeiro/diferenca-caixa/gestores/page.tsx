@@ -42,7 +42,7 @@ export default async function GestoresPage() {
 
       {usuarios.filter((u) => u.papel === "gerente").length === 0 && (
         <p className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          Ainda não há usuário com papel de gerente. Convide os gerentes em Configurações → Usuários (papel “Gerente”, com a loja dele) e volte aqui para escolher.
+          Ainda não há usuário com papel de gerente. Convide os gerentes em Administração → Usuários (papel “Gerente”, com a loja dele) e volte aqui para escolher.
         </p>
       )}
       {semGerente > 0 && (

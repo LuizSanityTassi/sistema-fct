@@ -58,7 +58,7 @@ export default async function PermissoesPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Configurações"
+        eyebrow="Administração"
         titulo="Permissões"
         descricao="O que cada papel enxerga e pode alterar. As regras valem no menu, nas telas e no banco (RLS)."
       />

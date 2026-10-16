@@ -53,7 +53,7 @@ export default async function FolhaPage({ searchParams }: PageProps<"/rh/folha">
   return (
     <>
       <PageHeader
-        eyebrow="Recursos Humanos"
+        eyebrow="Pessoas"
         titulo="Folha de pagamento"
         descricao="Registro mensal por funcionário com INSS, IRRF e FGTS estimados pelas tabelas de 2026. A folha oficial continua sendo a da contabilidade."
       />

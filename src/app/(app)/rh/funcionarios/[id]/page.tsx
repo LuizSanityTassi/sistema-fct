@@ -431,7 +431,7 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
                 <Dado rotulo="Último acesso" valor={ficha.usuario.ultimo_acesso ? formatarDataHora(ficha.usuario.ultimo_acesso) : "nunca"} />
               </dl>
             ) : (
-              <p className="text-sm text-muted-foreground">Sem usuário ligado a este cadastro. Para ligar: Configurações → Usuários → editar → “Cadastro de funcionário”.</p>
+              <p className="text-sm text-muted-foreground">Sem usuário ligado a este cadastro. Para ligar: Administração → Usuários → editar → “Cadastro de funcionário”.</p>
             )}
             {ficha.usuario && sessao.papel === "admin" && (
               <Link href={`/configuracoes/usuarios/${ficha.usuario.id}/editar`} className="mt-3 inline-block text-sm text-fct-navy underline">

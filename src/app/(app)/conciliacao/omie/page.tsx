@@ -69,7 +69,7 @@ export default async function OmiePage({ searchParams }: PageProps<"/conciliacao
                 <p className="text-muted-foreground">
                   Sem chave da API: contas desta empresa só pela planilha. Para habilitar, o administrador cola a app_key e a app_secret da Omie {EMPRESAS_OMIE[e]} em{" "}
                   <Link href="/configuracoes/integracoes" className="font-medium text-fct-navy underline">
-                    Configurações → Integrações
+                    Administração → Integrações
                   </Link>
                   .
                 </p>

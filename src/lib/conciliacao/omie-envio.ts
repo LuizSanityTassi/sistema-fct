@@ -391,7 +391,7 @@ export async function lancarPorApi(supabase: Cliente, userId: string, conc: Conc
     const nome = d ? d.deParaFornecedor || d.nome : (t?.forn ?? "");
     const emp = Omie.empresaDe(item);
     if (!emp) return void fora.push({ chave: linha.chave, nome, motivo: "não deu para saber se é Nazário ou Varela (filial desconhecida)" });
-    if (!credOmie[emp]) return void fora.push({ chave: linha.chave, nome, motivo: `a ${EMPRESAS_OMIE[emp]} ainda não tem chave da Omie configurada (Configurações → Integrações)` });
+    if (!credOmie[emp]) return void fora.push({ chave: linha.chave, nome, motivo: `a ${EMPRESAS_OMIE[emp]} ainda não tem chave da Omie configurada (Administração → Integrações)` });
     const c = cache(emp);
     if (!c?.conta || !c.categoria) return void fora.push({ chave: linha.chave, nome, motivo: `falta buscar os cadastros na Omie da ${EMPRESAS_OMIE[emp]} (conta ou categoria não achada)` });
     let cnpj = "";

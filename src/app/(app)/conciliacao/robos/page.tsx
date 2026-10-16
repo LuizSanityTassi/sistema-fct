@@ -40,7 +40,7 @@ export default async function RobosPage() {
 
   return (
     <>
-      <PageHeader eyebrow="Conciliação" titulo="Robôs e agente" descricao="Duas automações que alimentam a conciliação sem ninguém baixar arquivo à mão: o robô que gera o relatório do Trier e o agente que manda os .RET do Itaú Mailbox." />
+      <PageHeader eyebrow="Automações" titulo="Robôs e agente" descricao="Duas automações que alimentam a conciliação sem ninguém baixar arquivo à mão: o robô que gera o relatório do Trier e o agente que manda os .RET do Itaú Mailbox." />
 
       <section className="mb-4 rounded-xl border bg-card p-5">
         <h2 className="mb-1 text-sm font-semibold">{trier.configurado ? "🟢" : "⚪"} Robô do Trier — relatório “Contas a Pagar ou Pagas”</h2>
@@ -54,18 +54,18 @@ export default async function RobosPage() {
               <>
                 Cadastre em{" "}
                 <Link href="/configuracoes/integracoes" className="font-medium underline">
-                  Configurações → Integrações
+                  Administração → Integrações
                 </Link>{" "}
                 (use um usuário do Trier criado só para o robô, com acesso apenas a esse relatório).
               </>
             ) : (
-              "Peça ao administrador para cadastrar em Configurações → Integrações."
+              "Peça ao administrador para cadastrar em Administração → Integrações."
             )}{" "}
             Enquanto isso, o relatório pode ser enviado à mão em Conciliação → Arquivos.
           </p>
         ) : (
           <p className="mb-3 text-xs text-muted-foreground">
-            Usuário do robô: {trier.usuario} ({trier.origem === "sistema" ? "cadastrado em Configurações → Integrações" : "variáveis de ambiente do servidor"}). A senha nunca aparece no sistema.
+            Usuário do robô: {trier.usuario} ({trier.origem === "sistema" ? "cadastrado em Administração → Integrações" : "variáveis de ambiente do servidor"}). A senha nunca aparece no sistema.
           </p>
         )}
         <BuscarTrierForm buscar={buscarTrier} testar={testarTrier} config={cfg} configurado={trier.configurado} podeBuscar={podeConciliar(sessao.papel)} />

@@ -26,7 +26,7 @@ export default async function AtivosPage({ searchParams }: PageProps<"/ti/ativos
   return (
     <>
       <PageHeader
-        eyebrow="TI"
+        eyebrow="Tecnologia"
         titulo="Ativos de TI"
         descricao="Equipamentos por unidade, com patrimônio, situação, rede e histórico. Filtre uma loja para imprimir as etiquetas com QR Code de todos os equipamentos dela."
         acoes={

@@ -16,7 +16,7 @@ export default async function NovoAtivoPage({ searchParams }: PageProps<"/ti/ati
 
   return (
     <>
-      <PageHeader eyebrow="TI" titulo="Novo ativo" descricao="Equipamento de informática ou segurança de uma unidade." />
+      <PageHeader eyebrow="Tecnologia" titulo="Novo ativo" descricao="Equipamento de informática ou segurança de uma unidade." />
       <AtivoForm
         action={salvarAtivo.bind(null, null)}
         unidades={unidades.filter((u) => u.ativo || u.id === filial)}

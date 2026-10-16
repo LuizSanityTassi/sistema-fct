@@ -18,7 +18,7 @@ export default async function EditarAtivoPage({ params }: PageProps<"/ti/ativos/
 
   return (
     <>
-      <PageHeader eyebrow="TI" titulo={`Editar ${a.descricao}`} />
+      <PageHeader eyebrow="Tecnologia" titulo={`Editar ${a.descricao}`} />
       <AtivoForm
         action={salvarAtivo.bind(null, a.id)}
         unidades={unidades.filter((u) => u.ativo || u.id === a.branch_id)}
