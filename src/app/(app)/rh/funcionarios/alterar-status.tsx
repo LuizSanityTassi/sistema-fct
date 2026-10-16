@@ -28,12 +28,12 @@ type Props = {
 export function AlterarStatusFuncionario({ id, statusAtual, dataDesligamento, action }: Props) {
   const [aberto, setAberto] = React.useState(false);
   const [status, setStatus] = React.useState<StatusFuncionario>(statusAtual);
-  const [estado, formAction] = useActionState(action, {});
-
-  // Fecha o diálogo quando a ação termina sem erro.
-  React.useEffect(() => {
-    if (estado && !estado.erro && !estado.erros && "erro" in estado) setAberto(false);
-  }, [estado]);
+  // Fecha o diálogo quando a ação termina sem erro (direto no envio, sem efeito).
+  const [estado, formAction] = useActionState(async (prev: EstadoFormulario, fd: FormData) => {
+    const resultado = await action(prev, fd);
+    if (resultado && !resultado.erro && !resultado.erros && "erro" in resultado) setAberto(false);
+    return resultado;
+  }, {});
 
   return (
     <>

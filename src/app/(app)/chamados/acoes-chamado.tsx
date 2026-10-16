@@ -63,10 +63,12 @@ export function AlterarStatusChamado({
   opcoes: StatusChamado[];
 }) {
   const [aberto, setAberto] = React.useState(false);
-  const [estado, formAction] = useActionState(action, {});
-  React.useEffect(() => {
-    if (estado.ok) setAberto(false);
-  }, [estado]);
+  // Fecha o diálogo quando a ação dá certo (direto no envio, sem efeito).
+  const [estado, formAction] = useActionState(async (prev: EstadoChamado, fd: FormData) => {
+    const resultado = await action(prev, fd);
+    if (resultado.ok) setAberto(false);
+    return resultado;
+  }, {});
   if (opcoes.length === 0) return null;
   const unica = opcoes.length === 1 ? opcoes[0] : null;
   const rotulo = unica === "cancelado" ? "Cancelar chamado" : unica === "aberto" ? "Reabrir" : "Alterar situação";
