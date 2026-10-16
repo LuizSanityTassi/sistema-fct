@@ -265,3 +265,20 @@ export async function alterarStatusFuncionario(_prev: EstadoFormulario, fd: Form
   revalidatePath(`/filiais/${atual.branch_id}`);
   return { erro: undefined };
 }
+
+const ITENS_CHECKLIST = ["equipamentos", "acessos", "documentos", "folha", "gestor"] as const;
+
+/** Marca ou desmarca um item do checklist de desligamento (os itens automáticos o sistema confere sozinho). */
+export async function marcarItemDesligamento(employeeId: string, item: string, feito: boolean): Promise<{ erro?: string }> {
+  const sessao = await getSessao();
+  if (sessao.papel !== "admin" && sessao.papel !== "rh") return { erro: "Só o RH e o administrador mexem no desligamento." };
+  if (!/^[0-9a-f-]{36}$/i.test(employeeId) || !(ITENS_CHECKLIST as readonly string[]).includes(item)) return { erro: "Item inválido." };
+  const supabase = await createClient();
+  const { error } = feito
+    ? await supabase.from("rh_desligamento_checklist").upsert({ employee_id: employeeId, item, feito_por: sessao.id, feito_por_nome: sessao.nome, feito_em: new Date().toISOString() }, { onConflict: "employee_id,item" })
+    : await supabase.from("rh_desligamento_checklist").delete().eq("employee_id", employeeId).eq("item", item);
+  if (error) return { erro: error.message };
+  await registrarAuditoria(supabase, { userId: sessao.id, acao: "editar", entidade: "employees", registroId: employeeId, novo: { desligamento: item, feito } });
+  revalidatePath(`/rh/funcionarios/${employeeId}`);
+  return {};
+}

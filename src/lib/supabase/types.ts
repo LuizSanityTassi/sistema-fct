@@ -2177,6 +2177,30 @@ export type Database = {
           },
         ]
       }
+      rh_desligamento_checklist: {
+        Row: {
+          employee_id: string
+          feito_em: string
+          feito_por: string | null
+          feito_por_nome: string | null
+          item: string
+        }
+        Insert: {
+          employee_id: string
+          feito_em?: string
+          feito_por?: string | null
+          feito_por_nome?: string | null
+          item: string
+        }
+        Update: {
+          employee_id?: string
+          feito_em?: string
+          feito_por?: string | null
+          feito_por_nome?: string | null
+          item?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           ativo: boolean
@@ -2712,6 +2736,17 @@ export type Database = {
           id: string
           nome: string
           papel: string
+        }[]
+      }
+      rh_historico_funcionario: {
+        Args: { p_employee: string }
+        Returns: {
+          acao: string
+          autor: string
+          criado_em: string
+          entidade: string
+          valor_anterior: Json
+          valor_novo: Json
         }[]
       }
       integracao_ler_segredos: {
