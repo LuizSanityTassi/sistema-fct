@@ -36,8 +36,11 @@ function Dado({ rotulo, valor, mono }: { rotulo: string; valor?: string | null; 
 
 type Aba = "geral" | "pessoas" | "financeiro" | "caixa" | "folha" | "ti";
 
+/** Variação contra o mês anterior. Quando o resultado troca de sinal, a porcentagem não diz nada: avisa a virada. */
 const variacao = (atual: number, anterior: number | undefined) => {
   if (anterior === undefined || anterior === 0) return null;
+  if (anterior < 0 && atual >= 0) return "virou positivo";
+  if (anterior > 0 && atual < 0) return "virou negativo";
   const p = ((atual - anterior) / Math.abs(anterior)) * 100;
   return `${p >= 0 ? "↑" : "↓"} ${Math.abs(p).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
 };
