@@ -112,6 +112,14 @@ export const NAV: NavGrupo[] = [
         descricao: "Abertura e acompanhamento de chamados.",
       },
       {
+        label: "Indicadores de chamados",
+        href: "/chamados/indicadores",
+        icon: ChartColumn,
+        papeis: ["admin", "ti", "rh", "financeiro"],
+        descricao: "SLA, tempo de primeira resposta e de resolução, por loja, por categoria e recorrentes.",
+        oculto: true,
+      },
+      {
         label: "Quebras de caixa",
         href: "/caixa",
         icon: Coins,

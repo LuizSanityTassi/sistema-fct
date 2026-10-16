@@ -6,7 +6,8 @@ import { AvisoSucesso } from "@/components/form/campo";
 import { ConfirmarAcao } from "@/components/layout/confirmar-acao";
 import { PageHeader } from "@/components/layout/page-header";
 import { exigirAcesso } from "@/lib/auth/session";
-import { papelAtende, STATUS_ENCERRADOS, TRANSICOES, TRANSICOES_SOLICITANTE } from "@/lib/chamados/rotulos";
+import { ETAPAS_CHAMADO, papelAtende, PRIORIDADE_LABEL, STATUS_CHAMADO_LABEL, STATUS_ENCERRADOS, TRANSICOES, TRANSICOES_SOLICITANTE } from "@/lib/chamados/rotulos";
+import { COR_SLA, duracao, situacaoSla } from "@/lib/chamados/sla";
 import { linhaDoTempo, listarAtendentes, obterChamado } from "@/lib/data/chamados";
 import { formatarDataHora } from "@/lib/formatos";
 import { alterarStatusChamado, assumirChamado, atribuirChamado, comentarChamado } from "../actions";
@@ -39,6 +40,11 @@ export default async function ChamadoPage({ params, searchParams }: PageProps<"/
   const transicoes = atendente ? TRANSICOES[t.status] : solicitante ? TRANSICOES_SOLICITANTE[t.status] : [];
   const podeAssumir = !encerrado && papelAtende(sessao.papel, t.categoria) && t.responsavel !== sessao.id;
   const [itens, atendentes] = await Promise.all([linhaDoTempo(id), atendente && !encerrado ? listarAtendentes() : Promise.resolve([])]);
+  const sla = situacaoSla(t);
+  // trilho: as duas esperas ficam na etapa "Em atendimento"; cancelado mostra o trilho apagado
+  const etapaAtual = t.status === "aguardando_usuario" || t.status === "aguardando_terceiro" ? "em_atendimento" : t.status;
+  const indiceAtual = ETAPAS_CHAMADO.indexOf(etapaAtual);
+  const tempoResolucao = t.resolved_at ? duracao((Date.parse(t.resolved_at) - Date.parse(t.created_at)) / 60_000) : null;
 
   return (
     <>
@@ -67,6 +73,28 @@ export default async function ChamadoPage({ params, searchParams }: PageProps<"/
           <AvisoSucesso mensagem={`Chamado #${t.numero} aberto. Você será avisado por aqui a cada atualização.`} />
         </div>
       )}
+
+      <nav aria-label="Etapas do chamado" className="mb-4 rounded-xl border bg-card px-4 py-3">
+        <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+          {ETAPAS_CHAMADO.map((e, i) => {
+            const feita = t.status !== "cancelado" && i < indiceAtual;
+            const atual = t.status !== "cancelado" && i === indiceAtual;
+            return (
+              <li key={e} className="flex items-center gap-2">
+                {i > 0 && <span className={`h-px w-6 ${feita || atual ? "bg-fct-navy" : "bg-border"}`} aria-hidden />}
+                <span
+                  aria-current={atual ? "step" : undefined}
+                  className={`rounded-full border px-2.5 py-1 font-medium ${atual ? "border-fct-navy bg-fct-navy text-white" : feita ? "border-fct-navy/30 bg-fct-navy/5 text-fct-navy" : "text-muted-foreground"}`}
+                >
+                  {STATUS_CHAMADO_LABEL[e]}
+                  {atual && (t.status === "aguardando_usuario" || t.status === "aguardando_terceiro") ? ` · ${STATUS_CHAMADO_LABEL[t.status].toLowerCase()}` : ""}
+                </span>
+              </li>
+            );
+          })}
+          {t.status === "cancelado" && <li className="ml-2 rounded-full border border-slate-300 bg-slate-50 px-2.5 py-1 font-medium text-slate-700">Cancelado</li>}
+        </ol>
+      </nav>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
@@ -133,6 +161,14 @@ export default async function ChamadoPage({ params, searchParams }: PageProps<"/
         </div>
 
         <aside className="space-y-4">
+          <section className="rounded-xl border bg-card p-5">
+            <h2 className="mb-2 text-sm font-semibold">Prazo de atendimento (SLA)</h2>
+            <span className={`inline-block rounded-full border px-2.5 py-1 text-sm font-medium ${COR_SLA[sla.estado]}`}>{sla.texto}</span>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Prioridade {PRIORIDADE_LABEL[t.prioridade].toLowerCase()}: primeira resposta em até {duracao(sla.prazoMin)} (tempo corrido). Conta quando quem atende assume, muda a situação ou comenta.
+            </p>
+            {tempoResolucao && <p className="mt-2 text-xs text-muted-foreground">Resolvido em {tempoResolucao} desde a abertura.</p>}
+          </section>
           <section className="rounded-xl border bg-card p-5">
             <h2 className="mb-4 text-sm font-semibold">Informações</h2>
             <dl className="grid gap-4">

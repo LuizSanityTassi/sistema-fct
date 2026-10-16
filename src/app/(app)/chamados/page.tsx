@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, Search } from "lucide-react";
+import { ChartColumn, Plus, Search } from "lucide-react";
 import { SelectNativo } from "@/components/form/campo";
 import { PageHeader } from "@/components/layout/page-header";
 import { Paginacao } from "@/components/layout/paginacao";
@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
 import { CATEGORIA_CHAMADO_LABEL, PRIORIDADE_LABEL, STATUS_CHAMADO_LABEL } from "@/lib/chamados/rotulos";
+import { COR_SLA, situacaoSla } from "@/lib/chamados/sla";
+import { podeAcessar } from "@/lib/nav";
 import { lerFiltrosChamados, listarChamados, resumoChamados, TAMANHO_PAGINA } from "@/lib/data/chamados";
 import { listarUnidadesParaSelecao } from "@/lib/data/funcionarios";
 import { formatarDataHora } from "@/lib/formatos";
@@ -30,10 +32,12 @@ export default async function ChamadosPage({ searchParams }: PageProps<"/chamado
     categoria: filtros.categoria,
     prioridade: filtros.prioridade,
     filial: filtros.filial,
+    sla: filtros.sla,
   };
-  const temFiltro = Boolean(filtros.q || filtros.categoria || filtros.prioridade || filtros.filial || filtros.status !== "abertos" || filtros.visao !== "todos");
+  const temFiltro = Boolean(filtros.q || filtros.categoria || filtros.prioridade || filtros.filial || filtros.sla || filtros.status !== "abertos" || filtros.visao !== "todos");
 
   const cartoes = [
+    { rotulo: "SLA estourado", valor: resumo.slaEstourado, href: "/chamados?sla=estourado", classe: resumo.slaEstourado ? "text-red-700" : "text-emerald-700" },
     { rotulo: "Abertos sem responsável", valor: resumo.semResponsavel, href: "/chamados?status=aberto", classe: "text-amber-700" },
     { rotulo: "Em andamento", valor: resumo.emAndamento, href: "/chamados?status=em_atendimento", classe: "text-sky-700" },
     { rotulo: "Aguardando", valor: resumo.aguardando, href: "/chamados?status=aguardando_usuario", classe: "text-violet-700" },
@@ -47,14 +51,22 @@ export default async function ChamadosPage({ searchParams }: PageProps<"/chamado
         titulo="Chamados"
         descricao="Abertura e acompanhamento de solicitações de TI, RH, financeiro, manutenção e compras."
         acoes={
-          <Button className="bg-fct-yellow text-fct-navy hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/chamados/novo" />}>
-            <Plus data-icon="inline-start" />
-            Novo chamado
-          </Button>
+          <>
+            {podeAcessar(sessao.papel, "/chamados/indicadores") && (
+              <Button variant="outline" nativeButton={false} render={<Link href="/chamados/indicadores" />}>
+                <ChartColumn data-icon="inline-start" />
+                Indicadores
+              </Button>
+            )}
+            <Button className="bg-fct-yellow text-fct-navy hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/chamados/novo" />}>
+              <Plus data-icon="inline-start" />
+              Novo chamado
+            </Button>
+          </>
         }
       />
 
-      <section className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <section className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
         {cartoes.map((c) => (
           <div key={c.rotulo} className="rounded-xl border bg-card px-4 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{c.rotulo}</p>
@@ -136,13 +148,14 @@ export default async function ChamadosPage({ searchParams }: PageProps<"/chamado
               <TableHead className="hidden lg:table-cell">Responsável</TableHead>
               <TableHead className="hidden sm:table-cell">Prioridade</TableHead>
               <TableHead>Situação</TableHead>
+              <TableHead className="hidden md:table-cell">SLA (1ª resposta)</TableHead>
               <TableHead className="hidden xl:table-cell">Atualizado</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {resultado.itens.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={9} className="py-10 text-center text-muted-foreground">
                   Nenhum chamado encontrado.
                 </TableCell>
               </TableRow>
@@ -174,6 +187,12 @@ export default async function ChamadosPage({ searchParams }: PageProps<"/chamado
                   </TableCell>
                   <TableCell>
                     <BadgeStatusChamado status={t.status} />
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    {(() => {
+                      const sla = situacaoSla(t);
+                      return <span className={`inline-block rounded-full border px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${COR_SLA[sla.estado]}`}>{sla.texto}</span>;
+                    })()}
                   </TableCell>
                   <TableCell className="hidden text-muted-foreground xl:table-cell">{formatarDataHora(t.updated_at)}</TableCell>
                 </TableRow>

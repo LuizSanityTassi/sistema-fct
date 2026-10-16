@@ -2,6 +2,7 @@ import { ehUuid } from "@/lib/data/filiais";
 import { createClient } from "@/lib/supabase/server";
 import type { CategoriaChamado, PrioridadeChamado, StatusChamado } from "@/lib/chamados/rotulos";
 import { STATUS_CHAMADO_LABEL } from "@/lib/chamados/rotulos";
+import { filtroSlaEstourado, situacaoSla } from "@/lib/chamados/sla";
 
 export const TAMANHO_PAGINA = 25;
 
@@ -14,6 +15,8 @@ export type FiltrosChamados = {
   categoria?: CategoriaChamado;
   prioridade?: PrioridadeChamado;
   filial?: string;
+  /** Só os abertos sem resposta com o prazo de primeira resposta vencido. */
+  sla?: "estourado";
   pagina: number;
 };
 
@@ -34,12 +37,13 @@ export function lerFiltrosChamados(sp: Record<string, string | string[] | undefi
     categoria: categoria ? (categoria as CategoriaChamado) : undefined,
     prioridade: prioridade ? (prioridade as PrioridadeChamado) : undefined,
     filial: ehUuid(s("filial")) ? s("filial") : undefined,
+    sla: s("sla") === "estourado" ? "estourado" : undefined,
     pagina: Number.isFinite(pagina) && pagina > 0 ? pagina : 1,
   };
 }
 
 const SELECAO_LISTA =
-  "id, numero, titulo, categoria, prioridade, status, created_at, updated_at, resolved_at, branch_id, solicitante, responsavel, unidade:branches(id, codigo, nome), quem_abriu:profiles!tickets_solicitante_fkey(id, nome), quem_atende:profiles!tickets_responsavel_fkey(id, nome)";
+  "id, numero, titulo, categoria, prioridade, status, created_at, updated_at, resolved_at, primeira_resposta_em, branch_id, solicitante, responsavel, unidade:branches(id, codigo, nome), quem_abriu:profiles!tickets_solicitante_fkey(id, nome), quem_atende:profiles!tickets_responsavel_fkey(id, nome)";
 
 export async function listarChamados(f: FiltrosChamados, usuarioId: string) {
   const supabase = await createClient();
@@ -53,6 +57,7 @@ export async function listarChamados(f: FiltrosChamados, usuarioId: string) {
   if (f.categoria) consulta = consulta.eq("categoria", f.categoria);
   if (f.prioridade) consulta = consulta.eq("prioridade", f.prioridade);
   if (f.filial) consulta = consulta.eq("branch_id", f.filial);
+  if (f.sla === "estourado") consulta = consulta.not("status", "in", "(resolvido,cancelado)").is("primeira_resposta_em", null).or(filtroSlaEstourado());
   if (f.q) {
     const termo = f.q.replace(/[%_,().]/g, " ").trim();
     if (termo) {
@@ -75,11 +80,12 @@ export type ChamadoLista = Awaited<ReturnType<typeof listarChamados>>["itens"][n
 /** Contadores do topo (só o que o usuário enxerga pelo RLS). */
 export async function resumoChamados() {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("tickets").select("status, responsavel, resolved_at");
+  const { data, error } = await supabase.from("tickets").select("status, responsavel, resolved_at, prioridade, created_at, primeira_resposta_em");
   if (error) throw error;
   const limite = Date.now() - 30 * 86_400_000;
-  const r = { semResponsavel: 0, emAndamento: 0, aguardando: 0, resolvidos30: 0 };
+  const r = { semResponsavel: 0, emAndamento: 0, aguardando: 0, resolvidos30: 0, slaEstourado: 0 };
   for (const t of data) {
+    if (situacaoSla(t).estado === "estourado") r.slaEstourado += 1;
     if (t.status === "aberto" && !t.responsavel) r.semResponsavel += 1;
     if (t.status === "em_analise" || t.status === "em_atendimento" || (t.status === "aberto" && t.responsavel)) r.emAndamento += 1;
     if (t.status === "aguardando_usuario" || t.status === "aguardando_terceiro") r.aguardando += 1;

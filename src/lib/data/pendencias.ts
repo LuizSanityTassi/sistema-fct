@@ -2,6 +2,7 @@
 // Cada contagem passa pela RLS do banco (cada papel só conta o que pode ver) e cada item só aparece para quem pode
 // abrir a tela de destino (mesma regra do menu). O link já leva para a tela filtrada.
 import type { Sessao } from "@/lib/auth/session";
+import { filtroSlaEstourado } from "@/lib/chamados/sla";
 import { podeAcessar } from "@/lib/nav";
 import { competenciaAtual } from "@/lib/rh/competencia";
 import { createClient } from "@/lib/supabase/server";
@@ -162,12 +163,15 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
       (async () => {
         const abertos = () => supabase.from("tickets").select("id", { count: "exact", head: true }).not("status", "in", "(resolvido,cancelado)");
         const atende = sessao.papel === "admin" || sessao.papel === "ti" || sessao.papel === "rh" || sessao.papel === "financeiro";
-        const [criticos, semResponsavel, aguardandoMim, meusAtendimentos] = await Promise.all([
+        const [slaEstourado, criticos, semResponsavel, aguardandoMim, meusAtendimentos] = await Promise.all([
+          atende ? contar(abertos().is("primeira_resposta_em", null).or(filtroSlaEstourado())) : Promise.resolve(0),
           contar(abertos().eq("prioridade", "critica")),
           atende ? contar(abertos().is("responsavel", null)) : Promise.resolve(0),
           contar(abertos().eq("status", "aguardando_usuario").eq("solicitante", sessao.id)),
           contar(abertos().eq("responsavel", sessao.id)),
         ]);
+        if (slaEstourado)
+          out.push({ id: "chamados-sla", severidade: "critico", area: "Chamados", quantidade: slaEstourado, href: "/chamados?sla=estourado", titulo: `${slaEstourado} ${plural(slaEstourado, "chamado com SLA estourado", "chamados com SLA estourado")}`, detalhe: "Passou do prazo de primeira resposta e ninguém respondeu." });
         if (criticos)
           out.push({ id: "chamados-criticos", severidade: "critico", area: "Chamados", quantidade: criticos, href: "/chamados?prioridade=critica", titulo: `${criticos} ${plural(criticos, "chamado crítico", "chamados críticos")} em aberto` });
         if (aguardandoMim)

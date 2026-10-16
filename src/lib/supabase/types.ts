@@ -2424,6 +2424,7 @@ export type Database = {
       }
       tickets: {
         Row: {
+          primeira_resposta_em: string | null
           branch_id: string | null
           categoria: Database["public"]["Enums"]["ticket_category"]
           created_at: string
@@ -2440,6 +2441,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          primeira_resposta_em?: string | null
           branch_id?: string | null
           categoria?: Database["public"]["Enums"]["ticket_category"]
           created_at?: string
@@ -2456,6 +2458,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          primeira_resposta_em?: string | null
           branch_id?: string | null
           categoria?: Database["public"]["Enums"]["ticket_category"]
           created_at?: string

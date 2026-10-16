@@ -22,8 +22,8 @@ export const PRIORIDADE_LABEL: Record<PrioridadeChamado, string> = {
 };
 
 export const STATUS_CHAMADO_LABEL: Record<StatusChamado, string> = {
-  aberto: "Aberto",
-  em_analise: "Em análise",
+  aberto: "Novo",
+  em_analise: "Triagem",
   em_atendimento: "Em atendimento",
   aguardando_usuario: "Aguardando solicitante",
   aguardando_terceiro: "Aguardando terceiro",
@@ -61,3 +61,6 @@ export function papelAtende(papel: string, categoria: CategoriaChamado) {
   if (categoria === "financeiro") return papel === "financeiro" || papel === "ti";
   return papel === "ti";
 }
+
+/** Trilho do chamado (as duas esperas são etapas laterais de "Em atendimento"). */
+export const ETAPAS_CHAMADO: StatusChamado[] = ["aberto", "em_analise", "em_atendimento", "resolvido"];
