@@ -16,7 +16,7 @@ export default function RecuperarSenhaPage() {
       titulo="Recuperar senha"
       descricao="Informe seu e-mail e enviaremos um link para definir uma nova senha."
       rodape={
-        <Link href="/login" className="inline-flex items-center gap-1.5 font-medium text-fct-navy underline-offset-4 hover:underline">
+        <Link href="/login" className="inline-flex items-center gap-1.5 font-medium text-fct-tinta underline-offset-4 hover:underline">
           <ArrowLeft className="size-4" aria-hidden />
           Voltar ao login
         </Link>
@@ -28,7 +28,7 @@ export default function RecuperarSenhaPage() {
         </Campo>
         <ErroFormulario mensagem={state.erro} />
         <AvisoSucesso mensagem={state.ok} />
-        <Button type="submit" disabled={pending} className="h-10 w-full bg-fct-yellow text-base font-semibold text-fct-navy hover:bg-fct-yellow/85">
+        <Button type="submit" disabled={pending} className="h-10 w-full bg-fct-yellow text-base font-semibold text-fct-tinta hover:bg-fct-yellow/85">
           <Send data-icon="inline-start" />
           {pending ? "Enviando…" : "Enviar link"}
         </Button>

@@ -23,7 +23,7 @@ function Kpi({ rotulo, valor, nota, href, tom }: { rotulo: string; valor: string
     </>
   );
   return href ? (
-    <Link href={href} className="block rounded-xl border bg-card px-4 py-3 transition-colors hover:border-fct-navy/40">
+    <Link href={href} className="block rounded-xl border bg-card px-4 py-3 transition-colors hover:border-fct-tinta/40">
       {corpo}
     </Link>
   ) : (
@@ -52,7 +52,7 @@ export default async function ConciliacaoPage() {
                 <FolderUp data-icon="inline-start" />
                 Enviar arquivos
               </Button>
-              <Button className="bg-fct-yellow text-fct-navy hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/conciliacao/nova" />}>
+              <Button className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/conciliacao/nova" />}>
                 <Scale data-icon="inline-start" />
                 Nova conciliação
               </Button>
@@ -65,7 +65,7 @@ export default async function ConciliacaoPage() {
         <section className="mb-6">
           <p className="mb-2 text-xs text-muted-foreground">
             Última conciliação: {formatarDataHora(ultima.criado_em)} · filiais {ultima.fil_min}–{ultima.fil_max} · por {ultima.quem?.nome ?? "—"} ·{" "}
-            <Link href={`/conciliacao/${ultima.id}`} className="text-fct-navy underline">
+            <Link href={`/conciliacao/${ultima.id}`} className="text-fct-tinta underline">
               abrir
             </Link>
           </p>
@@ -80,7 +80,7 @@ export default async function ConciliacaoPage() {
         </section>
       ) : (
         <section className="mb-6 rounded-xl border bg-card p-6 text-sm text-muted-foreground">
-          Nenhuma conciliação ainda. Envie os arquivos do banco (.RET ou planilha do portal Itaú) e o relatório do Trier em <Link href="/conciliacao/arquivos" className="text-fct-navy underline">Arquivos</Link>, depois clique em “Nova conciliação”.
+          Nenhuma conciliação ainda. Envie os arquivos do banco (.RET ou planilha do portal Itaú) e o relatório do Trier em <Link href="/conciliacao/arquivos" className="text-fct-tinta underline">Arquivos</Link>, depois clique em “Nova conciliação”.
         </section>
       )}
 
@@ -88,7 +88,7 @@ export default async function ConciliacaoPage() {
         <section className="rounded-xl border bg-card">
           <div className="flex items-center justify-between px-5 py-4">
             <h2 className="text-sm font-semibold">Pendências abertas</h2>
-            <Link href="/conciliacao/pendencias" className="text-xs text-fct-navy underline">
+            <Link href="/conciliacao/pendencias" className="text-xs text-fct-tinta underline">
               ver todas
             </Link>
           </div>
@@ -120,7 +120,7 @@ export default async function ConciliacaoPage() {
               {pend.porFilial.slice(0, 8).map((f) => (
                 <li key={String(f.filial)} className="flex items-center justify-between px-5 py-2.5">
                   <Link href={`/conciliacao/pendencias${f.filial != null ? `?filial=${f.filial}` : ""}`} className="hover:underline">
-                    <span className="font-mono text-xs text-fct-navy">{f.filial != null ? String(f.filial).padStart(3, "0") : "—"}</span> · {pluralizar(f.qtd, "pendência", "pendências")}
+                    <span className="font-mono text-xs text-fct-tinta">{f.filial != null ? String(f.filial).padStart(3, "0") : "—"}</span> · {pluralizar(f.qtd, "pendência", "pendências")}
                   </Link>
                   <span className="tabular-nums text-muted-foreground">{formatarMoeda(f.valor)}</span>
                 </li>
@@ -132,7 +132,7 @@ export default async function ConciliacaoPage() {
         <section className="rounded-xl border bg-card">
           <div className="flex items-center justify-between px-5 py-4">
             <h2 className="text-sm font-semibold">Arquivos guardados</h2>
-            <Link href="/conciliacao/arquivos" className="text-xs text-fct-navy underline">
+            <Link href="/conciliacao/arquivos" className="text-xs text-fct-tinta underline">
               ver
             </Link>
           </div>

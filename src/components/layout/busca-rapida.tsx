@@ -273,7 +273,7 @@ export function BuscaRapida({ papel, variante = "cabecalho" }: { papel: AppRole;
                       onClick={() => abrir(o.href)}
                       className={cn("flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2", selecionado && "bg-accent")}
                     >
-                      <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-md", selecionado ? "bg-fct-navy text-white" : "bg-muted text-fct-navy")}>
+                      <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-md", selecionado ? "bg-fct-tinta text-white" : "bg-muted text-fct-tinta")}>
                         <Icone className="size-4" aria-hidden />
                       </span>
                       <span className="min-w-0 flex-1">

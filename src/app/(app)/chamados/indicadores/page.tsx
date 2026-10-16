@@ -45,7 +45,7 @@ export default async function IndicadoresChamadosPage({ searchParams }: PageProp
 
       <nav aria-label="Período" className="mb-4 flex gap-2">
         {PERIODOS.map((p) => (
-          <Link key={p} href={`/chamados/indicadores?dias=${p}`} aria-current={dias === p ? "page" : undefined} className={`rounded-full border px-3 py-1 text-sm ${dias === p ? "border-fct-navy bg-fct-navy text-white" : "bg-card hover:border-fct-navy/40"}`}>
+          <Link key={p} href={`/chamados/indicadores?dias=${p}`} aria-current={dias === p ? "page" : undefined} className={`rounded-full border px-3 py-1 text-sm ${dias === p ? "border-fct-tinta bg-fct-tinta text-white" : "bg-card hover:border-fct-tinta/40"}`}>
             Últimos {p} dias
           </Link>
         ))}
@@ -82,7 +82,7 @@ export default async function IndicadoresChamadosPage({ searchParams }: PageProp
                   <TableRow key={l.loja}>
                     <TableCell>
                       {l.id ? (
-                        <Link href={`/chamados?filial=${l.id}&status=todos`} className="font-mono text-xs text-fct-navy hover:underline">
+                        <Link href={`/chamados?filial=${l.id}&status=todos`} className="font-mono text-xs text-fct-tinta hover:underline">
                           {l.loja}
                         </Link>
                       ) : (
@@ -137,7 +137,7 @@ export default async function IndicadoresChamadosPage({ searchParams }: PageProp
                   {d.recorrentes.map((r) => (
                     <li key={`${r.loja}-${r.assunto}`} className="py-2 text-sm">
                       <p>
-                        <span className="font-mono text-xs text-fct-navy">{r.loja}</span> · {CATEGORIA_CHAMADO_LABEL[r.categoria]} · <span className="font-medium">{r.assunto}</span>
+                        <span className="font-mono text-xs text-fct-tinta">{r.loja}</span> · {CATEGORIA_CHAMADO_LABEL[r.categoria]} · <span className="font-medium">{r.assunto}</span>
                         <span className="ml-2 rounded-full bg-orange-100 px-1.5 text-[11px] font-semibold text-orange-800">{r.total}×</span>
                       </p>
                       <p className="text-xs text-muted-foreground">
@@ -145,7 +145,7 @@ export default async function IndicadoresChamadosPage({ searchParams }: PageProp
                         {r.ultimos.map((t, i) => (
                           <span key={t.id}>
                             {i > 0 && ", "}
-                            <Link href={`/chamados/${t.id}`} className="text-fct-navy hover:underline">
+                            <Link href={`/chamados/${t.id}`} className="text-fct-tinta hover:underline">
                               #{t.numero}
                             </Link>
                           </span>

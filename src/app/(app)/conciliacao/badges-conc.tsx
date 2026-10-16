@@ -93,7 +93,7 @@ export function Filial({ filial, nome }: { filial: number | null | undefined; no
   if (filial == null) return <span className="text-muted-foreground">—</span>;
   return (
     <span title={nome ?? undefined}>
-      <span className="font-mono text-xs text-fct-navy">{String(filial).padStart(3, "0")}</span>
+      <span className="font-mono text-xs text-fct-tinta">{String(filial).padStart(3, "0")}</span>
       {nome ? <span className="hidden text-xs text-muted-foreground xl:inline"> {nome}</span> : null}
     </span>
   );

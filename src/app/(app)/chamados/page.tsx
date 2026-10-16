@@ -58,7 +58,7 @@ export default async function ChamadosPage({ searchParams }: PageProps<"/chamado
                 Indicadores
               </Button>
             )}
-            <Button className="bg-fct-yellow text-fct-navy hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/chamados/novo" />}>
+            <Button className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/chamados/novo" />}>
               <Plus data-icon="inline-start" />
               Novo chamado
             </Button>
@@ -174,7 +174,7 @@ export default async function ChamadosPage({ searchParams }: PageProps<"/chamado
                   <TableCell className="hidden md:table-cell">
                     {t.unidade ? (
                       <>
-                        <span className="font-mono text-xs text-fct-navy">{t.unidade.codigo}</span> {t.unidade.nome}
+                        <span className="font-mono text-xs text-fct-tinta">{t.unidade.codigo}</span> {t.unidade.nome}
                       </>
                     ) : (
                       "—"

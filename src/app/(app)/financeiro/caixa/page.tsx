@@ -57,7 +57,7 @@ export default async function CaixaPage({ searchParams }: PageProps<"/financeiro
 
       <nav aria-label="Abas" className="mb-4 flex flex-wrap gap-2">
         {ABAS.map((a) => (
-          <Link key={a.chave} href={`/financeiro/caixa?aba=${a.chave}&data=${data}&mes=${mes}`} aria-current={aba === a.chave ? "page" : undefined} className={`rounded-full border px-3 py-1 text-sm ${aba === a.chave ? "border-fct-navy bg-fct-navy text-white" : "bg-card hover:border-fct-navy/40"}`}>
+          <Link key={a.chave} href={`/financeiro/caixa?aba=${a.chave}&data=${data}&mes=${mes}`} aria-current={aba === a.chave ? "page" : undefined} className={`rounded-full border px-3 py-1 text-sm ${aba === a.chave ? "border-fct-tinta bg-fct-tinta text-white" : "bg-card hover:border-fct-tinta/40"}`}>
             {a.rotulo}
           </Link>
         ))}
@@ -332,7 +332,7 @@ async function SemanalView({ mes }: { mes: string }) {
                     {dados ? (
                       <details className="group">
                         <summary className="cursor-pointer list-none">
-                          <span className="inline-block w-3 text-fct-green group-open:rotate-90">▸</span> {String(d).padStart(2, "0")} <span className="text-xs text-muted-foreground">{DS[wd]}</span>
+                          <span className="inline-block w-3 text-fct-red group-open:rotate-90">▸</span> {String(d).padStart(2, "0")} <span className="text-xs text-muted-foreground">{DS[wd]}</span>
                         </summary>
                         <div className="mt-1 space-y-0.5 pl-4 text-xs">
                           {familias.map((f) => (

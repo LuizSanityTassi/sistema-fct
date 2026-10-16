@@ -9,8 +9,11 @@
   --color-foreground: var(--foreground);
   --color-fct-red: var(--fct-red);
   --color-fct-red-dark: var(--fct-red-dark);
+  --color-fct-red-fundo: var(--fct-red-fundo);
   --color-fct-yellow: var(--fct-yellow);
-  --color-fct-navy: var(--fct-navy);
+  --color-fct-yellow-dark: var(--fct-yellow-dark);
+  --color-fct-tinta: var(--fct-tinta);
+  --color-fct-papel: var(--fct-papel);
   --color-fct-green: var(--fct-green);
   --color-fct-green-dark: var(--fct-green-dark);
   --font-sans: var(--font-sans);
@@ -55,48 +58,53 @@
 }
 
 :root {
-  /* ===== Identidade FCT — cores medidas na logo "Farmácia do Trabalhador" ===== */
-  --fct-navy: oklch(0.253 0.079 253.6);  /* #002247 — letras FCT, títulos, menu */
-  --fct-yellow: oklch(0.904 0.173 102.9); /* #F5E33E — o sol: ação principal / destaque */
-  --fct-green: oklch(0.524 0.108 144.5); /* #3E7A40 — a onda: marca secundária (5,2:1 no branco) */
-  --fct-green-dark: oklch(0.473 0.107 144.9); /* #2F6B33 */
-  --fct-red: oklch(0.52 0.21 27);        /* só alerta/erro (não é cor da marca) */
-  --fct-red-dark: oklch(0.45 0.19 27);
+  /* ===== Identidade FCT — a mesma do site (fct-site/assets/style.css) ===== */
+  --fct-red: oklch(0.577 0.234 28);        /* #E30613 vermelho da marca (4,9:1 no branco) */
+  --fct-red-dark: oklch(0.461 0.186 27.2); /* #A80410 texto pequeno em vermelho (7,4:1 no papel) */
+  --fct-red-fundo: oklch(0.511 0.207 27.8); /* #C10510 faixas vermelhas (texto branco 6,4:1) */
+  --fct-yellow: oklch(0.842 0.168 90.4);   /* #F5C518 botão de destaque (tinta por cima 11,4:1) */
+  --fct-yellow-dark: oklch(0.756 0.154 87.5); /* #D9A800 */
+  --fct-tinta: oklch(0.188 0.007 0.9);     /* #161213 texto e faixas escuras (quase preto quente) */
+  --fct-papel: oklch(0.983 0.003 67.8);    /* #FBF9F7 fundo creme */
+  /* da logo: só no desenho da onda */
+  --fct-navy: oklch(0.253 0.079 253.6);    /* #002247 */
+  --fct-green: oklch(0.524 0.108 144.5);   /* #3E7A40 */
+  --fct-green-dark: oklch(0.473 0.107 144.9);
   --font-sans: var(--font-geist-sans);
 
-  --background: oklch(0.977 0.004 253);  /* cinza-azulado bem claro (densidade SaaS) */
-  --foreground: var(--fct-navy);
+  --background: var(--fct-papel);
+  --foreground: var(--fct-tinta);
   --card: oklch(1 0 0);
-  --card-foreground: var(--fct-navy);
+  --card-foreground: var(--fct-tinta);
   --popover: oklch(1 0 0);
-  --popover-foreground: var(--fct-navy);
-  --primary: var(--fct-navy);
+  --popover-foreground: var(--fct-tinta);
+  --primary: var(--fct-tinta);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.95 0.006 260);
-  --secondary-foreground: var(--fct-navy);
-  --muted: oklch(0.955 0.005 260);
-  --muted-foreground: oklch(0.48 0.02 260); /* 6:1 sobre o fundo */
-  --accent: oklch(0.945 0.01 260);
-  --accent-foreground: var(--fct-navy);
-  --destructive: oklch(0.5 0.19 27);     /* 5,6:1 mesmo sobre o fundo rosado dos botões de excluir */
-  --border: oklch(0.91 0.007 260);       /* divisórias e cartões (decorativo) */
-  --input: oklch(0.64 0.02 262);         /* borda de campo: 3:1 sobre branco e sobre o fundo (WCAG 1.4.11) */
-  --ring: oklch(0.47 0.13 264);          /* anel de foco do teclado: 6,5:1 */
-  --chart-1: var(--fct-navy);
-  --chart-2: var(--fct-green);
+  --secondary: oklch(0.95 0.008 48.7);     /* #F3EDEA papel-2 */
+  --secondary-foreground: var(--fct-tinta);
+  --muted: oklch(0.955 0.007 50);
+  --muted-foreground: oklch(0.508 0.016 0.7); /* #6E6265 tinta-3: 5,6:1 sobre o papel */
+  --accent: oklch(0.95 0.008 48.7);
+  --accent-foreground: var(--fct-tinta);
+  --destructive: var(--fct-red-dark);
+  --border: oklch(0.897 0.012 51.3);       /* #E4DBD6 linha */
+  --input: oklch(0.665 0.015 0.5);         /* #9C9093 borda de campo: 3:1 no branco (WCAG 1.4.11) */
+  --ring: var(--fct-red-dark);             /* anel de foco do teclado */
+  --chart-1: var(--fct-red);
+  --chart-2: var(--fct-tinta);
   --chart-3: var(--fct-yellow);
   --chart-4: oklch(0.6 0.08 230);
   --chart-5: oklch(0.65 0.12 160);
   --radius: 0.75rem;
 
-  /* Menu lateral: o azul da logo, mais fundo, com destaque amarelo-sol */
-  --sidebar: oklch(0.217 0.064 252.6);   /* #011A36 */
-  --sidebar-foreground: oklch(0.9 0.015 253);
+  /* Menu lateral: a tinta do site (como o menu do celular e o rodapé), destaque vermelho e amarelo */
+  --sidebar: var(--fct-tinta);
+  --sidebar-foreground: oklch(0.9 0.008 50);
   --sidebar-primary: var(--fct-yellow);
-  --sidebar-primary-foreground: var(--fct-navy);
-  --sidebar-accent: oklch(0.285 0.07 253);
+  --sidebar-primary-foreground: var(--fct-tinta);
+  --sidebar-accent: oklch(0.278 0.012 1.1); /* #2E2628 */
   --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.3 0.06 253);
+  --sidebar-border: oklch(0.324 0.013 2.8); /* #3A3133 */
   --sidebar-ring: var(--fct-yellow);
 }
 
@@ -155,34 +163,33 @@
     outline-color: var(--sidebar-ring);
   }
   ::selection {
-    background: oklch(0.904 0.173 102.9 / 0.55);
-    color: var(--fct-navy);
+    background: var(--fct-yellow);
+    color: var(--fct-tinta);
   }
-  /* títulos na fonte de destaque (parecida com a da logo); o texto corrido continua na Geist */
+  /* título da página na Archivo Black, como no site; títulos de seção e texto continuam na Geist.
+     A Archivo Black só tem um peso: sem negrito falso do navegador por cima dela. */
   h1,
-  h2,
-  h3,
   .font-heading {
     font-family: var(--font-heading);
-  }
-  h1 {
-    letter-spacing: -0.02em;
+    font-weight: 400;
+    font-synthesis: none;
+    letter-spacing: -0.01em;
   }
   table {
     font-variant-numeric: tabular-nums;
   }
   input[type="checkbox"],
   input[type="radio"] {
-    accent-color: var(--fct-navy);
+    accent-color: var(--fct-tinta);
   }
 }
 
 @layer components {
-  /* cartões ganham uma elevação discreta (sombra no tom do azul da marca) */
+  /* cartões ganham uma elevação discreta (sombra no tom quente da tinta, como no site) */
   .bg-card.border {
     box-shadow:
-      0 1px 2px 0 oklch(0.253 0.079 253.6 / 0.05),
-      0 6px 16px -10px oklch(0.253 0.079 253.6 / 0.12);
+      0 1px 2px 0 oklch(0.188 0.007 0.9 / 0.05),
+      0 6px 16px -10px oklch(0.188 0.007 0.9 / 0.14);
   }
 }
 

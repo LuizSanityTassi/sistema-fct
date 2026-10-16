@@ -77,7 +77,7 @@ export default async function ArquivosPage({ searchParams }: PageProps<"/concili
         </SelectNativo>
         <Input name="filial" type="number" min={1} max={9999} defaultValue={filtros.filial ?? ""} placeholder="Filial (ex.: 301)" aria-label="Filial" className="lg:w-36" />
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" name="arquivados" value="1" defaultChecked={filtros.arquivados} className="size-4 accent-fct-navy" />
+          <input type="checkbox" name="arquivados" value="1" defaultChecked={filtros.arquivados} className="size-4 accent-fct-tinta" />
           Arquivados
         </label>
         <Button type="submit" variant="outline">
@@ -134,7 +134,7 @@ export default async function ArquivosPage({ searchParams }: PageProps<"/concili
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <a href={`/api/conciliacao/arquivo/${a.id}`} className="inline-flex items-center gap-1 text-sm text-fct-navy underline" title="Baixar">
+                      <a href={`/api/conciliacao/arquivo/${a.id}`} className="inline-flex items-center gap-1 text-sm text-fct-tinta underline" title="Baixar">
                         <Download className="size-3.5" aria-hidden />
                         Baixar
                       </a>

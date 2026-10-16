@@ -111,7 +111,7 @@ export default async function AtivoPage({ params, searchParams }: PageProps<"/ti
             <div className="min-w-0">
               <p className="font-mono text-sm font-semibold break-all">{a.patrimonio ?? "sem patrimônio"}</p>
               <p className="mt-1 text-xs text-muted-foreground">Cole a etiqueta no equipamento: escaneou com o celular, abre esta ficha.</p>
-              <a href={`/etiquetas/ti?ids=${a.id}`} target="_blank" rel="noopener" className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-fct-navy underline">
+              <a href={`/etiquetas/ti?ids=${a.id}`} target="_blank" rel="noopener" className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-fct-tinta underline">
                 <Printer className="size-3.5" aria-hidden /> Imprimir etiqueta
               </a>
             </div>
@@ -184,7 +184,7 @@ export default async function AtivoPage({ params, searchParams }: PageProps<"/ti
           <ol className="space-y-3 border-l pl-5">
             {eventos.map((e) => (
               <li key={e.id} className="relative">
-                <span className="absolute top-1.5 -left-[25px] size-2.5 rounded-full bg-fct-navy/60" aria-hidden />
+                <span className="absolute top-1.5 -left-[25px] size-2.5 rounded-full bg-fct-tinta/60" aria-hidden />
                 <p className="text-xs text-muted-foreground">
                   {formatarData(e.data)} · {TIPOS_EVENTO_ATIVO[e.tipo as TipoEventoAtivo] ?? e.tipo}
                   {e.autor_nome ? ` · ${e.autor_nome}` : ""}

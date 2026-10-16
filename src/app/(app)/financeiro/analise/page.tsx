@@ -43,7 +43,7 @@ export default async function AnalisePage({ searchParams }: PageProps<"/financei
       <PageHeader eyebrow="Financeiro" titulo="Inadimplência e ranking" descricao="Inadimplência de crediário e convênio, ranking e resumo por loja e comparativo mês a mês." />
       <nav aria-label="Abas" className="mb-4 flex flex-wrap gap-2">
         {ABAS.map((a) => (
-          <Link key={a.chave} href={`/financeiro/analise?aba=${a.chave}&grupo=${encodeURIComponent(escopo.grupo)}&ano=${escopo.ano}`} aria-current={aba === a.chave ? "page" : undefined} className={`rounded-full border px-3 py-1 text-sm ${aba === a.chave ? "border-fct-navy bg-fct-navy text-white" : "bg-card hover:border-fct-navy/40"}`}>
+          <Link key={a.chave} href={`/financeiro/analise?aba=${a.chave}&grupo=${encodeURIComponent(escopo.grupo)}&ano=${escopo.ano}`} aria-current={aba === a.chave ? "page" : undefined} className={`rounded-full border px-3 py-1 text-sm ${aba === a.chave ? "border-fct-tinta bg-fct-tinta text-white" : "bg-card hover:border-fct-tinta/40"}`}>
             {a.rotulo}
           </Link>
         ))}
@@ -258,7 +258,7 @@ async function RankingView({ escopo, metrica, mes }: { escopo: Esc; metrica: str
             <tr key={l.u?.id ?? i} className={`border-b last:border-0 ${l.u && !l.u.ativo ? "opacity-60" : ""}`}>
               <td className="px-2 py-1">{met === "resultado" && i < 3 ? ["🥇", "🥈", "🥉"][i] : `${i + 1}º`}</td>
               <td className="px-2 py-1">
-                <span className="font-mono text-xs text-fct-navy">{l.u?.codigo}</span> {l.u?.nome}
+                <span className="font-mono text-xs text-fct-tinta">{l.u?.codigo}</span> {l.u?.nome}
                 {l.u && !l.u.ativo ? <span className="ml-1 text-xs text-muted-foreground">(inativa)</span> : null}
               </td>
               <td className={`px-2 py-1 text-right font-semibold tabular-nums ${met === "despesa" ? "text-red-700" : met === "receita" ? "text-emerald-700" : tom(l.v)}`}>{formatarMoeda(l.v)}</td>
@@ -353,7 +353,7 @@ async function ResumoView({ escopo }: { escopo: Esc }) {
               return (
                 <tr key={f} className={`border-b last:border-0 ${u && !u.ativo ? "opacity-60" : ""}`}>
                   <td className="px-2 py-1">
-                    <span className="font-mono text-xs text-fct-navy">{u?.codigo}</span> {u?.nome}
+                    <span className="font-mono text-xs text-fct-tinta">{u?.codigo}</span> {u?.nome}
                     {u && !u.ativo ? <span className="ml-1 text-xs text-muted-foreground">(inativa)</span> : null}
                   </td>
                   <td className={`px-2 py-1 text-right font-semibold tabular-nums ${tom(d.resMes)}`}>{moedaFin(d.resMes)}</td>
@@ -431,7 +431,7 @@ async function ComparativoView({ escopo, mes, link }: { escopo: Esc; mes?: strin
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2 text-xs">
         {meses.slice(1).map((m) => (
-          <Link key={m} href={link({ mes: m })} className={`rounded-full border px-3 py-1 ${m === B ? "border-fct-navy bg-fct-navy text-white" : "bg-card hover:border-fct-navy/40"}`}>
+          <Link key={m} href={link({ mes: m })} className={`rounded-full border px-3 py-1 ${m === B ? "border-fct-tinta bg-fct-tinta text-white" : "bg-card hover:border-fct-tinta/40"}`}>
             {rotuloCompetencia(m)} × {rotuloCompetencia(meses[meses.indexOf(m) - 1])}
           </Link>
         ))}
@@ -455,14 +455,14 @@ async function ComparativoView({ escopo, mes, link }: { escopo: Esc; mes?: strin
               <td colSpan={3} />
               <td className={`px-2 py-1 text-right font-bold tabular-nums ${tom(acA)}`}>{moedaFin(acA)}</td>
             </tr>
-            <tr className="bg-fct-navy text-white font-semibold">
+            <tr className="bg-fct-tinta text-white font-semibold">
               <td className="px-2 py-1" colSpan={5}>
                 RECEBIMENTOS
               </td>
             </tr>
             {gruposRec.map((g) => linhaG(g, true))}
             {linhaT("Total recebimento", soma(gruposRec, B), soma(gruposRec, A), true)}
-            <tr className="bg-fct-navy text-white font-semibold">
+            <tr className="bg-fct-tinta text-white font-semibold">
               <td className="px-2 py-1" colSpan={5}>
                 DESPESAS
               </td>

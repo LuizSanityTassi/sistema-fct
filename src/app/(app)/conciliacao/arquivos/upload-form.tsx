@@ -38,7 +38,7 @@ export function UploadForm({ action }: Props) {
             multiple
             accept=".ret,.RET,.txt,.pdf,.xlsx,.xls"
             onChange={(e) => setQtd(e.target.files?.length ?? 0)}
-            className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-fct-navy file:px-3 file:py-1.5 file:text-sm file:text-white hover:file:bg-fct-navy/90"
+            className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-fct-tinta file:px-3 file:py-1.5 file:text-sm file:text-white hover:file:bg-fct-tinta/90"
           />
         </Campo>
         <Campo id="tipo" label="Tipo" dica="Automático reconhece pelo conteúdo">
@@ -49,7 +49,7 @@ export function UploadForm({ action }: Props) {
             <option value="trier">Relatório do Trier</option>
           </SelectNativo>
         </Campo>
-        <Button type="submit" disabled={pendente || qtd === 0} className="bg-fct-yellow text-fct-navy hover:bg-fct-yellow/85">
+        <Button type="submit" disabled={pendente || qtd === 0} className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85">
           <Upload data-icon="inline-start" />
           {pendente ? "Lendo e guardando…" : qtd > 0 ? `Enviar ${qtd} arquivo(s)` : "Enviar"}
         </Button>

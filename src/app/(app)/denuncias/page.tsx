@@ -52,7 +52,7 @@ export default async function CanalDenunciasPage() {
       <ul className="mb-6 grid gap-3 md:grid-cols-3">
         {GARANTIAS.map(({ icone: Icone, titulo, texto }) => (
           <li key={titulo} className="flex gap-3 rounded-xl border bg-card p-4">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-fct-navy/6 text-fct-navy">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-fct-tinta/6 text-fct-tinta">
               <Icone className="size-4" aria-hidden />
             </span>
             <span>
@@ -82,7 +82,7 @@ export default async function CanalDenunciasPage() {
 
           <section aria-labelledby="t-comite" className="rounded-xl border bg-card p-5">
             <h2 id="t-comite" className="mb-2 flex items-center gap-2 text-base font-semibold">
-              <UsersRound className="size-4 text-fct-navy" aria-hidden />
+              <UsersRound className="size-4 text-fct-tinta" aria-hidden />
               Quem recebe as denúncias
             </h2>
             {nomes.length ? (

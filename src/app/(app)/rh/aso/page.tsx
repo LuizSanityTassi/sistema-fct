@@ -124,7 +124,7 @@ export default async function AsoPage({ searchParams }: PageProps<"/rh/aso">) {
                   <TableCell className="hidden sm:table-cell">
                     {a.employees.branches ? (
                       <>
-                        <span className="font-mono text-xs text-fct-navy">{a.employees.branches.codigo}</span> {a.employees.branches.nome}
+                        <span className="font-mono text-xs text-fct-tinta">{a.employees.branches.codigo}</span> {a.employees.branches.nome}
                       </>
                     ) : (
                       "—"
@@ -138,7 +138,7 @@ export default async function AsoPage({ searchParams }: PageProps<"/rh/aso">) {
                   </TableCell>
                   <TableCell className="text-right">
                     {a.storage_path && (
-                      <a href={`/api/arquivos/aso/${a.id}`} className="inline-flex items-center gap-1 text-sm text-fct-navy underline">
+                      <a href={`/api/arquivos/aso/${a.id}`} className="inline-flex items-center gap-1 text-sm text-fct-tinta underline">
                         <Download className="size-3.5" aria-hidden /> Laudo
                       </a>
                     )}

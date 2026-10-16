@@ -21,7 +21,7 @@ export default async function PendenciasPage({ searchParams }: PageProps<"/pende
     const s = q.toString();
     return s ? `/pendencias?${s}` : "/pendencias";
   };
-  const chip = (ativo: boolean) => `rounded-full border px-3 py-1 text-sm ${ativo ? "border-fct-navy bg-fct-navy text-white" : "bg-card hover:border-fct-navy/40"}`;
+  const chip = (ativo: boolean) => `rounded-full border px-3 py-1 text-sm ${ativo ? "border-fct-tinta bg-fct-tinta text-white" : "bg-card hover:border-fct-tinta/40"}`;
 
   return (
     <>
@@ -71,12 +71,12 @@ export default async function PendenciasPage({ searchParams }: PageProps<"/pende
         <ul className="space-y-2">
           {lista.map((p) => (
             <li key={p.id}>
-              <Link href={p.href} className={`group flex items-center gap-4 rounded-xl border border-l-4 bg-card px-4 py-3 hover:border-fct-navy/40 ${COR_SEVERIDADE[p.severidade].borda}`}>
+              <Link href={p.href} className={`group flex items-center gap-4 rounded-xl border border-l-4 bg-card px-4 py-3 hover:border-fct-tinta/40 ${COR_SEVERIDADE[p.severidade].borda}`}>
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center gap-2">
                     <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${COR_SEVERIDADE[p.severidade].selo}`}>{ROTULO_SEVERIDADE[p.severidade]}</span>
                     <span className="text-xs text-muted-foreground">{p.area}</span>
-                    {p.minha && <span className="rounded-full bg-fct-navy/8 px-2 py-0.5 text-[11px] font-medium text-fct-navy">sua</span>}
+                    {p.minha && <span className="rounded-full bg-fct-tinta/8 px-2 py-0.5 text-[11px] font-medium text-fct-tinta">sua</span>}
                   </span>
                   <span className="mt-1 block text-sm font-semibold">{p.titulo}</span>
                   {p.detalhe && <span className="block text-sm text-muted-foreground">{p.detalhe}</span>}

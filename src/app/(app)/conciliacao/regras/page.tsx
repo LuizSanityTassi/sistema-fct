@@ -52,7 +52,7 @@ export default async function RegrasPage({ searchParams }: PageProps<"/conciliac
                   action={aplicarRegrasAgora}
                 />
               )}
-              <Button className="bg-fct-yellow text-fct-navy hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/conciliacao/regras/nova" />}>
+              <Button className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/conciliacao/regras/nova" />}>
                 <Plus data-icon="inline-start" />
                 Nova regra
               </Button>
@@ -115,7 +115,7 @@ export default async function RegrasPage({ searchParams }: PageProps<"/conciliac
             ))}
           </ul>
           {escreve && (
-            <Button className="mt-5 bg-fct-yellow text-fct-navy hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/conciliacao/regras/nova" />}>
+            <Button className="mt-5 bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/conciliacao/regras/nova" />}>
               <Plus data-icon="inline-start" />
               Criar a primeira regra
             </Button>
@@ -176,7 +176,7 @@ export default async function RegrasPage({ searchParams }: PageProps<"/conciliac
                     {escreve && (
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Link href={`/conciliacao/regras/${r.id}/editar`} className="text-sm text-fct-navy underline">
+                          <Link href={`/conciliacao/regras/${r.id}/editar`} className="text-sm text-fct-tinta underline">
                             Editar
                           </Link>
                           <ConfirmarAcao

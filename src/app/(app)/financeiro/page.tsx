@@ -70,7 +70,7 @@ export default async function FinanceiroPage({ searchParams }: PageProps<"/finan
         descricao="Receitas, despesas e resultado realizado por grupo, mês e unidade. Valores sem centavos, como a diretoria acompanha."
         acoes={
           podeLancar(sessao.papel) ? (
-            <Button className="bg-fct-yellow text-fct-navy hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/financeiro/lancamentos/novo" />}>
+            <Button className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/financeiro/lancamentos/novo" />}>
               <Plus data-icon="inline-start" />
               Novo lançamento
             </Button>
@@ -214,7 +214,7 @@ export default async function FinanceiroPage({ searchParams }: PageProps<"/finan
                   <TableRow key={u.unidade.id}>
                     <TableCell>
                       <Link href={linkLancamentos({ filial: u.unidade.id, de: `${ano}-01-01`, ate: `${ano}-12-31` })} className="hover:underline">
-                        <span className="font-mono text-xs text-fct-navy">{u.unidade.codigo}</span> {u.unidade.nome}
+                        <span className="font-mono text-xs text-fct-tinta">{u.unidade.codigo}</span> {u.unidade.nome}
                       </Link>
                       {!u.unidade.ativo && <span className="ml-2 text-xs text-muted-foreground">(inativa)</span>}
                     </TableCell>

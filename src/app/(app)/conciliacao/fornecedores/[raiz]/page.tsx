@@ -116,7 +116,7 @@ export default async function FichaFornecedorPage({ params }: PageProps<"/concil
             </>
           )}
           <p className="mt-2 text-xs">
-            <Link href="/conciliacao/de-para" className="text-fct-navy underline">
+            <Link href="/conciliacao/de-para" className="text-fct-tinta underline">
               De-para e aprendizado
             </Link>
           </p>
@@ -157,7 +157,7 @@ export default async function FichaFornecedorPage({ params }: PageProps<"/concil
             </TableBody>
           </Table>
           <p className="px-4 py-2 text-xs">
-            <Link href={`/conciliacao/pendencias?q=${encodeURIComponent(formatarRaiz(raiz))}`} className="text-fct-navy underline">
+            <Link href={`/conciliacao/pendencias?q=${encodeURIComponent(formatarRaiz(raiz))}`} className="text-fct-tinta underline">
               Tratar nas pendências
             </Link>
           </p>

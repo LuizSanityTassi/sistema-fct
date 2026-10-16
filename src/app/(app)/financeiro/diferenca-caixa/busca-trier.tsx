@@ -75,7 +75,7 @@ export function BuscaTrier({ action, filiais, de, ate }: { action: (prev: Estado
           </SelectNativo>
         </Campo>
         <div className="flex gap-2">
-          <Button type="submit" disabled={rodando} className="bg-fct-yellow font-semibold text-fct-navy hover:bg-fct-yellow/85">
+          <Button type="submit" disabled={rodando} className="bg-fct-yellow font-semibold text-fct-tinta hover:bg-fct-yellow/85">
             <Bot data-icon="inline-start" />
             {rodando ? "Buscando…" : "Buscar do Trier"}
           </Button>
@@ -88,7 +88,7 @@ export function BuscaTrier({ action, filiais, de, ate }: { action: (prev: Estado
         </div>
       </div>
       <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="forcar" value="1" className="size-4 accent-fct-navy" />
+        <input type="checkbox" name="forcar" value="1" className="size-4 accent-fct-tinta" />
         Buscar de novo as filiais que já foram lidas nesse período (para pegar correções feitas no Trier)
       </label>
 
@@ -103,7 +103,7 @@ export function BuscaTrier({ action, filiais, de, ate }: { action: (prev: Estado
                 {estado.fim ? "Busca concluída" : parado ? "Busca parada" : "Buscando"}: {feitas} de {estado.total} filial(is) × dia
               </p>
               <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted" aria-hidden>
-                <div className="h-full rounded-full bg-fct-navy transition-all" style={{ width: `${estado.total ? Math.round((feitas / estado.total) * 100) : 0}%` }} />
+                <div className="h-full rounded-full bg-fct-tinta transition-all" style={{ width: `${estado.total ? Math.round((feitas / estado.total) * 100) : 0}%` }} />
               </div>
               <p className="mt-1.5 text-muted-foreground">
                 {estado.caixas ?? 0} caixa(s) lido(s), {estado.quebras ?? 0} quebra(s) acima de R$ 2,00{estado.totalErros ? `, ${estado.totalErros} erro(s)` : ""}.

@@ -92,7 +92,7 @@ export default async function RobosPage() {
               {buscas!.map((b) => (
                 <li key={b.id} className="flex flex-wrap items-center gap-x-2 text-xs">
                   <span className="tabular-nums">{formatarDataHora(b.enviado_em)}</span>
-                  <a href={`/api/conciliacao/arquivo/${b.id}`} className="text-fct-navy underline">
+                  <a href={`/api/conciliacao/arquivo/${b.id}`} className="text-fct-tinta underline">
                     {b.nome}
                   </a>
                   {periodoDe(b.meta) && <span className="text-muted-foreground">período {periodoDe(b.meta)}</span>}
@@ -117,7 +117,7 @@ export default async function RobosPage() {
         <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Instalador:</span>
           {ARQUIVOS_AGENTE.map((a) => (
-            <a key={a} href={`/agente-itau/${a}`} download className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:border-fct-navy/40">
+            <a key={a} href={`/agente-itau/${a}`} download className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:border-fct-tinta/40">
               <Download className="size-3.5" aria-hidden />
               {a}
             </a>
@@ -187,7 +187,7 @@ export default async function RobosPage() {
               {recebidos!.map((b) => (
                 <li key={b.id} className="flex flex-wrap items-center gap-x-2 text-xs">
                   <span className="tabular-nums">{formatarDataHora(b.enviado_em)}</span>
-                  <Link href={`/conciliacao/arquivos?q=${encodeURIComponent(b.nome)}`} className="text-fct-navy underline">
+                  <Link href={`/conciliacao/arquivos?q=${encodeURIComponent(b.nome)}`} className="text-fct-tinta underline">
                     {b.nome}
                   </Link>
                   {agenteDe(b.meta) && <span className="text-muted-foreground">agente {agenteDe(b.meta)}</span>}

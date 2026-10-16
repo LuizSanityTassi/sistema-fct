@@ -46,7 +46,7 @@ export default async function IntegracoesPage() {
         </div>
         <p className="mb-3 text-xs text-muted-foreground">
           Crie no Trier um usuário só para o robô, com acesso apenas aos relatórios “Contas a Pagar ou Pagas” (Rel 0010), “Conferência de Movimentos de Caixa” e “Fechamento de Caixa”, e cadastre aqui. Depois é só usar “Buscar do Trier agora” em{" "}
-          <Link href="/conciliacao/robos" className="text-fct-navy underline">
+          <Link href="/conciliacao/robos" className="text-fct-tinta underline">
             Automações → Robôs e agente
           </Link>
           .
@@ -80,7 +80,7 @@ export default async function IntegracoesPage() {
         </div>
         <p className="text-muted-foreground">
           A chave de cada PC é gerada em{" "}
-          <Link href="/conciliacao/robos" className="text-fct-navy underline">
+          <Link href="/conciliacao/robos" className="text-fct-tinta underline">
             Automações → Robôs e agente
           </Link>{" "}
           (não precisa de nada aqui). O endereço que recebe os arquivos roda sem login de usuário, por isso é a única parte que depende de uma variável no servidor:

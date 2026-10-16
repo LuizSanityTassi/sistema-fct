@@ -53,7 +53,7 @@ export function RegraForm({ action, valores = {}, modo, opcoes }: Props) {
         {modo === "edicao" && (
           <label className="mt-4 flex items-center gap-2 text-sm">
             <input type="hidden" name="ativo_presente" value="1" />
-            <input type="checkbox" name="ativo" defaultChecked={valores.ativo ?? true} className="size-4 accent-fct-navy" />
+            <input type="checkbox" name="ativo" defaultChecked={valores.ativo ?? true} className="size-4 accent-fct-tinta" />
             Ativa (usada nas próximas conciliações e envios à Omie)
           </label>
         )}
@@ -87,7 +87,7 @@ export function RegraForm({ action, valores = {}, modo, opcoes }: Props) {
           <div className="grid gap-1.5 sm:grid-cols-2">
             {PROBLEMAS.map((p) => (
               <label key={p} className="flex items-center gap-2 text-sm">
-                <input type="checkbox" name="problemas" value={p} defaultChecked={(valores.problemas ?? []).includes(p)} className="size-4 accent-fct-navy" />
+                <input type="checkbox" name="problemas" value={p} defaultChecked={(valores.problemas ?? []).includes(p)} className="size-4 accent-fct-tinta" />
                 {PROBLEMA_LABEL[p]}
               </label>
             ))}

@@ -56,7 +56,7 @@ export function GestorForm({
       </div>
       {mostrarMover && (
         <label className="flex items-center gap-2 text-xs text-muted-foreground">
-          <input type="checkbox" name="mover" value="1" defaultChecked className="size-3.5 accent-fct-navy" />
+          <input type="checkbox" name="mover" value="1" defaultChecked className="size-3.5 accent-fct-tinta" />
           Levar junto as quebras em aberto desta loja
         </label>
       )}

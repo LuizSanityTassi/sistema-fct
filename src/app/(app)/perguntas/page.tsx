@@ -46,11 +46,11 @@ export default async function PerguntasPage() {
                       <Link
                         key={p.id}
                         href={`/perguntas/${p.id}`}
-                        className="group flex flex-col rounded-xl border bg-card p-4 transition-all outline-none hover:-translate-y-px hover:border-fct-navy/30 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring"
+                        className="group flex flex-col rounded-xl border bg-card p-4 transition-all outline-none hover:-translate-y-px hover:border-fct-tinta/30 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <span className="flex items-start justify-between gap-2">
                           <span className="font-medium">{p.pergunta}</span>
-                          <ArrowRight className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-fct-navy" aria-hidden />
+                          <ArrowRight className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-fct-tinta" aria-hidden />
                         </span>
                         <span className="mt-1 text-sm text-muted-foreground">{p.descricao}</span>
                       </Link>

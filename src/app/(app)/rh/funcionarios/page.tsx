@@ -49,7 +49,7 @@ export default async function FuncionariosPage({ searchParams }: PageProps<"/rh/
         }
         acoes={
           podeEditar ? (
-            <Button className="bg-fct-yellow text-fct-navy hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/rh/funcionarios/novo" />}>
+            <Button className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/rh/funcionarios/novo" />}>
               <Plus data-icon="inline-start" />
               Novo funcionário
             </Button>
@@ -174,7 +174,7 @@ export default async function FuncionariosPage({ searchParams }: PageProps<"/rh/
                   <TableCell className="hidden sm:table-cell">
                     {f.unidade ? (
                       <Link href={`/filiais/${f.unidade.id}`} className="hover:underline">
-                        <span className="font-mono text-xs text-fct-navy">{f.unidade.codigo}</span> {f.unidade.nome}
+                        <span className="font-mono text-xs text-fct-tinta">{f.unidade.codigo}</span> {f.unidade.nome}
                       </Link>
                     ) : (
                       "—"

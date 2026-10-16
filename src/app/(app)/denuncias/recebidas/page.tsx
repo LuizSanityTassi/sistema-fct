@@ -96,7 +96,7 @@ export default async function DenunciasRecebidasPage({ searchParams }: PageProps
               return (
                 <TableRow key={d.id}>
                   <TableCell className="font-mono font-semibold">
-                    <Link href={`/denuncias/recebidas/${d.id}`} className="text-fct-navy hover:underline">
+                    <Link href={`/denuncias/recebidas/${d.id}`} className="text-fct-tinta hover:underline">
                       {d.protocolo}
                     </Link>
                   </TableCell>

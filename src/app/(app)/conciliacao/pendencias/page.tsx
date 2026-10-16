@@ -140,7 +140,7 @@ export default async function PendenciasPage({ searchParams }: PageProps<"/conci
                 <TableRow key={p.chave}>
                   {escreve && (
                     <TableCell>
-                      <input type="checkbox" name="chave" value={p.chave} className="size-4 accent-fct-navy" aria-label={`Selecionar ${p.beneficiario ?? p.chave}`} />
+                      <input type="checkbox" name="chave" value={p.chave} className="size-4 accent-fct-tinta" aria-label={`Selecionar ${p.beneficiario ?? p.chave}`} />
                     </TableCell>
                   )}
                   <TableCell>

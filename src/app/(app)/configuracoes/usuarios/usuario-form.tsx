@@ -95,7 +95,7 @@ export function UsuarioForm({ action, unidades, modo, valores, ehProprioUsuario,
           </Campo>
           {modo === "edicao" && (
             <label className="flex items-center gap-2 pt-6 text-sm">
-              <input type="checkbox" name="ativo" defaultChecked={valores.ativo ?? true} disabled={ehProprioUsuario} className="size-4 accent-fct-navy" />
+              <input type="checkbox" name="ativo" defaultChecked={valores.ativo ?? true} disabled={ehProprioUsuario} className="size-4 accent-fct-tinta" />
               Acesso ativo
               {ehProprioUsuario && <input type="hidden" name="ativo" value="on" />}
             </label>
@@ -124,7 +124,7 @@ export function UsuarioForm({ action, unidades, modo, valores, ehProprioUsuario,
         <section className="rounded-xl border bg-card p-5">
           <h2 className="mb-1 text-sm font-semibold">Canal de denúncias</h2>
           <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" name="responde_denuncias" defaultChecked={valores.respondeDenuncias ?? false} className="mt-0.5 size-4 accent-fct-navy" />
+            <input type="checkbox" name="responde_denuncias" defaultChecked={valores.respondeDenuncias ?? false} className="mt-0.5 size-4 accent-fct-tinta" />
             <span>
               <strong>Faz parte do comitê:</strong> pode ler e responder as denúncias recebidas. O nome aparece para quem vai denunciar.
             </span>
@@ -148,8 +148,8 @@ export function UsuarioForm({ action, unidades, modo, valores, ehProprioUsuario,
                   {lista.map((u) => (
                     <li key={u.id}>
                       <label className="flex items-center gap-2 text-sm">
-                        <input type="checkbox" name="filiais" value={u.id} defaultChecked={selecionadas.has(u.id)} className="size-4 accent-fct-navy" />
-                        <span className="font-mono text-xs text-fct-navy">{u.codigo}</span> {u.nome}
+                        <input type="checkbox" name="filiais" value={u.id} defaultChecked={selecionadas.has(u.id)} className="size-4 accent-fct-tinta" />
+                        <span className="font-mono text-xs text-fct-tinta">{u.codigo}</span> {u.nome}
                       </label>
                     </li>
                   ))}

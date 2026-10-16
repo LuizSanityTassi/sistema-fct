@@ -31,7 +31,7 @@ export default async function DeParaPage({ searchParams }: PageProps<"/conciliac
         descricao="Boletos em nome de fundos/securitizadoras que na verdade são de um fornecedor, e as correspondências que o sistema aprendeu conciliando."
         acoes={
           escreve ? (
-            <Button className="bg-fct-yellow text-fct-navy hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/conciliacao/de-para/novo" />}>
+            <Button className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/conciliacao/de-para/novo" />}>
               <Plus data-icon="inline-start" />
               Novo de-para
             </Button>
@@ -78,7 +78,7 @@ export default async function DeParaPage({ searchParams }: PageProps<"/conciliac
                 {escreve && (
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <Link href={`/conciliacao/de-para/${d.id}/editar`} className="text-sm text-fct-navy underline">
+                      <Link href={`/conciliacao/de-para/${d.id}/editar`} className="text-sm text-fct-tinta underline">
                         Editar
                       </Link>
                       <ConfirmarAcao titulo={`Excluir “${d.dda}”?`} descricao="A regra deixa de valer nas próximas conciliações. A auditoria guarda o que foi excluído." rotuloBotao="Excluir" variant="destructive" action={excluirDePara} campos={{ id: d.id }} />

@@ -140,7 +140,7 @@ export default async function PerguntaPage({ params, searchParams }: PageProps<"
                     {r.colunas.map((c, j) => (
                       <TableCell key={c.chave} className={alinhamento(c)}>
                         {j === 0 && href ? (
-                          <Link href={href} className="font-medium text-fct-navy hover:underline">
+                          <Link href={href} className="font-medium text-fct-tinta hover:underline">
                             {celula(l[c.chave], c)}
                           </Link>
                         ) : (
@@ -173,7 +173,7 @@ export default async function PerguntaPage({ params, searchParams }: PageProps<"
           <ul className="flex flex-wrap gap-2">
             {outras.map((p) => (
               <li key={p.id}>
-                <Link href={`/perguntas/${p.id}`} className="inline-block rounded-full border bg-card px-3 py-1 text-sm hover:border-fct-navy/40">
+                <Link href={`/perguntas/${p.id}`} className="inline-block rounded-full border bg-card px-3 py-1 text-sm hover:border-fct-tinta/40">
                   {p.pergunta}
                 </Link>
               </li>

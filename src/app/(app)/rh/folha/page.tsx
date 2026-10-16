@@ -232,7 +232,7 @@ export default async function FolhaPage({ searchParams }: PageProps<"/rh/folha">
                   <TableCell className="hidden md:table-cell">
                     {r.employees.branches ? (
                       <>
-                        <span className="font-mono text-xs text-fct-navy">{r.employees.branches.codigo}</span> {r.employees.branches.nome}
+                        <span className="font-mono text-xs text-fct-tinta">{r.employees.branches.codigo}</span> {r.employees.branches.nome}
                       </>
                     ) : (
                       "—"
@@ -250,12 +250,12 @@ export default async function FolhaPage({ searchParams }: PageProps<"/rh/folha">
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2 text-sm">
                       {r.storage_path && (
-                        <a href={`/api/arquivos/holerite/${r.id}`} className="inline-flex items-center gap-1 text-fct-navy underline" title="Holerite">
+                        <a href={`/api/arquivos/holerite/${r.id}`} className="inline-flex items-center gap-1 text-fct-tinta underline" title="Holerite">
                           <Download className="size-3.5" aria-hidden />
                         </a>
                       )}
                       {podeEditar && (
-                        <Link href={`/rh/folha/${r.id}`} className="text-fct-navy underline">
+                        <Link href={`/rh/folha/${r.id}`} className="text-fct-tinta underline">
                           {r.status === "rascunho" ? "Editar" : "Ver"}
                         </Link>
                       )}

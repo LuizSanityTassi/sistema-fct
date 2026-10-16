@@ -173,7 +173,7 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
             key={a.chave}
             href={linkAba(a.chave)}
             aria-current={aba === a.chave ? "page" : undefined}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm whitespace-nowrap ${aba === a.chave ? "border-fct-navy font-semibold text-fct-navy" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+            className={`-mb-px border-b-2 px-3 py-2 text-sm whitespace-nowrap ${aba === a.chave ? "border-fct-tinta font-semibold text-fct-tinta" : "border-transparent text-muted-foreground hover:text-foreground"}`}
           >
             {a.rotulo}
             {a.chave === "caixa" && ficha.quebrasAbertas > 0 && <span className="ml-1.5 rounded-full bg-orange-100 px-1.5 text-[11px] font-semibold text-orange-800">{ficha.quebrasAbertas}</span>}
@@ -187,7 +187,7 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
 
           <section aria-label="Resumo" className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
             {resumo.map((r) => (
-              <Link key={r.rotulo} href={r.href} className="rounded-xl border bg-card px-4 py-3 transition-colors hover:border-fct-navy/40">
+              <Link key={r.rotulo} href={r.href} className="rounded-xl border bg-card px-4 py-3 transition-colors hover:border-fct-tinta/40">
                 <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   <r.icone className="size-3.5" aria-hidden />
                   {r.rotulo}
@@ -211,7 +211,7 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
                 <Dado rotulo="Departamento" valor={f.departamento?.nome} />
               </dl>
               {unidade && (
-                <Link href={`/filiais/${unidade.id}`} className="mt-4 inline-block text-sm text-fct-navy underline">
+                <Link href={`/filiais/${unidade.id}`} className="mt-4 inline-block text-sm text-fct-tinta underline">
                   Ver unidade
                 </Link>
               )}
@@ -288,7 +288,7 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
                       <span className="text-xs text-muted-foreground">{FOLHA_STATUS_LABEL[fl.status]}</span>
                       <span className="tabular-nums">{formatarMoeda(fl.valor_liquido)}</span>
                       {fl.storage_path ? (
-                        <a href={`/api/arquivos/holerite/${fl.id}`} className="text-xs text-fct-navy underline">
+                        <a href={`/api/arquivos/holerite/${fl.id}`} className="text-xs text-fct-tinta underline">
                           holerite
                         </a>
                       ) : (
@@ -362,7 +362,7 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
                       <TableCell className="font-mono text-xs">{q.filial?.codigo ?? "—"}</TableCell>
                       <TableCell>
                         {podeAcessar(sessao.papel, "/financeiro/diferenca-caixa") ? (
-                          <Link href={`/financeiro/diferenca-caixa/${q.id}`} className="font-mono text-fct-navy hover:underline">
+                          <Link href={`/financeiro/diferenca-caixa/${q.id}`} className="font-mono text-fct-tinta hover:underline">
                             {rotuloCaixa}
                           </Link>
                         ) : (
@@ -404,7 +404,7 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
                     <TableRow key={a.id}>
                       <TableCell>
                         {podeAcessar(sessao.papel, "/ti/ativos") ? (
-                          <Link href={`/ti/ativos/${a.id}`} className="font-medium text-fct-navy hover:underline">
+                          <Link href={`/ti/ativos/${a.id}`} className="font-medium text-fct-tinta hover:underline">
                             {TIPO_ATIVO_LABEL[a.tipo] ?? a.tipo}
                           </Link>
                         ) : (
@@ -434,13 +434,13 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
               <p className="text-sm text-muted-foreground">Sem usuário ligado a este cadastro. Para ligar: Administração → Usuários → editar → “Cadastro de funcionário”.</p>
             )}
             {ficha.usuario && sessao.papel === "admin" && (
-              <Link href={`/configuracoes/usuarios/${ficha.usuario.id}/editar`} className="mt-3 inline-block text-sm text-fct-navy underline">
+              <Link href={`/configuracoes/usuarios/${ficha.usuario.id}/editar`} className="mt-3 inline-block text-sm text-fct-tinta underline">
                 Editar usuário
               </Link>
             )}
             <p className="mt-4 border-t pt-3 text-xs text-muted-foreground">
               Acesso a outro sistema (Trier, e-mail…)?{" "}
-              <Link href="/ti/acessos/novo" className="text-fct-navy underline">
+              <Link href="/ti/acessos/novo" className="text-fct-tinta underline">
                 Solicitar ou revogar pela TI
               </Link>
               .
@@ -458,7 +458,7 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
             <ol className="space-y-3 border-l pl-5">
               {linhaDoTempo.map((e, i) => (
                 <li key={`${e.quando}-${i}`} className="relative">
-                  <span className="absolute top-1.5 -left-[25px] size-2.5 rounded-full bg-fct-navy/60" aria-hidden />
+                  <span className="absolute top-1.5 -left-[25px] size-2.5 rounded-full bg-fct-tinta/60" aria-hidden />
                   <p className="text-xs text-muted-foreground">{e.quando.length > 10 ? formatarDataHora(e.quando) : formatarData(e.quando)}</p>
                   <p className="text-sm font-medium">{e.titulo}</p>
                   {e.detalhe && <p className="text-xs text-muted-foreground">{e.detalhe}</p>}

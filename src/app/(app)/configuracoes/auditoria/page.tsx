@@ -132,7 +132,7 @@ export default async function AuditoriaPage({ searchParams }: PageProps<"/config
                   <TableCell className="hidden sm:table-cell">{ENTIDADES_AUDITADAS[r.entidade] ?? r.entidade}</TableCell>
                   <TableCell className="hidden md:table-cell">
                     {r.registro_id ? (
-                      <Link href={`/configuracoes/auditoria?registro=${r.registro_id}`} className="font-mono text-xs text-fct-navy hover:underline" title="Ver histórico deste registro">
+                      <Link href={`/configuracoes/auditoria?registro=${r.registro_id}`} className="font-mono text-xs text-fct-tinta hover:underline" title="Ver histórico deste registro">
                         {r.registro_id.slice(0, 8)}…
                       </Link>
                     ) : (

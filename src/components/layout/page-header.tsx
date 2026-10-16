@@ -16,8 +16,8 @@ export function PageHeader({ titulo, descricao, eyebrow, acoes, className }: Pag
     <div className={cn("mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between", className)}>
       <div className="min-w-0">
         {eyebrow && (
-          <p className="mb-1.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-fct-green">
-            <span className="size-2 shrink-0 rounded-full bg-fct-yellow ring-2 ring-fct-yellow/30" aria-hidden />
+          <p className="mb-1.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-fct-red-dark">
+            <span className="size-2 shrink-0 rounded-full bg-fct-red ring-2 ring-fct-red/20" aria-hidden />
             {eyebrow}
           </p>
         )}

@@ -150,11 +150,11 @@ export function FuncionarioForm({ action, unidades, valores = {}, podeSalario, v
             </Campo>
           )}
           <label className="flex items-center gap-2 pt-6 text-sm">
-            <input type="checkbox" name="contribui_sindicato" defaultChecked={valores.contribui_sindicato ?? true} className="size-4 accent-fct-navy" />
+            <input type="checkbox" name="contribui_sindicato" defaultChecked={valores.contribui_sindicato ?? true} className="size-4 accent-fct-tinta" />
             Contribui com o sindicato
           </label>
           <label className="flex items-center gap-2 pt-6 text-sm">
-            <input type="checkbox" name="optante_fgts" defaultChecked={valores.optante_fgts ?? true} className="size-4 accent-fct-navy" />
+            <input type="checkbox" name="optante_fgts" defaultChecked={valores.optante_fgts ?? true} className="size-4 accent-fct-tinta" />
             Optante do FGTS
           </label>
         </div>

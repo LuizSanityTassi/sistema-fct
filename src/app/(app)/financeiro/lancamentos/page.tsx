@@ -78,7 +78,7 @@ export default async function LancamentosPage({ searchParams }: PageProps<"/fina
         descricao="Entradas e saídas realizadas por unidade. Filtre por competência, grupo, unidade ou categoria; as somas seguem o filtro."
         acoes={
           escreve ? (
-            <Button className="bg-fct-yellow text-fct-navy hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/financeiro/lancamentos/novo" />}>
+            <Button className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/financeiro/lancamentos/novo" />}>
               <Plus data-icon="inline-start" />
               Novo lançamento
             </Button>
@@ -264,7 +264,7 @@ export default async function LancamentosPage({ searchParams }: PageProps<"/fina
                 <TableRow key={l.id}>
                   <TableCell className="tabular-nums">{formatarData(l.data)}</TableCell>
                   <TableCell>
-                    <span className="font-mono text-xs text-fct-navy">{l.unidade?.codigo}</span> {l.unidade?.nome}
+                    <span className="font-mono text-xs text-fct-tinta">{l.unidade?.codigo}</span> {l.unidade?.nome}
                     <p className="text-xs md:hidden">
                       {l.categoria?.grupo} › {l.categoria?.nome}
                     </p>
@@ -287,7 +287,7 @@ export default async function LancamentosPage({ searchParams }: PageProps<"/fina
                   </TableCell>
                   {escreve && (
                     <TableCell className="text-right">
-                      <Link href={`/financeiro/lancamentos/${l.id}/editar`} className="text-sm text-fct-navy underline">
+                      <Link href={`/financeiro/lancamentos/${l.id}/editar`} className="text-sm text-fct-tinta underline">
                         {fechadoSet.has(l.competencia.trim()) && sessao.papel !== "admin" ? "Ver" : "Editar"}
                       </Link>
                     </TableCell>

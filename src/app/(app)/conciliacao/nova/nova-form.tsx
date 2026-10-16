@@ -30,18 +30,18 @@ function Lista({ nome, itens, selecionados, aoMudar, titulo, dica }: { nome: str
           <p className="text-xs text-muted-foreground">{dica}</p>
         </div>
         <div className="flex gap-1 text-xs">
-          <button type="button" onClick={todos} className="text-fct-navy underline">
+          <button type="button" onClick={todos} className="text-fct-tinta underline">
             todos
           </button>
           <span className="text-muted-foreground">·</span>
-          <button type="button" onClick={nenhum} className="text-fct-navy underline">
+          <button type="button" onClick={nenhum} className="text-fct-tinta underline">
             nenhum
           </button>
         </div>
       </div>
       {itens.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Nenhum arquivo deste tipo. <Link href="/conciliacao/arquivos" className="text-fct-navy underline">Enviar</Link>.
+          Nenhum arquivo deste tipo. <Link href="/conciliacao/arquivos" className="text-fct-tinta underline">Enviar</Link>.
         </p>
       ) : (
         <ul className="max-h-80 space-y-1 overflow-y-auto pr-1">
@@ -59,11 +59,11 @@ function Lista({ nome, itens, selecionados, aoMudar, titulo, dica }: { nome: str
                     else n.delete(a.id);
                     aoMudar(n);
                   }}
-                  className="mt-0.5 size-4 accent-fct-navy"
+                  className="mt-0.5 size-4 accent-fct-tinta"
                 />
                 <span className="min-w-0">
                   <span className="block truncate font-medium">
-                    {a.filial != null && <span className="mr-1 font-mono text-xs text-fct-navy">{String(a.filial).padStart(3, "0")} </span>}
+                    {a.filial != null && <span className="mr-1 font-mono text-xs text-fct-tinta">{String(a.filial).padStart(3, "0")} </span>}
                     {a.nome}
                   </span>
                   <span className="block text-xs text-muted-foreground">{a.resumo}</span>
@@ -125,7 +125,7 @@ export function NovaConciliacaoForm({ action, dda, trier, faixas }: Props) {
       </section>
 
       <div className="flex items-center gap-2">
-        <Button type="submit" disabled={pendente || selDda.size === 0 || selTrier.size === 0} className="bg-fct-yellow text-fct-navy hover:bg-fct-yellow/85">
+        <Button type="submit" disabled={pendente || selDda.size === 0 || selTrier.size === 0} className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85">
           <Scale data-icon="inline-start" />
           {pendente ? "Conciliando… (pode levar alguns segundos)" : "Conciliar"}
         </Button>

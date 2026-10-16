@@ -93,7 +93,7 @@ export default async function RegistroFolhaPage({ params }: PageProps<"/rh/folha
       <section className="mt-6 rounded-xl border bg-card p-5 lg:max-w-md">
         <h2 className="mb-3 text-sm font-semibold">Holerite</h2>
         {r.storage_path ? (
-          <a href={`/api/arquivos/holerite/${r.id}`} className="mb-4 inline-flex items-center gap-1 text-sm text-fct-navy underline">
+          <a href={`/api/arquivos/holerite/${r.id}`} className="mb-4 inline-flex items-center gap-1 text-sm text-fct-tinta underline">
             <Download className="size-3.5" aria-hidden /> Baixar holerite de {rotuloCompetencia(r.competencia)}
           </a>
         ) : (

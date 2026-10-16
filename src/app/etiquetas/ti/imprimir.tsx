@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 
 export function BotaoImprimir() {
   return (
-    <Button onClick={() => window.print()} className="bg-fct-yellow font-semibold text-fct-navy hover:bg-fct-yellow/85">
+    <Button onClick={() => window.print()} className="bg-fct-yellow font-semibold text-fct-tinta hover:bg-fct-yellow/85">
       <Printer data-icon="inline-start" />
       Imprimir
     </Button>

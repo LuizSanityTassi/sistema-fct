@@ -71,7 +71,7 @@ export async function DocumentosEAso({ employeeId, podeEditar }: Props) {
                     <div className="flex items-center justify-end gap-2">
                       <a
                         href={`/api/arquivos/documento/${d.id}`}
-                        className="inline-flex items-center gap-1 text-sm text-fct-navy underline"
+                        className="inline-flex items-center gap-1 text-sm text-fct-tinta underline"
                       >
                         <Download className="size-3.5" aria-hidden /> Baixar
                       </a>
@@ -131,7 +131,7 @@ export async function DocumentosEAso({ employeeId, podeEditar }: Props) {
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
                       {a.storage_path ? (
-                        <a href={`/api/arquivos/aso/${a.id}`} className="inline-flex items-center gap-1 text-sm text-fct-navy underline">
+                        <a href={`/api/arquivos/aso/${a.id}`} className="inline-flex items-center gap-1 text-sm text-fct-tinta underline">
                           <Download className="size-3.5" aria-hidden /> Laudo
                         </a>
                       ) : (

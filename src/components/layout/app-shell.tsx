@@ -51,7 +51,7 @@ function Marca({ onNavigate }: { onNavigate?: () => void }) {
       </span>
       <span className="min-w-0 leading-tight">
         <span className="block text-[11px] font-semibold tracking-[0.14em] text-fct-yellow uppercase">Farmácias FCT</span>
-        <span className="block truncate font-heading text-lg font-bold text-white">Sistema FCT</span>
+        <span className="block truncate font-heading text-lg text-white">Sistema FCT</span>
       </span>
     </Link>
   );
@@ -122,7 +122,7 @@ function NavLinks({ papel, pathname, onNavigate }: { papel: AppRole; pathname: s
                       className={cn(
                         "group flex min-h-9 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
                         ativo
-                          ? "bg-sidebar-accent text-white shadow-[inset_3px_0_0_0_var(--fct-yellow)]"
+                          ? "bg-sidebar-accent text-white shadow-[inset_3px_0_0_0_var(--fct-red)]"
                           : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-white",
                       )}
                     >
@@ -143,7 +143,7 @@ function NavLinks({ papel, pathname, onNavigate }: { papel: AppRole; pathname: s
 function RodapeSidebar() {
   return (
     <div className="relative mt-auto">
-      <Onda claro className="h-5 opacity-80" />
+      <Onda tom="escuro" className="h-5" />
       <div className="px-4 py-2.5 text-[11px] text-sidebar-foreground/70">Uso interno · Farmácias FCT</div>
     </div>
   );
@@ -161,7 +161,7 @@ function MenuUsuario({ usuario, onSair }: Pick<AppShellProps, "usuario" | "onSai
     <DropdownMenu>
       <DropdownMenuTrigger render={<Button variant="ghost" className="h-9 gap-2 px-1.5 sm:px-2" />}>
         <Avatar size="sm" aria-hidden>
-          <AvatarFallback className="bg-fct-navy text-[11px] font-semibold text-white">{iniciais(usuario.nome)}</AvatarFallback>
+          <AvatarFallback className="bg-fct-tinta text-[11px] font-semibold text-white">{iniciais(usuario.nome)}</AvatarFallback>
         </Avatar>
         <span className="sr-only">Menu do usuário: </span>
         <span className="sr-only max-w-40 truncate text-sm font-medium sm:not-sr-only">{usuario.nome}</span>
@@ -203,7 +203,7 @@ export function AppShell({ usuario, onSair, children }: AppShellProps) {
     <div className="flex min-h-screen w-full">
       <a
         href="#conteudo"
-        className="sr-only z-[60] rounded-lg bg-fct-yellow px-4 py-2 text-sm font-semibold text-fct-navy shadow-lg focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+        className="sr-only z-[60] rounded-lg bg-fct-yellow px-4 py-2 text-sm font-semibold text-fct-tinta shadow-lg focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
       >
         Pular para o conteúdo
       </a>
@@ -227,7 +227,7 @@ export function AppShell({ usuario, onSair, children }: AppShellProps) {
       </Sheet>
 
       <div className="flex min-w-0 flex-1 flex-col lg:pl-64">
-        <div className="h-1 bg-gradient-to-r from-fct-navy via-fct-green to-fct-yellow" aria-hidden />
+        <div className="h-1 bg-gradient-to-r from-fct-red-dark via-fct-red to-fct-yellow" aria-hidden />
         <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-6 lg:px-8">
           <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Abrir menu" aria-expanded={menuAberto} onClick={() => setMenuAberto(true)}>
             <Menu />

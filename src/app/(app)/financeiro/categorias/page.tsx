@@ -32,7 +32,7 @@ export default async function CategoriasPage({ searchParams }: PageProps<"/finan
         descricao="Plano de categorias dos lançamentos e como cada uma entra na DRE e na visão financeira."
         acoes={
           escreve ? (
-            <Button className="bg-fct-yellow text-fct-navy hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/financeiro/categorias/nova" />}>
+            <Button className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/financeiro/categorias/nova" />}>
               <Plus data-icon="inline-start" />
               Nova categoria
             </Button>
@@ -60,7 +60,7 @@ export default async function CategoriasPage({ searchParams }: PageProps<"/finan
           ))}
         </SelectNativo>
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" name="inativas" value="1" defaultChecked={filtros.inativas} className="size-4 accent-fct-navy" />
+          <input type="checkbox" name="inativas" value="1" defaultChecked={filtros.inativas} className="size-4 accent-fct-tinta" />
           Incluir inativas
         </label>
         <Button type="submit" variant="outline">
@@ -135,7 +135,7 @@ export default async function CategoriasPage({ searchParams }: PageProps<"/finan
                   </TableCell>
                   {escreve && (
                     <TableCell className="text-right">
-                      <Link href={`/financeiro/categorias/${c.id}/editar`} className="text-sm text-fct-navy underline">
+                      <Link href={`/financeiro/categorias/${c.id}/editar`} className="text-sm text-fct-tinta underline">
                         Editar
                       </Link>
                     </TableCell>

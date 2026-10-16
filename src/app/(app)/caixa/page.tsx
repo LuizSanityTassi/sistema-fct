@@ -27,7 +27,7 @@ export default async function QuebrasCaixaPage({ searchParams }: PageProps<"/cai
       {financeiro ? (
         <p className="rounded-xl border bg-card p-5 text-sm">
           Você é do financeiro: todas as diferenças estão em{" "}
-          <Link href="/financeiro/diferenca-caixa" className="font-medium text-fct-navy underline">
+          <Link href="/financeiro/diferenca-caixa" className="font-medium text-fct-tinta underline">
             Financeiro → Diferença de caixa
           </Link>
           .
@@ -35,10 +35,10 @@ export default async function QuebrasCaixaPage({ searchParams }: PageProps<"/cai
       ) : (
         <>
           <nav aria-label="Filtro" className="mb-4 flex gap-2 text-sm">
-            <Link href="/caixa" aria-current={!todas ? "page" : undefined} className={`rounded-full border px-3 py-1 ${!todas ? "border-fct-navy bg-fct-navy text-white" : "bg-card"}`}>
+            <Link href="/caixa" aria-current={!todas ? "page" : undefined} className={`rounded-full border px-3 py-1 ${!todas ? "border-fct-tinta bg-fct-tinta text-white" : "bg-card"}`}>
               Em aberto
             </Link>
-            <Link href="/caixa?ver=todas" aria-current={todas ? "page" : undefined} className={`rounded-full border px-3 py-1 ${todas ? "border-fct-navy bg-fct-navy text-white" : "bg-card"}`}>
+            <Link href="/caixa?ver=todas" aria-current={todas ? "page" : undefined} className={`rounded-full border px-3 py-1 ${todas ? "border-fct-tinta bg-fct-tinta text-white" : "bg-card"}`}>
               Todas
             </Link>
           </nav>

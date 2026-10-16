@@ -94,7 +94,7 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, vali
       <section className="rounded-xl border bg-card p-4 text-sm">
         <p>
           <strong>Categoria:</strong> {config.categoria} · <strong>Conta corrente:</strong> {config.conta} ·{" "}
-          <Link href="/conciliacao/omie" className="text-fct-navy underline">
+          <Link href="/conciliacao/omie" className="text-fct-tinta underline">
             configuração e envios
           </Link>
         </p>
@@ -116,7 +116,7 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, vali
             type="button"
             onClick={() => setGrupo(g.chave)}
             title={g.dica}
-            className={`rounded-full border px-3 py-1 text-sm ${grupo === g.chave ? "border-fct-navy bg-fct-navy text-white" : "bg-card hover:border-fct-navy/40"}`}
+            className={`rounded-full border px-3 py-1 text-sm ${grupo === g.chave ? "border-fct-tinta bg-fct-tinta text-white" : "bg-card hover:border-fct-tinta/40"}`}
           >
             {g.rotulo} <span className={grupo === g.chave ? "opacity-80" : "text-muted-foreground"}>({contagem(g.chave)} a enviar)</span>
           </button>
@@ -139,10 +139,10 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, vali
         </SelectNativo>
         <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Beneficiário, fornecedor, CNPJ" aria-label="Buscar" className="w-64" />
         <span className="ml-auto flex items-center gap-2">
-          <button type="button" onClick={() => marcarVisiveis(true)} className="text-xs text-fct-navy underline">
+          <button type="button" onClick={() => marcarVisiveis(true)} className="text-xs text-fct-tinta underline">
             marcar visíveis
           </button>
-          <button type="button" onClick={() => marcarVisiveis(false)} className="text-xs text-fct-navy underline">
+          <button type="button" onClick={() => marcarVisiveis(false)} className="text-xs text-fct-tinta underline">
             desmarcar visíveis
           </button>
         </span>
@@ -171,9 +171,9 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, vali
               visiveis.slice(0, 800).map((c) => (
                 <tr key={c.chave} className="border-b last:border-0">
                   <td className="p-2">
-                    <input type="checkbox" checked={sel.has(c.chave)} disabled={!!c.enviadoEm || !podeEnviar} onChange={(e) => alternar(c.chave, e.target.checked)} className="size-4 accent-fct-navy" aria-label={`Selecionar ${c.nome}`} />
+                    <input type="checkbox" checked={sel.has(c.chave)} disabled={!!c.enviadoEm || !podeEnviar} onChange={(e) => alternar(c.chave, e.target.checked)} className="size-4 accent-fct-tinta" aria-label={`Selecionar ${c.nome}`} />
                   </td>
-                  <td className="p-2 font-mono text-xs text-fct-navy">{c.filial != null ? String(c.filial).padStart(3, "0") : "—"}</td>
+                  <td className="p-2 font-mono text-xs text-fct-tinta">{c.filial != null ? String(c.filial).padStart(3, "0") : "—"}</td>
                   <td className="p-2 tabular-nums">{data(c.vencimento)}</td>
                   <td className="p-2">
                     <p className="font-medium">{c.nome}</p>
@@ -223,7 +223,7 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, vali
             </Button>
             {apiDisponivel && (
               <label className="flex items-center gap-2 text-xs">
-                <input type="checkbox" checked={cadastrar} onChange={(e) => setCadastrar(e.target.checked)} className="size-4 accent-fct-navy" />
+                <input type="checkbox" checked={cadastrar} onChange={(e) => setCadastrar(e.target.checked)} className="size-4 accent-fct-tinta" />
                 cadastrar na Omie o fornecedor que ainda não existir (pelo CNPJ)
               </label>
             )}
@@ -260,7 +260,7 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, vali
                     <ul className="mt-1 max-h-48 space-y-0.5 overflow-y-auto text-xs">
                       {(lista as typeof v.grave).slice(0, 60).map((x) => (
                         <li key={x.chave}>
-                          <span className="font-mono text-fct-navy">{x.filial != null ? String(x.filial).padStart(3, "0") : "—"}</span> {x.nome} · {moeda(x.valor)} · {data(x.vencimento)} — <span className="text-muted-foreground">{x.motivos.join(" · ")}</span>
+                          <span className="font-mono text-fct-tinta">{x.filial != null ? String(x.filial).padStart(3, "0") : "—"}</span> {x.nome} · {moeda(x.valor)} · {data(x.vencimento)} — <span className="text-muted-foreground">{x.motivos.join(" · ")}</span>
                         </li>
                       ))}
                       {(lista as typeof v.grave).length > 60 && <li className="text-muted-foreground">… e mais {(lista as typeof v.grave).length - 60}</li>}

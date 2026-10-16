@@ -65,7 +65,7 @@ export default async function GestoresPage() {
               return (
                 <TableRow key={l.id}>
                   <TableCell>
-                    <span className="font-mono text-xs text-fct-navy">{l.codigo}</span> {l.nome}
+                    <span className="font-mono text-xs text-fct-tinta">{l.codigo}</span> {l.nome}
                     {g && <span className="block text-xs text-muted-foreground">desde {formatarDataHora(g.definido_em)}</span>}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">

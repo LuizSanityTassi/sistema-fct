@@ -53,10 +53,10 @@ export function AcoesPendencias({ chaves, responsaveis, voltar, alterarStatus, a
   return (
     <div className="sticky top-14 z-10 mb-3 flex flex-wrap items-center gap-2 rounded-xl border bg-card p-3 text-sm shadow-sm">
       <span className="font-medium">{qtd} selecionada(s)</span>
-      <button type="button" onClick={() => marcarTodas(true)} className="text-xs text-fct-navy underline">
+      <button type="button" onClick={() => marcarTodas(true)} className="text-xs text-fct-tinta underline">
         todas
       </button>
-      <button type="button" onClick={() => marcarTodas(false)} className="text-xs text-fct-navy underline">
+      <button type="button" onClick={() => marcarTodas(false)} className="text-xs text-fct-tinta underline">
         nenhuma
       </button>
       <span className="mx-1 hidden h-5 border-l sm:inline" />

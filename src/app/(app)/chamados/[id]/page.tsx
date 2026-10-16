@@ -81,10 +81,10 @@ export default async function ChamadoPage({ params, searchParams }: PageProps<"/
             const atual = t.status !== "cancelado" && i === indiceAtual;
             return (
               <li key={e} className="flex items-center gap-2">
-                {i > 0 && <span className={`h-px w-6 ${feita || atual ? "bg-fct-navy" : "bg-border"}`} aria-hidden />}
+                {i > 0 && <span className={`h-px w-6 ${feita || atual ? "bg-fct-tinta" : "bg-border"}`} aria-hidden />}
                 <span
                   aria-current={atual ? "step" : undefined}
-                  className={`rounded-full border px-2.5 py-1 font-medium ${atual ? "border-fct-navy bg-fct-navy text-white" : feita ? "border-fct-navy/30 bg-fct-navy/5 text-fct-navy" : "text-muted-foreground"}`}
+                  className={`rounded-full border px-2.5 py-1 font-medium ${atual ? "border-fct-tinta bg-fct-tinta text-white" : feita ? "border-fct-tinta/30 bg-fct-tinta/5 text-fct-tinta" : "text-muted-foreground"}`}
                 >
                   {STATUS_CHAMADO_LABEL[e]}
                   {atual && (t.status === "aguardando_usuario" || t.status === "aguardando_terceiro") ? ` · ${STATUS_CHAMADO_LABEL[t.status].toLowerCase()}` : ""}
@@ -112,7 +112,7 @@ export default async function ChamadoPage({ params, searchParams }: PageProps<"/
             <ol className="space-y-4">
               {itens.map((item) => (
                 <li key={`${item.tipo}-${item.id}`} className="flex gap-3">
-                  <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-fct-navy/6 text-fct-navy">
+                  <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-fct-tinta/6 text-fct-tinta">
                     {item.tipo === "comentario" ? (
                       <MessageSquare className="size-3.5" aria-hidden />
                     ) : item.tipo === "anexo" ? (
@@ -127,7 +127,7 @@ export default async function ChamadoPage({ params, searchParams }: PageProps<"/
                     </p>
                     {item.tipo === "comentario" && <p className="mt-1 text-sm whitespace-pre-line">{item.texto}</p>}
                     {item.tipo === "anexo" && item.anexo && (
-                      <a href={`/api/arquivos/anexo/${item.anexo.id}`} className="mt-1 inline-flex items-center gap-1 text-sm text-fct-navy underline">
+                      <a href={`/api/arquivos/anexo/${item.anexo.id}`} className="mt-1 inline-flex items-center gap-1 text-sm text-fct-tinta underline">
                         <Download className="size-3.5" aria-hidden /> {item.anexo.nome}
                       </a>
                     )}
@@ -181,7 +181,7 @@ export default async function ChamadoPage({ params, searchParams }: PageProps<"/
               <Dado rotulo="Unidade">
                 {t.unidade ? (
                   <Link href={`/filiais/${t.unidade.id}`} className="hover:underline">
-                    <span className="font-mono text-xs text-fct-navy">{t.unidade.codigo}</span> {t.unidade.nome}
+                    <span className="font-mono text-xs text-fct-tinta">{t.unidade.codigo}</span> {t.unidade.nome}
                   </Link>
                 ) : (
                   "—"

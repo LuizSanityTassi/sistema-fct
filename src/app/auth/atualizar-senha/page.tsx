@@ -20,7 +20,7 @@ export default function AtualizarSenhaPage() {
           <CampoSenha id="senha2" name="senha2" autoComplete="new-password" minLength={8} required className="h-10" />
         </Campo>
         <ErroFormulario mensagem={state.erro} />
-        <Button type="submit" disabled={pending} className="h-10 w-full bg-fct-yellow text-base font-semibold text-fct-navy hover:bg-fct-yellow/85">
+        <Button type="submit" disabled={pending} className="h-10 w-full bg-fct-yellow text-base font-semibold text-fct-tinta hover:bg-fct-yellow/85">
           <KeyRound data-icon="inline-start" />
           {pending ? "Salvando…" : "Salvar senha"}
         </Button>

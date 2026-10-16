@@ -26,7 +26,7 @@ export function BuscarTrierForm({ buscar, testar, config, configurado, podeBusca
           <Input id="diasDepois" name="diasDepois" type="number" min={1} max={180} defaultValue={config.diasDepois} className="w-28" />
         </Campo>
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" disabled={bloqueado || buscando || testando} className="bg-fct-yellow text-fct-navy hover:bg-fct-yellow/85">
+          <Button type="submit" disabled={bloqueado || buscando || testando} className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85">
             <RefreshCw data-icon="inline-start" className={buscando ? "animate-spin" : ""} />
             {buscando ? "Entrando no Trier e gerando o relatório… (pode levar até 3 min)" : "Buscar do Trier agora"}
           </Button>

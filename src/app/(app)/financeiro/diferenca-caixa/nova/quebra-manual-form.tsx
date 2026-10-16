@@ -82,11 +82,11 @@ export function QuebraManualForm({ action, grupos, lojas, hoje }: { action: (pre
           </legend>
           <div className="flex gap-4 text-sm">
             <label className="flex items-center gap-2">
-              <input type="radio" name="tipo" value="falta" defaultChecked className="size-4 accent-fct-navy" />
+              <input type="radio" name="tipo" value="falta" defaultChecked className="size-4 accent-fct-tinta" />
               Faltou dinheiro
             </label>
             <label className="flex items-center gap-2">
-              <input type="radio" name="tipo" value="sobra" className="size-4 accent-fct-navy" />
+              <input type="radio" name="tipo" value="sobra" className="size-4 accent-fct-tinta" />
               Sobrou dinheiro
             </label>
           </div>

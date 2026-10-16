@@ -17,7 +17,7 @@ export function LoginForm({ aviso, voltar }: { aviso?: string; voltar?: string }
       titulo="Entrar"
       descricao="Use o e-mail e a senha do seu acesso ao Sistema FCT."
       rodape={
-        <Link href="/recuperar-senha" className="font-medium text-fct-navy underline-offset-4 hover:underline">
+        <Link href="/recuperar-senha" className="font-medium text-fct-tinta underline-offset-4 hover:underline">
           Esqueci minha senha
         </Link>
       }
@@ -32,7 +32,7 @@ export function LoginForm({ aviso, voltar }: { aviso?: string; voltar?: string }
           <CampoSenha id="senha" name="senha" autoComplete="current-password" required className="h-10" />
         </Campo>
         <ErroFormulario mensagem={state.erro} />
-        <Button type="submit" disabled={pending} className="h-10 w-full bg-fct-yellow text-base font-semibold text-fct-navy hover:bg-fct-yellow/85">
+        <Button type="submit" disabled={pending} className="h-10 w-full bg-fct-yellow text-base font-semibold text-fct-tinta hover:bg-fct-yellow/85">
           <LogIn data-icon="inline-start" />
           {pending ? "Entrando…" : "Entrar"}
         </Button>

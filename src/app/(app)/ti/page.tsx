@@ -13,7 +13,7 @@ export const metadata = { title: "TI" };
 
 function Kpi({ rotulo, valor, nota, href, tom }: { rotulo: string; valor: string | number; nota?: string | null; href: string; tom?: string }) {
   return (
-    <Link href={href} className="block rounded-xl border bg-card px-4 py-3 transition-colors hover:border-fct-navy/40">
+    <Link href={href} className="block rounded-xl border bg-card px-4 py-3 transition-colors hover:border-fct-tinta/40">
       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{rotulo}</p>
       <p className={`mt-1 text-2xl font-bold tracking-tight tabular-nums ${tom ?? ""}`}>{valor}</p>
       {nota && <p className="text-xs text-muted-foreground">{nota}</p>}
@@ -37,7 +37,7 @@ export default async function TiPage() {
               <KeyRound data-icon="inline-start" />
               Solicitar acesso
             </Button>
-            <Button className="bg-fct-yellow text-fct-navy hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/ti/ativos/novo" />}>
+            <Button className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/ti/ativos/novo" />}>
               <Plus data-icon="inline-start" />
               Novo ativo
             </Button>
@@ -68,7 +68,7 @@ export default async function TiPage() {
         <section className="rounded-xl border bg-card lg:col-span-2">
           <div className="flex items-center justify-between px-5 py-4">
             <h2 className="text-sm font-semibold">Fila de TI</h2>
-            <Link href="/chamados?categoria=ti" className="text-xs text-fct-navy underline">
+            <Link href="/chamados?categoria=ti" className="text-xs text-fct-tinta underline">
               ver todos
             </Link>
           </div>
@@ -103,7 +103,7 @@ export default async function TiPage() {
         <section className="rounded-xl border bg-card">
           <div className="flex items-center justify-between px-5 py-4">
             <h2 className="text-sm font-semibold">Inventário</h2>
-            <Link href="/ti/ativos" className="text-xs text-fct-navy underline">
+            <Link href="/ti/ativos" className="text-xs text-fct-tinta underline">
               abrir
             </Link>
           </div>

@@ -68,7 +68,7 @@ export default async function OmiePage({ searchParams }: PageProps<"/conciliacao
               {!ch.configurado ? (
                 <p className="text-muted-foreground">
                   Sem chave da API: contas desta empresa só pela planilha. Para habilitar, o administrador cola a app_key e a app_secret da Omie {EMPRESAS_OMIE[e]} em{" "}
-                  <Link href="/configuracoes/integracoes" className="font-medium text-fct-navy underline">
+                  <Link href="/configuracoes/integracoes" className="font-medium text-fct-tinta underline">
                     Administração → Integrações
                   </Link>
                   .
@@ -169,7 +169,7 @@ export default async function OmiePage({ searchParams }: PageProps<"/conciliacao
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
                       {l.arquivoId && (
-                        <a href={`/api/conciliacao/arquivo/${l.arquivoId}`} className="inline-flex items-center gap-1 text-sm text-fct-navy underline">
+                        <a href={`/api/conciliacao/arquivo/${l.arquivoId}`} className="inline-flex items-center gap-1 text-sm text-fct-tinta underline">
                           <Download className="size-3.5" aria-hidden />
                           Baixar
                         </a>

@@ -38,7 +38,7 @@ export default async function AtivosPage({ searchParams }: PageProps<"/ti/ativos
                   Etiquetas da loja
                 </Button>
               )}
-              <Button className="bg-fct-yellow text-fct-navy hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/ti/ativos/novo" />}>
+              <Button className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/ti/ativos/novo" />}>
                 <Plus data-icon="inline-start" />
                 Novo ativo
               </Button>
@@ -126,7 +126,7 @@ export default async function AtivosPage({ searchParams }: PageProps<"/ti/ativos
                   <TableCell className="hidden md:table-cell">
                     {a.unidade ? (
                       <>
-                        <span className="font-mono text-xs text-fct-navy">{a.unidade.codigo}</span> {a.unidade.nome}
+                        <span className="font-mono text-xs text-fct-tinta">{a.unidade.codigo}</span> {a.unidade.nome}
                       </>
                     ) : (
                       "—"

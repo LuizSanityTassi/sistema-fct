@@ -100,7 +100,7 @@ export default async function PermissoesPage() {
         <ul className="space-y-2 text-sm">
           {REGRAS_BANCO.map((r) => (
             <li key={r} className="flex gap-2">
-              <span className="mt-2 size-1.5 shrink-0 rounded-full bg-fct-green" aria-hidden />
+              <span className="mt-2 size-1.5 shrink-0 rounded-full bg-fct-red" aria-hidden />
               <span>{r}</span>
             </li>
           ))}

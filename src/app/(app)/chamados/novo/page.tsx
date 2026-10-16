@@ -22,7 +22,7 @@ export default async function NovoChamadoPage({ searchParams }: PageProps<"/cham
       />
       <p className="mb-4 text-sm text-muted-foreground">
         Precisa de acesso a um sistema?{" "}
-        <Link href="/ti/acessos/novo" className="text-fct-navy underline">
+        <Link href="/ti/acessos/novo" className="text-fct-tinta underline">
           Use o formulário de solicitação de acesso
         </Link>
         .

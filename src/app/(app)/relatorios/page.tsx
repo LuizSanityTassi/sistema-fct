@@ -52,7 +52,7 @@ export default async function RelatoriosPage({ searchParams }: PageProps<"/relat
         titulo="Relatórios"
         descricao="Consolidados prontos para conferência e exportação em planilha. Cada papel vê só o que tem acesso."
         acoes={
-          <Button className="bg-fct-yellow text-fct-navy hover:bg-fct-yellow/85" nativeButton={false} render={<a href={linkExportar} />}>
+          <Button className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85" nativeButton={false} render={<a href={linkExportar} />}>
             <Download data-icon="inline-start" />
             Exportar CSV
           </Button>
@@ -65,7 +65,7 @@ export default async function RelatoriosPage({ searchParams }: PageProps<"/relat
             key={t}
             href={`/relatorios?tipo=${t}`}
             aria-current={filtros.tipo === t ? "page" : undefined}
-            className={`rounded-full border px-3 py-1 text-sm ${filtros.tipo === t ? "border-fct-navy bg-fct-navy text-white" : "bg-card hover:border-fct-navy/40"}`}
+            className={`rounded-full border px-3 py-1 text-sm ${filtros.tipo === t ? "border-fct-tinta bg-fct-tinta text-white" : "bg-card hover:border-fct-tinta/40"}`}
           >
             {TIPOS_RELATORIO[t]}
           </Link>

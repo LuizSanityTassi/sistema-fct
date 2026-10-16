@@ -34,7 +34,7 @@ export function DeParaForm({ action, valores = {}, modo }: Props) {
           {modo === "edicao" && (
             <label className="flex items-center gap-2 pt-6 text-sm">
               <input type="hidden" name="ativo_presente" value="1" />
-              <input type="checkbox" name="ativo" defaultChecked={valores.ativo ?? true} className="size-4 accent-fct-navy" />
+              <input type="checkbox" name="ativo" defaultChecked={valores.ativo ?? true} className="size-4 accent-fct-tinta" />
               Ativo (usado nas próximas conciliações)
             </label>
           )}

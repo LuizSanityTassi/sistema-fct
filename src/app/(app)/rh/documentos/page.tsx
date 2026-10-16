@@ -93,7 +93,7 @@ export default async function DocumentosPage({ searchParams }: PageProps<"/rh/do
                   <TableCell className="hidden sm:table-cell">
                     {d.employees.branches ? (
                       <>
-                        <span className="font-mono text-xs text-fct-navy">{d.employees.branches.codigo}</span> {d.employees.branches.nome}
+                        <span className="font-mono text-xs text-fct-tinta">{d.employees.branches.codigo}</span> {d.employees.branches.nome}
                       </>
                     ) : (
                       "—"
@@ -104,7 +104,7 @@ export default async function DocumentosPage({ searchParams }: PageProps<"/rh/do
                   <TableCell className="hidden lg:table-cell">{formatarData(d.data_documento)}</TableCell>
                   <TableCell className="hidden text-muted-foreground lg:table-cell">{formatarDataHora(d.created_at)}</TableCell>
                   <TableCell className="text-right">
-                    <a href={`/api/arquivos/documento/${d.id}`} className="inline-flex items-center gap-1 text-sm text-fct-navy underline">
+                    <a href={`/api/arquivos/documento/${d.id}`} className="inline-flex items-center gap-1 text-sm text-fct-tinta underline">
                       <Download className="size-3.5" aria-hidden /> Baixar
                     </a>
                   </TableCell>

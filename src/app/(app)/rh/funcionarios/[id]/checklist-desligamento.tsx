@@ -69,7 +69,7 @@ export function ChecklistDesligamento({
         {detalhe && <span className="block text-xs text-muted-foreground">{detalhe}</span>}
       </span>
       {href && !feito && (
-        <Link href={href} className="shrink-0 text-xs font-medium text-fct-navy underline">
+        <Link href={href} className="shrink-0 text-xs font-medium text-fct-tinta underline">
           {acao ?? "Abrir"}
         </Link>
       )}

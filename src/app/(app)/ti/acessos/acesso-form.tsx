@@ -78,7 +78,7 @@ export function AcessoForm({ action, unidades, unidadePadrao, nomePadrao }: Prop
             />
           </Campo>
           <label className="flex items-center gap-2 text-sm sm:col-span-2">
-            <input type="checkbox" name="urgente" className="size-4 accent-fct-navy" />
+            <input type="checkbox" name="urgente" className="size-4 accent-fct-tinta" />
             Urgente (a pessoa não consegue trabalhar sem o acesso)
           </label>
         </div>

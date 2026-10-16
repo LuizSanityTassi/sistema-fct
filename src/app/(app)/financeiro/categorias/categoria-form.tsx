@@ -69,7 +69,7 @@ export function CategoriaForm({ action, opcoes, valores = {}, modo }: Props) {
           </Campo>
           {modo === "edicao" && (
             <label className="flex items-center gap-2 text-sm sm:col-span-3">
-              <input type="checkbox" name="ativo" defaultChecked={valores.ativo ?? true} className="size-4 accent-fct-navy" />
+              <input type="checkbox" name="ativo" defaultChecked={valores.ativo ?? true} className="size-4 accent-fct-tinta" />
               Ativa (aparece ao lançar). Categorias inativas mantêm o histórico.
             </label>
           )}

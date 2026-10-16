@@ -42,7 +42,7 @@ function Kpi({ rotulo, valor, nota, href, tom, icone: Icone }: { rotulo: string;
       <div className="flex items-start justify-between gap-2">
         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{rotulo}</p>
         {Icone && (
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-fct-navy/6 text-fct-navy">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-fct-tinta/6 text-fct-tinta">
             <Icone className="size-4" aria-hidden />
           </span>
         )}
@@ -52,7 +52,7 @@ function Kpi({ rotulo, valor, nota, href, tom, icone: Icone }: { rotulo: string;
     </>
   );
   return href ? (
-    <Link href={href} className="block rounded-xl border bg-card px-4 py-3 transition-all hover:-translate-y-px hover:border-fct-navy/30 hover:shadow-md">
+    <Link href={href} className="block rounded-xl border bg-card px-4 py-3 transition-all hover:-translate-y-px hover:border-fct-tinta/30 hover:shadow-md">
       {conteudo}
     </Link>
   ) : (
@@ -144,7 +144,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             <h2 id="t-pendencias" className="text-sm font-semibold">
               Pendências de hoje
             </h2>
-            <Link href="/pendencias" className="inline-flex items-center gap-1 text-sm font-medium text-fct-navy hover:underline">
+            <Link href="/pendencias" className="inline-flex items-center gap-1 text-sm font-medium text-fct-tinta hover:underline">
               {pendencias.length ? `Ver todas (${pendencias.length})` : "Central de pendências"}
               <ArrowRight className="size-3.5" aria-hidden />
             </Link>
@@ -181,7 +181,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
               return (
                 <li key={a.href}>
                   <Link href={a.href} className="flex items-center gap-3 rounded-lg px-2 py-2 text-sm hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring">
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-fct-navy/6 text-fct-navy">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-fct-tinta/6 text-fct-tinta">
                       <Icone className="size-4" aria-hidden />
                     </span>
                     <span className="flex-1 font-medium">{a.rotulo}</span>
@@ -201,7 +201,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           </h2>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {comparativos.map((c) => (
-              <Link key={c.id} href={c.href} className="block rounded-xl border bg-card px-4 py-3 transition-all hover:-translate-y-px hover:border-fct-navy/30 hover:shadow-md">
+              <Link key={c.id} href={c.href} className="block rounded-xl border bg-card px-4 py-3 transition-all hover:-translate-y-px hover:border-fct-tinta/30 hover:shadow-md">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{c.titulo}</p>
                 <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums">{valorComparativo(c, c.atual)}</p>
                 {variacao(c)}
@@ -268,7 +268,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           <section className="rounded-xl border bg-card">
             <div className="flex items-center justify-between px-5 py-4">
               <h2 className="text-sm font-semibold">ASO para resolver</h2>
-              <Link href="/rh/aso" className="text-xs text-fct-navy underline">
+              <Link href="/rh/aso" className="text-xs text-fct-tinta underline">
                 ver todos
               </Link>
             </div>
@@ -299,7 +299,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         <section className="rounded-xl border bg-card">
           <div className="flex items-center justify-between px-5 py-4">
             <h2 className="text-sm font-semibold">Chamados urgentes</h2>
-            <Link href="/chamados?prioridade=alta" className="text-xs text-fct-navy underline">
+            <Link href="/chamados?prioridade=alta" className="text-xs text-fct-tinta underline">
               ver fila
             </Link>
           </div>
@@ -339,7 +339,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                       </span>
                     </div>
                     <div className="mt-1 h-1.5 rounded-full bg-muted" role="presentation">
-                      <div className="h-1.5 rounded-full bg-fct-navy" style={{ width: `${pct}%` }} />
+                      <div className="h-1.5 rounded-full bg-fct-tinta" style={{ width: `${pct}%` }} />
                     </div>
                   </li>
                 );
@@ -359,13 +359,13 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="group rounded-xl border bg-card p-4 transition-colors outline-none hover:border-fct-navy/40 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring"
+                  className="group rounded-xl border bg-card p-4 transition-colors outline-none hover:border-fct-tinta/40 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <div className="flex items-start justify-between">
-                    <span className="flex size-9 items-center justify-center rounded-md bg-fct-navy/6 text-fct-navy">
+                    <span className="flex size-9 items-center justify-center rounded-md bg-fct-tinta/6 text-fct-tinta">
                       <Icone className="size-4" aria-hidden />
                     </span>
-                    <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-fct-navy" aria-hidden />
+                    <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-fct-tinta" aria-hidden />
                   </div>
                   <p className="mt-3 font-medium">{item.label}</p>
                   <p className="mt-0.5 text-sm text-muted-foreground">{item.descricao}</p>

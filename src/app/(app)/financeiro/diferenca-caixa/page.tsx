@@ -48,7 +48,7 @@ export default async function DiferencaCaixaPage({ searchParams }: PageProps<"/f
         descricao={`Declarado × movimentado de cada caixa, lido do Trier (Relatório de Diferenças de Caixa). Até ${formatarMoeda(TOLERANCIA_CAIXA)} é tolerância e só aparece aqui; acima vira quebra: entra no desconto da folha e vai para o gestor da loja justificar (o colaborador só vê).`}
         acoes={
           <>
-            <Button size="sm" className="bg-fct-yellow font-semibold text-fct-navy hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/financeiro/diferenca-caixa/nova" />}>
+            <Button size="sm" className="bg-fct-yellow font-semibold text-fct-tinta hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/financeiro/diferenca-caixa/nova" />}>
               <Plus data-icon="inline-start" />
               Lançar quebra manual
             </Button>
@@ -84,7 +84,7 @@ export default async function DiferencaCaixaPage({ searchParams }: PageProps<"/f
 
       <section className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         {cartoes.map((c) => (
-          <Link key={c.rotulo} href={c.href} className="rounded-xl border bg-card px-4 py-3 hover:border-fct-navy/40">
+          <Link key={c.rotulo} href={c.href} className="rounded-xl border bg-card px-4 py-3 hover:border-fct-tinta/40">
             <span className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{c.rotulo}</span>
             <span className={`mt-1 block text-xl font-bold tracking-tight tabular-nums ${c.classe}`}>{c.valor}</span>
           </Link>
@@ -155,9 +155,9 @@ export default async function DiferencaCaixaPage({ searchParams }: PageProps<"/f
                 return (
                   <TableRow key={c.id}>
                     <TableCell className="whitespace-nowrap">{formatarData(c.dia)}</TableCell>
-                    <TableCell className="font-mono text-xs text-fct-navy">{c.filial?.codigo ?? "—"}</TableCell>
+                    <TableCell className="font-mono text-xs text-fct-tinta">{c.filial?.codigo ?? "—"}</TableCell>
                     <TableCell>
-                      <Link href={`/financeiro/diferenca-caixa/${c.id}`} className="font-mono font-semibold text-fct-navy hover:underline">
+                      <Link href={`/financeiro/diferenca-caixa/${c.id}`} className="font-mono font-semibold text-fct-tinta hover:underline">
                         {c.origem === "manual" ? "manual" : c.numero_caixa}
                       </Link>
                     </TableCell>

@@ -126,7 +126,7 @@ export default async function FilialPage({ params, searchParams }: PageProps<"/f
             key={a.chave}
             href={linkAba(a.chave)}
             aria-current={aba === a.chave ? "page" : undefined}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm whitespace-nowrap ${aba === a.chave ? "border-fct-navy font-semibold text-fct-navy" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+            className={`-mb-px border-b-2 px-3 py-2 text-sm whitespace-nowrap ${aba === a.chave ? "border-fct-tinta font-semibold text-fct-tinta" : "border-transparent text-muted-foreground hover:text-foreground"}`}
           >
             {a.rotulo}
           </Link>
@@ -137,7 +137,7 @@ export default async function FilialPage({ params, searchParams }: PageProps<"/f
         <>
           <section aria-label="Resumo" className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
             {resumo.map((r) => (
-              <Link key={r.rotulo} href={r.href} className="rounded-xl border bg-card px-4 py-3 transition-colors hover:border-fct-navy/40">
+              <Link key={r.rotulo} href={r.href} className="rounded-xl border bg-card px-4 py-3 transition-colors hover:border-fct-tinta/40">
                 <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   <r.icone className="size-3.5" aria-hidden />
                   {r.rotulo}
@@ -184,7 +184,7 @@ export default async function FilialPage({ params, searchParams }: PageProps<"/f
                     <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Gestor das quebras de caixa</dt>
                     <dd className="mt-0.5 text-sm">
                       {d.gestorNome ?? <span className="text-amber-800">não definido</span>}{" "}
-                      <Link href="/financeiro/diferenca-caixa/gestores" className="text-xs text-fct-navy underline">
+                      <Link href="/financeiro/diferenca-caixa/gestores" className="text-xs text-fct-tinta underline">
                         trocar
                       </Link>
                     </dd>
@@ -255,7 +255,7 @@ export default async function FilialPage({ params, searchParams }: PageProps<"/f
             <div className="flex items-center justify-between px-5 pt-4">
               <h2 className="text-sm font-semibold">Receitas × despesas (realizado)</h2>
               {podeAcessar(sessao.papel, "/financeiro/lancamentos") && (
-                <Link href={`/financeiro/lancamentos?filial=${filial.id}`} className="text-xs text-fct-navy underline">
+                <Link href={`/financeiro/lancamentos?filial=${filial.id}`} className="text-xs text-fct-tinta underline">
                   Ver lançamentos
                 </Link>
               )}
@@ -322,7 +322,7 @@ export default async function FilialPage({ params, searchParams }: PageProps<"/f
                       ))}
                     </ul>
                     {filialTrier !== null && (
-                      <Link href={`/conciliacao/pendencias?filial=${filialTrier}&ordem=vencimento`} className="mt-2 inline-block text-xs text-fct-navy underline">
+                      <Link href={`/conciliacao/pendencias?filial=${filialTrier}&ordem=vencimento`} className="mt-2 inline-block text-xs text-fct-tinta underline">
                         Abrir pendências da loja
                       </Link>
                     )}
@@ -353,7 +353,7 @@ export default async function FilialPage({ params, searchParams }: PageProps<"/f
             <div className="flex items-center justify-between px-5 pt-4">
               <h2 className="text-sm font-semibold">Últimas quebras</h2>
               {d.ve.caixaTudo && (
-                <Link href={`/financeiro/diferenca-caixa?filial=${filial.id}`} className="text-xs text-fct-navy underline">
+                <Link href={`/financeiro/diferenca-caixa?filial=${filial.id}`} className="text-xs text-fct-tinta underline">
                   Ver na Diferença de caixa
                 </Link>
               )}
@@ -380,7 +380,7 @@ export default async function FilialPage({ params, searchParams }: PageProps<"/f
                         <TableCell className="whitespace-nowrap">{formatarData(q.dia)}</TableCell>
                         <TableCell className="font-mono text-xs">
                           {d.ve.caixaTudo ? (
-                            <Link href={`/financeiro/diferenca-caixa/${q.id}`} className="text-fct-navy hover:underline">
+                            <Link href={`/financeiro/diferenca-caixa/${q.id}`} className="text-fct-tinta hover:underline">
                               {q.origem === "manual" ? "manual" : q.numero_caixa}
                             </Link>
                           ) : q.origem === "manual" ? (
@@ -410,7 +410,7 @@ export default async function FilialPage({ params, searchParams }: PageProps<"/f
             <section key={m.competencia} className="rounded-xl border bg-card p-5">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <h2 className="text-sm font-semibold">Lançamentos · {rotuloCompetencia(m.competencia)}</h2>
-                <Link href={`/rh/lancamentos?${new URLSearchParams({ competencia: m.competencia, ...(raiz ? { empresa: raiz, filial: filial.id } : {}) })}`} className="text-xs text-fct-navy underline">
+                <Link href={`/rh/lancamentos?${new URLSearchParams({ competencia: m.competencia, ...(raiz ? { empresa: raiz, filial: filial.id } : {}) })}`} className="text-xs text-fct-tinta underline">
                   Abrir na folha
                 </Link>
               </div>
@@ -428,7 +428,7 @@ export default async function FilialPage({ params, searchParams }: PageProps<"/f
                 </ul>
               )}
               {filial.cnpj && (
-                <a href={`/api/folha-lancamentos/planilha?competencia=${m.competencia}&filial=${filial.id}`} className="mt-3 inline-block text-xs font-medium text-fct-navy underline">
+                <a href={`/api/folha-lancamentos/planilha?competencia=${m.competencia}&filial=${filial.id}`} className="mt-3 inline-block text-xs font-medium text-fct-tinta underline">
                   Baixar a planilha da contabilidade
                 </a>
               )}
@@ -443,7 +443,7 @@ export default async function FilialPage({ params, searchParams }: PageProps<"/f
             <div className="flex items-center justify-between px-5 pt-4">
               <h2 className="text-sm font-semibold">Equipamentos ({d.ativos.length})</h2>
               {podeAcessar(sessao.papel, "/ti/ativos") && (
-                <Link href={`/ti/ativos?filial=${filial.id}`} className="text-xs text-fct-navy underline">
+                <Link href={`/ti/ativos?filial=${filial.id}`} className="text-xs text-fct-tinta underline">
                   Abrir inventário
                 </Link>
               )}
@@ -480,7 +480,7 @@ export default async function FilialPage({ params, searchParams }: PageProps<"/f
           <section className="rounded-xl border bg-card">
             <div className="flex items-center justify-between px-5 pt-4">
               <h2 className="text-sm font-semibold">Chamados abertos ({d.chamados.length})</h2>
-              <Link href={`/chamados?filial=${filial.id}`} className="text-xs text-fct-navy underline">
+              <Link href={`/chamados?filial=${filial.id}`} className="text-xs text-fct-tinta underline">
                 Ver chamados
               </Link>
             </div>
@@ -502,7 +502,7 @@ export default async function FilialPage({ params, searchParams }: PageProps<"/f
               </ul>
             )}
             <div className="border-t px-5 py-3">
-              <Link href={`/chamados/novo?filial=${filial.id}`} className="text-xs font-medium text-fct-navy underline">
+              <Link href={`/chamados/novo?filial=${filial.id}`} className="text-xs font-medium text-fct-tinta underline">
                 Abrir chamado para esta loja
               </Link>
             </div>

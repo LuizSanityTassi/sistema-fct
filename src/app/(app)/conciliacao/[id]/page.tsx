@@ -171,7 +171,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
           Motor: {pluralizar(r.bateu ?? 0, "título conciliado", "títulos conciliados")} automaticamente · {r.conferir ?? 0} sugerido(s) para conferir · {(r.soTrier ?? 0) + (r.soDDA ?? 0)} para análise
           {r.pendencias?.porRegra !== undefined ? ` · ${pluralizar(r.pendencias.porRegra, "pendência tratada", "pendências tratadas")} por regra` : ""} ·
         </span>
-        <Link href="/conciliacao/regras" className="text-fct-navy underline">
+        <Link href="/conciliacao/regras" className="text-fct-tinta underline">
           Regras automáticas
         </Link>
       </p>
@@ -227,7 +227,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
                         : (r.soDDA ?? 0);
           const ativa = aba === a.chave;
           return (
-            <Link key={a.chave} href={`${base}?aba=${a.chave}`} aria-current={ativa ? "page" : undefined} className={`rounded-full border px-3 py-1 text-sm ${ativa ? "border-fct-navy bg-fct-navy text-white" : a.chave === "omie" ? "border-fct-yellow bg-fct-yellow/20 hover:border-fct-navy/40" : "bg-card hover:border-fct-navy/40"}`}>
+            <Link key={a.chave} href={`${base}?aba=${a.chave}`} aria-current={ativa ? "page" : undefined} className={`rounded-full border px-3 py-1 text-sm ${ativa ? "border-fct-tinta bg-fct-tinta text-white" : a.chave === "omie" ? "border-fct-yellow bg-fct-yellow/20 hover:border-fct-tinta/40" : "bg-card hover:border-fct-tinta/40"}`}>
               {a.rotulo} {qtd !== null && <span className={ativa ? "opacity-80" : "text-muted-foreground"}>({qtd})</span>}
             </Link>
           );

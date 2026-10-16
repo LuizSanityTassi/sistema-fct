@@ -95,7 +95,7 @@ const Celula = React.memo(function Celula({ chave, inicial, linha, coluna, regis
         registrar(chave, mudou ? (n === null ? "" : String(n)) : null);
       }}
       className={cn(
-        "h-8 w-[5.5rem] rounded-md border border-transparent bg-transparent px-1.5 text-right text-sm tabular-nums outline-none hover:border-border focus:border-fct-navy focus:bg-background",
+        "h-8 w-[5.5rem] rounded-md border border-transparent bg-transparent px-1.5 text-right text-sm tabular-nums outline-none hover:border-border focus:border-fct-tinta focus:bg-background",
         estado === "alterado" && "border-amber-300 bg-amber-50",
         estado === "invalido" && "border-red-500 bg-red-50",
       )}
@@ -146,7 +146,7 @@ const CelulaObs = React.memo(function CelulaObs({ funcionario, registrar, inscre
           atualizar(t, p);
         }}
         className={cn(
-          "h-8 w-64 rounded-md border border-transparent bg-transparent px-1.5 text-xs outline-none hover:border-border focus:border-fct-navy focus:bg-background",
+          "h-8 w-64 rounded-md border border-transparent bg-transparent px-1.5 text-xs outline-none hover:border-border focus:border-fct-tinta focus:bg-background",
           pendente && texto.trim() && "text-amber-900",
         )}
       />
@@ -368,10 +368,10 @@ export function GradeLancamentos({ competencia, eventos, grupos, versao }: Props
           <tbody>
             {grupos.map((g) => (
               <React.Fragment key={g.filial.id}>
-                <tr className="border-b bg-fct-navy/5">
+                <tr className="border-b bg-fct-tinta/5">
                   <td colSpan={eventos.length + 2} className="px-3 py-1.5">
                     <div className="sticky left-3 flex w-max flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                      <span className="font-semibold text-fct-navy">
+                      <span className="font-semibold text-fct-tinta">
                         {g.filial.codigo} · {g.filial.nome}
                       </span>
                       <span className="text-muted-foreground">{g.filial.cnpj ?? "sem CNPJ"}</span>
@@ -387,7 +387,7 @@ export function GradeLancamentos({ competencia, eventos, grupos, versao }: Props
                           )}
                           <LinkBaixarPlanilha
                             href={`/api/folha-lancamentos/planilha?competencia=${competencia}&filial=${g.filial.id}`}
-                            className="inline-flex items-center gap-1 font-medium text-fct-navy underline-offset-2 hover:underline"
+                            className="inline-flex items-center gap-1 font-medium text-fct-tinta underline-offset-2 hover:underline"
                           >
                             <Download className="size-3.5" aria-hidden /> {g.filial.arquivo}
                           </LinkBaixarPlanilha>
@@ -420,7 +420,7 @@ export function GradeLancamentos({ competencia, eventos, grupos, versao }: Props
         <div className="text-xs text-muted-foreground">
           <span role="status" aria-live="polite">
             {salvando ? (
-              <span className="inline-flex items-center gap-1.5 text-fct-navy">
+              <span className="inline-flex items-center gap-1.5 text-fct-tinta">
                 <LoaderCircle className="size-4 animate-spin" aria-hidden />
                 Salvando…
               </span>

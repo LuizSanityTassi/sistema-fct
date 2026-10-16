@@ -78,12 +78,12 @@ export default async function OperadoresPage({ searchParams }: PageProps<"/finan
             key={x.v}
             href={`/financeiro/diferenca-caixa/operadores?${new URLSearchParams({ mostrar: x.v, ...(todasFiliais ? { todas: "1" } : {}) })}`}
             aria-current={mostrar === x.v ? "page" : undefined}
-            className={`rounded-full border px-3 py-1 ${mostrar === x.v ? "border-fct-navy bg-fct-navy text-white" : "bg-card hover:border-fct-navy/40"}`}
+            className={`rounded-full border px-3 py-1 ${mostrar === x.v ? "border-fct-tinta bg-fct-tinta text-white" : "bg-card hover:border-fct-tinta/40"}`}
           >
             {x.r}
           </Link>
         ))}
-        <Link href={link(todasFiliais ? {} : { todas: "1" })} className="ml-auto text-fct-navy underline">
+        <Link href={link(todasFiliais ? {} : { todas: "1" })} className="ml-auto text-fct-tinta underline">
           {todasFiliais ? "Mostrar só funcionários das lojas do operador" : "Incluir funcionários de todas as lojas na lista"}
         </Link>
       </nav>
