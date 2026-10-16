@@ -1,14 +1,15 @@
 import Link from "next/link";
-import { ArrowRight, Building2, LifeBuoy, Stethoscope, TriangleAlert, Users, Wallet, type LucideIcon } from "lucide-react";
+import { ArrowRight, Building2, CircleCheckBig, LifeBuoy, Stethoscope, TriangleAlert, Users, Wallet, type LucideIcon } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { getSessao } from "@/lib/auth/session";
 import { PRIORIDADE_LABEL, STATUS_CHAMADO_LABEL } from "@/lib/chamados/rotulos";
 import { carregarDashboard } from "@/lib/data/dashboard";
-import { contarQuebrasDoPainel } from "@/lib/data/diferenca-caixa";
+import { carregarPendencias } from "@/lib/data/pendencias";
 import { formatarData, formatarMoeda, pluralizar } from "@/lib/formatos";
 import { navParaPapel } from "@/lib/nav";
 import { rotuloCompetencia } from "@/lib/rh/competencia";
 import { ASO_TIPO_LABEL } from "@/lib/rh/rotulos";
+import { COR_SEVERIDADE, ROTULO_SEVERIDADE } from "@/lib/pendencias-visual";
 import { PAPEL_LABEL } from "@/lib/roles";
 import { BadgeAso } from "../rh/funcionarios/[id]/documentos-aso";
 
@@ -44,8 +45,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const primeiroNome = sessao.nome.split(" ")[0];
   const veRh = sessao.papel === "admin" || sessao.papel === "rh" || sessao.papel === "gerente";
   const veFolha = sessao.papel === "admin" || sessao.papel === "rh";
-  const veQuebras = sessao.papel !== "rh" && sessao.papel !== "ti" && sessao.papel !== "contador";
-  const [d, quebras] = await Promise.all([carregarDashboard({ incluirFolha: veFolha }), veQuebras ? contarQuebrasDoPainel(sessao.papel, sessao.id) : null]);
+  const [d, pendencias] = await Promise.all([carregarDashboard({ incluirFolha: veFolha }), carregarPendencias(sessao)]);
   const grupos = navParaPapel(sessao.papel).filter((g) => g.titulo);
   const emAtividade = d.funcionarios.ativo + d.funcionarios.afastado + d.funcionarios.ferias;
   const hojeTexto = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Sao_Paulo" }).format(new Date());
@@ -68,15 +68,37 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         </div>
       )}
 
-      {quebras && quebras.quantidade > 0 && (
-        <Link href={quebras.href} className="mb-6 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 hover:border-amber-400">
-          <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
-          <span>
-            <strong>{quebras.titulo}</strong> {quebras.texto}
-          </span>
-          <ArrowRight className="mt-0.5 ml-auto size-4 shrink-0" aria-hidden />
-        </Link>
-      )}
+      <section aria-labelledby="t-pendencias" className="mb-6 rounded-xl border bg-card">
+        <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+          <h2 id="t-pendencias" className="text-sm font-semibold">
+            Pendências de hoje
+          </h2>
+          <Link href="/pendencias" className="inline-flex items-center gap-1 text-sm font-medium text-fct-navy hover:underline">
+            {pendencias.length ? `Ver todas (${pendencias.length})` : "Central de pendências"}
+            <ArrowRight className="size-3.5" aria-hidden />
+          </Link>
+        </div>
+        {pendencias.length === 0 ? (
+          <p className="flex items-center gap-2 px-4 py-4 text-sm text-muted-foreground">
+            <CircleCheckBig className="size-4 text-emerald-600" aria-hidden />
+            Tudo certo por aqui: nenhuma pendência nos módulos que você usa.
+          </p>
+        ) : (
+          <ul className="divide-y">
+            {pendencias.slice(0, 5).map((p) => (
+              <li key={p.id}>
+                <Link href={p.href} className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/40">
+                  <span className={`size-2.5 shrink-0 rounded-full ${COR_SEVERIDADE[p.severidade].ponto}`} aria-hidden />
+                  <span className="sr-only">{ROTULO_SEVERIDADE[p.severidade]}:</span>
+                  <span className="min-w-0 flex-1 truncate text-sm">{p.titulo}</span>
+                  <span className="hidden text-xs text-muted-foreground sm:inline">{p.area}</span>
+                  <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {veRh && (

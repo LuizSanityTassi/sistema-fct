@@ -127,25 +127,6 @@ export async function minhasQuebras(abertas: boolean) {
   return data ?? [];
 }
 
-/** Aviso do painel: para o financeiro, as justificadas esperando decisão; para os outros, as quebras a justificar. */
-export async function contarQuebrasDoPainel(papel: string, userId: string) {
-  const supabase = await createClient();
-  const contar = async (filtro: (q: ReturnType<typeof base>) => ReturnType<typeof base>) => (await filtro(base())).count ?? 0;
-  function base() {
-    return supabase.from("caixa_diferencas").select("id", { count: "exact", head: true }).eq("classe", "quebra");
-  }
-  if (papel === "admin" || papel === "financeiro") {
-    const n = await contar((q) => q.eq("andamento", "justificada"));
-    return { quantidade: n, href: "/financeiro/diferenca-caixa?situacao=justificada", titulo: `${n} quebra(s) de caixa justificada(s)`, texto: "esperando a decisão do financeiro (manter o desconto ou abonar)." };
-  }
-  // gestor: as que ele justifica (sem gestor definido, o gerente da loja); a RLS já limita às lojas dele
-  const comoGestor = await contar((q) => (papel === "gerente" ? q.eq("andamento", "pendente").or(`gestor_id.eq.${userId},gestor_id.is.null`) : q.eq("andamento", "pendente").eq("gestor_id", userId)));
-  if (comoGestor > 0) return { quantidade: comoGestor, href: "/caixa", titulo: `${comoGestor} quebra(s) de caixa para justificar.`, texto: "Registre o que aconteceu antes do fechamento da folha." };
-  // colaborador: só vê as dele
-  const minhas = await contar((q) => q.eq("andamento", "pendente"));
-  return { quantidade: minhas, href: "/caixa", titulo: `Você tem ${minhas} quebra(s) de caixa.`, texto: "Justifique para o seu gestor: é ele quem registra no sistema." };
-}
-
 export type FuncionarioCaixa = { id: string; nome: string; cargo: string | null; matricula: string | null; branch_id: string; filial: string; status: string };
 
 /** Funcionários (nome, cargo, matrícula, loja) para o financeiro ligar operadores e ver de quem é a quebra. */
