@@ -76,7 +76,7 @@ export default async function FuncionariosPage({ searchParams }: PageProps<"/rh/
         ).map(([rotulo, valor, situacao]) => (
           <div key={rotulo} className="rounded-xl border bg-card px-4 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{rotulo}</p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums">
+            <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums">
               {situacao ? (
                 <Link href={`/rh/funcionarios?situacao=${situacao}`} className="hover:underline">
                   {valor}

@@ -15,7 +15,7 @@ function Kpi({ rotulo, valor, nota, href, tom }: { rotulo: string; valor: string
   return (
     <Link href={href} className="block rounded-xl border bg-card px-4 py-3 transition-colors hover:border-fct-navy/40">
       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{rotulo}</p>
-      <p className={`mt-1 text-2xl font-semibold tabular-nums ${tom ?? ""}`}>{valor}</p>
+      <p className={`mt-1 text-2xl font-bold tracking-tight tabular-nums ${tom ?? ""}`}>{valor}</p>
       {nota && <p className="text-xs text-muted-foreground">{nota}</p>}
     </Link>
   );
@@ -115,7 +115,7 @@ export default async function TiPage() {
           ) : (
             <div className="border-t px-5 py-4 text-sm">
               <p className="mb-3">
-                <span className="text-2xl font-semibold tabular-nums">{formatarMoeda(ativos.valorTotal)}</span>
+                <span className="text-2xl font-bold tracking-tight tabular-nums">{formatarMoeda(ativos.valorTotal)}</span>
                 <span className="text-muted-foreground"> em {pluralizar(ativos.unidadesComAtivos, "unidade", "unidades")}</span>
               </p>
               <ul className="space-y-1">

@@ -37,7 +37,7 @@ export default async function PendenciasPage({ searchParams }: PageProps<"/pende
           return (
             <div key={s} className={`rounded-xl border border-l-4 bg-card px-4 py-3 ${COR_SEVERIDADE[s].borda}`}>
               <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{ROTULO_SEVERIDADE[s]}</p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums">{n}</p>
+              <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums">{n}</p>
             </div>
           );
         })}

@@ -19,7 +19,7 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
-import { PageHeader } from "@/components/layout/page-header";
+import { BoasVindas } from "@/components/layout/boas-vindas";
 import { getSessao } from "@/lib/auth/session";
 import { PRIORIDADE_LABEL, STATUS_CHAMADO_LABEL } from "@/lib/chamados/rotulos";
 import { carregarDashboard } from "@/lib/data/dashboard";
@@ -47,7 +47,7 @@ function Kpi({ rotulo, valor, nota, href, tom, icone: Icone }: { rotulo: string;
           </span>
         )}
       </div>
-      <p className={`mt-1 text-2xl font-semibold tabular-nums ${tom ?? ""}`}>{valor}</p>
+      <p className={`mt-1 text-2xl font-bold tracking-tight tabular-nums ${tom ?? ""}`}>{valor}</p>
       {nota && <p className="text-xs text-muted-foreground">{nota}</p>}
     </>
   );
@@ -123,11 +123,11 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
   return (
     <>
-      <PageHeader
-        eyebrow="Visão geral"
-        titulo={`Olá, ${primeiroNome}`}
-        descricao={`${hoje} · ${PAPEL_LABEL[sessao.papel]} · ${sessao.papel === "gerente" || sessao.papel === "usuario" ? "números da sua unidade" : "números de todas as unidades"}.`}
-      />
+      <BoasVindas data={hoje} titulo={`Olá, ${primeiroNome}`}>
+        {PAPEL_LABEL[sessao.papel]} · {sessao.papel === "gerente" || sessao.papel === "usuario" ? "números da sua unidade" : "números de todas as unidades"}
+        {" · "}
+        {pendencias.length ? pluralizar(pendencias.length, "pendência esperando ação", "pendências esperando ação") : "nada pendente agora"}.
+      </BoasVindas>
 
       {erro === "sem_permissao" && (
         <div role="alert" className="mb-6 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -203,7 +203,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             {comparativos.map((c) => (
               <Link key={c.id} href={c.href} className="block rounded-xl border bg-card px-4 py-3 transition-all hover:-translate-y-px hover:border-fct-navy/30 hover:shadow-md">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{c.titulo}</p>
-                <p className="mt-1 text-2xl font-semibold tabular-nums">{valorComparativo(c, c.atual)}</p>
+                <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums">{valorComparativo(c, c.atual)}</p>
                 {variacao(c)}
                 <p className="mt-1 text-[11px] text-muted-foreground">
                   {c.periodo}

@@ -3,6 +3,7 @@
 import { notFound } from "next/navigation";
 import { Download, Plus, Search, TriangleAlert } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
+import { BoasVindas } from "@/components/layout/boas-vindas";
 import { BadgeAtivo, BadgeStatusFuncionario } from "@/components/layout/badge-status";
 import { PageHeader } from "@/components/layout/page-header";
 import { Paginacao } from "@/components/layout/paginacao";
@@ -28,6 +29,9 @@ export default function VitrinePage() {
   }
   return (
     <AppShell usuario={{ nome: "Usuária de Exemplo", email: "exemplo@fct.local", papel: "admin" }} onSair={sair}>
+      <BoasVindas data="Sexta-feira, 16 de outubro" titulo="Olá, Usuária">
+        Administrador · números de todas as unidades · 5 pendências esperando ação.
+      </BoasVindas>
       <PageHeader
         eyebrow="Vitrine"
         titulo="Componentes do sistema"
@@ -55,7 +59,7 @@ export default function VitrinePage() {
         ].map((k) => (
           <div key={k.r} className="rounded-xl border bg-card px-4 py-3">
             <dt className="text-xs text-muted-foreground">{k.r}</dt>
-            <dd className={`text-xl font-semibold tabular-nums ${k.alerta ? "text-amber-700" : ""}`}>{k.v}</dd>
+            <dd className={`text-xl font-bold tracking-tight tabular-nums ${k.alerta ? "text-amber-700" : ""}`}>{k.v}</dd>
           </div>
         ))}
       </dl>

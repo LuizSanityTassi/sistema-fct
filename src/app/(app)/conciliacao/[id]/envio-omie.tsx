@@ -234,17 +234,17 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, vali
               <div className="grid grid-cols-3 gap-2">
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
                   <p className="text-xs font-semibold text-emerald-800">🟢 Válidas</p>
-                  <p className="text-xl font-semibold tabular-nums">{v.validas.length}</p>
+                  <p className="text-xl font-bold tracking-tight tabular-nums">{v.validas.length}</p>
                   <p className="text-xs text-emerald-800">{moeda(v.totalValidas)}</p>
                 </div>
                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                   <p className="text-xs font-semibold text-amber-800">🟡 Precisam de atenção</p>
-                  <p className="text-xl font-semibold tabular-nums">{v.atencao.length}</p>
+                  <p className="text-xl font-bold tracking-tight tabular-nums">{v.atencao.length}</p>
                   <p className="text-xs text-amber-800">vão junto, mas confira</p>
                 </div>
                 <div className="rounded-lg border border-red-200 bg-red-50 p-3">
                   <p className="text-xs font-semibold text-red-800">🔴 Com problema</p>
-                  <p className="text-xl font-semibold tabular-nums">{v.grave.length}</p>
+                  <p className="text-xl font-bold tracking-tight tabular-nums">{v.grave.length}</p>
                   <p className="text-xs text-red-800">duplicidade, já enviada, sem departamento, alerta</p>
                 </div>
               </div>

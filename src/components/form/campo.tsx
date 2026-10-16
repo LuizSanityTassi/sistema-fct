@@ -39,7 +39,7 @@ export function Campo({ id, label, erro, dica, obrigatorio, className, children 
         {label}
         {obrigatorio && (
           <>
-            <span aria-hidden className="text-fct-red">
+            <span aria-hidden className="text-destructive">
               *
             </span>
             <span className="sr-only"> (obrigatório)</span>

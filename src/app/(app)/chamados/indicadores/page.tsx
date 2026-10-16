@@ -55,7 +55,7 @@ export default async function IndicadoresChamadosPage({ searchParams }: PageProp
         {cartoes.map((c) => (
           <div key={c.r} className="rounded-xl border bg-card px-4 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{c.r}</p>
-            <p className={`mt-1 text-2xl font-semibold tabular-nums ${c.tom ?? ""}`}>{c.v}</p>
+            <p className={`mt-1 text-2xl font-bold tracking-tight tabular-nums ${c.tom ?? ""}`}>{c.v}</p>
             {c.nota && <p className="text-xs text-muted-foreground">{c.nota}</p>}
           </div>
         ))}

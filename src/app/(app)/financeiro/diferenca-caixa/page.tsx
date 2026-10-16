@@ -86,7 +86,7 @@ export default async function DiferencaCaixaPage({ searchParams }: PageProps<"/f
         {cartoes.map((c) => (
           <Link key={c.rotulo} href={c.href} className="rounded-xl border bg-card px-4 py-3 hover:border-fct-navy/40">
             <span className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{c.rotulo}</span>
-            <span className={`mt-1 block text-xl font-semibold tabular-nums ${c.classe}`}>{c.valor}</span>
+            <span className={`mt-1 block text-xl font-bold tracking-tight tabular-nums ${c.classe}`}>{c.valor}</span>
           </Link>
         ))}
       </section>

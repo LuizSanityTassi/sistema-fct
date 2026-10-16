@@ -261,7 +261,7 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
               <p className="text-sm text-muted-foreground">Nenhum salário registrado.</p>
             ) : (
               <>
-                <p className="mb-4 text-2xl font-semibold tabular-nums">
+                <p className="mb-4 text-2xl font-bold tracking-tight tabular-nums">
                   {formatarMoeda(vigente?.salario)} <span className="text-sm font-normal text-muted-foreground">/ mês</span>
                 </p>
                 <ul className="divide-y text-sm">

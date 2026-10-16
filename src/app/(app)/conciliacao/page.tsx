@@ -18,7 +18,7 @@ function Kpi({ rotulo, valor, nota, href, tom }: { rotulo: string; valor: string
   const corpo = (
     <>
       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{rotulo}</p>
-      <p className={`mt-1 text-2xl font-semibold tabular-nums ${tom ?? ""}`}>{valor}</p>
+      <p className={`mt-1 text-2xl font-bold tracking-tight tabular-nums ${tom ?? ""}`}>{valor}</p>
       {nota && <p className="text-xs text-muted-foreground">{nota}</p>}
     </>
   );

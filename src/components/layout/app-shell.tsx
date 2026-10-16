@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { BuscaRapida } from "@/components/layout/busca-rapida";
+import { Emblema, Onda } from "@/components/layout/marca";
 import { grupoDaRota, itemDaRota, navParaPapel } from "@/lib/nav";
 import { PAPEL_LABEL, type AppRole } from "@/lib/roles";
 import { cn } from "@/lib/utils";
@@ -44,13 +45,13 @@ function iniciais(nome: string) {
 
 function Marca({ onNavigate }: { onNavigate?: () => void }) {
   return (
-    <Link href="/dashboard" onClick={onNavigate} className="flex items-center gap-3 rounded-lg px-4 py-4 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring">
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-fct-red text-[13px] font-black tracking-tight text-white shadow-md ring-1 ring-white/10">
-        FCT
+    <Link href="/dashboard" onClick={onNavigate} className="flex items-center gap-3 rounded-lg px-4 pt-4 pb-3 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring">
+      <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-white shadow-md ring-1 ring-white/20">
+        <Emblema largura={42} prioridade />
       </span>
       <span className="min-w-0 leading-tight">
-        <span className="block text-[11px] font-semibold tracking-[0.14em] text-sidebar-foreground/70 uppercase">Farmácias FCT</span>
-        <span className="block truncate text-base font-semibold text-white">Sistema FCT</span>
+        <span className="block text-[11px] font-semibold tracking-[0.14em] text-fct-yellow uppercase">Farmácias FCT</span>
+        <span className="block truncate font-heading text-lg font-bold text-white">Sistema FCT</span>
       </span>
     </Link>
   );
@@ -140,7 +141,12 @@ function NavLinks({ papel, pathname, onNavigate }: { papel: AppRole; pathname: s
 }
 
 function RodapeSidebar() {
-  return <div className="border-t border-sidebar-border px-4 py-3 text-[11px] text-sidebar-foreground/70">Uso interno · Farmácias FCT</div>;
+  return (
+    <div className="relative mt-auto">
+      <Onda claro className="h-5 opacity-80" />
+      <div className="px-4 py-2.5 text-[11px] text-sidebar-foreground/70">Uso interno · Farmácias FCT</div>
+    </div>
+  );
 }
 
 function MenuUsuario({ usuario, onSair }: Pick<AppShellProps, "usuario" | "onSair">) {
@@ -221,11 +227,14 @@ export function AppShell({ usuario, onSair, children }: AppShellProps) {
       </Sheet>
 
       <div className="flex min-w-0 flex-1 flex-col lg:pl-64">
-        <div className="h-1 bg-gradient-to-r from-fct-red via-fct-red to-fct-yellow" aria-hidden />
+        <div className="h-1 bg-gradient-to-r from-fct-navy via-fct-green to-fct-yellow" aria-hidden />
         <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-6 lg:px-8">
           <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Abrir menu" aria-expanded={menuAberto} onClick={() => setMenuAberto(true)}>
             <Menu />
           </Button>
+          <Link href="/dashboard" aria-label="Início" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm ring-1 ring-border lg:hidden">
+            <Emblema largura={30} />
+          </Link>
           <div className="min-w-0 flex-1">
             <nav aria-label="Você está em" className="flex items-center gap-1.5 text-sm">
               {grupo?.titulo && (

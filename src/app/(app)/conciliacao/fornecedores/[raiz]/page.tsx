@@ -15,7 +15,7 @@ function Kpi({ rotulo, valor, nota, tom }: { rotulo: string; valor: string; nota
   return (
     <div className="rounded-xl border bg-card px-4 py-3">
       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{rotulo}</p>
-      <p className={`mt-1 text-xl font-semibold tabular-nums ${tom ?? ""}`}>{valor}</p>
+      <p className={`mt-1 text-xl font-bold tracking-tight tabular-nums ${tom ?? ""}`}>{valor}</p>
       {nota && <p className="text-xs text-muted-foreground">{nota}</p>}
     </div>
   );

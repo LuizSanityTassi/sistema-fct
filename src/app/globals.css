@@ -11,9 +11,11 @@
   --color-fct-red-dark: var(--fct-red-dark);
   --color-fct-yellow: var(--fct-yellow);
   --color-fct-navy: var(--fct-navy);
+  --color-fct-green: var(--fct-green);
+  --color-fct-green-dark: var(--fct-green-dark);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-display), var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -53,14 +55,16 @@
 }
 
 :root {
-  /* ===== Identidade FCT (Farmácias FCT) ===== */
-  --fct-red: oklch(0.52 0.21 27);        /* #C1121F — identidade / header */
-  --fct-red-dark: oklch(0.45 0.19 27);   /* #9E0E19 */
-  --fct-yellow: oklch(0.84 0.17 92);     /* #F2C200 — ação principal / destaque */
-  --fct-navy: oklch(0.25 0.09 265);      /* #0E2148 — títulos / informação */
+  /* ===== Identidade FCT — cores medidas na logo "Farmácia do Trabalhador" ===== */
+  --fct-navy: oklch(0.253 0.079 253.6);  /* #002247 — letras FCT, títulos, menu */
+  --fct-yellow: oklch(0.904 0.173 102.9); /* #F5E33E — o sol: ação principal / destaque */
+  --fct-green: oklch(0.524 0.108 144.5); /* #3E7A40 — a onda: marca secundária (5,2:1 no branco) */
+  --fct-green-dark: oklch(0.473 0.107 144.9); /* #2F6B33 */
+  --fct-red: oklch(0.52 0.21 27);        /* só alerta/erro (não é cor da marca) */
+  --fct-red-dark: oklch(0.45 0.19 27);
   --font-sans: var(--font-geist-sans);
 
-  --background: oklch(0.975 0.004 260);  /* cinza-azulado bem claro (densidade SaaS) */
+  --background: oklch(0.977 0.004 253);  /* cinza-azulado bem claro (densidade SaaS) */
   --foreground: var(--fct-navy);
   --card: oklch(1 0 0);
   --card-foreground: var(--fct-navy);
@@ -79,20 +83,20 @@
   --input: oklch(0.64 0.02 262);         /* borda de campo: 3:1 sobre branco e sobre o fundo (WCAG 1.4.11) */
   --ring: oklch(0.47 0.13 264);          /* anel de foco do teclado: 6,5:1 */
   --chart-1: var(--fct-navy);
-  --chart-2: var(--fct-red);
+  --chart-2: var(--fct-green);
   --chart-3: var(--fct-yellow);
   --chart-4: oklch(0.6 0.08 230);
   --chart-5: oklch(0.65 0.12 160);
-  --radius: 0.625rem;
+  --radius: 0.75rem;
 
-  /* Menu lateral: navy escuro com destaque amarelo */
-  --sidebar: oklch(0.21 0.065 265);
-  --sidebar-foreground: oklch(0.9 0.015 265);
+  /* Menu lateral: o azul da logo, mais fundo, com destaque amarelo-sol */
+  --sidebar: oklch(0.217 0.064 252.6);   /* #011A36 */
+  --sidebar-foreground: oklch(0.9 0.015 253);
   --sidebar-primary: var(--fct-yellow);
   --sidebar-primary-foreground: var(--fct-navy);
-  --sidebar-accent: oklch(0.29 0.07 265);
+  --sidebar-accent: oklch(0.285 0.07 253);
   --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.3 0.06 265);
+  --sidebar-border: oklch(0.3 0.06 253);
   --sidebar-ring: var(--fct-yellow);
 }
 
@@ -151,8 +155,18 @@
     outline-color: var(--sidebar-ring);
   }
   ::selection {
-    background: oklch(0.84 0.17 92 / 0.45);
+    background: oklch(0.904 0.173 102.9 / 0.55);
     color: var(--fct-navy);
+  }
+  /* títulos na fonte de destaque (parecida com a da logo); o texto corrido continua na Geist */
+  h1,
+  h2,
+  h3,
+  .font-heading {
+    font-family: var(--font-heading);
+  }
+  h1 {
+    letter-spacing: -0.02em;
   }
   table {
     font-variant-numeric: tabular-nums;
@@ -164,9 +178,11 @@
 }
 
 @layer components {
-  /* cartões ganham uma elevação discreta */
+  /* cartões ganham uma elevação discreta (sombra no tom do azul da marca) */
   .bg-card.border {
-    box-shadow: 0 1px 2px 0 oklch(0.25 0.09 265 / 0.05), 0 1px 1px -1px oklch(0.25 0.09 265 / 0.04);
+    box-shadow:
+      0 1px 2px 0 oklch(0.253 0.079 253.6 / 0.05),
+      0 6px 16px -10px oklch(0.253 0.079 253.6 / 0.12);
   }
 }
 

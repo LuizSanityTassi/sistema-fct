@@ -150,7 +150,7 @@ async function InadimplenciaView({ podeEditar, anoBase }: { podeEditar: boolean;
           ].map(([r, v, t]) => (
             <div key={r} className="rounded-xl border bg-card px-4 py-3">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{r}</p>
-              <p className={`mt-1 text-xl font-semibold tabular-nums ${t}`}>{v}</p>
+              <p className={`mt-1 text-xl font-bold tracking-tight tabular-nums ${t}`}>{v}</p>
             </div>
           ))}
         </section>

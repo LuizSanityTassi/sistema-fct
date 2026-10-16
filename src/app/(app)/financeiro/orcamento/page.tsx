@@ -89,7 +89,7 @@ export default async function OrcamentoPage({ searchParams }: PageProps<"/financ
         ].map(([r, v, t]) => (
           <div key={r} className="rounded-xl border bg-card px-4 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{r}</p>
-            <p className={`mt-1 text-xl font-semibold tabular-nums ${t}`}>{v}</p>
+            <p className={`mt-1 text-xl font-bold tracking-tight tabular-nums ${t}`}>{v}</p>
             {r === "Acima do orçamento" && estouros.length > 0 && <p className="text-xs text-muted-foreground">{formatarMoeda(estouros.reduce((s, k) => s + (k.r - k.o), 0))} de estouro</p>}
           </div>
         ))}

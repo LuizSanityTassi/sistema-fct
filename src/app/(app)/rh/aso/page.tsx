@@ -41,7 +41,7 @@ export default async function AsoPage({ searchParams }: PageProps<"/rh/aso">) {
         {cartoes.map((c) => (
           <div key={c.rotulo} className="rounded-xl border bg-card px-4 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{c.rotulo}</p>
-            <p className={`mt-1 text-2xl font-semibold tabular-nums ${c.classe}`}>
+            <p className={`mt-1 text-2xl font-bold tracking-tight tabular-nums ${c.classe}`}>
               {c.href ? (
                 <Link href={c.href} className="hover:underline">
                   {c.valor}

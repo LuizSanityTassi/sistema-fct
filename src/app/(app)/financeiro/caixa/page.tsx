@@ -332,7 +332,7 @@ async function SemanalView({ mes }: { mes: string }) {
                     {dados ? (
                       <details className="group">
                         <summary className="cursor-pointer list-none">
-                          <span className="inline-block w-3 text-fct-red group-open:rotate-90">▸</span> {String(d).padStart(2, "0")} <span className="text-xs text-muted-foreground">{DS[wd]}</span>
+                          <span className="inline-block w-3 text-fct-green group-open:rotate-90">▸</span> {String(d).padStart(2, "0")} <span className="text-xs text-muted-foreground">{DS[wd]}</span>
                         </summary>
                         <div className="mt-1 space-y-0.5 pl-4 text-xs">
                           {familias.map((f) => (
