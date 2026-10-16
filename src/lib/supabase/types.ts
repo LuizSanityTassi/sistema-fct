@@ -2788,6 +2788,19 @@ export type Database = {
           valores: Json
         }[]
       }
+      busca_global: {
+        Args: { p_limite?: number; p_q: string }
+        Returns: {
+          data: string | null
+          detalhe: string | null
+          extra: string | null
+          id: string
+          situacao: string | null
+          tipo: string
+          titulo: string
+          valor: number | null
+        }[]
+      }
       conc_fornecedores_lista: {
         Args: { p_limite?: number; p_q?: string }
         Returns: {
