@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, Search, UserRoundCog, UsersRound } from "lucide-react";
+import { Plus, Search, UserRoundCog, UsersRound, FileSpreadsheet } from "lucide-react";
 import { SelectNativo } from "@/components/form/campo";
 import { PageHeader } from "@/components/layout/page-header";
 import { Paginacao } from "@/components/layout/paginacao";
@@ -52,6 +52,10 @@ export default async function DiferencaCaixaPage({ searchParams }: PageProps<"/f
               <Plus data-icon="inline-start" />
               Lançar quebra manual
             </Button>
+            <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/financeiro/diferenca-caixa/importar" />}>
+              <FileSpreadsheet data-icon="inline-start" />
+              Importar planilha POS
+            </Button>
             <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/financeiro/diferenca-caixa/gestores" />}>
               <UsersRound data-icon="inline-start" />
               Gestores das lojas
@@ -74,7 +78,11 @@ export default async function DiferencaCaixaPage({ searchParams }: PageProps<"/f
           {errosColeta.length > 0 && (
             <span className="text-red-800">
               {" "}
-              · {errosColeta.length} com erro ({errosColeta.slice(0, 4).map((c) => `${c.filial?.codigo} ${formatarData(c.dia)}`).join(", ")}
+              · {errosColeta.length} com erro (
+              {errosColeta
+                .slice(0, 4)
+                .map((c) => `${c.filial?.codigo} ${formatarData(c.dia)}`)
+                .join(", ")}
               {errosColeta.length > 4 ? "…" : ""})
             </span>
           )}
@@ -168,14 +176,18 @@ export default async function DiferencaCaixaPage({ searchParams }: PageProps<"/f
                           lançada à mão{c.descricao ? ` · ${c.descricao}` : ""}
                         </span>
                       ) : (
-                        <span className={`block text-xs ${c.employee_id ? "text-muted-foreground" : "text-amber-800"}`}>{c.employee_id ? (nomeFuncionario.get(c.employee_id) ?? "funcionário ligado") : "sem funcionário ligado"}</span>
+                        <span className={`block text-xs ${c.employee_id ? "text-muted-foreground" : "text-amber-800"}`}>
+                          {c.employee_id ? (nomeFuncionario.get(c.employee_id) ?? "funcionário ligado") : "sem funcionário ligado"}
+                        </span>
                       )}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{c.origem === "manual" ? "—" : formatarMoeda(Number(c.informado))}</TableCell>
                     <TableCell className="hidden text-right tabular-nums md:table-cell">
                       {c.origem === "manual" ? "—" : formatarMoeda(movimentadoDoCaixa({ informadoDinheiro: Number(c.informado), calculadoDinheiro: dif }))}
                     </TableCell>
-                    <TableCell className={`text-right font-medium whitespace-nowrap tabular-nums ${c.classe === "quebra" ? (dif > 0 ? "text-red-700" : "text-sky-700") : "text-muted-foreground"}`}>{textoDiferenca(dif)}</TableCell>
+                    <TableCell className={`text-right font-medium whitespace-nowrap tabular-nums ${c.classe === "quebra" ? (dif > 0 ? "text-red-700" : "text-sky-700") : "text-muted-foreground"}`}>
+                      {textoDiferenca(dif)}
+                    </TableCell>
                     <TableCell>
                       <span className={`inline-block rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap ${COR_SITUACAO[st]}`}>{ROTULO_CURTO[st]}</span>
                     </TableCell>

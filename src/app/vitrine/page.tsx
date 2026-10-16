@@ -14,6 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AnexosQuebra } from "@/app/(app)/caixa/anexos-quebra";
 import { JustificativaForm } from "@/app/(app)/caixa/justificativa-form";
+import { ImportarPosForm } from "@/app/(app)/financeiro/diferenca-caixa/importar/importar-form";
+import type { EstadoPos } from "@/app/(app)/financeiro/diferenca-caixa/importar/actions";
 
 export const metadata = { title: "Vitrine" };
 
@@ -32,6 +34,31 @@ export default function VitrinePage() {
   async function justificarExemplo(): Promise<{ ok: string }> {
     "use server";
     return { ok: "Exemplo: nada foi gravado." };
+  }
+  async function conferirExemplo(): Promise<EstadoPos> {
+    "use server";
+    const base = { aba: "Varela", pagamento: "Cartão POS", status: "LANÇADO", branchId: "b", pelaNome: false, folhaTravada: false, codTrier: 1 };
+    const f = (nome: string, cargo: string) => ({ id: nome, nome, cargo, filial: "F108" });
+    return {
+      nomeArquivo: "POS Folha de Quebra de Caixa (exemplo).xlsx",
+      previa: {
+        corte: "2026-10-20",
+        competencia: "2026-10",
+        abas: ["Varela", "Nazário"],
+        linhas: [
+          { ...base, linha: 3, filial: "F001", dia: "2026-10-17", venda: "172047", valor: 80, vendedor: 2163, nome: "MARIA EXEMPLO", chave: "a", situacao: "lancar", funcionario: f("MARIA EXEMPLO DA SILVA", "BALCONISTA") },
+          { ...base, linha: 4, filial: "F108", dia: "2026-10-18", venda: "87099", valor: 22.78, vendedor: 2274, nome: "JOAO TESTE", chave: "b", situacao: "lancar", folhaTravada: true, funcionario: f("JOAO TESTE SOUZA", "ATENDENTE") },
+          { ...base, linha: 5, filial: "F015", dia: "2026-10-02", venda: "67446", valor: 6.99, vendedor: 56799, nome: "ANA MODELO", chave: "c", situacao: "lancar", pelaNome: true, codTrier: null, funcionario: f("ANA MODELO PEREIRA", "ATENDENTE") },
+          { ...base, linha: 6, filial: "F306", dia: "2026-10-09", venda: "219844", valor: 128.93, vendedor: 56299, nome: "CARLA FARMA", chave: "d", situacao: "farmaceutico", funcionario: f("CARLA FARMA LIMA", "FARMACEUTICO (A)") },
+          { ...base, linha: 7, filial: "F305", dia: "2026-10-04", venda: "289627", valor: 8, vendedor: 99999, nome: "SEM CADASTRO", chave: "e", situacao: "sem_funcionario", funcionario: null },
+          { ...base, linha: 8, filial: "F304", dia: "2026-09-25", venda: "107751", valor: 37, vendedor: 56195, nome: "PEDRO EXEMPLO", chave: "g", situacao: "duplicada", funcionario: f("PEDRO EXEMPLO", "ATENDENTE") },
+        ],
+      },
+    };
+  }
+  async function lancarExemplo(): Promise<EstadoPos> {
+    "use server";
+    return { resultado: { lote: "x", lancadas: 3, valor: 109.77, ignoradas: 3 } };
   }
   const ANEXOS = [
     { id: "00000000-0000-0000-0000-000000000001", diferenca_id: "x", nome: "cupom-sangria.jpg", mime: "image/jpeg", tamanho: 2_340_000, enviado_por: "eu", enviado_por_nome: "Gerente de Exemplo", criado_em: "2026-10-16T14:05:00Z" },
@@ -126,6 +153,13 @@ export default function VitrinePage() {
             <p>Mensagem de erro de página.</p>
           </div>
         </div>
+      </section>
+
+      <section aria-labelledby="t-pos" className="mb-6">
+        <h2 id="t-pos" className="mb-2 text-sm font-semibold">
+          Importar planilha POS (exemplo: escolha qualquer .xlsx e clique em Conferir)
+        </h2>
+        <ImportarPosForm conferir={conferirExemplo} lancar={lancarExemplo} />
       </section>
 
       <section aria-labelledby="t-quebra" className="mb-6 space-y-3 rounded-xl border bg-card p-5">

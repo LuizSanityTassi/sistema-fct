@@ -1876,6 +1876,9 @@ export type Database = {
           gestor_id: string | null
           lancada_por: string | null
           lancada_por_nome: string | null
+          chave_importacao: string | null
+          competencia_folha: string | null
+          lote_importacao: string | null
           origem: string
           andamento: string
           branch_id: string
@@ -1907,6 +1910,9 @@ export type Database = {
           gestor_id?: string | null
           lancada_por?: string | null
           lancada_por_nome?: string | null
+          chave_importacao?: string | null
+          competencia_folha?: string | null
+          lote_importacao?: string | null
           origem?: string
           andamento?: string
           branch_id: string
@@ -1935,6 +1941,9 @@ export type Database = {
           gestor_id?: string | null
           lancada_por?: string | null
           lancada_por_nome?: string | null
+          chave_importacao?: string | null
+          competencia_folha?: string | null
+          lote_importacao?: string | null
           origem?: string
           andamento?: string
           branch_id?: string
@@ -2913,6 +2922,13 @@ export type Database = {
           qtd: number
           tipo: Database["public"]["Enums"]["fin_tipo"]
           total: number
+        }[]
+      }
+      caixa_folha_travada: {
+        Args: { p_competencia: string; p_employees: string[] }
+        Returns: {
+          employee_id: string
+          origem: string
         }[]
       }
       caixa_funcionarios: {
