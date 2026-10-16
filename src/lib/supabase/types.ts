@@ -1771,6 +1771,57 @@ export type Database = {
           },
         ]
       }
+      caixa_anexos: {
+        Row: {
+          criado_em: string
+          diferenca_id: string
+          enviado_por: string | null
+          enviado_por_nome: string | null
+          id: string
+          mime: string | null
+          nome: string
+          storage_path: string
+          tamanho: number | null
+        }
+        Insert: {
+          criado_em?: string
+          diferenca_id: string
+          enviado_por?: string | null
+          enviado_por_nome?: string | null
+          id?: string
+          mime?: string | null
+          nome: string
+          storage_path: string
+          tamanho?: number | null
+        }
+        Update: {
+          criado_em?: string
+          diferenca_id?: string
+          enviado_por?: string | null
+          enviado_por_nome?: string | null
+          id?: string
+          mime?: string | null
+          nome?: string
+          storage_path?: string
+          tamanho?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caixa_anexos_diferenca_id_fkey"
+            columns: ["diferenca_id"]
+            isOneToOne: false
+            referencedRelation: "caixa_diferencas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caixa_anexos_enviado_por_fkey"
+            columns: ["enviado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       caixa_coletas: {
         Row: {
           branch_id: string

@@ -127,6 +127,25 @@ export async function minhasQuebras(abertas: boolean) {
   return data ?? [];
 }
 
+export type AnexoCaixa = { id: string; diferenca_id: string; nome: string; mime: string | null; tamanho: number | null; enviado_por: string | null; enviado_por_nome: string | null; criado_em: string };
+
+/** Anexos das justificativas, por quebra (o RLS mostra só os de quem vê a quebra). */
+export async function anexosDasQuebras(ids: string[]): Promise<Map<string, AnexoCaixa[]>> {
+  const mapa = new Map<string, AnexoCaixa[]>();
+  if (!ids.length) return mapa;
+  const supabase = await createClient();
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data, error } = await supabase
+      .from("caixa_anexos")
+      .select("id, diferenca_id, nome, mime, tamanho, enviado_por, enviado_por_nome, criado_em")
+      .in("diferenca_id", ids.slice(i, i + 200))
+      .order("criado_em");
+    if (error) throw new Error(error.message);
+    for (const a of data) mapa.set(a.diferenca_id, [...(mapa.get(a.diferenca_id) ?? []), a]);
+  }
+  return mapa;
+}
+
 export type FuncionarioCaixa = { id: string; nome: string; cargo: string | null; matricula: string | null; branch_id: string; filial: string; status: string };
 
 /** Funcionários (nome, cargo, matrícula, loja) para o financeiro ligar operadores e ver de quem é a quebra. */

@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AnexosQuebra } from "@/app/(app)/caixa/anexos-quebra";
+import { JustificativaForm } from "@/app/(app)/caixa/justificativa-form";
 
 export const metadata = { title: "Vitrine" };
 
@@ -27,6 +29,14 @@ export default function VitrinePage() {
   async function sair() {
     "use server";
   }
+  async function justificarExemplo(): Promise<{ ok: string }> {
+    "use server";
+    return { ok: "Exemplo: nada foi gravado." };
+  }
+  const ANEXOS = [
+    { id: "00000000-0000-0000-0000-000000000001", diferenca_id: "x", nome: "cupom-sangria.jpg", mime: "image/jpeg", tamanho: 2_340_000, enviado_por: "eu", enviado_por_nome: "Gerente de Exemplo", criado_em: "2026-10-16T14:05:00Z" },
+    { id: "00000000-0000-0000-0000-000000000002", diferenca_id: "x", nome: "conferencia-caixa-4708.pdf", mime: "application/pdf", tamanho: 180_000, enviado_por: "outro", enviado_por_nome: "Financeiro", criado_em: "2026-10-16T15:20:00Z" },
+  ];
   return (
     <AppShell usuario={{ nome: "Usuária de Exemplo", email: "exemplo@fct.local", papel: "admin" }} onSair={sair}>
       <BoasVindas data="Sexta-feira, 16 de outubro" titulo="Olá, Usuária">
@@ -116,6 +126,14 @@ export default function VitrinePage() {
             <p>Mensagem de erro de página.</p>
           </div>
         </div>
+      </section>
+
+      <section aria-labelledby="t-quebra" className="mb-6 space-y-3 rounded-xl border bg-card p-5">
+        <h2 id="t-quebra" className="text-sm font-semibold">
+          Justificativa de quebra com anexo
+        </h2>
+        <AnexosQuebra anexos={ANEXOS} usuarioId="eu" aberta />
+        <JustificativaForm action={justificarExemplo} id="00000000-0000-0000-0000-00000000000a" atual={null} />
       </section>
 
       <section aria-labelledby="t-tabela" className="rounded-xl border bg-card">

@@ -8,11 +8,12 @@ import { exigirAcesso } from "@/lib/auth/session";
 import { movimentadoDoCaixa, type FormaCaixa } from "@/lib/caixa/diferencas";
 import { COR_SITUACAO, ROTULO_SITUACAO, situacaoDoCaixa, textoDiferenca } from "@/lib/caixa/rotulos";
 import { gruposDeGestores } from "@/lib/caixa/gestores";
-import { funcionariosDoCaixa, gestoresDasLojas, obterCaixa, usuariosDoCaixa } from "@/lib/data/diferenca-caixa";
+import { anexosDasQuebras, funcionariosDoCaixa, gestoresDasLojas, obterCaixa, usuariosDoCaixa } from "@/lib/data/diferenca-caixa";
 import { ehFarmaceutico } from "@/lib/rh/lancamentos";
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formatos";
 import { decidirQuebra, excluirQuebraManual, moverGestorQuebra } from "../actions";
 import { GestorForm } from "../gestores/gestor-form";
+import { AnexosQuebra } from "../../../caixa/anexos-quebra";
 import { DecisaoForm } from "./decisao-form";
 import { ExcluirQuebraManual } from "./excluir-manual";
 
@@ -21,8 +22,8 @@ export const metadata = { title: "Caixa" };
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
 export default async function CaixaDetalhePage({ params }: PageProps<"/financeiro/diferenca-caixa/[id]">) {
-  const [, { id }] = await Promise.all([exigirAcesso("/financeiro/diferenca-caixa"), params]);
-  const [c, funcionarios, usuarios, gestores] = await Promise.all([obterCaixa(id), funcionariosDoCaixa(), usuariosDoCaixa(), gestoresDasLojas()]);
+  const [sessao, { id }] = await Promise.all([exigirAcesso("/financeiro/diferenca-caixa"), params]);
+  const [c, funcionarios, usuarios, gestores, anexos] = await Promise.all([obterCaixa(id), funcionariosDoCaixa(), usuariosDoCaixa(), gestoresDasLojas(), anexosDasQuebras([id])]);
   if (!c) notFound();
   const manual = c.origem === "manual";
   const nomeGestor = c.gestor_id ? (usuarios.find((u) => u.id === c.gestor_id)?.nome ?? "usuário inativo") : null;
@@ -171,6 +172,11 @@ export default async function CaixaDetalhePage({ params }: PageProps<"/financeir
               </>
             ) : (
               <p className="text-sm text-amber-800">Ainda sem justificativa. O gestor justifica em “Quebras de caixa” (o colaborador só vê).</p>
+            )}
+            {c.classe === "quebra" && (anexos.get(c.id) ?? []).length > 0 && (
+              <div className="mt-3">
+                <AnexosQuebra anexos={anexos.get(c.id) ?? []} usuarioId={sessao.id} podeRemoverTodos aberta={c.andamento === "pendente" || c.andamento === "justificada"} />
+              </div>
             )}
           </section>
 

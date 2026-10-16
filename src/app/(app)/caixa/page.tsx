@@ -3,9 +3,10 @@ import { PageHeader } from "@/components/layout/page-header";
 import { exigirAcesso } from "@/lib/auth/session";
 import { TOLERANCIA_CAIXA } from "@/lib/caixa/diferencas";
 import { COR_SITUACAO, ROTULO_SITUACAO, situacaoDoCaixa, textoDiferenca } from "@/lib/caixa/rotulos";
-import { minhasQuebras } from "@/lib/data/diferenca-caixa";
+import { anexosDasQuebras, minhasQuebras } from "@/lib/data/diferenca-caixa";
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formatos";
 import { justificarQuebra } from "./actions";
+import { AnexosQuebra } from "./anexos-quebra";
 import { JustificativaForm } from "./justificativa-form";
 
 export const metadata = { title: "Quebras de caixa" };
@@ -15,6 +16,7 @@ export default async function QuebrasCaixaPage({ searchParams }: PageProps<"/cai
   const financeiro = sessao.papel === "admin" || sessao.papel === "financeiro";
   const todas = sp.ver === "todas";
   const quebras = financeiro ? [] : await minhasQuebras(!todas);
+  const anexos = await anexosDasQuebras(quebras.map((q) => q.id));
 
   return (
     <>
@@ -80,10 +82,14 @@ export default async function QuebrasCaixaPage({ searchParams }: PageProps<"/cai
                       </div>
                     </dl>
                     {aberta && souGestor ? (
-                      <JustificativaForm action={justificarQuebra.bind(null, q.id)} id={q.id} atual={q.justificativa} />
+                      <div className="space-y-3">
+                        <AnexosQuebra anexos={anexos.get(q.id) ?? []} usuarioId={sessao.id} aberta />
+                        <JustificativaForm action={justificarQuebra.bind(null, q.id)} id={q.id} atual={q.justificativa} />
+                      </div>
                     ) : aberta ? (
                       <div className="space-y-2 text-sm">
                         {q.justificativa && <p className="rounded-lg border bg-muted/30 p-3 whitespace-pre-wrap">{q.justificativa}</p>}
+                        <AnexosQuebra anexos={anexos.get(q.id) ?? []} usuarioId={sessao.id} aberta={false} />
                         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
                           {q.andamento === "justificada" ? "Seu gestor já justificou. Agora o financeiro decide se mantém o desconto ou abona." : "Justifique para o seu gestor: é ele quem registra a justificativa aqui no sistema."}
                         </p>
@@ -91,6 +97,7 @@ export default async function QuebrasCaixaPage({ searchParams }: PageProps<"/cai
                     ) : (
                       <div className="space-y-2 text-sm">
                         {q.justificativa && <p className="rounded-lg border bg-muted/30 p-3 whitespace-pre-wrap">{q.justificativa}</p>}
+                        <AnexosQuebra anexos={anexos.get(q.id) ?? []} usuarioId={sessao.id} aberta={false} />
                         <p className="text-muted-foreground">
                           {q.andamento === "abonada" ? "O financeiro abonou: não há desconto." : "O financeiro manteve o desconto na folha."}
                           {q.justificada_em && ` Justificada em ${formatarDataHora(q.justificada_em)}.`}
