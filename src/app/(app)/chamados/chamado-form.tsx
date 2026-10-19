@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import * as React from "react";
 import { useActionState } from "react";
 import { BotaoSalvar } from "@/components/form/botao-salvar";
 import { Campo, ErroFormulario, SelectNativo } from "@/components/form/campo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CATEGORIA_CHAMADO_LABEL, PRIORIDADE_LABEL } from "@/lib/chamados/rotulos";
+import { CATEGORIA_CHAMADO_LABEL, PRIORIDADE_LABEL, type CategoriaChamado } from "@/lib/chamados/rotulos";
+import { TIPO_PADRAO_DA_CATEGORIA, TIPOS_CHAMADO, tipoDoValor } from "@/lib/chamados/tipos";
 import { ACCEPT_ARQUIVO } from "@/lib/rh/arquivos";
 import type { EstadoChamado } from "./actions";
 
@@ -17,16 +19,17 @@ type Props = {
   unidades: OpcaoUnidade[];
   unidadePadrao: string | null;
   /** Valores pré-preenchidos (ex.: chamado aberto a partir de um ativo de TI). */
-  inicial?: { titulo?: string; categoria?: string };
+  inicial?: { titulo?: string; categoria?: string; tipo?: string };
 };
 
-const AJUDA: Record<string, string> = {
-  ti: "Computador, impressora, sistema, internet, acessos.",
-  rh: "Documentos, férias, folha, admissão/desligamento. Só o RH vê o conteúdo.",
-  financeiro: "Pagamentos, notas, reembolsos, conciliação.",
-  manutencao: "Reparos na loja: elétrica, ar-condicionado, geladeira, fachada.",
-  compras: "Material de expediente, equipamentos, uniformes.",
-  outros: "Qualquer outro assunto.",
+// quem atende cada setor (o mesmo que decide quem vê o chamado)
+const QUEM_ATENDE: Record<CategoriaChamado, string> = {
+  ti: "a TI atende",
+  rh: "o RH atende e só o RH vê o conteúdo",
+  financeiro: "o Financeiro atende",
+  manutencao: "a equipe de manutenção (TI) atende",
+  compras: "compras (TI) atende",
+  outros: "a TI encaminha",
 };
 
 export function ChamadoForm({ action, unidades, unidadePadrao, inicial = {} }: Props) {
@@ -34,7 +37,9 @@ export function ChamadoForm({ action, unidades, unidadePadrao, inicial = {} }: P
   const erro = (c: string) => estado.erros?.[c];
   const grupos = new Map<string, OpcaoUnidade[]>();
   for (const u of unidades) grupos.set(u.grupo, [...(grupos.get(u.grupo) ?? []), u]);
-  const categoriaInicial = inicial.categoria && inicial.categoria in CATEGORIA_CHAMADO_LABEL ? inicial.categoria : "ti";
+  const tipoInicial = tipoDoValor(inicial.tipo)?.valor ?? (inicial.categoria ? TIPO_PADRAO_DA_CATEGORIA[inicial.categoria as CategoriaChamado] : undefined) ?? "";
+  const [tipo, setTipo] = React.useState(tipoInicial);
+  const escolhido = tipoDoValor(tipo);
 
   return (
     <form action={formAction} noValidate className="space-y-6">
@@ -44,11 +49,20 @@ export function ChamadoForm({ action, unidades, unidadePadrao, inicial = {} }: P
           <Campo id="titulo" label="Título" obrigatorio erro={erro("titulo")} className="sm:col-span-2" dica="Resuma o problema em uma frase">
             <Input id="titulo" name="titulo" defaultValue={inicial.titulo ?? ""} maxLength={120} aria-invalid={!!erro("titulo")} autoFocus />
           </Campo>
-          <Campo id="categoria" label="Categoria" obrigatorio erro={erro("categoria")}>
-            <SelectNativo id="categoria" name="categoria" defaultValue={categoriaInicial} aria-invalid={!!erro("categoria")}>
-              {Object.entries(CATEGORIA_CHAMADO_LABEL).map(([valor, rotulo]) => (
-                <option key={valor} value={valor}>
-                  {rotulo} — {AJUDA[valor]}
+          <Campo
+            id="tipo"
+            label="Tipo do chamado"
+            obrigatorio
+            erro={erro("tipo")}
+            dica={escolhido ? `${escolhido.dica} Vai para ${CATEGORIA_CHAMADO_LABEL[escolhido.categoria]}: ${QUEM_ATENDE[escolhido.categoria]}.` : "Escolha o assunto: ele decide qual setor atende."}
+          >
+            <SelectNativo id="tipo" name="tipo" value={tipo} onChange={(e) => setTipo(e.target.value)} aria-invalid={!!erro("tipo")}>
+              <option value="" disabled>
+                Escolha o tipo…
+              </option>
+              {TIPOS_CHAMADO.map((t) => (
+                <option key={t.valor} value={t.valor}>
+                  {t.rotulo}
                 </option>
               ))}
             </SelectNativo>

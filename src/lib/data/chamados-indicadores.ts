@@ -2,6 +2,7 @@
 // os assuntos que se repetem. Tudo pela RLS (cada atendente vê os chamados que atende).
 import type { CategoriaChamado, PrioridadeChamado, StatusChamado } from "@/lib/chamados/rotulos";
 import { situacaoSla } from "@/lib/chamados/sla";
+import { rotuloTipo } from "@/lib/chamados/tipos";
 import { normalizarNome } from "@/lib/rh/lancamentos";
 import { createClient } from "@/lib/supabase/server";
 
@@ -22,7 +23,7 @@ type Linha = {
 const media = (xs: number[]) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : null);
 const minutos = (de: string, ate: string) => (Date.parse(ate) - Date.parse(de)) / 60_000;
 
-/** Assunto do chamado para achar repetição: subcategoria ou as 3 primeiras palavras do título. */
+/** Assunto do chamado para achar repetição: o tipo (Câmeras, Férias…) ou, sem tipo, as 3 primeiras palavras do título. */
 const assunto = (t: Linha) => (t.subcategoria?.trim() ? normalizarNome(t.subcategoria) : normalizarNome(t.titulo).split(" ").filter((p) => p.length > 2).slice(0, 3).join(" "));
 
 export async function carregarIndicadoresChamados(dias: number) {
@@ -69,7 +70,7 @@ export async function carregarIndicadoresChamados(dias: number) {
   // o mesmo assunto, na mesma loja, 3 vezes ou mais no período
   const recorrentes = [...agrupar((t) => `${t.unidade?.codigo ?? "-"}|${t.categoria}|${assunto(t)}`).entries()]
     .filter(([, lista]) => lista.length >= 3)
-    .map(([, lista]) => ({ loja: lista[0].unidade?.codigo ?? "Sem unidade", categoria: lista[0].categoria, assunto: lista[lista.length - 1].subcategoria?.trim() || lista[lista.length - 1].titulo, total: lista.length, ultimos: lista.slice(-3).reverse() }))
+    .map(([, lista]) => ({ loja: lista[0].unidade?.codigo ?? "Sem unidade", categoria: lista[0].categoria, assunto: rotuloTipo(lista[lista.length - 1].subcategoria) || lista[lista.length - 1].titulo, total: lista.length, ultimos: lista.slice(-3).reverse() }))
     .sort((a, b) => b.total - a.total)
     .slice(0, 15);
 

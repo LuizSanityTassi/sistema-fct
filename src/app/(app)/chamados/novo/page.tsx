@@ -31,7 +31,7 @@ export default async function NovoChamadoPage({ searchParams }: PageProps<"/cham
         action={abrirChamado}
         unidades={unidades.filter((u) => u.ativo || u.id === sessao.branchId || u.id === filial)}
         unidadePadrao={filial && unidades.some((u) => u.id === filial) ? filial : sessao.branchId}
-        inicial={{ titulo: s("titulo"), categoria: s("categoria") }}
+        inicial={{ titulo: s("titulo"), categoria: s("categoria"), tipo: s("tipo") }}
       />
     </>
   );

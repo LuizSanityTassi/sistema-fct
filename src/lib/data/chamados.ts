@@ -13,6 +13,8 @@ export type FiltrosChamados = {
   visao: VisaoChamados;
   status: StatusFiltro;
   categoria?: CategoriaChamado;
+  /** tipo do chamado (tickets.subcategoria), ex.: "ferias" */
+  tipo?: string;
   prioridade?: PrioridadeChamado;
   filial?: string;
   /** Só os abertos sem resposta com o prazo de primeira resposta vencido. */
@@ -26,6 +28,7 @@ export function lerFiltrosChamados(sp: Record<string, string | string[] | undefi
   const visao = s("visao");
   const status = s("status");
   const categoria = s("categoria");
+  const tipo = s("tipo");
   const prioridade = s("prioridade");
   return {
     q: s("q") || undefined,
@@ -35,6 +38,7 @@ export function lerFiltrosChamados(sp: Record<string, string | string[] | undefi
         ? (status as StatusFiltro)
         : "abertos",
     categoria: categoria ? (categoria as CategoriaChamado) : undefined,
+    tipo: tipo && /^[a-z_]{2,40}$/.test(tipo) ? tipo : undefined,
     prioridade: prioridade ? (prioridade as PrioridadeChamado) : undefined,
     filial: ehUuid(s("filial")) ? s("filial") : undefined,
     sla: s("sla") === "estourado" ? "estourado" : undefined,
@@ -43,7 +47,7 @@ export function lerFiltrosChamados(sp: Record<string, string | string[] | undefi
 }
 
 const SELECAO_LISTA =
-  "id, numero, titulo, categoria, prioridade, status, created_at, updated_at, resolved_at, primeira_resposta_em, branch_id, solicitante, responsavel, unidade:branches(id, codigo, nome), quem_abriu:profiles!tickets_solicitante_fkey(id, nome), quem_atende:profiles!tickets_responsavel_fkey(id, nome)";
+  "id, numero, titulo, categoria, subcategoria, prioridade, status, created_at, updated_at, resolved_at, primeira_resposta_em, branch_id, solicitante, responsavel, unidade:branches(id, codigo, nome), quem_abriu:profiles!tickets_solicitante_fkey(id, nome), quem_atende:profiles!tickets_responsavel_fkey(id, nome)";
 
 export async function listarChamados(f: FiltrosChamados, usuarioId: string) {
   const supabase = await createClient();
@@ -55,6 +59,7 @@ export async function listarChamados(f: FiltrosChamados, usuarioId: string) {
   else if (f.status === "encerrados") consulta = consulta.in("status", ["resolvido", "cancelado"]);
   else if (f.status !== "todos") consulta = consulta.eq("status", f.status);
   if (f.categoria) consulta = consulta.eq("categoria", f.categoria);
+  if (f.tipo) consulta = consulta.eq("subcategoria", f.tipo);
   if (f.prioridade) consulta = consulta.eq("prioridade", f.prioridade);
   if (f.filial) consulta = consulta.eq("branch_id", f.filial);
   if (f.sla === "estourado") consulta = consulta.not("status", "in", "(resolvido,cancelado)").is("primeira_resposta_em", null).or(filtroSlaEstourado());
@@ -99,7 +104,7 @@ export async function obterChamado(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("tickets")
-    .select(`${SELECAO_LISTA}, descricao, subcategoria`)
+    .select(`${SELECAO_LISTA}, descricao`)
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;

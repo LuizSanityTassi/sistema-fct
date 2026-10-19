@@ -12,6 +12,7 @@ import {
   TRANSICOES_SOLICITANTE,
   type StatusChamado,
 } from "@/lib/chamados/rotulos";
+import { ehTipoChamado, tipoDoValor } from "@/lib/chamados/tipos";
 import { BUCKET_DOCUMENTOS, nomeSeguro, validarArquivo } from "@/lib/rh/arquivos";
 import { createClient } from "@/lib/supabase/server";
 import { Constants } from "@/lib/supabase/types";
@@ -82,7 +83,7 @@ function podeAtender(sessao: Sessao, t: TicketBase) {
 const esquemaAbertura = z.object({
   titulo: z.string({ error: "Informe um título." }).trim().min(5, "Mínimo de 5 caracteres.").max(120, "Máximo de 120 caracteres."),
   descricao: z.string().trim().max(4000, "Máximo de 4000 caracteres.").optional(),
-  categoria: z.enum(Constants.public.Enums.ticket_category, { error: "Escolha a categoria." }),
+  tipo: z.string({ error: "Escolha o tipo do chamado." }).refine(ehTipoChamado, "Escolha o tipo do chamado."),
   prioridade: z.enum(Constants.public.Enums.ticket_priority, { error: "Prioridade inválida." }),
   branch_id: z.uuid({ error: "Unidade inválida." }).optional(),
 });
@@ -92,7 +93,7 @@ export async function abrirChamado(_prev: EstadoChamado, fd: FormData): Promise<
   const r = esquemaAbertura.safeParse({
     titulo: texto(fd, "titulo"),
     descricao: texto(fd, "descricao"),
-    categoria: texto(fd, "categoria"),
+    tipo: texto(fd, "tipo"),
     prioridade: texto(fd, "prioridade") ?? "normal",
     branch_id: texto(fd, "branch_id"),
   });
@@ -101,13 +102,16 @@ export async function abrirChamado(_prev: EstadoChamado, fd: FormData): Promise<
   if (arq.erro) erros.arquivo = arq.erro;
   if (!r.success || Object.keys(erros).length > 0) return { erro: "Confira os campos destacados.", erros };
 
+  // o tipo decide o setor (categoria), que decide quem atende e quem vê
+  const categoria = tipoDoValor(r.data.tipo)!.categoria;
   const supabase = await createClient();
   const { data: criado, error } = await supabase
     .from("tickets")
     .insert({
       titulo: r.data.titulo,
       descricao: r.data.descricao ?? null,
-      categoria: r.data.categoria,
+      categoria,
+      subcategoria: r.data.tipo,
       prioridade: r.data.prioridade,
       branch_id: r.data.branch_id ?? sessao.branchId ?? null,
       solicitante: sessao.id,
@@ -127,7 +131,7 @@ export async function abrirChamado(_prev: EstadoChamado, fd: FormData): Promise<
     acao: "criar",
     entidade: "tickets",
     registroId: criado.id,
-    novo: { numero: criado.numero, titulo: r.data.titulo, categoria: r.data.categoria, prioridade: r.data.prioridade },
+    novo: { numero: criado.numero, titulo: r.data.titulo, tipo: r.data.tipo, categoria, prioridade: r.data.prioridade },
   });
   revalidatePath("/chamados");
   redirect(`/chamados/${criado.id}?aberto=1`);

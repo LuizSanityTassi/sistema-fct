@@ -17,6 +17,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AnexosQuebra } from "@/app/(app)/caixa/anexos-quebra";
+import { ChamadoForm } from "@/app/(app)/chamados/chamado-form";
+import type { EstadoChamado } from "@/app/(app)/chamados/actions";
 import { assuntoAviso, htmlAviso, type Destinatario } from "@/lib/caixa/avisos-email";
 import { JustificativaForm } from "@/app/(app)/caixa/justificativa-form";
 import { ImportarPosForm } from "@/app/(app)/financeiro/diferenca-caixa/importar/importar-form";
@@ -51,6 +53,10 @@ export default function VitrinePage() {
   if (process.env.NODE_ENV !== "development") notFound();
   async function sair() {
     "use server";
+  }
+  async function abrirExemplo(): Promise<EstadoChamado> {
+    "use server";
+    return { erro: "Exemplo: nada foi gravado." };
   }
   async function justificarExemplo(): Promise<{ ok: string }> {
     "use server";
@@ -245,6 +251,13 @@ export default function VitrinePage() {
         </h2>
         <AnexosQuebra anexos={ANEXOS} usuarioId="eu" aberta />
         <JustificativaForm action={justificarExemplo} id="00000000-0000-0000-0000-00000000000a" atual={null} />
+      </section>
+
+      <section aria-labelledby="t-chamado" className="mb-6">
+        <h2 id="t-chamado" className="mb-2 text-sm font-semibold">
+          Abrir chamado (tipos do chamado)
+        </h2>
+        <ChamadoForm action={abrirExemplo} unidades={[{ id: "u1", codigo: "F002", nome: "Centro", grupo: "Varela" }]} unidadePadrao="u1" />
       </section>
 
       <section aria-labelledby="t-email" className="mb-6 rounded-xl border bg-card p-5">

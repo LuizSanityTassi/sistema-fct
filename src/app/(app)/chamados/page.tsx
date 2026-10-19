@@ -8,12 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
 import { CATEGORIA_CHAMADO_LABEL, PRIORIDADE_LABEL, STATUS_CHAMADO_LABEL } from "@/lib/chamados/rotulos";
+import { TIPOS_CHAMADO } from "@/lib/chamados/tipos";
 import { COR_SLA, situacaoSla } from "@/lib/chamados/sla";
 import { podeAcessar } from "@/lib/nav";
 import { lerFiltrosChamados, listarChamados, resumoChamados, TAMANHO_PAGINA } from "@/lib/data/chamados";
 import { listarUnidadesParaSelecao } from "@/lib/data/funcionarios";
 import { formatarDataHora } from "@/lib/formatos";
-import { BadgeCategoria, BadgePrioridade, BadgeStatusChamado } from "./badges-chamado";
+import { BadgePrioridade, BadgeStatusChamado, BadgeTipo } from "./badges-chamado";
 
 export const metadata = { title: "Chamados" };
 
@@ -34,7 +35,7 @@ export default async function ChamadosPage({ searchParams }: PageProps<"/chamado
     filial: filtros.filial,
     sla: filtros.sla,
   };
-  const temFiltro = Boolean(filtros.q || filtros.categoria || filtros.prioridade || filtros.filial || filtros.sla || filtros.status !== "abertos" || filtros.visao !== "todos");
+  const temFiltro = Boolean(filtros.q || filtros.categoria || filtros.tipo || filtros.prioridade || filtros.filial || filtros.sla || filtros.status !== "abertos" || filtros.visao !== "todos");
 
   const cartoes = [
     { rotulo: "SLA estourado", valor: resumo.slaEstourado, href: "/chamados?sla=estourado", classe: resumo.slaEstourado ? "text-red-700" : "text-emerald-700" },
@@ -101,8 +102,16 @@ export default async function ChamadosPage({ searchParams }: PageProps<"/chamado
             ))}
           </optgroup>
         </SelectNativo>
-        <SelectNativo name="categoria" defaultValue={filtros.categoria ?? ""} aria-label="Categoria" className="lg:w-36">
-          <option value="">Toda categoria</option>
+        <SelectNativo name="tipo" defaultValue={filtros.tipo ?? ""} aria-label="Tipo do chamado" className="lg:w-52">
+          <option value="">Todos os tipos</option>
+          {TIPOS_CHAMADO.map((t) => (
+            <option key={t.valor} value={t.valor}>
+              {t.rotulo}
+            </option>
+          ))}
+        </SelectNativo>
+        <SelectNativo name="categoria" defaultValue={filtros.categoria ?? ""} aria-label="Setor que atende" className="lg:w-36">
+          <option value="">Todo setor</option>
           {Object.entries(CATEGORIA_CHAMADO_LABEL).map(([valor, rotulo]) => (
             <option key={valor} value={valor}>
               {rotulo}
@@ -168,7 +177,7 @@ export default async function ChamadosPage({ searchParams }: PageProps<"/chamado
                       {t.titulo}
                     </Link>
                     <div className="mt-0.5">
-                      <BadgeCategoria categoria={t.categoria} />
+                      <BadgeTipo subcategoria={t.subcategoria} categoria={t.categoria} />
                     </div>
                   </TableCell>
                   <TableCell className="hidden md:table-cell">

@@ -7,6 +7,7 @@ import {
   type PrioridadeChamado,
   type StatusChamado,
 } from "@/lib/chamados/rotulos";
+import { rotuloTipo } from "@/lib/chamados/tipos";
 import { TOM } from "@/lib/tons";
 
 const CLASSE_STATUS: Record<StatusChamado, string> = {
@@ -39,6 +40,20 @@ export function BadgePrioridade({ prioridade }: { prioridade: PrioridadeChamado 
     <Badge variant="outline" className={CLASSE_PRIORIDADE[prioridade]}>
       {PRIORIDADE_LABEL[prioridade]}
     </Badge>
+  );
+}
+
+/** Tipo do chamado (Admissão, Férias…) com o setor que atende; chamado antigo sem tipo mostra só o setor. */
+export function BadgeTipo({ subcategoria, categoria }: { subcategoria: string | null; categoria: CategoriaChamado }) {
+  const tipo = rotuloTipo(subcategoria);
+  if (!tipo) return <BadgeCategoria categoria={categoria} />;
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      <Badge variant="secondary" className="font-medium">
+        {tipo}
+      </Badge>
+      <span className="text-xs text-muted-foreground">{CATEGORIA_CHAMADO_LABEL[categoria]}</span>
+    </span>
   );
 }
 

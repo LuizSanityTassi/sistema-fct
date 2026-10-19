@@ -12,7 +12,7 @@ import { linhaDoTempo, listarAtendentes, obterChamado } from "@/lib/data/chamado
 import { formatarDataHora } from "@/lib/formatos";
 import { alterarStatusChamado, assumirChamado, atribuirChamado, comentarChamado } from "../actions";
 import { AlterarStatusChamado, AtribuirChamado, ComentarioForm } from "../acoes-chamado";
-import { BadgeCategoria, BadgePrioridade, BadgeStatusChamado } from "../badges-chamado";
+import { BadgePrioridade, BadgeStatusChamado, BadgeTipo } from "../badges-chamado";
 
 export async function generateMetadata({ params }: PageProps<"/chamados/[id]">): Promise<Metadata> {
   const { id } = await params;
@@ -173,7 +173,7 @@ export default async function ChamadoPage({ params, searchParams }: PageProps<"/
             <h2 className="mb-4 text-sm font-semibold">Informações</h2>
             <dl className="grid gap-4">
               <Dado rotulo="Categoria">
-                <BadgeCategoria categoria={t.categoria} />
+                <BadgeTipo subcategoria={t.subcategoria} categoria={t.categoria} />
               </Dado>
               <Dado rotulo="Prioridade">
                 <BadgePrioridade prioridade={t.prioridade} />
