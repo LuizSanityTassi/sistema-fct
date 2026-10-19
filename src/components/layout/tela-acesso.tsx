@@ -46,6 +46,7 @@ export function TelaAcesso({ titulo, descricao, children, rodape }: { titulo: st
             <BadgeCheck className="size-4" aria-hidden />
             Uso interno · acesso restrito a colaboradores autorizados
           </p>
+          <p className="mt-2 pl-3 text-[11px] text-white/85">Desenvolvido por: Luiz Otávio Moreira</p>
         </div>
       </aside>
 
@@ -59,6 +60,8 @@ export function TelaAcesso({ titulo, descricao, children, rodape }: { titulo: st
           {descricao && <p className="mt-1.5 text-sm text-muted-foreground">{descricao}</p>}
           <div className="mt-6">{children}</div>
           {rodape && <div className="mt-6 text-center text-sm">{rodape}</div>}
+          {/* no celular o painel vermelho some: o crédito vem para baixo do formulário */}
+          <p className="mt-10 text-center text-[11px] text-muted-foreground lg:hidden">Desenvolvido por: Luiz Otávio Moreira</p>
         </div>
       </main>
     </div>
