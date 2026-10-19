@@ -76,7 +76,7 @@ export default async function DenunciaPage({ params }: PageProps<"/denuncias/rec
               {(mensagens ?? []).map((m) => (
                 <li
                   key={m.id}
-                  className={`rounded-lg px-3 py-2 text-sm ${m.interna ? "border border-amber-200 bg-amber-50" : m.autor === "denunciante" ? "border bg-muted/40" : "ml-6 border border-fct-tinta/15 bg-fct-tinta/5"}`}
+                  className={`rounded-lg px-3 py-2 text-sm ${m.interna ? "border border-amber-200 bg-amber-50" : m.autor === "denunciante" ? "border bg-muted/40" : "ml-6 border border-primary/15 bg-fct-tinta/5"}`}
                 >
                   <p className="mb-1 text-xs font-semibold text-muted-foreground">
                     {m.autor === "denunciante" ? "Quem denunciou" : m.responsavel_nome ?? "Comitê"} · {formatarData(m.criada_em)}

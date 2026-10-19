@@ -125,7 +125,7 @@ export function NovaConciliacaoForm({ action, dda, trier, faixas }: Props) {
       </section>
 
       <div className="flex items-center gap-2">
-        <Button type="submit" disabled={pendente || selDda.size === 0 || selTrier.size === 0} className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85">
+        <Button type="submit" disabled={pendente || selDda.size === 0 || selTrier.size === 0}>
           <Scale data-icon="inline-start" />
           {pendente ? "Conciliando… (pode levar alguns segundos)" : "Conciliar"}
         </Button>

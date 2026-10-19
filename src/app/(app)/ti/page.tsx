@@ -3,7 +3,6 @@ import { KeyRound, Laptop, Plus } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { exigirAcesso } from "@/lib/auth/session";
-import { PRIORIDADE_LABEL, STATUS_CHAMADO_LABEL } from "@/lib/chamados/rotulos";
 import { filaTi, resumoAtivos, resumoFilaTi } from "@/lib/data/ti";
 import { descreverPeriodo, formatarMoeda, pluralizar } from "@/lib/formatos";
 import { STATUS_ATIVO_LABEL, TIPO_ATIVO_LABEL } from "@/lib/ti/rotulos";
@@ -13,9 +12,9 @@ export const metadata = { title: "TI" };
 
 function Kpi({ rotulo, valor, nota, href, tom }: { rotulo: string; valor: string | number; nota?: string | null; href: string; tom?: string }) {
   return (
-    <Link href={href} className="block rounded-xl border bg-card px-4 py-3 transition-colors hover:border-fct-tinta/40">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{rotulo}</p>
-      <p className={`mt-1 text-2xl font-bold tracking-tight tabular-nums ${tom ?? ""}`}>{valor}</p>
+    <Link href={href} className="block rounded-xl border bg-card px-4 py-3 transition-colors hover:border-primary/40">
+      <p className="rotulo">{rotulo}</p>
+      <p className={`mt-1 numero ${tom ?? ""}`}>{valor}</p>
       {nota && <p className="text-xs text-muted-foreground">{nota}</p>}
     </Link>
   );
@@ -37,7 +36,7 @@ export default async function TiPage() {
               <KeyRound data-icon="inline-start" />
               Solicitar acesso
             </Button>
-            <Button className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/ti/ativos/novo" />}>
+            <Button nativeButton={false} render={<Link href="/ti/ativos/novo" />}>
               <Plus data-icon="inline-start" />
               Novo ativo
             </Button>
@@ -115,7 +114,7 @@ export default async function TiPage() {
           ) : (
             <div className="border-t px-5 py-4 text-sm">
               <p className="mb-3">
-                <span className="text-2xl font-bold tracking-tight tabular-nums">{formatarMoeda(ativos.valorTotal)}</span>
+                <span className="numero">{formatarMoeda(ativos.valorTotal)}</span>
                 <span className="text-muted-foreground"> em {pluralizar(ativos.unidadesComAtivos, "unidade", "unidades")}</span>
               </p>
               <ul className="space-y-1">

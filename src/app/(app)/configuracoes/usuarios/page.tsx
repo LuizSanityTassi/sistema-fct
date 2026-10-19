@@ -31,7 +31,7 @@ export default async function UsuariosPage({ searchParams }: PageProps<"/configu
         titulo="Usuários"
         descricao="Quem acessa o sistema, com qual papel e em quais unidades."
         acoes={
-          <Button className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/configuracoes/usuarios/novo" />}>
+          <Button nativeButton={false} render={<Link href="/configuracoes/usuarios/novo" />}>
             <Plus data-icon="inline-start" />
             Convidar usuário
           </Button>
@@ -64,7 +64,7 @@ export default async function UsuariosPage({ searchParams }: PageProps<"/configu
 
       <section className="mb-4 flex flex-wrap gap-2">
         {PAPEIS.map((p) => (
-          <Link key={p} href={`/configuracoes/usuarios?papel=${p}`} className="rounded-full border bg-card px-3 py-1 text-sm hover:border-fct-tinta/40">
+          <Link key={p} href={`/configuracoes/usuarios?papel=${p}`} className="rounded-full border bg-card px-3 py-1 text-sm hover:border-primary/40">
             {PAPEL_LABEL[p]} <span className="font-semibold tabular-nums">{porPapel[p] ?? 0}</span>
           </Link>
         ))}

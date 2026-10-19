@@ -42,7 +42,7 @@ export function TelaAcesso({ titulo, descricao, children, rodape }: { titulo: st
         <div aria-hidden className="pointer-events-none absolute -right-28 -bottom-60 size-[26rem] rounded-full bg-fct-yellow" />
         <Onda tom="vermelho" className="pointer-events-none absolute inset-x-0 bottom-16 h-24" />
         <div className="relative">
-          <p className="inline-flex items-center gap-2 rounded-full bg-fct-tinta/90 px-3 py-1.5 text-xs text-white/85 ring-1 ring-white/10">
+          <p className="inline-flex items-center gap-2 rounded-full bg-black/75 px-3 py-1.5 text-xs text-white/85 ring-1 ring-white/10">
             <BadgeCheck className="size-4" aria-hidden />
             Uso interno · acesso restrito a colaboradores autorizados
           </p>

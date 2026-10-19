@@ -173,7 +173,7 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
             key={a.chave}
             href={linkAba(a.chave)}
             aria-current={aba === a.chave ? "page" : undefined}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm whitespace-nowrap ${aba === a.chave ? "border-fct-tinta font-semibold text-fct-tinta" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+            className={`-mb-px border-b-2 px-3 py-2 text-sm whitespace-nowrap ${aba === a.chave ? "border-primary font-semibold text-fct-tinta" : "border-transparent text-muted-foreground hover:text-foreground"}`}
           >
             {a.rotulo}
             {a.chave === "caixa" && ficha.quebrasAbertas > 0 && <span className="ml-1.5 rounded-full bg-orange-100 px-1.5 text-[11px] font-semibold text-orange-800">{ficha.quebrasAbertas}</span>}
@@ -187,8 +187,8 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
 
           <section aria-label="Resumo" className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
             {resumo.map((r) => (
-              <Link key={r.rotulo} href={r.href} className="rounded-xl border bg-card px-4 py-3 transition-colors hover:border-fct-tinta/40">
-                <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              <Link key={r.rotulo} href={r.href} className="rounded-xl border bg-card px-4 py-3 transition-colors hover:border-primary/40">
+                <span className="flex items-center gap-1.5 rotulo">
                   <r.icone className="size-3.5" aria-hidden />
                   {r.rotulo}
                 </span>
@@ -261,7 +261,7 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
               <p className="text-sm text-muted-foreground">Nenhum salário registrado.</p>
             ) : (
               <>
-                <p className="mb-4 text-2xl font-bold tracking-tight tabular-nums">
+                <p className="mb-4 numero">
                   {formatarMoeda(vigente?.salario)} <span className="text-sm font-normal text-muted-foreground">/ mês</span>
                 </p>
                 <ul className="divide-y text-sm">
@@ -278,7 +278,7 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
             )}
             {folhas.length > 0 && (
               <div className="mt-5 border-t pt-4">
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Folha recente</p>
+                <p className="mb-2 rotulo">Folha recente</p>
                 <ul className="divide-y text-sm">
                   {folhas.map((fl) => (
                     <li key={fl.id} className="flex items-center justify-between gap-3 py-1.5">

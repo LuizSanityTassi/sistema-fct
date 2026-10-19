@@ -41,7 +41,7 @@ export default async function FiliaisPage({ searchParams }: PageProps<"/filiais"
         descricao="Grupos, unidades (lojas e empresas de apoio) e seus responsáveis. A unidade é a base de todo o sistema."
         acoes={
           admin ? (
-            <Button className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/filiais/nova" />}>
+            <Button nativeButton={false} render={<Link href="/filiais/nova" />}>
               <Plus data-icon="inline-start" />
               Nova unidade
             </Button>
@@ -63,7 +63,7 @@ export default async function FiliaisPage({ searchParams }: PageProps<"/filiais"
           const c = porOrganizacao.get(o.id) ?? { total: 0, ativas: 0 };
           const filtrando = filtros.grupo === o.id;
           return (
-            <div key={o.id} className={`rounded-xl border bg-card p-4 ${filtrando ? "border-fct-tinta/40" : ""}`}>
+            <div key={o.id} className={`rounded-xl border bg-card p-4 ${filtrando ? "border-primary/40" : ""}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-fct-tinta/6 text-fct-tinta">

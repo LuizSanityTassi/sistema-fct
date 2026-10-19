@@ -9,8 +9,8 @@ export function Emblema({ largura = 48, className, prioridade = false }: { largu
 const CORES_ONDA = {
   /** as cores do desenho da logo */
   logo: ["var(--fct-navy)", "var(--fct-green)"],
-  /** sobre fundo vermelho: tinta por cima, amarelo por baixo */
-  vermelho: ["var(--fct-tinta)", "var(--fct-yellow)"],
+  /** sobre fundo vermelho: tinta (fixa, nos dois temas) por cima, amarelo por baixo */
+  vermelho: ["oklch(0.188 0.007 0.9)", "var(--fct-yellow)"],
   /** sobre fundo escuro: vermelho por cima, amarelo por baixo */
   escuro: ["var(--fct-red)", "var(--fct-yellow)"],
 } as const;

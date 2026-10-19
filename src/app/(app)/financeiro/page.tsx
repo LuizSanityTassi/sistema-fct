@@ -35,8 +35,8 @@ function linkLancamentos(params: Record<string, string | undefined>) {
 function Kpi({ rotulo, valor, nota, tom }: { rotulo: string; valor: string; nota?: string | null; tom?: string }) {
   return (
     <div className="rounded-xl border bg-card px-4 py-3">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{rotulo}</p>
-      <p className={`mt-1 text-2xl font-bold tracking-tight tabular-nums ${tom ?? ""}`}>{valor}</p>
+      <p className="rotulo">{rotulo}</p>
+      <p className={`mt-1 numero ${tom ?? ""}`}>{valor}</p>
       {nota && <p className="text-xs text-muted-foreground">{nota}</p>}
     </div>
   );
@@ -70,7 +70,7 @@ export default async function FinanceiroPage({ searchParams }: PageProps<"/finan
         descricao="Receitas, despesas e resultado realizado por grupo, mês e unidade. Valores sem centavos, como a diretoria acompanha."
         acoes={
           podeLancar(sessao.papel) ? (
-            <Button className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/financeiro/lancamentos/novo" />}>
+            <Button nativeButton={false} render={<Link href="/financeiro/lancamentos/novo" />}>
               <Plus data-icon="inline-start" />
               Novo lançamento
             </Button>

@@ -11,12 +11,13 @@ import {
   type TipoArquivoConc,
 } from "@/lib/conciliacao/rotulos";
 import { cn } from "@/lib/utils";
+import { TOM } from "@/lib/tons";
 
 const CLASSE_GRUPO: Record<GrupoItem, string> = {
-  exato: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  aproximado: "border-amber-200 bg-amber-50 text-amber-800",
-  so_trier: "border-red-200 bg-red-50 text-red-700",
-  so_dda: "border-sky-200 bg-sky-50 text-sky-700",
+  exato: TOM.sucesso,
+  aproximado: TOM.atencao,
+  so_trier: TOM.perigo,
+  so_dda: TOM.info,
 };
 
 export function grupoDaCategoria(categoria: string): GrupoItem {
@@ -44,10 +45,10 @@ export function BadgeGrupo({ grupo }: { grupo: GrupoItem }) {
 }
 
 const CLASSE_STATUS: Record<StatusPendencia, string> = {
-  pendente: "border-red-200 bg-red-50 text-red-700",
-  em_analise: "border-amber-200 bg-amber-50 text-amber-800",
-  resolvido: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  justificado: "border-border bg-muted text-muted-foreground",
+  pendente: TOM.perigo,
+  em_analise: TOM.atencao,
+  resolvido: TOM.sucesso,
+  justificado: TOM.neutro,
 };
 
 export function BadgeStatusPendencia({ status, auto }: { status: StatusPendencia; auto?: boolean }) {
@@ -60,9 +61,9 @@ export function BadgeStatusPendencia({ status, auto }: { status: StatusPendencia
 }
 
 const CLASSE_PRIORIDADE: Record<Prioridade, string> = {
-  3: "border-red-200 bg-red-50 text-red-700",
-  2: "border-amber-200 bg-amber-50 text-amber-800",
-  1: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  3: TOM.perigo,
+  2: TOM.atencao,
+  1: TOM.sucesso,
 };
 
 export function BadgePrioridadePendencia({ prioridade }: { prioridade: Prioridade }) {
@@ -74,10 +75,10 @@ export function BadgePrioridadePendencia({ prioridade }: { prioridade: Prioridad
 }
 
 const CLASSE_TIPO: Record<TipoArquivoConc, string> = {
-  dda_ret: "border-sky-200 bg-sky-50 text-sky-700",
-  dda_planilha: "border-sky-200 bg-sky-50 text-sky-700",
-  trier: "border-violet-200 bg-violet-50 text-violet-700",
-  omie: "border-border bg-muted text-muted-foreground",
+  dda_ret: TOM.info,
+  dda_planilha: TOM.info,
+  trier: TOM.destaque,
+  omie: TOM.neutro,
 };
 
 export function BadgeTipoArquivo({ tipo }: { tipo: TipoArquivoConc }) {

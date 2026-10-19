@@ -49,7 +49,7 @@ export default async function FuncionariosPage({ searchParams }: PageProps<"/rh/
         }
         acoes={
           podeEditar ? (
-            <Button className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/rh/funcionarios/novo" />}>
+            <Button nativeButton={false} render={<Link href="/rh/funcionarios/novo" />}>
               <Plus data-icon="inline-start" />
               Novo funcionário
             </Button>
@@ -75,8 +75,8 @@ export default async function FuncionariosPage({ searchParams }: PageProps<"/rh/
           ] as const
         ).map(([rotulo, valor, situacao]) => (
           <div key={rotulo} className="rounded-xl border bg-card px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{rotulo}</p>
-            <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums">
+            <p className="rotulo">{rotulo}</p>
+            <p className="mt-1 numero">
               {situacao ? (
                 <Link href={`/rh/funcionarios?situacao=${situacao}`} className="hover:underline">
                   {valor}

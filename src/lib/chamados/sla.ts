@@ -2,6 +2,7 @@
 // Tempo corrido (não desconta noite nem fim de semana).
 import type { PrioridadeChamado, StatusChamado } from "./rotulos";
 import { STATUS_ENCERRADOS } from "./rotulos";
+import { TOM } from "@/lib/tons";
 
 /** Minutos para a primeira resposta de quem atende. */
 export const SLA_PRIMEIRA_RESPOSTA_MIN: Record<PrioridadeChamado, number> = { critica: 30, alta: 120, normal: 480, baixa: 1440 };
@@ -37,12 +38,12 @@ export function situacaoSla(c: ChamadoSla, agora = Date.now()): SituacaoSla {
 }
 
 export const COR_SLA: Record<EstadoSla, string> = {
-  no_prazo: "border-sky-200 bg-sky-50 text-sky-800",
-  perto: "border-amber-300 bg-amber-50 text-amber-900",
-  estourado: "border-red-300 bg-red-50 text-red-800",
-  respondido: "border-emerald-200 bg-emerald-50 text-emerald-800",
-  respondido_atrasado: "border-orange-200 bg-orange-50 text-orange-800",
-  encerrado: "border-slate-200 bg-slate-50 text-slate-700",
+  no_prazo: TOM.info,
+  perto: TOM.atencao,
+  estourado: TOM.perigo,
+  respondido: TOM.sucesso,
+  respondido_atrasado: TOM.alerta,
+  encerrado: TOM.neutro,
 };
 
 /** Filtro PostgREST: abertos, sem resposta e com o prazo vencido (para a lista e a central de pendências). */

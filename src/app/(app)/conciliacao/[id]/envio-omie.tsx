@@ -116,7 +116,7 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, vali
             type="button"
             onClick={() => setGrupo(g.chave)}
             title={g.dica}
-            className={`rounded-full border px-3 py-1 text-sm ${grupo === g.chave ? "border-fct-tinta bg-fct-tinta text-white" : "bg-card hover:border-fct-tinta/40"}`}
+            className={`rounded-full border px-3 py-1 text-sm ${grupo === g.chave ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary/40"}`}
           >
             {g.rotulo} <span className={grupo === g.chave ? "opacity-80" : "text-muted-foreground"}>({contagem(g.chave)} a enviar)</span>
           </button>
@@ -234,17 +234,17 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, vali
               <div className="grid grid-cols-3 gap-2">
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
                   <p className="text-xs font-semibold text-emerald-800">🟢 Válidas</p>
-                  <p className="text-xl font-bold tracking-tight tabular-nums">{v.validas.length}</p>
+                  <p className="numero-sm">{v.validas.length}</p>
                   <p className="text-xs text-emerald-800">{moeda(v.totalValidas)}</p>
                 </div>
                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                   <p className="text-xs font-semibold text-amber-800">🟡 Precisam de atenção</p>
-                  <p className="text-xl font-bold tracking-tight tabular-nums">{v.atencao.length}</p>
+                  <p className="numero-sm">{v.atencao.length}</p>
                   <p className="text-xs text-amber-800">vão junto, mas confira</p>
                 </div>
                 <div className="rounded-lg border border-red-200 bg-red-50 p-3">
                   <p className="text-xs font-semibold text-red-800">🔴 Com problema</p>
-                  <p className="text-xl font-bold tracking-tight tabular-nums">{v.grave.length}</p>
+                  <p className="numero-sm">{v.grave.length}</p>
                   <p className="text-xs text-red-800">duplicidade, já enviada, sem departamento, alerta</p>
                 </div>
               </div>

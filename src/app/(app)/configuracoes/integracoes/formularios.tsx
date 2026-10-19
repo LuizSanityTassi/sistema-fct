@@ -37,7 +37,7 @@ function Segredo({ id, name, label, salvo, final }: { id: string; name: string; 
 function Botoes({ pendente, podeLimpar, rotulo }: { pendente: boolean; podeLimpar: boolean; rotulo: string }) {
   return (
     <div className="flex flex-wrap gap-2">
-      <Button type="submit" name="testar" value="1" disabled={pendente} className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85">
+      <Button type="submit" name="testar" value="1" disabled={pendente}>
         {pendente ? "Salvando e testando…" : `Salvar e testar ${rotulo}`}
       </Button>
       <Button type="submit" variant="outline" disabled={pendente}>

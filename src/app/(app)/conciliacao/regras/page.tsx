@@ -52,7 +52,7 @@ export default async function RegrasPage({ searchParams }: PageProps<"/conciliac
                   action={aplicarRegrasAgora}
                 />
               )}
-              <Button className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/conciliacao/regras/nova" />}>
+              <Button nativeButton={false} render={<Link href="/conciliacao/regras/nova" />}>
                 <Plus data-icon="inline-start" />
                 Nova regra
               </Button>
@@ -95,8 +95,8 @@ export default async function RegrasPage({ searchParams }: PageProps<"/conciliac
           ["Última conciliação", ultima.conciliacao ? formatarData(ultima.conciliacao.criado_em) : "—", ultima.conciliacao ? "prévia das regras de categoria e departamento" : null],
         ].map(([r, v, nota]) => (
           <div key={r} className="rounded-xl border bg-card px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{r}</p>
-            <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums">{v}</p>
+            <p className="rotulo">{r}</p>
+            <p className="mt-1 numero">{v}</p>
             {nota && <p className="text-xs text-muted-foreground">{nota}</p>}
           </div>
         ))}
@@ -115,7 +115,7 @@ export default async function RegrasPage({ searchParams }: PageProps<"/conciliac
             ))}
           </ul>
           {escreve && (
-            <Button className="mt-5 bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/conciliacao/regras/nova" />}>
+            <Button className="mt-5" nativeButton={false} render={<Link href="/conciliacao/regras/nova" />}>
               <Plus data-icon="inline-start" />
               Criar a primeira regra
             </Button>

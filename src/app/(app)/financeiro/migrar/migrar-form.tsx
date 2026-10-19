@@ -39,7 +39,7 @@ export function MigrarForm({ action }: Props) {
               multiple
               accept=".db,.sqlite,.sqlite3,.json"
               onChange={(e) => setQtd(e.target.files?.length ?? 0)}
-              className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-fct-tinta file:px-3 file:py-1.5 file:text-sm file:text-white hover:file:bg-fct-tinta/90"
+              className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:text-primary-foreground hover:file:bg-primary/90"
             />
           </Campo>
           <Button type="submit" name="etapa" value="analisar" variant="outline" disabled={pendente || qtd === 0}>
@@ -59,8 +59,8 @@ export function MigrarForm({ action }: Props) {
               ["Categorias", String(p.categorias.total), `${p.categorias.combosNovos} só existiam nos lançamentos · ${p.categorias.semDre} sem DRE`],
             ].map(([r, v, n]) => (
               <div key={r} className="rounded-xl border bg-card px-4 py-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{r}</p>
-                <p className="mt-1 text-xl font-bold tracking-tight tabular-nums">{v}</p>
+                <p className="rotulo">{r}</p>
+                <p className="mt-1 numero-sm">{v}</p>
                 <p className="text-xs text-muted-foreground">{n}</p>
               </div>
             ))}
@@ -94,7 +94,7 @@ export function MigrarForm({ action }: Props) {
           </section>
 
           <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-card p-4">
-            <Button type="submit" name="etapa" value="executar" disabled={pendente || qtd === 0 || p.unidades.semMapa.length > 0} className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85">
+            <Button type="submit" name="etapa" value="executar" disabled={pendente || qtd === 0 || p.unidades.semMapa.length > 0}>
               {pendente ? "Migrando… (1 a 2 minutos)" : `Migrar ${p.lancamentos.total - p.lancamentos.jaExistem} lançamentos`}
             </Button>
             <span className="text-xs text-muted-foreground">Reexecutar não duplica: lançamentos já migrados são pulados pelo número do legado.</span>

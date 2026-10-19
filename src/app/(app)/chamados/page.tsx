@@ -58,7 +58,7 @@ export default async function ChamadosPage({ searchParams }: PageProps<"/chamado
                 Indicadores
               </Button>
             )}
-            <Button className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/chamados/novo" />}>
+            <Button nativeButton={false} render={<Link href="/chamados/novo" />}>
               <Plus data-icon="inline-start" />
               Novo chamado
             </Button>
@@ -69,8 +69,8 @@ export default async function ChamadosPage({ searchParams }: PageProps<"/chamado
       <section className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
         {cartoes.map((c) => (
           <div key={c.rotulo} className="rounded-xl border bg-card px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{c.rotulo}</p>
-            <p className={`mt-1 text-2xl font-bold tracking-tight tabular-nums ${c.classe}`}>
+            <p className="rotulo">{c.rotulo}</p>
+            <p className={`mt-1 numero ${c.classe}`}>
               <Link href={c.href} className="hover:underline">
                 {c.valor}
               </Link>

@@ -1,4 +1,5 @@
 // Canal de denúncias: rótulos puros (servidor e tela).
+import { TOM } from "@/lib/tons";
 
 export const CATEGORIAS_DENUNCIA = {
   assedio_moral: "Assédio moral",
@@ -29,10 +30,10 @@ export const EXPLICACAO_STATUS: Record<StatusDenuncia, string> = {
 };
 
 export const COR_STATUS: Record<StatusDenuncia, string> = {
-  recebida: "border-sky-200 bg-sky-50 text-sky-800",
-  em_analise: "border-amber-200 bg-amber-50 text-amber-900",
-  concluida: "border-emerald-200 bg-emerald-50 text-emerald-800",
-  arquivada: "border-slate-200 bg-slate-50 text-slate-700",
+  recebida: TOM.info,
+  em_analise: TOM.atencao,
+  concluida: TOM.sucesso,
+  arquivada: TOM.neutro,
 };
 
 export const ehCategoria = (v: unknown): v is CategoriaDenuncia => typeof v === "string" && v in CATEGORIAS_DENUNCIA;

@@ -32,7 +32,7 @@ export function LoginForm({ aviso, voltar }: { aviso?: string; voltar?: string }
           <CampoSenha id="senha" name="senha" autoComplete="current-password" required className="h-10" />
         </Campo>
         <ErroFormulario mensagem={state.erro} />
-        <Button type="submit" disabled={pending} className="h-10 w-full bg-fct-yellow text-base font-semibold text-fct-tinta hover:bg-fct-yellow/85">
+        <Button type="submit" disabled={pending} className="h-10 w-full text-base">
           <LogIn data-icon="inline-start" />
           {pending ? "Entrando…" : "Entrar"}
         </Button>

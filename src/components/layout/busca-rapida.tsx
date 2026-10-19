@@ -31,7 +31,7 @@ type Secao = { rotulo: string | null; opcoes: Opcao[] };
  * filiais, chamados, equipamentos, pendências, fornecedores, caixas e usuários (só o que ele pode ver).
  * Padrão combobox + listbox (setas, Enter, Esc) para teclado e leitor de tela.
  */
-export function BuscaRapida({ papel, variante = "cabecalho" }: { papel: AppRole; variante?: "cabecalho" | "menu" }) {
+export function BuscaRapida({ papel }: { papel: AppRole }) {
   const router = useRouter();
   const [aberta, setAberta] = React.useState(false);
   const [termo, setTermo] = React.useState("");
@@ -84,9 +84,7 @@ export function BuscaRapida({ papel, variante = "cabecalho" }: { papel: AppRole;
   const opcoes = React.useMemo(() => secoes.flatMap((s) => s.opcoes), [secoes]);
   const atual = opcoes.length ? Math.min(ativo, opcoes.length - 1) : 0;
 
-  // variante "menu" só desenha o botão; o atalho de teclado fica numa instância só (a do cabeçalho)
   React.useEffect(() => {
-    if (variante !== "cabecalho") return;
     const atalho = (e: KeyboardEvent) => {
       const alvo = e.target as HTMLElement | null;
       const digitando = alvo?.closest("input, textarea, select, [contenteditable='true']");
@@ -105,7 +103,7 @@ export function BuscaRapida({ papel, variante = "cabecalho" }: { papel: AppRole;
       window.removeEventListener("keydown", atalho);
       window.removeEventListener("fct:busca-rapida", abrirPorEvento);
     };
-  }, [variante]);
+  }, []);
 
   React.useEffect(() => {
     document.getElementById(`${idLista}-${atual}`)?.scrollIntoView({ block: "nearest" });
@@ -189,36 +187,21 @@ export function BuscaRapida({ papel, variante = "cabecalho" }: { papel: AppRole;
     }
   };
 
-  const botao =
-    variante === "menu" ? (
-      <button
-        type="button"
-        onClick={() => window.dispatchEvent(new Event("fct:busca-rapida"))}
-        className="mx-3 mb-3 flex h-9 items-center gap-2 rounded-lg border border-sidebar-border bg-sidebar-accent/40 px-3 text-sm text-sidebar-foreground/80 transition-colors outline-none hover:bg-sidebar-accent hover:text-white focus-visible:ring-2 focus-visible:ring-sidebar-ring"
-        aria-keyshortcuts="Control+K"
-      >
-        <Search className="size-4" aria-hidden />
-        <span className="flex-1 text-left">Buscar…</span>
-        <kbd aria-hidden className="rounded border border-sidebar-border px-1.5 font-sans text-[11px] text-sidebar-foreground/70">
-          Ctrl K
-        </kbd>
-      </button>
-    ) : (
-      <button
-        type="button"
-        onClick={() => setAberta(true)}
-        className="flex h-9 items-center gap-2 rounded-lg border border-input/60 bg-card px-2.5 text-sm text-muted-foreground transition-colors outline-none hover:border-input hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:w-56 sm:px-3 lg:hidden"
-        aria-keyshortcuts="Control+K"
-      >
-        <Search className="size-4" aria-hidden />
-        <span className="sr-only flex-1 text-left sm:not-sr-only">Buscar…</span>
-        <kbd aria-hidden className="hidden rounded border bg-muted px-1.5 font-sans text-[11px] sm:inline">
-          Ctrl K
-        </kbd>
-      </button>
-    );
+  const botao = (
+    <button
+      type="button"
+      onClick={() => setAberta(true)}
+      className="flex h-8 items-center gap-2 rounded-lg border bg-card px-2 text-sm text-muted-foreground shadow-xs transition-colors outline-none hover:border-borda-forte hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring sm:w-56 sm:px-2.5 lg:w-72"
+      aria-keyshortcuts="Control+K"
+    >
+      <Search className="size-4" aria-hidden />
+      <span className="sr-only flex-1 truncate text-left sm:not-sr-only">Buscar no sistema…</span>
+      <kbd aria-hidden className="hidden rounded border bg-muted px-1.5 font-sans text-[10.5px] font-medium sm:inline">
+        Ctrl K
+      </kbd>
+    </button>
+  );
 
-  if (variante === "menu") return botao;
 
   const temTermo = buscaValida(termo);
   const inicioSecao = secoes.map((_, i) => secoes.slice(0, i).reduce((s, x) => s + x.opcoes.length, 0));
@@ -255,7 +238,7 @@ export function BuscaRapida({ papel, variante = "cabecalho" }: { papel: AppRole;
             {secoes.map((s, si) => (
               <React.Fragment key={s.rotulo ?? "telas"}>
                 {s.rotulo && (
-                  <li role="presentation" className="px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground first:pt-1">
+                  <li role="presentation" className="px-3 pt-3 pb-1 rotulo first:pt-1">
                     {s.rotulo}
                   </li>
                 )}
@@ -273,7 +256,7 @@ export function BuscaRapida({ papel, variante = "cabecalho" }: { papel: AppRole;
                       onClick={() => abrir(o.href)}
                       className={cn("flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2", selecionado && "bg-accent")}
                     >
-                      <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-md", selecionado ? "bg-fct-tinta text-white" : "bg-muted text-fct-tinta")}>
+                      <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-md", selecionado ? "bg-primary text-primary-foreground" : "bg-muted text-fct-tinta")}>
                         <Icone className="size-4" aria-hidden />
                       </span>
                       <span className="min-w-0 flex-1">

@@ -20,6 +20,10 @@ export type Comparativo = {
   periodo: string;
   comparadoCom: string;
   nota?: string | null;
+  /** Valor por dia do mês até hoje (minigráfico do cartão). */
+  serie?: number[];
+  /** Receitas e despesas dos últimos meses (gráfico do financeiro). */
+  mensal?: { competencia: string; receber: number; pagar: number }[];
 };
 
 type Cliente = Awaited<ReturnType<typeof createClient>>;
@@ -45,6 +49,14 @@ export function periodos(agora = new Date()) {
   };
 }
 type Periodos = ReturnType<typeof periodos>;
+
+/** Soma por dia, do dia 1 até hoje (dias sem nada entram com zero). */
+function porDia(p: Periodos, itens: { dia: string; valor: number }[]) {
+  const mapa = new Map<string, number>();
+  for (const { dia, valor } of itens) mapa.set(dia, (mapa.get(dia) ?? 0) + valor);
+  const dias = Number(p.hoje.slice(8, 10));
+  return Array.from({ length: dias }, (_, i) => r2(mapa.get(`${p.inicio.slice(0, 8)}${String(i + 1).padStart(2, "0")}`) ?? 0));
+}
 
 /** Lê todas as páginas (o PostgREST devolve no máximo 1000 por vez). */
 async function todas<T>(consulta: (de: number, ate: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>, max = 20_000) {
@@ -85,6 +97,7 @@ async function quebrasDeCaixa(supabase: Cliente, p: Periodos, href: string): Pro
       periodo: p.rotulo,
       comparadoCom: p.rotuloAnt,
       nota: `${atual.length} quebra(s): ${faltas} falta(s), ${atual.length - faltas} sobra(s)${temBase ? ` · antes ${ant.length}` : ""}`,
+      serie: porDia(p, atual.map((l) => ({ dia: l.dia, valor: Number(l.valor_quebra) }))),
     },
   ];
 }
@@ -114,6 +127,7 @@ async function chamados(supabase: Cliente, p: Periodos): Promise<Comparativo[]> 
       periodo: p.rotulo,
       comparadoCom: p.rotuloAnt,
       nota: `${resolvidos} resolvido(s) no mês`,
+      serie: porDia(p, abertosAtual.map((t) => ({ dia: diaDe(t.created_at), valor: 1 }))),
     },
   ];
   if (slaAtual !== null)
@@ -166,6 +180,7 @@ async function conciliacao(supabase: Cliente, p: Periodos): Promise<Comparativo[
     periodo: p.rotulo,
     comparadoCom: p.rotuloAnt,
     nota: `${abertas ?? 0} em aberto agora`,
+    serie: porDia(p, novas.filter((x) => noAtual(diaDe(x.criado_em), p)).map((x) => ({ dia: diaDe(x.criado_em), valor: 1 }))),
   });
   return cards;
 }
@@ -205,6 +220,8 @@ async function financeiro(supabase: Cliente): Promise<Comparativo[]> {
       periodo: `${rotuloCompetencia(ult)} (último mês lançado)`,
       comparadoCom: ant ? rotuloCompetencia(ant) : "",
       nota: `receitas ${u.receber.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })} · despesas ${u.pagar.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}`,
+      serie: [...meses].reverse().map((c) => r2(porMes.get(c)!.receber - porMes.get(c)!.pagar)),
+      mensal: [...meses].reverse().map((c) => ({ competencia: c, receber: r2(porMes.get(c)!.receber), pagar: r2(porMes.get(c)!.pagar) })),
     },
   ];
 }

@@ -45,7 +45,7 @@ export default async function IndicadoresChamadosPage({ searchParams }: PageProp
 
       <nav aria-label="Período" className="mb-4 flex gap-2">
         {PERIODOS.map((p) => (
-          <Link key={p} href={`/chamados/indicadores?dias=${p}`} aria-current={dias === p ? "page" : undefined} className={`rounded-full border px-3 py-1 text-sm ${dias === p ? "border-fct-tinta bg-fct-tinta text-white" : "bg-card hover:border-fct-tinta/40"}`}>
+          <Link key={p} href={`/chamados/indicadores?dias=${p}`} aria-current={dias === p ? "page" : undefined} className={`rounded-full border px-3 py-1 text-sm ${dias === p ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary/40"}`}>
             Últimos {p} dias
           </Link>
         ))}
@@ -54,8 +54,8 @@ export default async function IndicadoresChamadosPage({ searchParams }: PageProp
       <section className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {cartoes.map((c) => (
           <div key={c.r} className="rounded-xl border bg-card px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{c.r}</p>
-            <p className={`mt-1 text-2xl font-bold tracking-tight tabular-nums ${c.tom ?? ""}`}>{c.v}</p>
+            <p className="rotulo">{c.r}</p>
+            <p className={`mt-1 numero ${c.tom ?? ""}`}>{c.v}</p>
             {c.nota && <p className="text-xs text-muted-foreground">{c.nota}</p>}
           </div>
         ))}

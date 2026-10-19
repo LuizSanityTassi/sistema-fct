@@ -32,7 +32,7 @@ export default async function CategoriasPage({ searchParams }: PageProps<"/finan
         descricao="Plano de categorias dos lançamentos e como cada uma entra na DRE e na visão financeira."
         acoes={
           escreve ? (
-            <Button className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/financeiro/categorias/nova" />}>
+            <Button nativeButton={false} render={<Link href="/financeiro/categorias/nova" />}>
               <Plus data-icon="inline-start" />
               Nova categoria
             </Button>

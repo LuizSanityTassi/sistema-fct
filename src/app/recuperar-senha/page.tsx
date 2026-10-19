@@ -28,7 +28,7 @@ export default function RecuperarSenhaPage() {
         </Campo>
         <ErroFormulario mensagem={state.erro} />
         <AvisoSucesso mensagem={state.ok} />
-        <Button type="submit" disabled={pending} className="h-10 w-full bg-fct-yellow text-base font-semibold text-fct-tinta hover:bg-fct-yellow/85">
+        <Button type="submit" disabled={pending} className="h-10 w-full text-base">
           <Send data-icon="inline-start" />
           {pending ? "Enviando…" : "Enviar link"}
         </Button>

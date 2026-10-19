@@ -7,22 +7,23 @@ import {
   type PrioridadeChamado,
   type StatusChamado,
 } from "@/lib/chamados/rotulos";
+import { TOM } from "@/lib/tons";
 
 const CLASSE_STATUS: Record<StatusChamado, string> = {
-  aberto: "border-amber-200 bg-amber-50 text-amber-800",
-  em_analise: "border-sky-200 bg-sky-50 text-sky-700",
-  em_atendimento: "border-sky-200 bg-sky-50 text-sky-700",
-  aguardando_usuario: "border-violet-200 bg-violet-50 text-violet-700",
-  aguardando_terceiro: "border-violet-200 bg-violet-50 text-violet-700",
-  resolvido: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  cancelado: "border-border bg-muted text-muted-foreground",
+  aberto: TOM.atencao,
+  em_analise: TOM.info,
+  em_atendimento: TOM.info,
+  aguardando_usuario: TOM.destaque,
+  aguardando_terceiro: TOM.destaque,
+  resolvido: TOM.sucesso,
+  cancelado: TOM.neutro,
 };
 
 const CLASSE_PRIORIDADE: Record<PrioridadeChamado, string> = {
-  baixa: "border-border bg-muted text-muted-foreground",
+  baixa: TOM.neutro,
   normal: "border-border bg-card text-foreground",
-  alta: "border-orange-200 bg-orange-50 text-orange-700",
-  critica: "border-red-200 bg-red-50 text-red-700",
+  alta: TOM.alerta,
+  critica: TOM.perigo,
 };
 
 export function BadgeStatusChamado({ status }: { status: StatusChamado }) {

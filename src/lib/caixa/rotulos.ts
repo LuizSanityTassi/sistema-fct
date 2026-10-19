@@ -1,4 +1,5 @@
 // Nomes e cores da situação de cada caixa (a mesma lógica da tela da Zanini, com o andamento da quebra).
+import { TOM } from "@/lib/tons";
 
 export type ClasseCaixa = "sem_diferenca" | "tolerancia" | "quebra";
 export type AndamentoQuebra = "pendente" | "justificada" | "mantida" | "abonada";
@@ -27,12 +28,12 @@ export const ROTULO_CURTO: Record<SituacaoCaixa, string> = {
 };
 
 export const COR_SITUACAO: Record<SituacaoCaixa, string> = {
-  sem_diferenca: "border-slate-200 bg-slate-50 text-slate-700",
-  tolerancia: "border-sky-200 bg-sky-50 text-sky-800",
-  pendente: "border-amber-300 bg-amber-50 text-amber-900",
-  justificada: "border-violet-200 bg-violet-50 text-violet-800",
-  mantida: "border-red-200 bg-red-50 text-red-800",
-  abonada: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  sem_diferenca: TOM.neutro,
+  tolerancia: TOM.info,
+  pendente: TOM.atencao,
+  justificada: TOM.destaque,
+  mantida: TOM.perigo,
+  abonada: TOM.sucesso,
 };
 
 export const FILTROS_SITUACAO = [

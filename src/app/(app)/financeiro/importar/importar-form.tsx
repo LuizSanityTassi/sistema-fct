@@ -43,7 +43,7 @@ export function ImportarForm({ action, anoPadrao, hoje }: Props) {
               multiple
               accept=".xlsx,.xls"
               onChange={(e) => setQtd(e.target.files?.length ?? 0)}
-              className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-fct-tinta file:px-3 file:py-1.5 file:text-sm file:text-white hover:file:bg-fct-tinta/90"
+              className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:text-primary-foreground hover:file:bg-primary/90"
             />
           </Campo>
           <Campo id="ano" label="Ano (coluna MÊS)" dica="Quando o arquivo só traz o mês">
@@ -95,8 +95,8 @@ export function ImportarForm({ action, anoPadrao, hoje }: Props) {
               ["A receber", moeda(a.totalReceber), null, "text-emerald-700"],
             ].map(([rotulo, valor, nota, tom]) => (
               <div key={rotulo as string} className="rounded-xl border bg-card px-4 py-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{rotulo}</p>
-                <p className={`mt-1 text-xl font-bold tracking-tight tabular-nums ${tom}`}>{valor}</p>
+                <p className="rotulo">{rotulo}</p>
+                <p className={`mt-1 numero-sm ${tom}`}>{valor}</p>
                 {nota && <p className="text-xs text-muted-foreground">{nota}</p>}
               </div>
             ))}
@@ -139,7 +139,7 @@ export function ImportarForm({ action, anoPadrao, hoje }: Props) {
             {a.total > 150 && <p className="border-t px-3 py-2 text-xs text-muted-foreground">Mostrando as primeiras 150 de {a.total} linhas.</p>}
           </div>
           <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-card p-4">
-            <Button type="submit" name="etapa" value="importar" disabled={pendente || qtd === 0 || a.novos === 0} className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85">
+            <Button type="submit" name="etapa" value="importar" disabled={pendente || qtd === 0 || a.novos === 0}>
               {pendente ? "Importando…" : `Importar ${a.novos} novos`}
             </Button>
             <label className="flex items-center gap-2 text-xs">

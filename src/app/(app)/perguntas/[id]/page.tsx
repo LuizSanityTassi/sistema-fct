@@ -169,11 +169,11 @@ export default async function PerguntaPage({ params, searchParams }: PageProps<"
 
       {outras.length > 0 && (
         <section className="mt-6">
-          <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Outras perguntas de {pergunta.area}</h2>
+          <h2 className="mb-2 rotulo">Outras perguntas de {pergunta.area}</h2>
           <ul className="flex flex-wrap gap-2">
             {outras.map((p) => (
               <li key={p.id}>
-                <Link href={`/perguntas/${p.id}`} className="inline-block rounded-full border bg-card px-3 py-1 text-sm hover:border-fct-tinta/40">
+                <Link href={`/perguntas/${p.id}`} className="inline-block rounded-full border bg-card px-3 py-1 text-sm hover:border-primary/40">
                   {p.pergunta}
                 </Link>
               </li>

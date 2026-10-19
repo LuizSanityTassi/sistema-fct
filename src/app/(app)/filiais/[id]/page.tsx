@@ -126,7 +126,7 @@ export default async function FilialPage({ params, searchParams }: PageProps<"/f
             key={a.chave}
             href={linkAba(a.chave)}
             aria-current={aba === a.chave ? "page" : undefined}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm whitespace-nowrap ${aba === a.chave ? "border-fct-tinta font-semibold text-fct-tinta" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+            className={`-mb-px border-b-2 px-3 py-2 text-sm whitespace-nowrap ${aba === a.chave ? "border-primary font-semibold text-fct-tinta" : "border-transparent text-muted-foreground hover:text-foreground"}`}
           >
             {a.rotulo}
           </Link>
@@ -137,8 +137,8 @@ export default async function FilialPage({ params, searchParams }: PageProps<"/f
         <>
           <section aria-label="Resumo" className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
             {resumo.map((r) => (
-              <Link key={r.rotulo} href={r.href} className="rounded-xl border bg-card px-4 py-3 transition-colors hover:border-fct-tinta/40">
-                <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              <Link key={r.rotulo} href={r.href} className="rounded-xl border bg-card px-4 py-3 transition-colors hover:border-primary/40">
+                <span className="flex items-center gap-1.5 rotulo">
                   <r.icone className="size-3.5" aria-hidden />
                   {r.rotulo}
                 </span>
@@ -344,7 +344,7 @@ export default async function FilialPage({ params, searchParams }: PageProps<"/f
               { r: "Sobras (descontadas)", v: formatarMoeda(d.caixa.sobras) },
             ].map((k) => (
               <div key={k.r} className="rounded-xl border bg-card px-4 py-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{k.r}</p>
+                <p className="rotulo">{k.r}</p>
                 <p className="mt-1 text-lg font-semibold tabular-nums">{k.v}</p>
               </div>
             ))}

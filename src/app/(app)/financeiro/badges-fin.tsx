@@ -2,10 +2,11 @@ import { Badge } from "@/components/ui/badge";
 import { COR_GRUPO } from "@/lib/financeiro/formatos";
 import { ORIGEM_FIN_LABEL, TIPO_FIN_LABEL, type FinOrigem, type FinTipo } from "@/lib/financeiro/rotulos";
 import { cn } from "@/lib/utils";
+import { TOM } from "@/lib/tons";
 
 const CLASSE_TIPO: Record<FinTipo, string> = {
-  receber: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  pagar: "border-red-200 bg-red-50 text-red-700",
+  receber: TOM.sucesso,
+  pagar: TOM.perigo,
 };
 
 export function BadgeTipoFin({ tipo }: { tipo: FinTipo }) {
@@ -18,7 +19,7 @@ export function BadgeTipoFin({ tipo }: { tipo: FinTipo }) {
 
 export function BadgeOrigemFin({ origem }: { origem: FinOrigem }) {
   return (
-    <Badge variant="outline" className="border-border bg-muted text-muted-foreground">
+    <Badge variant="outline" className={TOM.neutro}>
       {ORIGEM_FIN_LABEL[origem]}
     </Badge>
   );
@@ -26,7 +27,7 @@ export function BadgeOrigemFin({ origem }: { origem: FinOrigem }) {
 
 export function BadgeMesFechado() {
   return (
-    <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-800">
+    <Badge variant="outline" className={TOM.atencao}>
       Mês fechado
     </Badge>
   );

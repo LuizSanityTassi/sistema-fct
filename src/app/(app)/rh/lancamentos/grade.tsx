@@ -95,7 +95,7 @@ const Celula = React.memo(function Celula({ chave, inicial, linha, coluna, regis
         registrar(chave, mudou ? (n === null ? "" : String(n)) : null);
       }}
       className={cn(
-        "h-8 w-[5.5rem] rounded-md border border-transparent bg-transparent px-1.5 text-right text-sm tabular-nums outline-none hover:border-border focus:border-fct-tinta focus:bg-background",
+        "h-8 w-[5.5rem] rounded-md border border-transparent bg-transparent px-1.5 text-right text-sm tabular-nums outline-none hover:border-border focus:border-primary focus:bg-background",
         estado === "alterado" && "border-amber-300 bg-amber-50",
         estado === "invalido" && "border-red-500 bg-red-50",
       )}
@@ -146,7 +146,7 @@ const CelulaObs = React.memo(function CelulaObs({ funcionario, registrar, inscre
           atualizar(t, p);
         }}
         className={cn(
-          "h-8 w-64 rounded-md border border-transparent bg-transparent px-1.5 text-xs outline-none hover:border-border focus:border-fct-tinta focus:bg-background",
+          "h-8 w-64 rounded-md border border-transparent bg-transparent px-1.5 text-xs outline-none hover:border-border focus:border-primary focus:bg-background",
           pendente && texto.trim() && "text-amber-900",
         )}
       />

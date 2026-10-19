@@ -13,7 +13,7 @@ export function BotaoSalvar({ children = "Salvar", rotuloPendente = "Salvando…
     <Button
       type="submit"
       disabled={pending}
-      className={cn("bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85", className)}
+      className={cn("", className)}
       {...props}
     >
       {pending ? rotuloPendente : children}

@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { TOM } from "@/lib/tons";
 
 export function BadgeAtivo({ ativo, className }: { ativo: boolean; className?: string }) {
   return (
@@ -7,8 +8,8 @@ export function BadgeAtivo({ ativo, className }: { ativo: boolean; className?: s
       variant="outline"
       className={cn(
         ativo
-          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-          : "border-border bg-muted text-muted-foreground",
+          ? TOM.sucesso
+          : TOM.neutro,
         className,
       )}
     >
@@ -18,10 +19,10 @@ export function BadgeAtivo({ ativo, className }: { ativo: boolean; className?: s
 }
 
 const STATUS_FUNCIONARIO: Record<string, { rotulo: string; classe: string }> = {
-  ativo: { rotulo: "Ativo", classe: "border-emerald-200 bg-emerald-50 text-emerald-700" },
-  afastado: { rotulo: "Afastado", classe: "border-amber-200 bg-amber-50 text-amber-800" },
-  ferias: { rotulo: "Férias", classe: "border-sky-200 bg-sky-50 text-sky-700" },
-  desligado: { rotulo: "Desligado", classe: "border-border bg-muted text-muted-foreground" },
+  ativo: { rotulo: "Ativo", classe: TOM.sucesso },
+  afastado: { rotulo: "Afastado", classe: TOM.atencao },
+  ferias: { rotulo: "Férias", classe: TOM.info },
+  desligado: { rotulo: "Desligado", classe: TOM.neutro },
 };
 
 export function BadgeStatusFuncionario({ status }: { status: string }) {

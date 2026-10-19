@@ -56,14 +56,14 @@ export async function VisaoCoordenador({ usuarioId, regional, sp }: { usuarioId:
         <Link
           href={link({})}
           aria-current={ver === "abertas" ? "page" : undefined}
-          className={`rounded-full border px-3 py-1 ${ver === "abertas" ? "border-fct-tinta bg-fct-tinta text-white" : "bg-card"}`}
+          className={`rounded-full border px-3 py-1 ${ver === "abertas" ? "border-primary bg-primary text-primary-foreground" : "bg-card"}`}
         >
           Em aberto
         </Link>
         <Link
           href={link({ ver: "mes", mes })}
           aria-current={ver === "mes" ? "page" : undefined}
-          className={`rounded-full border px-3 py-1 ${ver === "mes" ? "border-fct-tinta bg-fct-tinta text-white" : "bg-card"}`}
+          className={`rounded-full border px-3 py-1 ${ver === "mes" ? "border-primary bg-primary text-primary-foreground" : "bg-card"}`}
         >
           Por mês
         </Link>
@@ -106,8 +106,8 @@ export async function VisaoCoordenador({ usuarioId, regional, sp }: { usuarioId:
           ["Lojas com quebra", String(resumo.length), `de ${(lojas ?? []).length} na regional ${regional}`],
         ].map(([r, v, n]) => (
           <div key={r} className="rounded-xl border bg-card px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{r}</p>
-            <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums">{v}</p>
+            <p className="rotulo">{r}</p>
+            <p className="mt-1 numero">{v}</p>
             <p className="text-xs text-muted-foreground">{n}</p>
           </div>
         ))}

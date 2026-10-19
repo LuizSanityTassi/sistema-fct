@@ -51,7 +51,7 @@ export function ImportarRhForm({ action, competencia }: Props) {
               type="file"
               accept=".xlsx,.xls"
               onChange={(e) => setTemArquivo((e.target.files?.length ?? 0) > 0)}
-              className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-fct-tinta file:px-3 file:py-1.5 file:text-sm file:text-white hover:file:bg-fct-tinta/90"
+              className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:text-primary-foreground hover:file:bg-primary/90"
             />
           </Campo>
           <Campo id="competencia" label="Competência" obrigatorio>

@@ -105,7 +105,7 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <span className="text-xs text-muted-foreground">Detalhe:</span>
         {([1, 2, 3] as const).map((n) => (
-          <button key={n} type="button" onClick={() => setNivel(n)} className={`rounded-full border px-3 py-1 text-xs ${nivel === n ? "border-fct-tinta bg-fct-tinta text-white" : "bg-card hover:border-fct-tinta/40"}`}>
+          <button key={n} type="button" onClick={() => setNivel(n)} className={`rounded-full border px-3 py-1 text-xs ${nivel === n ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary/40"}`}>
             {n === 1 ? "Totais" : n === 2 ? "Grupos" : "Categorias"}
           </button>
         ))}
@@ -136,7 +136,7 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
             )}
             {dre.familias.map((f) => (
               <React.Fragment key={f.nome}>
-                {casa(f.nome) || f.grupos.some((g) => casa(g.nome) || g.categorias.some((c) => casa(c.nome))) ? linhaTotal({ nome: f.nome, porMes: f.porMes, total: f.total, classe: "bg-fct-tinta text-white font-semibold", nivelVisual: 0 }) : null}
+                {casa(f.nome) || f.grupos.some((g) => casa(g.nome) || g.categorias.some((c) => casa(c.nome))) ? linhaTotal({ nome: f.nome, porMes: f.porMes, total: f.total, classe: "bg-primary text-primary-foreground font-semibold", nivelVisual: 0 }) : null}
                 {mostraGrupos &&
                   f.grupos.map((g) => (
                     <React.Fragment key={g.nome}>

@@ -56,7 +56,7 @@ export function NovaDenunciaForm({ action }: { action: Acao<EstadoEnvio> }) {
             <strong>Denúncia enviada.</strong> Obrigado pela coragem. O comitê vai analisar com sigilo.
           </p>
         </div>
-        <div className="rounded-xl border-2 border-dashed border-fct-tinta/30 bg-muted/40 p-4">
+        <div className="rounded-xl border-2 border-dashed border-primary/30 bg-muted/40 p-4">
           <p className="mb-3 text-sm font-semibold">Guarde estes dois códigos para acompanhar a denúncia:</p>
           <dl className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-lg border bg-card px-3 py-2">
@@ -132,7 +132,7 @@ export function NovaDenunciaForm({ action }: { action: Acao<EstadoEnvio> }) {
       <p className="text-xs text-muted-foreground">
         Para continuar anônimo, evite contar detalhes que só você saberia. O sistema não registra quem enviou.
       </p>
-      <Button type="submit" disabled={pendente} className="bg-fct-yellow font-semibold text-fct-tinta hover:bg-fct-yellow/85">
+      <Button type="submit" disabled={pendente}>
         <Send data-icon="inline-start" />
         {pendente ? "Enviando…" : "Enviar denúncia"}
       </Button>
@@ -175,7 +175,7 @@ export function AcompanharForm({ action }: { action: Acao<EstadoAcompanhar> }) {
           <ol className="space-y-2" aria-label="Conversa com o comitê">
             {d.mensagens.length === 0 && <li className="text-sm text-muted-foreground">Ainda não há mensagens.</li>}
             {d.mensagens.map((m, i) => (
-              <li key={i} className={`rounded-lg px-3 py-2 text-sm ${m.autor === "comite" ? "border border-fct-tinta/15 bg-fct-tinta/5" : "ml-6 border bg-muted/40"}`}>
+              <li key={i} className={`rounded-lg px-3 py-2 text-sm ${m.autor === "comite" ? "border border-primary/15 bg-fct-tinta/5" : "ml-6 border bg-muted/40"}`}>
                 <p className="mb-1 text-xs font-semibold text-muted-foreground">
                   {m.autor === "comite" ? "Comitê" : "Você"} · {formatarData(m.data)}
                 </p>

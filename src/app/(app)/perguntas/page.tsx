@@ -35,7 +35,7 @@ export default async function PerguntasPage() {
             const Icone = ICONE_AREA[area];
             return (
               <section key={area} aria-labelledby={`area-${area}`}>
-                <h2 id={`area-${area}`} className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                <h2 id={`area-${area}`} className="mb-3 flex items-center gap-2 rotulo">
                   <Icone className="size-3.5" aria-hidden />
                   {area}
                 </h2>
@@ -46,7 +46,7 @@ export default async function PerguntasPage() {
                       <Link
                         key={p.id}
                         href={`/perguntas/${p.id}`}
-                        className="group flex flex-col rounded-xl border bg-card p-4 transition-all outline-none hover:-translate-y-px hover:border-fct-tinta/30 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring"
+                        className="group flex flex-col rounded-xl border bg-card p-4 transition-all outline-none hover:-translate-y-px hover:border-primary/30 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <span className="flex items-start justify-between gap-2">
                           <span className="font-medium">{p.pergunta}</span>

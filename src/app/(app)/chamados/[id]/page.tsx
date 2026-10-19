@@ -84,7 +84,7 @@ export default async function ChamadoPage({ params, searchParams }: PageProps<"/
                 {i > 0 && <span className={`h-px w-6 ${feita || atual ? "bg-fct-tinta" : "bg-border"}`} aria-hidden />}
                 <span
                   aria-current={atual ? "step" : undefined}
-                  className={`rounded-full border px-2.5 py-1 font-medium ${atual ? "border-fct-tinta bg-fct-tinta text-white" : feita ? "border-fct-tinta/30 bg-fct-tinta/5 text-fct-tinta" : "text-muted-foreground"}`}
+                  className={`rounded-full border px-2.5 py-1 font-medium ${atual ? "border-primary bg-primary text-primary-foreground" : feita ? "border-primary/30 bg-fct-tinta/5 text-fct-tinta" : "text-muted-foreground"}`}
                 >
                   {STATUS_CHAMADO_LABEL[e]}
                   {atual && (t.status === "aguardando_usuario" || t.status === "aguardando_terceiro") ? ` · ${STATUS_CHAMADO_LABEL[t.status].toLowerCase()}` : ""}

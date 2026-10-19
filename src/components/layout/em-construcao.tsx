@@ -24,7 +24,7 @@ export function EmConstrucao({ fase, itens, titulo = "Módulo em desenvolvimento
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        <p className="mb-2 rotulo">
           O que vai ter aqui
         </p>
         <ul className="grid gap-1.5 text-sm text-foreground/85 sm:grid-cols-2">

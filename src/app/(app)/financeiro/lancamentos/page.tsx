@@ -78,7 +78,7 @@ export default async function LancamentosPage({ searchParams }: PageProps<"/fina
         descricao="Entradas e saídas realizadas por unidade. Filtre por competência, grupo, unidade ou categoria; as somas seguem o filtro."
         acoes={
           escreve ? (
-            <Button className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/financeiro/lancamentos/novo" />}>
+            <Button nativeButton={false} render={<Link href="/financeiro/lancamentos/novo" />}>
               <Plus data-icon="inline-start" />
               Novo lançamento
             </Button>
@@ -190,8 +190,8 @@ export default async function LancamentosPage({ searchParams }: PageProps<"/fina
           ["Lançamentos", String(totais.qtd), competencia ? rotuloCompetencia(competencia) : "no filtro atual", ""],
         ].map(([rotulo, valor, nota, tom]) => (
           <div key={rotulo} className="rounded-xl border bg-card px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{rotulo}</p>
-            <p className={`mt-1 text-xl font-bold tracking-tight tabular-nums ${tom}`}>{valor}</p>
+            <p className="rotulo">{rotulo}</p>
+            <p className={`mt-1 numero-sm ${tom}`}>{valor}</p>
             <p className="text-xs text-muted-foreground">{nota}</p>
           </div>
         ))}

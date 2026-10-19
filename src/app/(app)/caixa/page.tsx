@@ -45,10 +45,10 @@ export default async function QuebrasCaixaPage({ searchParams }: PageProps<"/cai
       ) : (
         <>
           <nav aria-label="Filtro" className="mb-4 flex gap-2 text-sm">
-            <Link href="/caixa" aria-current={!todas ? "page" : undefined} className={`rounded-full border px-3 py-1 ${!todas ? "border-fct-tinta bg-fct-tinta text-white" : "bg-card"}`}>
+            <Link href="/caixa" aria-current={!todas ? "page" : undefined} className={`rounded-full border px-3 py-1 ${!todas ? "border-primary bg-primary text-primary-foreground" : "bg-card"}`}>
               Em aberto
             </Link>
-            <Link href="/caixa?ver=todas" aria-current={todas ? "page" : undefined} className={`rounded-full border px-3 py-1 ${todas ? "border-fct-tinta bg-fct-tinta text-white" : "bg-card"}`}>
+            <Link href="/caixa?ver=todas" aria-current={todas ? "page" : undefined} className={`rounded-full border px-3 py-1 ${todas ? "border-primary bg-primary text-primary-foreground" : "bg-card"}`}>
               Todas
             </Link>
           </nav>

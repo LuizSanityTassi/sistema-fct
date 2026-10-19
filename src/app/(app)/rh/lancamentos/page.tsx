@@ -163,7 +163,7 @@ export default async function LancamentosFolhaPage({ searchParams }: PageProps<"
         ].map((k) => (
           <div key={k.rotulo} className="rounded-xl border bg-card px-4 py-3">
             <dt className="text-xs text-muted-foreground">{k.rotulo}</dt>
-            <dd className={`text-xl font-bold tracking-tight tabular-nums ${k.alerta ? "text-amber-700" : ""}`}>{k.valor}</dd>
+            <dd className={`numero-sm ${k.alerta ? "text-amber-700" : ""}`}>{k.valor}</dd>
           </div>
         ))}
       </dl>

@@ -17,13 +17,13 @@ const pct = (v: number | string | null | undefined) => (v == null ? "—" : `${(
 function Kpi({ rotulo, valor, nota, href, tom }: { rotulo: string; valor: string; nota?: string | null; href?: string; tom?: string }) {
   const corpo = (
     <>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{rotulo}</p>
-      <p className={`mt-1 text-2xl font-bold tracking-tight tabular-nums ${tom ?? ""}`}>{valor}</p>
+      <p className="rotulo">{rotulo}</p>
+      <p className={`mt-1 numero ${tom ?? ""}`}>{valor}</p>
       {nota && <p className="text-xs text-muted-foreground">{nota}</p>}
     </>
   );
   return href ? (
-    <Link href={href} className="block rounded-xl border bg-card px-4 py-3 transition-colors hover:border-fct-tinta/40">
+    <Link href={href} className="block rounded-xl border bg-card px-4 py-3 transition-colors hover:border-primary/40">
       {corpo}
     </Link>
   ) : (
@@ -52,7 +52,7 @@ export default async function ConciliacaoPage() {
                 <FolderUp data-icon="inline-start" />
                 Enviar arquivos
               </Button>
-              <Button className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/conciliacao/nova" />}>
+              <Button nativeButton={false} render={<Link href="/conciliacao/nova" />}>
                 <Scale data-icon="inline-start" />
                 Nova conciliação
               </Button>

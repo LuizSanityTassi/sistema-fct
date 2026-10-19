@@ -161,8 +161,8 @@ export default async function FolhaPage({ searchParams }: PageProps<"/rh/folha">
           ["FGTS (empresa)", formatarMoeda(resumo.fgts), "custo, não desconto"],
         ].map(([rotulo, valor, nota]) => (
           <div key={rotulo as string} className="rounded-xl border bg-card px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{rotulo}</p>
-            <p className="mt-1 text-xl font-bold tracking-tight tabular-nums">{valor}</p>
+            <p className="rotulo">{rotulo}</p>
+            <p className="mt-1 numero-sm">{valor}</p>
             {nota && <p className="text-xs text-muted-foreground">{nota}</p>}
           </div>
         ))}

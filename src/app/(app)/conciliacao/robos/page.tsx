@@ -117,7 +117,7 @@ export default async function RobosPage() {
         <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Instalador:</span>
           {ARQUIVOS_AGENTE.map((a) => (
-            <a key={a} href={`/agente-itau/${a}`} download className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:border-fct-tinta/40">
+            <a key={a} href={`/agente-itau/${a}`} download className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:border-primary/40">
               <Download className="size-3.5" aria-hidden />
               {a}
             </a>

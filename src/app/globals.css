@@ -2,6 +2,16 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* ============================================================================================
+   DESIGN SYSTEM — Sistema FCT
+   Identidade do site (vermelho #E30613 como ACCENT, tinta quase preta, neutros quentes).
+   Tudo o que é cor, superfície, borda, sombra, raio e tipo sai daqui. Telas usam os tokens
+   (bg-card, text-muted-foreground, border…) e as classes de componente (.rotulo, .numero…).
+   Modo escuro: classe .dark no <html> (escolha do usuário em "Tema"); os tons semânticos da
+   paleta do Tailwind (red/amber/emerald/sky…) também têm versão escura, então as telas que
+   usam text-red-700 / bg-amber-50 continuam legíveis no escuro sem mexer nelas.
+   ============================================================================================ */
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -16,6 +26,9 @@
   --color-fct-papel: var(--fct-papel);
   --color-fct-green: var(--fct-green);
   --color-fct-green-dark: var(--fct-green-dark);
+  --color-superficie: var(--superficie);
+  --color-superficie-alta: var(--superficie-alta);
+  --color-borda-forte: var(--borda-forte);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-display), var(--font-sans);
@@ -55,91 +68,275 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --shadow-xs: var(--sombra-xs);
+  --shadow-sm: var(--sombra-sm);
+  --shadow-md: var(--sombra-md);
+  --shadow-lg: var(--sombra-lg);
+  --shadow-xl: var(--sombra-lg);
 }
 
 :root {
   /* ===== Identidade FCT — a mesma do site (fct-site/assets/style.css) ===== */
-  --fct-red: oklch(0.577 0.234 28);        /* #E30613 vermelho da marca (4,9:1 no branco) */
+  --fct-red: oklch(0.577 0.234 28);        /* #E30613 ACCENT: estado ativo, indicadores, destaques */
   --fct-red-dark: oklch(0.461 0.186 27.2); /* #A80410 texto pequeno em vermelho (7,4:1 no papel) */
   --fct-red-fundo: oklch(0.511 0.207 27.8); /* #C10510 faixas vermelhas (texto branco 6,4:1) */
-  --fct-yellow: oklch(0.842 0.168 90.4);   /* #F5C518 botão de destaque (tinta por cima 11,4:1) */
-  --fct-yellow-dark: oklch(0.756 0.154 87.5); /* #D9A800 */
-  --fct-tinta: oklch(0.188 0.007 0.9);     /* #161213 texto e faixas escuras (quase preto quente) */
-  --fct-papel: oklch(0.983 0.003 67.8);    /* #FBF9F7 fundo creme */
+  --fct-yellow: oklch(0.842 0.168 90.4);   /* #F5C518 só destaque da marca */
+  --fct-yellow-dark: oklch(0.756 0.154 87.5);
+  --fct-tinta: oklch(0.188 0.007 0.9);     /* #161213 texto forte, botão principal */
+  --fct-papel: oklch(0.983 0.003 67.8);    /* #FBF9F7 */
   /* da logo: só no desenho da onda */
-  --fct-navy: oklch(0.253 0.079 253.6);    /* #002247 */
-  --fct-green: oklch(0.524 0.108 144.5);   /* #3E7A40 */
+  --fct-navy: oklch(0.253 0.079 253.6);
+  --fct-green: oklch(0.524 0.108 144.5);
   --fct-green-dark: oklch(0.473 0.107 144.9);
   --font-sans: var(--font-geist-sans);
 
-  --background: var(--fct-papel);
-  --foreground: var(--fct-tinta);
-  --card: oklch(1 0 0);
-  --card-foreground: var(--fct-tinta);
+  /* superfícies (do fundo para cima) */
+  --background: oklch(0.982 0.003 70);     /* página */
+  --superficie: oklch(0.972 0.004 65);     /* menu lateral, faixas, campos de filtro */
+  --card: oklch(1 0 0);                    /* cartões e tabelas */
+  --superficie-alta: oklch(1 0 0);         /* menus, modais, dicas */
   --popover: oklch(1 0 0);
+  --foreground: var(--fct-tinta);
+  --card-foreground: var(--fct-tinta);
   --popover-foreground: var(--fct-tinta);
   --primary: var(--fct-tinta);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.95 0.008 48.7);     /* #F3EDEA papel-2 */
+  --primary-foreground: oklch(0.985 0.002 70);
+  --secondary: oklch(0.955 0.005 60);
   --secondary-foreground: var(--fct-tinta);
-  --muted: oklch(0.955 0.007 50);
-  --muted-foreground: oklch(0.508 0.016 0.7); /* #6E6265 tinta-3: 5,6:1 sobre o papel */
-  --accent: oklch(0.95 0.008 48.7);
+  --muted: oklch(0.958 0.005 60);
+  --muted-foreground: oklch(0.508 0.016 0.7); /* #6E6265: 5,6:1 sobre o fundo */
+  --accent: oklch(0.952 0.006 55);           /* hover de itens */
   --accent-foreground: var(--fct-tinta);
   --destructive: var(--fct-red-dark);
-  --border: oklch(0.897 0.012 51.3);       /* #E4DBD6 linha */
-  --input: oklch(0.665 0.015 0.5);         /* #9C9093 borda de campo: 3:1 no branco (WCAG 1.4.11) */
-  --ring: var(--fct-red-dark);             /* anel de foco do teclado */
+  --border: oklch(0.915 0.007 55);           /* divisórias e cartões: quase invisível */
+  --borda-forte: oklch(0.855 0.01 50);       /* hover de cartão clicável */
+  --input: oklch(0.665 0.015 0.5);           /* borda de campo: 3:1 no branco (WCAG 1.4.11) */
+  --ring: var(--fct-red-dark);
   --chart-1: var(--fct-red);
-  --chart-2: var(--fct-tinta);
+  --chart-2: oklch(0.36 0.012 10);
   --chart-3: var(--fct-yellow);
   --chart-4: oklch(0.6 0.08 230);
   --chart-5: oklch(0.65 0.12 160);
-  --radius: 0.75rem;
+  --radius: 0.625rem;
 
-  /* Menu lateral: a tinta do site (como o menu do celular e o rodapé), destaque vermelho e amarelo */
-  --sidebar: var(--fct-tinta);
-  --sidebar-foreground: oklch(0.9 0.008 50);
-  --sidebar-primary: var(--fct-yellow);
-  --sidebar-primary-foreground: var(--fct-tinta);
-  --sidebar-accent: oklch(0.278 0.012 1.1); /* #2E2628 */
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.324 0.013 2.8); /* #3A3133 */
-  --sidebar-ring: var(--fct-yellow);
+  /* sombras: suaves, no tom quente da tinta */
+  --sombra-xs: 0 1px 2px 0 oklch(0.2 0.01 30 / 0.05);
+  --sombra-sm: 0 1px 2px 0 oklch(0.2 0.01 30 / 0.05), 0 2px 8px -2px oklch(0.2 0.01 30 / 0.07);
+  --sombra-md: 0 2px 4px -2px oklch(0.2 0.01 30 / 0.06), 0 8px 20px -6px oklch(0.2 0.01 30 / 0.12);
+  --sombra-lg: 0 4px 10px -4px oklch(0.2 0.01 30 / 0.08), 0 24px 48px -16px oklch(0.2 0.01 30 / 0.22);
+
+  /* menu lateral claro, no tom do fundo; o ativo é um "cartão" com o ponto vermelho */
+  --sidebar: var(--superficie);
+  --sidebar-foreground: oklch(0.38 0.012 10);
+  --sidebar-primary: var(--fct-red);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.94 0.006 55);
+  --sidebar-accent-foreground: var(--fct-tinta);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--fct-red-dark);
 }
 
+/* ===== Modo escuro: níveis de superfície (não é a inversão das cores) ===== */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
+  color-scheme: dark;
+  --fct-red: oklch(0.66 0.2 27);
+  --fct-red-dark: oklch(0.74 0.15 25);      /* texto vermelho no escuro */
+  --fct-red-fundo: oklch(0.47 0.17 27);
+  --fct-tinta: oklch(0.955 0.004 60);       /* "tinta" vira o texto claro */
+  --fct-papel: oklch(0.16 0.004 30);
+
+  --background: oklch(0.155 0.004 30);
+  --superficie: oklch(0.175 0.005 30);
+  --card: oklch(0.195 0.005 30);
+  --superficie-alta: oklch(0.225 0.006 30);
+  --popover: oklch(0.225 0.006 30);
+  --foreground: oklch(0.955 0.004 60);
+  --card-foreground: oklch(0.955 0.004 60);
+  --popover-foreground: oklch(0.955 0.004 60);
+  --primary: oklch(0.955 0.004 60);
+  --primary-foreground: oklch(0.18 0.005 30);
+  --secondary: oklch(0.255 0.006 30);
+  --secondary-foreground: oklch(0.955 0.004 60);
+  --muted: oklch(0.235 0.006 30);
+  --muted-foreground: oklch(0.72 0.01 50);
+  --accent: oklch(0.26 0.007 30);
+  --accent-foreground: oklch(0.955 0.004 60);
+  --destructive: oklch(0.72 0.17 25);
+  --border: oklch(1 0 0 / 8%);
+  --borda-forte: oklch(1 0 0 / 16%);
+  --input: oklch(1 0 0 / 26%);
+  --ring: oklch(0.74 0.15 25);
+  --chart-2: oklch(0.82 0.01 50);
+
+  --sombra-xs: 0 1px 2px 0 oklch(0 0 0 / 0.4);
+  --sombra-sm: 0 1px 2px 0 oklch(0 0 0 / 0.4), 0 2px 8px -2px oklch(0 0 0 / 0.4);
+  --sombra-md: 0 2px 4px -2px oklch(0 0 0 / 0.45), 0 10px 24px -8px oklch(0 0 0 / 0.55);
+  --sombra-lg: 0 4px 10px -4px oklch(0 0 0 / 0.5), 0 24px 48px -16px oklch(0 0 0 / 0.7);
+
+  --sidebar: oklch(0.17 0.005 30);
+  --sidebar-foreground: oklch(0.8 0.008 50);
+  --sidebar-primary: oklch(0.66 0.2 27);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-accent: oklch(0.235 0.006 30);
+  --sidebar-accent-foreground: oklch(0.955 0.004 60);
+  --sidebar-border: oklch(1 0 0 / 7%);
+  --sidebar-ring: oklch(0.74 0.15 25);
+
+  /* tons semânticos da paleta (red/amber/emerald/sky…) no escuro: fundo escuro tingido, texto claro */
+  --color-red-50: oklch(0.255 0.040 25);
+  --color-red-100: oklch(0.29 0.055 25);
+  --color-red-200: oklch(0.37 0.070 25);
+  --color-red-300: oklch(0.46 0.100 25);
+  --color-red-400: oklch(0.6 0.140 25);
+  --color-red-500: oklch(0.66 0.150 25);
+  --color-red-600: oklch(0.72 0.150 25);
+  --color-red-700: oklch(0.79 0.130 25);
+  --color-red-800: oklch(0.84 0.110 25);
+  --color-red-900: oklch(0.88 0.090 25);
+  --color-red-950: oklch(0.92 0.060 25);
+  --color-amber-50: oklch(0.255 0.038 70);
+  --color-amber-100: oklch(0.29 0.052 70);
+  --color-amber-200: oklch(0.37 0.067 70);
+  --color-amber-300: oklch(0.46 0.095 70);
+  --color-amber-400: oklch(0.6 0.133 70);
+  --color-amber-500: oklch(0.66 0.142 70);
+  --color-amber-600: oklch(0.72 0.142 70);
+  --color-amber-700: oklch(0.79 0.123 70);
+  --color-amber-800: oklch(0.84 0.104 70);
+  --color-amber-900: oklch(0.88 0.085 70);
+  --color-amber-950: oklch(0.92 0.057 70);
+  --color-emerald-50: oklch(0.255 0.036 163);
+  --color-emerald-100: oklch(0.29 0.050 163);
+  --color-emerald-200: oklch(0.37 0.063 163);
+  --color-emerald-300: oklch(0.46 0.090 163);
+  --color-emerald-400: oklch(0.6 0.126 163);
+  --color-emerald-500: oklch(0.66 0.135 163);
+  --color-emerald-600: oklch(0.72 0.135 163);
+  --color-emerald-700: oklch(0.79 0.117 163);
+  --color-emerald-800: oklch(0.84 0.099 163);
+  --color-emerald-900: oklch(0.88 0.081 163);
+  --color-emerald-950: oklch(0.92 0.054 163);
+  --color-sky-50: oklch(0.255 0.038 237);
+  --color-sky-100: oklch(0.29 0.052 237);
+  --color-sky-200: oklch(0.37 0.067 237);
+  --color-sky-300: oklch(0.46 0.095 237);
+  --color-sky-400: oklch(0.6 0.133 237);
+  --color-sky-500: oklch(0.66 0.142 237);
+  --color-sky-600: oklch(0.72 0.142 237);
+  --color-sky-700: oklch(0.79 0.123 237);
+  --color-sky-800: oklch(0.84 0.104 237);
+  --color-sky-900: oklch(0.88 0.085 237);
+  --color-sky-950: oklch(0.92 0.057 237);
+  --color-orange-50: oklch(0.255 0.040 45);
+  --color-orange-100: oklch(0.29 0.055 45);
+  --color-orange-200: oklch(0.37 0.070 45);
+  --color-orange-300: oklch(0.46 0.100 45);
+  --color-orange-400: oklch(0.6 0.140 45);
+  --color-orange-500: oklch(0.66 0.150 45);
+  --color-orange-600: oklch(0.72 0.150 45);
+  --color-orange-700: oklch(0.79 0.130 45);
+  --color-orange-800: oklch(0.84 0.110 45);
+  --color-orange-900: oklch(0.88 0.090 45);
+  --color-orange-950: oklch(0.92 0.060 45);
+  --color-slate-50: oklch(0.255 0.009 257);
+  --color-slate-100: oklch(0.29 0.012 257);
+  --color-slate-200: oklch(0.37 0.015 257);
+  --color-slate-300: oklch(0.46 0.022 257);
+  --color-slate-400: oklch(0.6 0.031 257);
+  --color-slate-500: oklch(0.66 0.033 257);
+  --color-slate-600: oklch(0.72 0.033 257);
+  --color-slate-700: oklch(0.79 0.029 257);
+  --color-slate-800: oklch(0.84 0.024 257);
+  --color-slate-900: oklch(0.88 0.020 257);
+  --color-slate-950: oklch(0.92 0.013 257);
+  --color-violet-50: oklch(0.255 0.040 293);
+  --color-violet-100: oklch(0.29 0.055 293);
+  --color-violet-200: oklch(0.37 0.070 293);
+  --color-violet-300: oklch(0.46 0.100 293);
+  --color-violet-400: oklch(0.6 0.140 293);
+  --color-violet-500: oklch(0.66 0.150 293);
+  --color-violet-600: oklch(0.72 0.150 293);
+  --color-violet-700: oklch(0.79 0.130 293);
+  --color-violet-800: oklch(0.84 0.110 293);
+  --color-violet-900: oklch(0.88 0.090 293);
+  --color-violet-950: oklch(0.92 0.060 293);
+  --color-blue-50: oklch(0.255 0.040 260);
+  --color-blue-100: oklch(0.29 0.055 260);
+  --color-blue-200: oklch(0.37 0.070 260);
+  --color-blue-300: oklch(0.46 0.100 260);
+  --color-blue-400: oklch(0.6 0.140 260);
+  --color-blue-500: oklch(0.66 0.150 260);
+  --color-blue-600: oklch(0.72 0.150 260);
+  --color-blue-700: oklch(0.79 0.130 260);
+  --color-blue-800: oklch(0.84 0.110 260);
+  --color-blue-900: oklch(0.88 0.090 260);
+  --color-blue-950: oklch(0.92 0.060 260);
+  --color-neutral-50: oklch(0.255 0.000 0);
+  --color-neutral-100: oklch(0.29 0.000 0);
+  --color-neutral-200: oklch(0.37 0.000 0);
+  --color-neutral-300: oklch(0.46 0.000 0);
+  --color-neutral-400: oklch(0.6 0.000 0);
+  --color-neutral-500: oklch(0.66 0.000 0);
+  --color-neutral-600: oklch(0.72 0.000 0);
+  --color-neutral-700: oklch(0.79 0.000 0);
+  --color-neutral-800: oklch(0.84 0.000 0);
+  --color-neutral-900: oklch(0.88 0.000 0);
+  --color-neutral-950: oklch(0.92 0.000 0);
+  --color-green-50: oklch(0.255 0.036 150);
+  --color-green-100: oklch(0.29 0.050 150);
+  --color-green-200: oklch(0.37 0.063 150);
+  --color-green-300: oklch(0.46 0.090 150);
+  --color-green-400: oklch(0.6 0.126 150);
+  --color-green-500: oklch(0.66 0.135 150);
+  --color-green-600: oklch(0.72 0.135 150);
+  --color-green-700: oklch(0.79 0.117 150);
+  --color-green-800: oklch(0.84 0.099 150);
+  --color-green-900: oklch(0.88 0.081 150);
+  --color-green-950: oklch(0.92 0.054 150);
+  --color-yellow-50: oklch(0.255 0.036 95);
+  --color-yellow-100: oklch(0.29 0.050 95);
+  --color-yellow-200: oklch(0.37 0.063 95);
+  --color-yellow-300: oklch(0.46 0.090 95);
+  --color-yellow-400: oklch(0.6 0.126 95);
+  --color-yellow-500: oklch(0.66 0.135 95);
+  --color-yellow-600: oklch(0.72 0.135 95);
+  --color-yellow-700: oklch(0.79 0.117 95);
+  --color-yellow-800: oklch(0.84 0.099 95);
+  --color-yellow-900: oklch(0.88 0.081 95);
+  --color-yellow-950: oklch(0.92 0.054 95);
+  --color-rose-50: oklch(0.255 0.040 15);
+  --color-rose-100: oklch(0.29 0.055 15);
+  --color-rose-200: oklch(0.37 0.070 15);
+  --color-rose-300: oklch(0.46 0.100 15);
+  --color-rose-400: oklch(0.6 0.140 15);
+  --color-rose-500: oklch(0.66 0.150 15);
+  --color-rose-600: oklch(0.72 0.150 15);
+  --color-rose-700: oklch(0.79 0.130 15);
+  --color-rose-800: oklch(0.84 0.110 15);
+  --color-rose-900: oklch(0.88 0.090 15);
+  --color-rose-950: oklch(0.92 0.060 15);
+  --color-teal-50: oklch(0.255 0.034 180);
+  --color-teal-100: oklch(0.29 0.047 180);
+  --color-teal-200: oklch(0.37 0.060 180);
+  --color-teal-300: oklch(0.46 0.085 180);
+  --color-teal-400: oklch(0.6 0.119 180);
+  --color-teal-500: oklch(0.66 0.128 180);
+  --color-teal-600: oklch(0.72 0.128 180);
+  --color-teal-700: oklch(0.79 0.111 180);
+  --color-teal-800: oklch(0.84 0.093 180);
+  --color-teal-900: oklch(0.88 0.076 180);
+  --color-teal-950: oklch(0.92 0.051 180);
+  --color-indigo-50: oklch(0.255 0.040 275);
+  --color-indigo-100: oklch(0.29 0.055 275);
+  --color-indigo-200: oklch(0.37 0.070 275);
+  --color-indigo-300: oklch(0.46 0.100 275);
+  --color-indigo-400: oklch(0.6 0.140 275);
+  --color-indigo-500: oklch(0.66 0.150 275);
+  --color-indigo-600: oklch(0.72 0.150 275);
+  --color-indigo-700: oklch(0.79 0.130 275);
+  --color-indigo-800: oklch(0.84 0.110 275);
+  --color-indigo-900: oklch(0.88 0.090 275);
+  --color-indigo-950: oklch(0.92 0.060 275);
 }
 
 @layer base {
@@ -148,31 +345,35 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "cv11", "ss01";
   }
   html {
     @apply font-sans;
     scroll-padding-top: 4.5rem; /* âncoras não ficam escondidas atrás do cabeçalho fixo */
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
   /* foco do teclado sempre visível (links, resumos, caixas de seleção e o que não tem estilo próprio) */
   :focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
-  .menu-lateral :focus-visible {
-    outline-color: var(--sidebar-ring);
-  }
   ::selection {
-    background: var(--fct-yellow);
-    color: var(--fct-tinta);
+    background: oklch(0.842 0.168 90.4 / 0.55);
+    color: var(--foreground);
   }
-  /* título da página na Archivo Black, como no site; títulos de seção e texto continuam na Geist.
+  /* título da página na Archivo Black, como no site; o resto do texto fica na Geist.
      A Archivo Black só tem um peso: sem negrito falso do navegador por cima dela. */
   h1,
   .font-heading {
     font-family: var(--font-heading);
     font-weight: 400;
     font-synthesis: none;
+    letter-spacing: -0.012em;
+  }
+  h2,
+  h3 {
     letter-spacing: -0.01em;
   }
   table {
@@ -180,16 +381,116 @@
   }
   input[type="checkbox"],
   input[type="radio"] {
-    accent-color: var(--fct-tinta);
+    accent-color: var(--fct-red);
+    width: 1rem;
+    height: 1rem;
+  }
+  /* barras de rolagem discretas */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.6 0.01 40 / 0.35) transparent;
   }
 }
 
 @layer components {
-  /* cartões ganham uma elevação discreta (sombra no tom quente da tinta, como no site) */
+  /* ---------- tipografia ---------- */
+  /* rótulo de cartão/indicador: pequeno, médio, sem caixa alta gritando */
+  .rotulo {
+    font-size: 0.78125rem;
+    line-height: 1.1rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    letter-spacing: 0.002em;
+  }
+  /* número grande de indicador */
+  .numero {
+    font-size: 1.75rem;
+    line-height: 2.1rem;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+  }
+  .numero-sm {
+    font-size: 1.3125rem;
+    line-height: 1.75rem;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    font-variant-numeric: tabular-nums;
+  }
+  /* rótulo de grupo (menu, seções): caixa alta pequena, só onde organiza */
+  .sobrescrito {
+    font-size: 0.6875rem;
+    line-height: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+
+  /* ---------- superfícies ---------- */
+  /* todos os cartões do sistema (bg-card + border): borda quase invisível e sombra mínima */
   .bg-card.border {
-    box-shadow:
-      0 1px 2px 0 oklch(0.188 0.007 0.9 / 0.05),
-      0 6px 16px -10px oklch(0.188 0.007 0.9 / 0.14);
+    box-shadow: var(--sombra-xs);
+  }
+  /* cartão que é link/botão: sobe um pouco no hover */
+  a.bg-card.border,
+  button.bg-card.border,
+  .cartao-interativo {
+    transition:
+      box-shadow 160ms ease,
+      border-color 160ms ease,
+      transform 160ms ease;
+  }
+  a.bg-card.border:hover,
+  button.bg-card.border:hover,
+  .cartao-interativo:hover {
+    box-shadow: var(--sombra-md);
+    border-color: var(--borda-forte);
+  }
+
+  /* esqueleto de carregamento */
+  .esqueleto {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-md);
+    background: var(--muted);
+  }
+  .esqueleto::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.55), transparent);
+    animation: brilho 1.4s ease-in-out infinite;
+  }
+  .dark .esqueleto::after {
+    background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.06), transparent);
+  }
+
+  /* entrada das páginas: sobe 4px e aparece (sem exagero) */
+  .entrada {
+    animation: entrar 220ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  }
+
+  /* ---------- modo escuro ---------- */
+  .dark .bg-white {
+    background-color: oklch(0.98 0 0); /* a logo precisa do quadro branco */
+  }
+}
+
+@keyframes brilho {
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes entrar {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
 

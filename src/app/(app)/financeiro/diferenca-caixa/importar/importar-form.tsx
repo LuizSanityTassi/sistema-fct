@@ -68,7 +68,7 @@ export function ImportarPosForm({ conferir, lancar }: { conferir: Acao; lancar: 
                 setArquivoNome(e.target.files?.[0]?.name ?? "");
                 setCompetencia("");
               }}
-              className="block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-fct-tinta file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-fct-tinta/90"
+              className="block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
             />
           </label>
           <label className="grid gap-1.5 text-sm">
@@ -130,7 +130,7 @@ export function ImportarPosForm({ conferir, lancar }: { conferir: Acao; lancar: 
               name="passo"
               value="lancar"
               disabled={ocupado || vaiLancar.length === 0 || compUsada !== previa.competencia}
-              className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow-dark"
+             
             >
               {lancando ? "Lançando…" : vaiLancar.length ? `Lançar ${vaiLancar.length === 1 ? "1 quebra" : `${vaiLancar.length} quebras`} (${formatarMoeda(totalLancar)})` : "Nada para lançar"}
             </Button>

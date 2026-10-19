@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Archivo_Black, Geist, Geist_Mono } from "next/font/google";
+import { SCRIPT_TEMA } from "@/lib/tema";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -31,8 +32,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="pt-BR"
       translate="no"
+      // o script do tema põe a classe .dark antes da hidratação
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} ${archivoBlack.variable} h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: SCRIPT_TEMA }} />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

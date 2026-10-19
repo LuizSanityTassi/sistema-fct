@@ -75,7 +75,7 @@ export function BuscaTrier({ action, filiais, de, ate }: { action: (prev: Estado
           </SelectNativo>
         </Campo>
         <div className="flex gap-2">
-          <Button type="submit" disabled={rodando} className="bg-fct-yellow font-semibold text-fct-tinta hover:bg-fct-yellow/85">
+          <Button type="submit" disabled={rodando}>
             <Bot data-icon="inline-start" />
             {rodando ? "Buscando…" : "Buscar do Trier"}
           </Button>

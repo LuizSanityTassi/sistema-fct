@@ -38,7 +38,7 @@ export default async function AtivosPage({ searchParams }: PageProps<"/ti/ativos
                   Etiquetas da loja
                 </Button>
               )}
-              <Button className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/ti/ativos/novo" />}>
+              <Button nativeButton={false} render={<Link href="/ti/ativos/novo" />}>
                 <Plus data-icon="inline-start" />
                 Novo ativo
               </Button>

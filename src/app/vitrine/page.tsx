@@ -5,7 +5,11 @@ import { Download, Plus, Search, TriangleAlert } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { BoasVindas } from "@/components/layout/boas-vindas";
 import { BadgeAtivo, BadgeStatusFuncionario } from "@/components/layout/badge-status";
+import { BarrasDuplas } from "@/components/graficos";
 import { PageHeader } from "@/components/layout/page-header";
+import { EstadoVazio, Indicador, LinkPainel, Painel } from "@/components/layout/painel";
+import { Status } from "@/components/layout/status";
+import { Esqueleto } from "@/components/ui/skeleton";
 import { Paginacao } from "@/components/layout/paginacao";
 import { AvisoAtencao, AvisoSucesso, Campo, ErroFormulario, SelectNativo } from "@/components/form/campo";
 import { Badge } from "@/components/ui/badge";
@@ -87,19 +91,75 @@ export default function VitrinePage() {
         }
       />
 
-      <dl className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-        {[
-          { r: "Funcionários em atividade", v: "342" },
-          { r: "Com lançamento", v: "100" },
-          { r: "Com pendência", v: "21", alerta: true },
-          { r: "Folha de outubro", v: "R$ 998.706,97" },
-        ].map((k) => (
-          <div key={k.r} className="rounded-xl border bg-card px-4 py-3">
-            <dt className="text-xs text-muted-foreground">{k.r}</dt>
-            <dd className={`text-xl font-bold tracking-tight tabular-nums ${k.alerta ? "text-amber-700" : ""}`}>{k.v}</dd>
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Indicador href="#t-botoes" rotulo="Quebras de caixa" valor="R$ 1.284,40" variacao={{ texto: "12%", direcao: "desce", tom: "sucesso" }} comparadoCom="× set/26 até dia 19" detalhe="out/26 até dia 19 · 41 quebra(s)" serie={[3, 8, 2, 9, 4, 6, 12, 5, 7, 3, 9, 4, 6, 2, 8, 5, 3, 7, 4]} />
+        <Indicador href="#t-botoes" rotulo="Chamados abertos" valor="38" variacao={{ texto: "9%", direcao: "sobe", tom: "perigo" }} comparadoCom="× set/26 até dia 19" serie={[1, 2, 4, 2, 3, 5, 2, 1, 3, 4, 2, 6, 3, 2, 4, 1, 2, 3, 5]} />
+        <Indicador rotulo="1ª resposta no prazo" valor="87%" variacao={{ texto: "4 p.p.", direcao: "sobe", tom: "sucesso" }} comparadoCom="× set/26" />
+        <Indicador rotulo="Admissões" valor="7" comparadoCom="sem base para comparar ainda" detalhe="2 desligamento(s)" />
+      </div>
+
+      <div className="mb-6 grid gap-4 lg:grid-cols-3">
+        <Painel id="v-atencao" titulo="Precisa da sua atenção" descricao="3 itens · 1 crítico" acao={<LinkPainel href="#t-botoes">Central</LinkPainel>} className="lg:col-span-2">
+          <ul className="divide-y border-t">
+            {(
+              [
+                ["12 quebras de caixa sem justificativa", "Caixa · mais antiga de 05/10", "perigo", "Crítico"],
+                ["4 chamados com SLA estourado", "Chamados", "alerta", "Pendente"],
+                ["ASO de 3 funcionários vence em 30 dias", "RH", "atencao", "Atenção"],
+              ] as const
+            ).map(([t, a, tom, r]) => (
+              <li key={t} className="flex items-center gap-3 px-5 py-3">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">{t}</span>
+                  <span className="block text-xs text-muted-foreground">{a}</span>
+                </span>
+                <Status tom={tom}>{r}</Status>
+              </li>
+            ))}
+          </ul>
+        </Painel>
+        <Painel id="v-vazio" titulo="Chamados urgentes" acao={<LinkPainel href="#t-botoes">Ver fila</LinkPainel>}>
+          <EstadoVazio compacto titulo="Nenhum chamado urgente" descricao="Nada de prioridade alta ou crítica em aberto." />
+        </Painel>
+      </div>
+
+      <div className="mb-6 grid gap-4 lg:grid-cols-3">
+        <Painel id="v-fin" titulo="Receitas × despesas" descricao="Últimos 6 meses lançados no financeiro" className="lg:col-span-2">
+          <div className="px-5 pb-5">
+            <BarrasDuplas
+              titulo="Receitas e despesas por mês"
+              rotuloA="Receitas"
+              rotuloB="Despesas"
+              dados={(
+                [
+                  ["mai/26", 820, 610],
+                  ["jun/26", 760, 690],
+                  ["jul/26", 910, 720],
+                  ["ago/26", 870, 800],
+                  ["set/26", 990, 760],
+                  ["out/26", 640, 520],
+                ] as const
+              ).map(([r, a, b]) => ({ rotulo: r, a, b, textoA: `R$ ${a} mil`, textoB: `R$ ${b} mil` }))}
+            />
           </div>
-        ))}
-      </dl>
+        </Painel>
+        <Painel id="v-status" titulo="Situações e carregando" descricao="Os tons valem para o sistema todo">
+          <div className="flex flex-wrap gap-2 border-t px-5 py-4">
+            <Status tom="sucesso">Resolvido</Status>
+            <Status tom="atencao">Aguardando</Status>
+            <Status tom="alerta">Atrasado</Status>
+            <Status tom="perigo">Crítico</Status>
+            <Status tom="info">Em andamento</Status>
+            <Status tom="destaque">Justificada</Status>
+            <Status tom="neutro">Cancelado</Status>
+          </div>
+          <div className="space-y-2 border-t px-5 py-4">
+            <Esqueleto className="h-4 w-3/4" />
+            <Esqueleto className="h-4 w-1/2" />
+            <Esqueleto className="h-4 w-2/3" />
+          </div>
+        </Painel>
+      </div>
 
       <section aria-labelledby="t-botoes" className="mb-6 rounded-xl border bg-card p-5">
         <h2 id="t-botoes" className="mb-3 text-sm font-semibold">

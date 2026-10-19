@@ -158,8 +158,8 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
       <section className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-6">
         {kpis.map(([rotulo, valor, nota, tom]) => (
           <div key={rotulo} className="rounded-xl border bg-card px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{rotulo}</p>
-            <p className={`mt-1 text-xl font-bold tracking-tight tabular-nums ${tom ?? ""}`}>{valor}</p>
+            <p className="rotulo">{rotulo}</p>
+            <p className={`mt-1 numero-sm ${tom ?? ""}`}>{valor}</p>
             {nota && <p className="text-xs text-muted-foreground">{nota}</p>}
           </div>
         ))}
@@ -227,7 +227,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
                         : (r.soDDA ?? 0);
           const ativa = aba === a.chave;
           return (
-            <Link key={a.chave} href={`${base}?aba=${a.chave}`} aria-current={ativa ? "page" : undefined} className={`rounded-full border px-3 py-1 text-sm ${ativa ? "border-fct-tinta bg-fct-tinta text-white" : a.chave === "omie" ? "border-fct-yellow bg-fct-yellow/20 hover:border-fct-tinta/40" : "bg-card hover:border-fct-tinta/40"}`}>
+            <Link key={a.chave} href={`${base}?aba=${a.chave}`} aria-current={ativa ? "page" : undefined} className={`rounded-full border px-3 py-1 text-sm ${ativa ? "border-primary bg-primary text-primary-foreground" : a.chave === "omie" ? "border-fct-yellow bg-fct-yellow/20 hover:border-primary/40" : "bg-card hover:border-primary/40"}`}>
               {a.rotulo} {qtd !== null && <span className={ativa ? "opacity-80" : "text-muted-foreground"}>({qtd})</span>}
             </Link>
           );

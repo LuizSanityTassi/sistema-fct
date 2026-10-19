@@ -78,7 +78,7 @@ export default async function OperadoresPage({ searchParams }: PageProps<"/finan
             key={x.v}
             href={`/financeiro/diferenca-caixa/operadores?${new URLSearchParams({ mostrar: x.v, ...(todasFiliais ? { todas: "1" } : {}) })}`}
             aria-current={mostrar === x.v ? "page" : undefined}
-            className={`rounded-full border px-3 py-1 ${mostrar === x.v ? "border-fct-tinta bg-fct-tinta text-white" : "bg-card hover:border-fct-tinta/40"}`}
+            className={`rounded-full border px-3 py-1 ${mostrar === x.v ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary/40"}`}
           >
             {x.r}
           </Link>

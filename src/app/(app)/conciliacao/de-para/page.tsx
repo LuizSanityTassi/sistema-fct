@@ -31,7 +31,7 @@ export default async function DeParaPage({ searchParams }: PageProps<"/conciliac
         descricao="Boletos em nome de fundos/securitizadoras que na verdade são de um fornecedor, e as correspondências que o sistema aprendeu conciliando."
         acoes={
           escreve ? (
-            <Button className="bg-fct-yellow text-fct-tinta hover:bg-fct-yellow/85" nativeButton={false} render={<Link href="/conciliacao/de-para/novo" />}>
+            <Button nativeButton={false} render={<Link href="/conciliacao/de-para/novo" />}>
               <Plus data-icon="inline-start" />
               Novo de-para
             </Button>
