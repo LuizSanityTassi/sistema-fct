@@ -5,6 +5,7 @@ import {
   Banknote,
   Building2,
   ChartColumn,
+  ClipboardCheck,
   ClipboardList,
   Coins,
   HandCoins,
@@ -148,8 +149,8 @@ export const NAV: NavGrupo[] = [
         label: "Sangrias",
         href: "/sangrias",
         icon: HandCoins,
-        papeis: ["admin", "financeiro", "contador", "coordenador", "gerente", "usuario"],
-        descricao: "Dinheiro do caixa depositado no banco, com o comprovante: a loja cadastra, o financeiro confere.",
+        papeis: ["admin", "financeiro", "coordenador", "gerente", "usuario"],
+        descricao: "A loja lança o dinheiro do caixa depositado no banco, com o comprovante.",
       },
       {
         label: "Filiais",
@@ -209,6 +210,13 @@ export const NAV: NavGrupo[] = [
         icon: Wallet,
         papeis: ["admin", "financeiro", "contador", "coordenador", "gerente"],
         descricao: "Entradas e saídas realizadas por unidade.",
+      },
+      {
+        label: "Conferência de sangrias",
+        href: "/financeiro/sangrias",
+        icon: ClipboardCheck,
+        papeis: ["admin", "financeiro", "contador"],
+        descricao: "O financeiro confere com o extrato as sangrias lançadas pelas lojas.",
       },
       {
         label: "Carteira",

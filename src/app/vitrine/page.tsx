@@ -19,6 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AnexosQuebra } from "@/app/(app)/caixa/anexos-quebra";
 import { ChamadoForm } from "@/app/(app)/chamados/chamado-form";
 import { SangriaForm } from "@/app/(app)/sangrias/nova/sangria-form";
+import { ConferenciaLista } from "@/app/(app)/financeiro/sangrias/conferencia-lista";
 import { ExcluirUsuario } from "@/app/(app)/configuracoes/usuarios/[id]/editar/excluir-usuario";
 import type { EstadoChamado } from "@/app/(app)/chamados/actions";
 import { assuntoAviso, htmlAviso, type Destinatario } from "@/lib/caixa/avisos-email";
@@ -55,6 +56,10 @@ export default function VitrinePage() {
   if (process.env.NODE_ENV !== "development") notFound();
   async function sair() {
     "use server";
+  }
+  async function conferirSangriasExemplo(): Promise<{ erro?: string; ok?: string }> {
+    "use server";
+    return { ok: "Exemplo: nada foi conferido." };
   }
   async function excluirExemplo(): Promise<{ erro?: string }> {
     "use server";
@@ -257,6 +262,22 @@ export default function VitrinePage() {
         </h2>
         <AnexosQuebra anexos={ANEXOS} usuarioId="eu" aberta />
         <JustificativaForm action={justificarExemplo} id="00000000-0000-0000-0000-00000000000a" atual={null} />
+      </section>
+
+      <section aria-labelledby="t-conferencia" className="mb-6 rounded-xl border bg-card">
+        <h2 id="t-conferencia" className="px-5 pt-4 pb-3 text-sm font-semibold">
+          Conferência de sangrias (exemplo)
+        </h2>
+        <ConferenciaLista
+          action={conferirSangriasExemplo}
+          podeConferir
+          linhas={[
+            { id: "a1", loja: "F001", lojaNome: "FRETTA", deposito: "19/10/2026", retirada: "18/10/2026", banco: "ITAU VARELA 2025", numero: "000123", valor: "R$ 2.530,00", anexos: 1, situacao: "pendente", cadastro: "Maria Exemplo" },
+            { id: "a2", loja: "F101", lojaNome: "LAGES DOM PEDRO", deposito: "18/10/2026", retirada: "18/10/2026", banco: "SICREDI 2025", numero: "88771", valor: "R$ 1.140,50", anexos: 2, situacao: "pendente", cadastro: "João Teste" },
+            { id: "a3", loja: "F108", lojaNome: "BAIRRO", deposito: "17/10/2026", retirada: "16/10/2026", banco: "BRADESCO", numero: null, valor: "R$ 640,00", anexos: 0, situacao: "pendente", cadastro: "Ana Modelo" },
+            { id: "a4", loja: "F002", lojaNome: "CENTRO", deposito: "15/10/2026", retirada: "15/10/2026", banco: "ITAU FILIAL", numero: "77654", valor: "R$ 3.010,00", anexos: 1, situacao: "conferida", cadastro: "Carlos Exemplo" },
+          ]}
+        />
       </section>
 
       <section aria-labelledby="t-sangria" className="mb-6">

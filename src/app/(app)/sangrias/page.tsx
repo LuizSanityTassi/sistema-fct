@@ -19,7 +19,6 @@ export const metadata = { title: "Sangrias" };
 export default async function SangriasPage({ searchParams }: PageProps<"/sangrias">) {
   const [sessao, sp] = await Promise.all([exigirAcesso("/sangrias"), searchParams]);
   const filtros = lerFiltrosSangrias(sp);
-  const financeiro = sessao.papel === "admin" || sessao.papel === "financeiro";
   const supabase = await createClient();
   const [{ itens, total, somas, qtdAnexos }, { lojas, contas }, { data: todasLojas }] = await Promise.all([
     listarSangrias(filtros),
@@ -37,7 +36,7 @@ export default async function SangriasPage({ searchParams }: PageProps<"/sangria
       <PageHeader
         eyebrow="Operação"
         titulo="Sangrias"
-        descricao="O dinheiro retirado do caixa da loja e depositado no banco, com o comprovante. A loja cadastra; o financeiro confere com o extrato."
+        descricao="Lance aqui o dinheiro retirado do caixa e depositado no banco, com o comprovante. A conferência com o extrato é feita pelo financeiro."
         acoes={
           podeCadastrar ? (
             <Button nativeButton={false} render={<Link href="/sangrias/nova" />}>
@@ -110,7 +109,7 @@ export default async function SangriasPage({ searchParams }: PageProps<"/sangria
             </div>
             <p className="mt-1.5 numero-sm">{formatarMoeda(somas[s].valor)}</p>
             <p className="text-xs text-muted-foreground">
-              no período, por data do depósito{s === "pendente" && financeiro && somas[s].qtd ? " · clique para conferir" : ""}
+              no período, por data do depósito
             </p>
           </Link>
         ))}

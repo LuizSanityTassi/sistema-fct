@@ -10,6 +10,16 @@ import { createClient } from "@/lib/supabase/server";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATA = /^\d{4}-\d{2}-\d{2}$/;
 const ROTA = "/sangrias";
+const ROTA_CONFERENCIA = "/financeiro/sangrias";
+// lançamento (loja) e conferência (financeiro) mostram a mesma sangria: atualiza as duas telas
+const revalidar = (id?: string) => {
+  revalidatePath(ROTA);
+  revalidatePath(ROTA_CONFERENCIA);
+  if (id) {
+    revalidatePath(`${ROTA}/${id}`);
+    revalidatePath(`${ROTA_CONFERENCIA}/${id}`);
+  }
+};
 
 export type EstadoSangria = { erro?: string; erros?: Record<string, string>; id?: string };
 export type EstadoAcao = { erro?: string; ok?: string };
@@ -58,7 +68,7 @@ export async function cadastrarSangria(_prev: EstadoSangria, fd: FormData): Prom
     return { erro: `Não consegui cadastrar: ${error.message}` };
   }
   await registrarAuditoria(supabase, { userId: sessao.id, acao: "criar", entidade: "caixa_sangrias", registroId: data.id, novo: { branch_id, conta_id, data_retirada, data_deposito, numero_deposito, valor } });
-  revalidatePath(ROTA);
+  revalidar();
   return { id: data.id };
 }
 
@@ -81,8 +91,7 @@ export async function registrarComprovantes(id: string, lista: AnexoEnviado[]): 
     await supabase.storage.from(BUCKET_ANEXOS_CAIXA).remove(lista.map((a) => a.caminho));
     return { erro: `Não consegui registrar o comprovante: ${error.message}` };
   }
-  revalidatePath(ROTA);
-  revalidatePath(`${ROTA}/${id}`);
+  revalidar(id);
   return { ok: "Comprovante anexado." };
 }
 
@@ -105,7 +114,22 @@ export async function mudarSituacao(id: string, _prev: EstadoAcao, fd: FormData)
   if (error) return { erro: error.message };
   if (!data) return { erro: "Você não pode mudar esta sangria (ou ela já mudou)." };
   await registrarAuditoria(supabase, { userId: sessao.id, acao: acao === "cancelar" ? "inativar" : "editar", entidade: "caixa_sangrias", registroId: id, novo: { situacao: data.situacao, nota: nota || null } });
-  revalidatePath(ROTA);
-  revalidatePath(`${ROTA}/${id}`);
+  revalidar(id);
   return { ok: acao === "conferir" ? "Sangria conferida." : acao === "desfazer" ? "Conferência desfeita: voltou para a conferir." : "Sangria cancelada." };
+}
+
+/** Conferência em lote (Financeiro → Conferência de sangrias): marca as escolhidas que ainda estão a conferir. */
+export async function conferirSangrias(_prev: EstadoAcao, fd: FormData): Promise<EstadoAcao> {
+  const sessao = await getSessao();
+  if (sessao.papel !== "admin" && sessao.papel !== "financeiro") return { erro: "Só o financeiro confere sangrias." };
+  const ids = fd.getAll("ids").filter((v): v is string => typeof v === "string" && UUID.test(v));
+  if (!ids.length) return { erro: "Marque pelo menos uma sangria." };
+  if (ids.length > 200) return { erro: "No máximo 200 por vez." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("caixa_sangrias").update({ situacao: "conferida" }).in("id", ids).eq("situacao", "pendente").select("id");
+  if (error) return { erro: error.message };
+  const n = data?.length ?? 0;
+  await registrarAuditoria(supabase, { userId: sessao.id, acao: "editar", entidade: "caixa_sangrias", novo: { conferidas_em_lote: n } });
+  revalidar();
+  return { ok: n === 1 ? "1 sangria conferida." : `${n} sangrias conferidas.` };
 }

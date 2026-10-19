@@ -384,7 +384,7 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
             area: "Caixa",
             quantidade: aConferir,
             minha: true,
-            href: `/sangrias?situacao=pendente&de=${ha120dias}`,
+            href: `/financeiro/sangrias?situacao=pendente&de=${ha120dias}`,
             titulo: `${aConferir} ${plural(aConferir, "sangria a conferir", "sangrias a conferir")} com o extrato`,
           });
       })(),

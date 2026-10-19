@@ -71,7 +71,7 @@ export async function obterSangria(id: string) {
   const supabase = await createClient();
   const [{ data }, { data: anexos }] = await Promise.all([
     supabase.from("caixa_sangrias").select(COLUNAS).eq("id", id).maybeSingle(),
-    supabase.from("sangria_anexos").select("id, nome, mime, tamanho, enviado_por_nome, criado_em").eq("sangria_id", id).order("criado_em"),
+    supabase.from("sangria_anexos").select("id, nome, mime, tamanho, enviado_por_nome, criado_em, storage_path").eq("sangria_id", id).order("criado_em"),
   ]);
   return data ? { ...data, anexos: anexos ?? [] } : null;
 }
