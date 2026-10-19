@@ -867,6 +867,57 @@ export type Database = {
           },
         ]
       }
+      sangria_anexos: {
+        Row: {
+          criado_em: string
+          enviado_por: string | null
+          enviado_por_nome: string | null
+          id: string
+          mime: string | null
+          nome: string
+          sangria_id: string
+          storage_path: string
+          tamanho: number | null
+        }
+        Insert: {
+          criado_em?: string
+          enviado_por?: string | null
+          enviado_por_nome?: string | null
+          id?: string
+          mime?: string | null
+          nome: string
+          sangria_id: string
+          storage_path: string
+          tamanho?: number | null
+        }
+        Update: {
+          criado_em?: string
+          enviado_por?: string | null
+          enviado_por_nome?: string | null
+          id?: string
+          mime?: string | null
+          nome?: string
+          sangria_id?: string
+          storage_path?: string
+          tamanho?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sangria_anexos_sangria_id_fkey"
+            columns: ["sangria_id"]
+            isOneToOne: false
+            referencedRelation: "caixa_sangrias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sangria_anexos_enviado_por_fkey"
+            columns: ["enviado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_aso: {
         Row: {
           ativo: boolean
@@ -1979,6 +2030,114 @@ export type Database = {
           {
             foreignKeyName: "caixa_avisos_profile_id_fkey"
             columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      caixa_sangrias: {
+        Row: {
+          branch_id: string
+          cancelada_em: string | null
+          cancelada_por: string | null
+          cancelada_por_nome: string | null
+          conferencia_obs: string | null
+          conferida_em: string | null
+          conferida_por: string | null
+          conferida_por_nome: string | null
+          conta_apelido: string
+          conta_id: string
+          criada_em: string
+          criada_por: string | null
+          criada_por_nome: string | null
+          data_deposito: string
+          data_retirada: string
+          id: string
+          motivo_cancelamento: string | null
+          numero_deposito: string | null
+          observacao: string | null
+          situacao: string
+          valor: number
+        }
+        Insert: {
+          branch_id: string
+          cancelada_em?: string | null
+          cancelada_por?: string | null
+          cancelada_por_nome?: string | null
+          conferencia_obs?: string | null
+          conferida_em?: string | null
+          conferida_por?: string | null
+          conferida_por_nome?: string | null
+          conta_apelido: string
+          conta_id: string
+          criada_em?: string
+          criada_por?: string | null
+          criada_por_nome?: string | null
+          data_deposito: string
+          data_retirada: string
+          id?: string
+          motivo_cancelamento?: string | null
+          numero_deposito?: string | null
+          observacao?: string | null
+          situacao?: string
+          valor: number
+        }
+        Update: {
+          branch_id?: string
+          cancelada_em?: string | null
+          cancelada_por?: string | null
+          cancelada_por_nome?: string | null
+          conferencia_obs?: string | null
+          conferida_em?: string | null
+          conferida_por?: string | null
+          conferida_por_nome?: string | null
+          conta_apelido?: string
+          conta_id?: string
+          criada_em?: string
+          criada_por?: string | null
+          criada_por_nome?: string | null
+          data_deposito?: string
+          data_retirada?: string
+          id?: string
+          motivo_cancelamento?: string | null
+          numero_deposito?: string | null
+          observacao?: string | null
+          situacao?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caixa_sangrias_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caixa_sangrias_conta_id_fkey"
+            columns: ["conta_id"]
+            isOneToOne: false
+            referencedRelation: "fin_contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caixa_sangrias_criada_por_fkey"
+            columns: ["criada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caixa_sangrias_conferida_por_fkey"
+            columns: ["conferida_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caixa_sangrias_cancelada_por_fkey"
+            columns: ["cancelada_por"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -3164,6 +3323,23 @@ export type Database = {
           entidade: string
           valor_anterior: Json
           valor_novo: Json
+        }[]
+      }
+      contas_para_deposito: {
+        Args: never
+        Returns: {
+          apelido: string
+          banco: string
+          id: string
+          tipo: string
+        }[]
+      }
+      lojas_para_sangria: {
+        Args: never
+        Returns: {
+          codigo: string
+          id: string
+          nome: string
         }[]
       }
       integracao_ler_segredos: {

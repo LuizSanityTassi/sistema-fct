@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AnexosQuebra } from "@/app/(app)/caixa/anexos-quebra";
 import { ChamadoForm } from "@/app/(app)/chamados/chamado-form";
+import { SangriaForm } from "@/app/(app)/sangrias/nova/sangria-form";
 import { ExcluirUsuario } from "@/app/(app)/configuracoes/usuarios/[id]/editar/excluir-usuario";
 import type { EstadoChamado } from "@/app/(app)/chamados/actions";
 import { assuntoAviso, htmlAviso, type Destinatario } from "@/lib/caixa/avisos-email";
@@ -256,6 +257,20 @@ export default function VitrinePage() {
         </h2>
         <AnexosQuebra anexos={ANEXOS} usuarioId="eu" aberta />
         <JustificativaForm action={justificarExemplo} id="00000000-0000-0000-0000-00000000000a" atual={null} />
+      </section>
+
+      <section aria-labelledby="t-sangria" className="mb-6">
+        <h2 id="t-sangria" className="mb-2 text-sm font-semibold">
+          Cadastro de sangria (exemplo: não grava)
+        </h2>
+        <SangriaForm
+          lojas={[{ id: "00000000-0000-0000-0000-000000000001", codigo: "F001", nome: "FRETTA" }]}
+          contas={[
+            { id: "00000000-0000-0000-0000-000000000002", apelido: "ITAU VARELA 2025" },
+            { id: "00000000-0000-0000-0000-000000000003", apelido: "SICREDI 2025" },
+          ]}
+          hoje="2026-10-19"
+        />
       </section>
 
       <section aria-labelledby="t-excluir" className="mb-6 flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50/40 p-5 sm:flex-row sm:items-center sm:justify-between">

@@ -7,6 +7,7 @@ import {
   ChartColumn,
   ClipboardList,
   Coins,
+  HandCoins,
   FileText,
   FolderOpen,
   KeyRound,
@@ -142,6 +143,13 @@ export const NAV: NavGrupo[] = [
         icon: Coins,
         papeis: ["admin", "financeiro", "coordenador", "gerente", "usuario"],
         descricao: "Quebras de caixa: o gestor da loja justifica; o colaborador vê as do caixa dele.",
+      },
+      {
+        label: "Sangrias",
+        href: "/sangrias",
+        icon: HandCoins,
+        papeis: ["admin", "financeiro", "contador", "coordenador", "gerente", "usuario"],
+        descricao: "Dinheiro do caixa depositado no banco, com o comprovante: a loja cadastra, o financeiro confere.",
       },
       {
         label: "Filiais",

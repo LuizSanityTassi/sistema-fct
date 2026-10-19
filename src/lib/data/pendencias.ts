@@ -372,6 +372,25 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
     );
   }
 
+  // ---------- Sangrias a conferir (financeiro) ----------
+  if (financeiro) {
+    tarefas.push(
+      (async () => {
+        const aConferir = await contar(supabase.from("caixa_sangrias").select("id", { count: "exact", head: true }).eq("situacao", "pendente"));
+        if (aConferir)
+          out.push({
+            id: "sangrias-conferir",
+            severidade: "atencao",
+            area: "Caixa",
+            quantidade: aConferir,
+            minha: true,
+            href: `/sangrias?situacao=pendente&de=${ha120dias}`,
+            titulo: `${aConferir} ${plural(aConferir, "sangria a conferir", "sangrias a conferir")} com o extrato`,
+          });
+      })(),
+    );
+  }
+
   // ---------- Pedidos de acesso (administrador) ----------
   if (sessao.papel === "admin") {
     tarefas.push(

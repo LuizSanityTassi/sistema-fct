@@ -31,7 +31,7 @@ export async function listarAsoDoFuncionario(employeeId: string) {
   return data;
 }
 
-export type TipoArquivo = "documento" | "aso" | "holerite" | "anexo" | "caixa";
+export type TipoArquivo = "documento" | "aso" | "holerite" | "anexo" | "caixa" | "sangria";
 
 /** Para download: devolve o caminho no Storage (o RLS decide se o usuário pode ver). */
 export async function obterArquivo(tipo: TipoArquivo, id: string) {
@@ -59,6 +59,10 @@ export async function obterArquivo(tipo: TipoArquivo, id: string) {
       .select("id, nome, storage_path")
       .eq("id", id)
       .maybeSingle();
+    return data ? { nome: data.nome, storage_path: data.storage_path } : null;
+  }
+  if (tipo === "sangria") {
+    const { data } = await supabase.from("sangria_anexos").select("id, nome, storage_path").eq("id", id).maybeSingle();
     return data ? { nome: data.nome, storage_path: data.storage_path } : null;
   }
   if (tipo === "caixa") {
