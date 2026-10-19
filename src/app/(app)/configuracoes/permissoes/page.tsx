@@ -36,6 +36,7 @@ const ESCRITA: Record<string, string> = {
   "/conciliacao/de-para": "Administrador e Financeiro",
   "/conciliacao/omie": "Enviam/desfazem: Administrador e Financeiro; categoria/conta padrão: Administrador. Chaves da API só em variáveis de ambiente",
   "/configuracoes/usuarios": "Administrador",
+  "/configuracoes/acessos": "Qualquer usuário pede (na tela de sem acesso); só o administrador responde",
   "/configuracoes/permissoes": "Administrador",
   "/configuracoes/auditoria": "Somente leitura (administrador)",
 };

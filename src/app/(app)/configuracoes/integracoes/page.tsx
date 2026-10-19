@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { Ponto } from "@/components/layout/status";
-import { exigirAcesso } from "@/lib/auth/session";
-import { SMTP_PADRAO } from "@/lib/caixa/avisos";
+import { exigirAcesso, semAcesso } from "@/lib/auth/session";
+import { SMTP_PADRAO } from "@/lib/email";
 import { EMPRESAS_OMIE, statusChaves, type EmpresaOmie } from "@/lib/conciliacao/omie-api";
 import { credenciaisTrier, SEGREDOS, statusSegredos } from "@/lib/integracoes/segredos";
 import { formatarDataHora } from "@/lib/formatos";
@@ -22,7 +21,7 @@ const ontemNoBrasil = () => new Date(Date.now() - 27 * 3_600_000).toISOString().
 
 export default async function IntegracoesPage() {
   const sessao = await exigirAcesso("/configuracoes/integracoes");
-  if (sessao.papel !== "admin") redirect("/dashboard?erro=sem_permissao");
+  if (sessao.papel !== "admin") semAcesso("/configuracoes/integracoes");
   const supabase = await createClient();
   const [segredos, cred, omie, { count: agentes }, { data: ultimoDiag }] = await Promise.all([
     statusSegredos(supabase),

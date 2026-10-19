@@ -16,6 +16,69 @@ export type Database = {
   }
   public: {
     Tables: {
+      acesso_solicitacoes: {
+        Row: {
+          criada_em: string
+          id: string
+          motivo: string | null
+          papel_atual: string
+          resposta: string | null
+          respondida_em: string | null
+          respondida_por: string | null
+          respondida_por_nome: string | null
+          rota: string
+          solicitante: string
+          solicitante_nome: string
+          status: string
+          tela: string
+        }
+        Insert: {
+          criada_em?: string
+          id?: string
+          motivo?: string | null
+          papel_atual: string
+          resposta?: string | null
+          respondida_em?: string | null
+          respondida_por?: string | null
+          respondida_por_nome?: string | null
+          rota: string
+          solicitante: string
+          solicitante_nome: string
+          status?: string
+          tela: string
+        }
+        Update: {
+          criada_em?: string
+          id?: string
+          motivo?: string | null
+          papel_atual?: string
+          resposta?: string | null
+          respondida_em?: string | null
+          respondida_por?: string | null
+          respondida_por_nome?: string | null
+          rota?: string
+          solicitante?: string
+          solicitante_nome?: string
+          status?: string
+          tela?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "acesso_solicitacoes_respondida_por_fkey"
+            columns: ["respondida_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acesso_solicitacoes_solicitante_fkey"
+            columns: ["solicitante"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           acao: string

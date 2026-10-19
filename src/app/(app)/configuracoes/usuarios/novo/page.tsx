@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
-import { exigirAcesso } from "@/lib/auth/session";
+import { exigirAcesso, semAcesso } from "@/lib/auth/session";
 import { listarUnidadesParaSelecao } from "@/lib/data/funcionarios";
 import { listarRegionais } from "@/lib/data/filiais";
 import { convidarUsuario } from "../actions";
@@ -10,7 +9,7 @@ export const metadata = { title: "Convidar usuário" };
 
 export default async function NovoUsuarioPage() {
   const sessao = await exigirAcesso("/configuracoes/usuarios");
-  if (sessao.papel !== "admin") redirect("/dashboard?erro=sem_permissao");
+  if (sessao.papel !== "admin") semAcesso("/configuracoes/usuarios");
   const [unidades, regionais] = await Promise.all([listarUnidadesParaSelecao(), listarRegionais()]);
 
   return (

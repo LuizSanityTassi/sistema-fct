@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { redirect } from "next/navigation";
-import { getSessao } from "@/lib/auth/session";
+import { getSessao, semAcesso } from "@/lib/auth/session";
 import { gerarRelatorio, lerFiltrosRelatorio, tipoRelatorioValido } from "@/lib/data/relatorios";
 import { hojeIso } from "@/lib/formatos";
 import { podeAcessar } from "@/lib/nav";
@@ -12,7 +11,7 @@ export async function GET(req: Request, ctx: RouteContext<"/api/relatorios/[tipo
   if (!tipoRelatorioValido(tipo)) return new NextResponse("Relatório inexistente", { status: 404 });
 
   const sessao = await getSessao();
-  if (!podeAcessar(sessao.papel, "/relatorios")) redirect("/dashboard?erro=sem_permissao");
+  if (!podeAcessar(sessao.papel, "/relatorios")) semAcesso("/relatorios");
   if (tipo === "folha" && sessao.papel !== "admin" && sessao.papel !== "rh") {
     return new NextResponse("Sem permissão", { status: 403 });
   }

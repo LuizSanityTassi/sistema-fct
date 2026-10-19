@@ -8,7 +8,7 @@ import { competenciaAtual } from "@/lib/rh/competencia";
 import { createClient } from "@/lib/supabase/server";
 
 export type Severidade = "critico" | "alto" | "atencao" | "info";
-export type AreaPendencia = "Caixa" | "Conciliação" | "Folha" | "RH" | "Chamados" | "Denúncias";
+export type AreaPendencia = "Caixa" | "Conciliação" | "Folha" | "RH" | "Chamados" | "Denúncias" | "Acessos";
 
 export type Pendencia = {
   id: string;
@@ -367,6 +367,25 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
             minha: true,
             href: "/chamados?visao=atendo",
             titulo: `${meusAtendimentos} ${plural(meusAtendimentos, "chamado em atendimento", "chamados em atendimento")} com você`,
+          });
+      })(),
+    );
+  }
+
+  // ---------- Pedidos de acesso (administrador) ----------
+  if (sessao.papel === "admin") {
+    tarefas.push(
+      (async () => {
+        const pedidos = await contar(supabase.from("acesso_solicitacoes").select("id", { count: "exact", head: true }).eq("status", "pendente"));
+        if (pedidos)
+          out.push({
+            id: "acessos-pedidos",
+            severidade: "alto",
+            area: "Acessos",
+            quantidade: pedidos,
+            minha: true,
+            href: "/configuracoes/acessos",
+            titulo: `${pedidos} ${plural(pedidos, "pedido de acesso esperando", "pedidos de acesso esperando")} a sua resposta`,
           });
       })(),
     );

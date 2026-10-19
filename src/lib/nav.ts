@@ -16,6 +16,7 @@ import {
   Scale,
   LayoutDashboard,
   LifeBuoy,
+  LockOpen,
   MonitorCog,
   ScrollText,
   ShieldAlert,
@@ -334,6 +335,13 @@ export const NAV: NavGrupo[] = [
         icon: UserCog,
         papeis: ["admin"],
         descricao: "Usuários do sistema, papéis e filiais.",
+      },
+      {
+        label: "Pedidos de acesso",
+        href: "/configuracoes/acessos",
+        icon: LockOpen,
+        papeis: ["admin"],
+        descricao: "Quem pediu acesso a uma tela que o perfil não libera.",
       },
       {
         label: "Permissões",

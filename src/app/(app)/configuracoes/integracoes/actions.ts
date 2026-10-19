@@ -6,7 +6,7 @@ import { getSessao } from "@/lib/auth/session";
 import { ehEmpresaOmie, EMPRESAS_OMIE, OmieErro } from "@/lib/conciliacao/omie-api";
 import { atualizarCadastrosOmie } from "@/lib/conciliacao/omie-envio";
 import { diagnosticarTrier, testarLoginTrier } from "@/lib/conciliacao/trier-robo";
-import { SMTP_PADRAO, testarSmtp } from "@/lib/caixa/avisos";
+import { SMTP_PADRAO, testarSmtp } from "@/lib/email";
 import { chavesOmieDe, credenciaisTrier, lerSegredos, salvarSegredo, SEGREDOS } from "@/lib/integracoes/segredos";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/types";

@@ -2,7 +2,7 @@ import JSZip from "jszip";
 import { NextResponse } from "next/server";
 import { redirect } from "next/navigation";
 import { registrarAuditoria } from "@/lib/auditoria";
-import { getSessao } from "@/lib/auth/session";
+import { getSessao, semAcesso } from "@/lib/auth/session";
 import { carregarCompetencia } from "@/lib/data/lancamentos-folha";
 import { podeAcessar } from "@/lib/nav";
 import { competenciaValida } from "@/lib/rh/competencia";
@@ -19,7 +19,7 @@ function anexo(nome: string) {
 
 export async function GET(req: Request) {
   const sessao = await getSessao();
-  if (!podeAcessar(sessao.papel, "/rh/lancamentos")) redirect("/dashboard?erro=sem_permissao");
+  if (!podeAcessar(sessao.papel, "/rh/lancamentos")) semAcesso("/rh/lancamentos");
 
   const url = new URL(req.url);
   const competencia = url.searchParams.get("competencia");

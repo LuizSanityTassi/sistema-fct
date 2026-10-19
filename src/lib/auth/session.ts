@@ -50,9 +50,14 @@ export const getSessao = cache(async (): Promise<Sessao> => {
   };
 });
 
+/** Leva para a tela "Você não tem acesso", onde a pessoa pode pedir acesso ao administrador. */
+export function semAcesso(rota: string): never {
+  redirect(`/sem-acesso?rota=${encodeURIComponent(rota)}`);
+}
+
 /** Bloqueia a página para papéis sem acesso (a mesma regra do menu). Devolve a sessão quando liberado. */
 export async function exigirAcesso(rota: string): Promise<Sessao> {
   const sessao = await getSessao();
-  if (!podeAcessar(sessao.papel, rota)) redirect("/dashboard?erro=sem_permissao");
+  if (!podeAcessar(sessao.papel, rota)) semAcesso(rota);
   return sessao;
 }

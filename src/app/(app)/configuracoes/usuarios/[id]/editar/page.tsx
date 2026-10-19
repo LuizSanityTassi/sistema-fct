@@ -1,6 +1,6 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
-import { exigirAcesso } from "@/lib/auth/session";
+import { exigirAcesso, semAcesso } from "@/lib/auth/session";
 import { listarUnidadesParaSelecao } from "@/lib/data/funcionarios";
 import { listarRegionais } from "@/lib/data/filiais";
 import { obterUsuario } from "@/lib/data/usuarios";
@@ -13,7 +13,7 @@ export const metadata = { title: "Editar usuário" };
 
 export default async function EditarUsuarioPage({ params }: PageProps<"/configuracoes/usuarios/[id]/editar">) {
   const [sessao, { id }] = await Promise.all([exigirAcesso("/configuracoes/usuarios"), params]);
-  if (sessao.papel !== "admin") redirect("/dashboard?erro=sem_permissao");
+  if (sessao.papel !== "admin") semAcesso("/configuracoes/usuarios");
   const [usuario, unidades, funcionarios, regionais] = await Promise.all([obterUsuario(id), listarUnidadesParaSelecao(), funcionariosDoCaixa(), listarRegionais()]);
   if (!usuario) notFound();
   const opcoesFuncionario = funcionarios

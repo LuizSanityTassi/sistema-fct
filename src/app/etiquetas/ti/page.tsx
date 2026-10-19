@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { getSessao } from "@/lib/auth/session";
+import { getSessao, semAcesso } from "@/lib/auth/session";
 import { linkDoAtivo, origemDoSistema, svgQr } from "@/lib/ti/qr";
 import { TIPO_ATIVO_LABEL } from "@/lib/ti/rotulos";
 import { createClient } from "@/lib/supabase/server";
@@ -17,7 +16,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  */
 export default async function EtiquetasTiPage({ searchParams }: PageProps<"/etiquetas/ti">) {
   const [sessao, sp] = await Promise.all([getSessao(), searchParams]);
-  if (sessao.papel !== "admin" && sessao.papel !== "ti") redirect("/dashboard?erro=sem_permissao");
+  if (sessao.papel !== "admin" && sessao.papel !== "ti") semAcesso("/etiquetas/ti");
   const ids = (typeof sp.ids === "string" ? sp.ids.split(",") : []).filter((x) => UUID.test(x)).slice(0, 300);
   const filial = typeof sp.filial === "string" && UUID.test(sp.filial) ? sp.filial : null;
   const supabase = await createClient();

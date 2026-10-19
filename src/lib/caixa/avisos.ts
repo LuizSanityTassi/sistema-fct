@@ -5,16 +5,13 @@
 //     sistema (profiles.employee_id) ou, se não tiver acesso, o e-mail da ficha do RH (employees.email).
 // Usa o cliente service_role porque roda também sem usuário logado (rotina da manhã); quem chama pela tela
 // confere o papel antes. A senha do e-mail fica no Vault (Administração → Integrações) e nunca vai para a tela.
-import nodemailer from "nodemailer";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { assuntoAviso, htmlAviso, textoAviso, type Destinatario, type QuebraAviso } from "@/lib/caixa/avisos-email";
-import { SEGREDOS } from "@/lib/integracoes/segredos";
+import { configSmtp, remetente, SITE, transporteSmtp } from "@/lib/email";
 import type { Database } from "@/lib/supabase/types";
 
 type Admin = SupabaseClient<Database>;
 
-export const SITE = (process.env.NEXT_PUBLIC_SITE_URL || "https://portal.farmaciafct.com.br").replace(/\/$/, "");
-export const SMTP_PADRAO = { host: "mail.farmaciafct.com.br", porta: 465, usuario: "nao-responda@farmaciafct.com.br" };
 export const CHAVE_CONFIG = "caixa_avisos";
 
 /** Dia de hoje no horário de Brasília (aaaa-mm-dd). */
@@ -27,35 +24,6 @@ const emailOk = (e: string | null | undefined) => (e && EMAIL_VALIDO.test(e.trim
 const primeiro = (nome: string) => nome.trim().split(/\s+/)[0];
 
 // ---------- configuração ----------
-
-export type ConfigSmtp = { host: string; porta: number; usuario: string; senha: string; configurado: boolean };
-
-export async function configSmtp(admin: Admin): Promise<ConfigSmtp> {
-  const nomes = [SEGREDOS.smtp_host, SEGREDOS.smtp_porta, SEGREDOS.smtp_usuario, SEGREDOS.smtp_senha];
-  const { data, error } = await admin.rpc("integracao_ler_segredos_servico", { p_nomes: nomes });
-  if (error) throw new Error(`Não consegui ler a configuração do e-mail: ${error.message}`);
-  const s = new Map((data ?? []).map((r) => [r.nome, r.valor]));
-  const porta = Number(s.get(SEGREDOS.smtp_porta)) || SMTP_PADRAO.porta;
-  const senha = s.get(SEGREDOS.smtp_senha) ?? "";
-  return { host: s.get(SEGREDOS.smtp_host) || SMTP_PADRAO.host, porta, usuario: s.get(SEGREDOS.smtp_usuario) || SMTP_PADRAO.usuario, senha, configurado: !!senha };
-}
-
-function transporte(c: ConfigSmtp) {
-  return nodemailer.createTransport({
-    host: c.host,
-    port: c.porta,
-    secure: c.porta === 465,
-    auth: { user: c.usuario, pass: c.senha },
-    connectionTimeout: 15_000,
-    greetingTimeout: 15_000,
-    socketTimeout: 30_000,
-  });
-}
-
-/** Confere se o servidor de e-mail aceita o usuário e a senha (sem mandar nada). */
-export async function testarSmtp(c: ConfigSmtp) {
-  await transporte(c).verify();
-}
 
 /** Liga/desliga do envio automático (padrão: ligado). */
 export async function avisosLigados(cliente: Admin) {
@@ -221,7 +189,6 @@ export async function montarAvisos(admin: Admin): Promise<PreviaAvisos> {
 
 export type ResultadoEnvio = { enviados: number; jaAvisados: number; falhas: { nome: string; erro: string }[]; semResponsavel: number; destinatarios: number };
 
-const remetente = (c: ConfigSmtp) => ({ name: "Sistema FCT", address: c.usuario });
 const motivo = (e: unknown) => (e instanceof Error ? e.message : String(e)).slice(0, 300);
 const quantidade = (d: Destinatario) => d.quebras.length + d.minhas.length;
 const valorTotal = (d: Destinatario) => r2(d.total + d.totalMinhas);
@@ -235,7 +202,7 @@ export async function enviarAvisos(admin: Admin, origem: "automatico" | "manual"
   if (error) throw new Error(error.message);
   const avisados = new Set((jaHoje ?? []).map((r) => r.email.toLowerCase()));
 
-  const correio = transporte(smtp);
+  const correio = transporteSmtp(smtp);
   const resultado: ResultadoEnvio = { enviados: 0, jaAvisados: 0, falhas: [], semResponsavel: previa.semResponsavel.length, destinatarios: previa.destinatarios.length };
   for (const d of previa.destinatarios) {
     if (avisados.has(d.chave)) {
@@ -280,7 +247,7 @@ export async function enviarTeste(admin: Admin, para: { profileId: string; nome:
     minhas,
     totalMinhas: r2(minhas.reduce((s, q) => s + q.valor, 0)),
   };
-  const correio = transporte(smtp);
+  const correio = transporteSmtp(smtp);
   let erro: string | null = null;
   try {
     await correio.sendMail({ from: remetente(smtp), to: { name: para.nome, address: para.email }, subject: `[Teste] ${assuntoAviso(d)}`, text: textoAviso(d, SITE), html: htmlAviso(d, SITE) });
