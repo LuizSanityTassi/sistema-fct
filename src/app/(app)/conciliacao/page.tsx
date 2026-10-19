@@ -170,7 +170,7 @@ export default async function ConciliacaoPage() {
           <TableBody>
             {painel.ultimas.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="vazio">
                   Nenhuma conciliação registrada.
                 </TableCell>
               </TableRow>

@@ -117,7 +117,7 @@ export default async function AuditoriaPage({ searchParams }: PageProps<"/config
           <TableBody>
             {resultado.itens.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={6} className="vazio">
                   Nenhum registro de auditoria com esses filtros.
                 </TableCell>
               </TableRow>

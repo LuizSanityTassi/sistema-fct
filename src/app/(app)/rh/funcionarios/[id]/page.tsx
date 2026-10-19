@@ -338,7 +338,7 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
       {aba === "caixa" && (
         <section className="rounded-xl border bg-card">
           {ficha.quebras.length === 0 ? (
-            <p className="px-5 py-10 text-center text-sm text-muted-foreground">Nenhuma quebra de caixa ligada a este funcionário.</p>
+            <p className="vazio">Nenhuma quebra de caixa ligada a este funcionário.</p>
           ) : (
             <Table>
               <TableHeader>

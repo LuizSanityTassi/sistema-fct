@@ -115,7 +115,7 @@ export default async function UsuariosPage({ searchParams }: PageProps<"/configu
           <TableBody>
             {resultado.itens.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={6} className="vazio">
                   Nenhum usuário encontrado.
                 </TableCell>
               </TableRow>

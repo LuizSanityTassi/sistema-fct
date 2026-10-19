@@ -255,7 +255,7 @@ export default async function LancamentosPage({ searchParams }: PageProps<"/fina
           <TableBody>
             {resultado.itens.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={escreve ? 8 : 7} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={escreve ? 8 : 7} className="vazio">
                   {temFiltro(filtros) ? "Nenhum lançamento com esses filtros." : "Nenhum lançamento registrado ainda."}
                 </TableCell>
               </TableRow>

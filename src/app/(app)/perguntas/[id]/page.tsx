@@ -120,7 +120,7 @@ export default async function PerguntaPage({ params, searchParams }: PageProps<"
           </p>
         </div>
         {r.linhas.length === 0 ? (
-          <p className="border-t px-5 py-10 text-center text-sm text-muted-foreground">Nada para mostrar com esses filtros. Tente outro mês ou outra unidade.</p>
+          <p className="vazio border-t">Nada para mostrar com esses filtros. Tente outro mês ou outra unidade.</p>
         ) : (
           <Table>
             <TableHeader>

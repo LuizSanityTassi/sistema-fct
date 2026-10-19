@@ -131,7 +131,7 @@ export default async function PendenciasPage({ searchParams }: PageProps<"/conci
           <TableBody>
             {lista.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={escreve ? 8 : 7} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={escreve ? 8 : 7} className="vazio">
                   Nenhuma pendência com esses filtros.
                 </TableCell>
               </TableRow>

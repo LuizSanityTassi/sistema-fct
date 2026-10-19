@@ -44,7 +44,7 @@ export async function VisaoCoordenador({ usuarioId, regional, sp }: { usuarioId:
 
   if (!regional) {
     return (
-      <p className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
+      <p className="vazio rounded-xl border bg-card">
         Seu usuário é de coordenador, mas ainda não tem regional definida. Peça ao administrador para escolher a regional em Administração → Usuários.
       </p>
     );
@@ -114,7 +114,7 @@ export async function VisaoCoordenador({ usuarioId, regional, sp }: { usuarioId:
       </section>
 
       {quebras.length === 0 ? (
-        <p className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
+        <p className="vazio rounded-xl border bg-card">
           Nenhuma quebra {ver === "abertas" ? "em aberto" : `em ${rotuloCompetencia(mes).toLowerCase()}`} nas lojas da regional {regional}.
         </p>
       ) : (

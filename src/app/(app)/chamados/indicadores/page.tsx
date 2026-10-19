@@ -62,7 +62,7 @@ export default async function IndicadoresChamadosPage({ searchParams }: PageProp
       </section>
 
       {g.total === 0 ? (
-        <p className="rounded-xl border bg-card px-6 py-12 text-center text-sm text-muted-foreground">Nenhum chamado aberto nesse período. Os indicadores aparecem conforme os chamados chegam.</p>
+        <p className="vazio rounded-xl border bg-card">Nenhum chamado aberto nesse período. Os indicadores aparecem conforme os chamados chegam.</p>
       ) : (
         <div className="grid gap-4 xl:grid-cols-2">
           <section className="rounded-xl border bg-card">

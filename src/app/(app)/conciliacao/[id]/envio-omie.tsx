@@ -163,7 +163,7 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, vali
           <tbody>
             {visiveis.length === 0 ? (
               <tr>
-                <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                <td colSpan={6} className="vazio">
                   Nada neste grupo com esses filtros.
                 </td>
               </tr>

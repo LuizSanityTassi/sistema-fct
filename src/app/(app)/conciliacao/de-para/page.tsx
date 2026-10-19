@@ -113,7 +113,7 @@ export default async function DeParaPage({ searchParams }: PageProps<"/conciliac
           <TableBody>
             {aprendidos.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={escreve ? 7 : 6} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={escreve ? 7 : 6} className="vazio">
                   Nada aprendido ainda — aparece depois da primeira conciliação.
                 </TableCell>
               </TableRow>

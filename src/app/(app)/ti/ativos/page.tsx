@@ -110,7 +110,7 @@ export default async function AtivosPage({ searchParams }: PageProps<"/ti/ativos
           <TableBody>
             {resultado.itens.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={6} className="vazio">
                   Nenhum ativo encontrado.
                 </TableCell>
               </TableRow>

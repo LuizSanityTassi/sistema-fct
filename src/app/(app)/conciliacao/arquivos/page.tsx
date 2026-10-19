@@ -106,7 +106,7 @@ export default async function ArquivosPage({ searchParams }: PageProps<"/concili
           <TableBody>
             {arquivos.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={5} className="vazio">
                   {filtros.arquivados ? "Nenhum arquivo arquivado." : "Nenhum arquivo enviado ainda."}
                 </TableCell>
               </TableRow>

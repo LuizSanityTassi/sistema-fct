@@ -150,7 +150,7 @@ export default async function OmiePage({ searchParams }: PageProps<"/conciliacao
           <TableBody>
             {envios.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="vazio">
                   Nenhum envio ainda.
                 </TableCell>
               </TableRow>

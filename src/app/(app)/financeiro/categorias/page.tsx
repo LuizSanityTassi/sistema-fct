@@ -95,7 +95,7 @@ export default async function CategoriasPage({ searchParams }: PageProps<"/finan
           <TableBody>
             {lista.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={escreve ? 6 : 5} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={escreve ? 6 : 5} className="vazio">
                   Nenhuma categoria encontrada.
                 </TableCell>
               </TableRow>

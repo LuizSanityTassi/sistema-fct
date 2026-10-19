@@ -142,7 +142,7 @@ export default async function RobosPage() {
               <TableBody>
                 {agentes.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-6 text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="vazio">
                       Nenhum agente ainda. Gere a chave acima e instale no PC do Itaú Mailbox.
                     </TableCell>
                   </TableRow>

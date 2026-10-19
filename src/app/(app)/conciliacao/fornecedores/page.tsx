@@ -54,7 +54,7 @@ export default async function FornecedoresPage({ searchParams }: PageProps<"/con
           <TableBody>
             {lista.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="vazio">
                   {q ? "Nenhum fornecedor com esse nome ou CNPJ." : "Nenhum boleto passou pela conciliação ainda. Faça uma conciliação e os fornecedores aparecem aqui."}
                 </TableCell>
               </TableRow>

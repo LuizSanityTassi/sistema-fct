@@ -102,7 +102,7 @@ export default async function OperadoresPage({ searchParams }: PageProps<"/finan
           <TableBody>
             {pedaco.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={5} className="vazio">
                   {operadores.length === 0 ? "Nenhum operador ainda: busque os caixas no Trier primeiro." : "Nenhum operador nesse filtro."}
                 </TableCell>
               </TableRow>

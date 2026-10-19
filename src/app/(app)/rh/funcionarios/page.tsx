@@ -156,7 +156,7 @@ export default async function FuncionariosPage({ searchParams }: PageProps<"/rh/
           <TableBody>
             {resultado.itens.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={6} className="vazio">
                   Nenhum funcionário encontrado com esses filtros.
                 </TableCell>
               </TableRow>

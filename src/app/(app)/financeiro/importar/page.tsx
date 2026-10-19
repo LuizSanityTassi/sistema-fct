@@ -78,7 +78,7 @@ export default async function ImportarPage({ searchParams }: PageProps<"/finance
           <TableBody>
             {lotes.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="vazio">
                   Nenhuma importação ainda.
                 </TableCell>
               </TableRow>

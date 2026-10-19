@@ -338,7 +338,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
               <TableBody>
                 {itens.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="vazio">
                       Nada em “{GRUPO_LABEL[filtros.grupo as GrupoItem] ?? "Descontos"}” com esses filtros.
                     </TableCell>
                   </TableRow>

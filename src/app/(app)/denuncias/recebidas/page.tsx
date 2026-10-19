@@ -117,7 +117,7 @@ export default async function DenunciasRecebidasPage({ searchParams }: PageProps
             })}
             {(denuncias ?? []).length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={6} className="vazio">
                   Nenhuma denúncia com esses filtros.
                 </TableCell>
               </TableRow>

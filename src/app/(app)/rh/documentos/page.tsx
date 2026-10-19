@@ -78,7 +78,7 @@ export default async function DocumentosPage({ searchParams }: PageProps<"/rh/do
           <TableBody>
             {resultado.itens.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="vazio">
                   Nenhum documento encontrado.
                 </TableCell>
               </TableRow>

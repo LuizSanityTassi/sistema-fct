@@ -28,7 +28,7 @@ export default async function PerguntasPage() {
         descricao="As consultas que o dia a dia mais pede, respondidas na hora com os dados do sistema. Cada resposta tem filtro de mês e de unidade (quando faz sentido) e pode ser baixada para o Excel. Também dá para achar pelo Ctrl+K."
       />
       {perguntas.length === 0 ? (
-        <p className="rounded-xl border bg-card px-6 py-12 text-center text-sm text-muted-foreground">Nenhuma pergunta pronta para o seu perfil ainda.</p>
+        <p className="vazio rounded-xl border bg-card">Nenhuma pergunta pronta para o seu perfil ainda.</p>
       ) : (
         <div className="space-y-6">
           {areas.map((area) => {

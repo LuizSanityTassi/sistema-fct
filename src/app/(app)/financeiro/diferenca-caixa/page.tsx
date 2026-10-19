@@ -152,7 +152,7 @@ export default async function DiferencaCaixaPage({ searchParams }: PageProps<"/f
           <TableBody>
             {resultado.itens.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="vazio">
                   Nenhum caixa nesse filtro. Use “Buscar do Trier” para ler o período.
                 </TableCell>
               </TableRow>

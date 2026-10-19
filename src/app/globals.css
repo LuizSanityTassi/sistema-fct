@@ -427,6 +427,19 @@
     color: var(--muted-foreground);
   }
 
+  /* ---------- formulários ---------- */
+  /* seta do <select> nativo (a do navegador some com appearance-none); o cinza serve nos dois temas */
+  .select-nativo {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238a7f81' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.6rem center;
+    background-size: 1rem;
+  }
+  .select-nativo option {
+    background-color: var(--popover);
+    color: var(--popover-foreground);
+  }
+
   /* ---------- superfícies ---------- */
   /* todos os cartões do sistema (bg-card + border): borda quase invisível e sombra mínima */
   .bg-card.border {
@@ -492,6 +505,30 @@
     opacity: 1;
     transform: none;
   }
+}
+
+/* estado vazio de lista/tabela: fora das camadas para valer mesmo dentro de <TableCell>, que já traz padding */
+.vazio {
+  padding: 2.5rem 1.25rem;
+  text-align: center;
+  font-size: 0.875rem;
+  line-height: 1.35rem;
+  color: var(--muted-foreground);
+  white-space: normal;
+}
+.vazio::before {
+  content: "";
+  display: block;
+  width: 2.5rem;
+  height: 2.5rem;
+  margin: 0 auto 0.75rem;
+  border-radius: 9999px;
+  background-color: var(--muted);
+  box-shadow: 0 0 0 6px color-mix(in oklch, var(--muted) 50%, transparent);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%238a7f81%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3E%3Cpolyline points=%2722 12 16 12 14 15 10 15 8 12 2 12%27/%3E%3Cpath d=%27M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z%27/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 1.25rem;
 }
 
 /* quem pede menos movimento no sistema operacional não vê animações */

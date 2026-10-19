@@ -54,7 +54,7 @@ export default async function QuebrasCaixaPage({ searchParams }: PageProps<"/cai
           </nav>
 
           {quebras.length === 0 ? (
-            <p className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
+            <p className="vazio rounded-xl border bg-card">
               {todas ? "Nenhuma quebra de caixa ligada a você ou à sua loja." : "Nada para justificar. 🎉"}
               <span className="mt-1 block text-xs">
                 Se você opera caixa e acha que deveria ver algo aqui, peça ao administrador para ligar o seu usuário ao seu cadastro de funcionário. Se você é gestor, peça ao financeiro para te

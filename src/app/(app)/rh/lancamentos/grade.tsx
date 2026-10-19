@@ -407,7 +407,7 @@ export function GradeLancamentos({ competencia, eventos, grupos, versao }: Props
             ))}
             {total === 0 && (
               <tr>
-                <td colSpan={eventos.length + 2} className="px-3 py-10 text-center text-sm text-muted-foreground">
+                <td colSpan={eventos.length + 2} className="vazio">
                   Nenhum funcionário com esses filtros.
                 </td>
               </tr>

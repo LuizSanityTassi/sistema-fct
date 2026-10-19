@@ -155,7 +155,7 @@ export default async function ChamadosPage({ searchParams }: PageProps<"/chamado
           <TableBody>
             {resultado.itens.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={9} className="vazio">
                   Nenhum chamado encontrado.
                 </TableCell>
               </TableRow>

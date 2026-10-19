@@ -133,7 +133,7 @@ export default async function RelatoriosPage({ searchParams }: PageProps<"/relat
             <TableBody>
               {r.linhas.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={r.colunas.length} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={r.colunas.length} className="vazio">
                     Sem dados para os filtros escolhidos.
                   </TableCell>
                 </TableRow>

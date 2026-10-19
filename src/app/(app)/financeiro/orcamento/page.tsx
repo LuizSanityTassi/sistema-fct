@@ -110,7 +110,7 @@ export default async function OrcamentoPage({ searchParams }: PageProps<"/financ
             <tbody>
               {linhasMes.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-muted-foreground">
+                  <td colSpan={5} className="vazio">
                     Sem despesas nem orçamento em {rotuloCompetencia(mes)}.
                   </td>
                 </tr>

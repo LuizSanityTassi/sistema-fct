@@ -214,7 +214,7 @@ export default async function FolhaPage({ searchParams }: PageProps<"/rh/folha">
           <TableBody>
             {resultado.itens.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={10} className="vazio">
                   {resumo.total === 0
                     ? `Nenhuma folha gerada para ${rotuloCompetencia(competencia)}.`
                     : "Nenhum registro encontrado com esses filtros."}

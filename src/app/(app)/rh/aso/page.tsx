@@ -109,7 +109,7 @@ export default async function AsoPage({ searchParams }: PageProps<"/rh/aso">) {
           <TableBody>
             {resultado.itens.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="vazio">
                   Nenhum ASO encontrado.
                 </TableCell>
               </TableRow>
