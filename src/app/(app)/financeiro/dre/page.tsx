@@ -103,7 +103,7 @@ export default async function DrePage({ searchParams }: PageProps<"/financeiro/d
               ["Resultado", moedaFin(dre.resultado.total), dre.resultado.total < 0 ? "text-red-700" : "text-emerald-700"],
               ["Caixa acumulado", moedaFin(ultimo ? (dre.acumulado[ultimo] ?? 0) : 0), (ultimo ? (dre.acumulado[ultimo] ?? 0) : 0) < 0 ? "text-red-700" : "text-emerald-700"],
             ].map(([r, v, t]) => (
-              <div key={r} className="rounded-xl border bg-card px-4 py-3">
+              <div key={r} className="rounded-xl border bg-card p-4">
                 <p className="rotulo">{r}</p>
                 <p className={`mt-1 numero-sm ${t}`}>{v}</p>
               </div>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Paperclip } from "lucide-react";
 import { SelectNativo } from "@/components/form/campo";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -56,14 +57,14 @@ export async function VisaoCoordenador({ usuarioId, regional, sp }: { usuarioId:
         <Link
           href={link({})}
           aria-current={ver === "abertas" ? "page" : undefined}
-          className={`rounded-full border px-3 py-1 ${ver === "abertas" ? "border-primary bg-primary text-primary-foreground" : "bg-card"}`}
+          className={`rounded-full border px-3 py-1 ${ver === "abertas" ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary/40"}`}
         >
           Em aberto
         </Link>
         <Link
           href={link({ ver: "mes", mes })}
           aria-current={ver === "mes" ? "page" : undefined}
-          className={`rounded-full border px-3 py-1 ${ver === "mes" ? "border-primary bg-primary text-primary-foreground" : "bg-card"}`}
+          className={`rounded-full border px-3 py-1 ${ver === "mes" ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary/40"}`}
         >
           Por mês
         </Link>
@@ -105,7 +106,7 @@ export async function VisaoCoordenador({ usuarioId, regional, sp }: { usuarioId:
           ["Valor", formatarMoeda(total), "faltas e sobras acima da tolerância"],
           ["Lojas com quebra", String(resumo.length), `de ${(lojas ?? []).length} na regional ${regional}`],
         ].map(([r, v, n]) => (
-          <div key={r} className="rounded-xl border bg-card px-4 py-3">
+          <div key={r} className="rounded-xl border bg-card p-4">
             <p className="rotulo">{r}</p>
             <p className="mt-1 numero">{v}</p>
             <p className="text-xs text-muted-foreground">{n}</p>
@@ -164,7 +165,13 @@ export async function VisaoCoordenador({ usuarioId, regional, sp }: { usuarioId:
                         </span>
                         <span className={`font-semibold tabular-nums ${dif > 0 ? "text-red-700" : "text-sky-700"}`}>{textoDiferenca(dif)}</span>
                         <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${COR_SITUACAO[st]}`}>{ROTULO_SITUACAO[st]}</span>
-                        {anx.length > 0 && <span className="text-xs text-muted-foreground">📎 {anx.length}</span>}
+                        {anx.length > 0 && (
+                          <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground">
+                            <Paperclip className="size-3.5" aria-hidden />
+                            {anx.length}
+                            <span className="sr-only"> anexo(s)</span>
+                          </span>
+                        )}
                       </summary>
                       <div className="mt-2 space-y-2 pl-0 text-sm sm:pl-[5.75rem]">
                         {q.origem === "manual" && q.descricao && <p className="text-muted-foreground">Motivo: {q.descricao}</p>}

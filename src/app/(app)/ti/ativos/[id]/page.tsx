@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: PageProps<"/ti/ativos/[id]">)
 function Dado({ rotulo, valor, mono }: { rotulo: string; valor?: string | null; mono?: boolean }) {
   return (
     <div>
-      <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{rotulo}</dt>
+      <dt className="sobrescrito">{rotulo}</dt>
       <dd className={`mt-0.5 text-sm ${mono ? "font-mono" : ""}`}>{valor || "—"}</dd>
     </div>
   );

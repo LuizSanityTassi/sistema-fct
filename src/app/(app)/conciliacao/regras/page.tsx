@@ -94,7 +94,7 @@ export default async function RegrasPage({ searchParams }: PageProps<"/conciliac
           ["Pendências em aberto", String(pend.abertas), "esperando alguém (ou uma regra)"],
           ["Última conciliação", ultima.conciliacao ? formatarData(ultima.conciliacao.criado_em) : "—", ultima.conciliacao ? "prévia das regras de categoria e departamento" : null],
         ].map(([r, v, nota]) => (
-          <div key={r} className="rounded-xl border bg-card px-4 py-3">
+          <div key={r} className="rounded-xl border bg-card p-4">
             <p className="rotulo">{r}</p>
             <p className="mt-1 numero">{v}</p>
             {nota && <p className="text-xs text-muted-foreground">{nota}</p>}

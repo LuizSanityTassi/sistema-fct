@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useActionState } from "react";
-import { CheckCircle2, CircleAlert, FileSpreadsheet } from "lucide-react";
+import { CheckCircle2, CircleAlert, FileSpreadsheet, TriangleAlert } from "lucide-react";
 import { Campo, ErroFormulario } from "@/components/form/campo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,7 +72,7 @@ export function ImportarForm({ action, anoPadrao, hoje }: Props) {
                   {l.nome} <span className="text-xs text-muted-foreground">— {l.lidos} linhas · {l.formato === "lancamentos" ? "lançamentos por filial" : l.formato === "contas" ? "contas a pagar/receber" : "formato não reconhecido"}</span>
                 </p>
                 {l.usaramReferencia > 0 && <p className="text-xs text-muted-foreground">{l.usaramReferencia} linha(s) sem data usaram a data de referência.</p>}
-                {l.semUnidade.length > 0 && <p className="text-xs text-amber-800">⚠ Sem unidade cadastrada (ignoradas): {l.semUnidade.join(", ")}</p>}
+                {l.semUnidade.length > 0 && <p className="text-xs text-amber-800"><TriangleAlert className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />Sem unidade cadastrada (ignoradas): {l.semUnidade.join(", ")}</p>}
                 {l.avisos.map((av) => (
                   <p key={av} className="text-xs text-red-700">
                     {av}
@@ -94,7 +94,7 @@ export function ImportarForm({ action, anoPadrao, hoje }: Props) {
               ["A pagar", moeda(a.totalPagar), null, "text-red-700"],
               ["A receber", moeda(a.totalReceber), null, "text-emerald-700"],
             ].map(([rotulo, valor, nota, tom]) => (
-              <div key={rotulo as string} className="rounded-xl border bg-card px-4 py-3">
+              <div key={rotulo as string} className="rounded-xl border bg-card p-4">
                 <p className="rotulo">{rotulo}</p>
                 <p className={`mt-1 numero-sm ${tom}`}>{valor}</p>
                 {nota && <p className="text-xs text-muted-foreground">{nota}</p>}

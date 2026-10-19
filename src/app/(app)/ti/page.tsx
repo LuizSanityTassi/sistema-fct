@@ -12,7 +12,7 @@ export const metadata = { title: "TI" };
 
 function Kpi({ rotulo, valor, nota, href, tom }: { rotulo: string; valor: string | number; nota?: string | null; href: string; tom?: string }) {
   return (
-    <Link href={href} className="block rounded-xl border bg-card px-4 py-3 transition-colors hover:border-primary/40">
+    <Link href={href} className="block rounded-xl border bg-card p-4 transition-colors hover:border-primary/40">
       <p className="rotulo">{rotulo}</p>
       <p className={`mt-1 numero ${tom ?? ""}`}>{valor}</p>
       {nota && <p className="text-xs text-muted-foreground">{nota}</p>}

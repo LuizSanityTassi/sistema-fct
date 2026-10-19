@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Download } from "lucide-react";
 import { ConfirmarAcao } from "@/components/layout/confirmar-acao";
 import { PageHeader } from "@/components/layout/page-header";
+import { Ponto } from "@/components/layout/status";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -43,7 +44,8 @@ export default async function RobosPage() {
       <PageHeader eyebrow="Automações" titulo="Robôs e agente" descricao="Duas automações que alimentam a conciliação sem ninguém baixar arquivo à mão: o robô que gera o relatório do Trier e o agente que manda os .RET do Itaú Mailbox." />
 
       <section className="mb-4 rounded-xl border bg-card p-5">
-        <h2 className="mb-1 text-sm font-semibold">{trier.configurado ? "🟢" : "⚪"} Robô do Trier — relatório “Contas a Pagar ou Pagas”</h2>
+        <h2 className="mb-1 text-sm font-semibold"><Ponto tom={trier.configurado ? "sucesso" : "neutro"} rotulo={trier.configurado ? "Configurado" : "Não configurado"} className="mr-1.5" />
+          Robô do Trier — relatório “Contas a Pagar ou Pagas”</h2>
         <p className="mb-3 text-xs text-muted-foreground">
           Entra no Trier ({trier.url}), gera o relatório de todas as filiais (a pagar, detalhado, por vencimento, em Excel), traz e guarda como um arquivo da conciliação. Depois é só conciliar.
         </p>
@@ -71,7 +73,7 @@ export default async function RobosPage() {
         <BuscarTrierForm buscar={buscarTrier} testar={testarTrier} config={cfg} configurado={trier.configurado} podeBuscar={podeConciliar(sessao.papel)} />
         {admin && (
           <form action={salvarConfigTrier} className="mt-4 flex flex-wrap items-end gap-3 border-t pt-4">
-            <p className="w-full text-xs font-semibold uppercase tracking-wide text-muted-foreground">Período padrão da busca (administrador)</p>
+            <p className="w-full sobrescrito">Período padrão da busca (administrador)</p>
             <label className="text-sm">
               Dias para trás
               <Input name="diasAntes" type="number" min={0} max={90} defaultValue={cfg.diasAntes} className="mt-1 w-28" />
@@ -87,7 +89,7 @@ export default async function RobosPage() {
         )}
         {(buscas ?? []).length > 0 && (
           <div className="mt-4 border-t pt-3 text-sm">
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Últimas buscas</p>
+            <p className="mb-1 sobrescrito">Últimas buscas</p>
             <ul className="space-y-0.5">
               {buscas!.map((b) => (
                 <li key={b.id} className="flex flex-wrap items-center gap-x-2 text-xs">
@@ -105,7 +107,8 @@ export default async function RobosPage() {
       </section>
 
       <section className="rounded-xl border bg-card p-5">
-        <h2 className="mb-1 text-sm font-semibold">{agenteHabilitado ? "🟢" : "⚪"} Agente dos arquivos do Itaú (Itaú Mailbox → conciliação)</h2>
+        <h2 className="mb-1 text-sm font-semibold"><Ponto tom={agenteHabilitado ? "sucesso" : "neutro"} rotulo={agenteHabilitado ? "Habilitado" : "Desligado"} className="mr-1.5" />
+          Agente dos arquivos do Itaú (Itaú Mailbox → conciliação)</h2>
         <p className="mb-3 text-xs text-muted-foreground">
           Um script agendado no PC onde o Itaú Mailbox baixa os retornos de DDA manda cada .RET novo para <code className="rounded bg-muted px-1 text-xs">/api/conciliacao/agente</code> com uma chave própria (só serve para enviar; não entra no sistema). Arquivo repetido não duplica; o que não é do Itaú é ignorado ali mesmo.
         </p>
@@ -115,7 +118,7 @@ export default async function RobosPage() {
           </p>
         )}
         <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Instalador:</span>
+          <span className="sobrescrito">Instalador:</span>
           {ARQUIVOS_AGENTE.map((a) => (
             <a key={a} href={`/agente-itau/${a}`} download className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:border-primary/40">
               <Download className="size-3.5" aria-hidden />
@@ -182,7 +185,7 @@ export default async function RobosPage() {
 
         {(recebidos ?? []).length > 0 && (
           <div className="mt-4 border-t pt-3 text-sm">
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Últimos arquivos recebidos pelo agente</p>
+            <p className="mb-1 sobrescrito">Últimos arquivos recebidos pelo agente</p>
             <ul className="space-y-0.5">
               {recebidos!.map((b) => (
                 <li key={b.id} className="flex flex-wrap items-center gap-x-2 text-xs">

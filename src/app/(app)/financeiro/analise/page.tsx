@@ -2,6 +2,7 @@ import React from "react";
 import Link from "next/link";
 import { SelectNativo } from "@/components/form/campo";
 import { PageHeader } from "@/components/layout/page-header";
+import { Ponto } from "@/components/layout/status";
 import { Button } from "@/components/ui/button";
 import { exigirAcesso } from "@/lib/auth/session";
 import { dadosAnalise, inadimplencia, ordenarGrupos } from "@/lib/data/analise";
@@ -146,9 +147,9 @@ async function InadimplenciaView({ podeEditar, anoBase }: { podeEditar: boolean;
             [`Em atraso — ${MES[ultMes]}/${anoBase}`, formatarMoeda(atA), "text-red-700"],
             ["Recebido", formatarMoeda(reA), "text-emerald-700"],
             ["Taxa atual", txA == null ? "—" : pct(txA, 2), txA == null ? "" : txA > 10 ? "text-red-700" : txA > 5 ? "text-amber-700" : "text-emerald-700"],
-            ["Variação vs mês anterior", vari == null ? "—" : `${vari > 0.05 ? "🔴 +" : vari < -0.05 ? "🟢 " : ""}${vari.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} p.p.`, vari == null ? "" : vari > 0 ? "text-red-700" : "text-emerald-700"],
+            ["Variação vs mês anterior", vari == null ? "—" : `${vari > 0.05 ? "+" : ""}${vari.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} p.p.`, vari == null ? "" : vari > 0 ? "text-red-700" : "text-emerald-700"],
           ].map(([r, v, t]) => (
-            <div key={r} className="rounded-xl border bg-card px-4 py-3">
+            <div key={r} className="rounded-xl border bg-card p-4">
               <p className="rotulo">{r}</p>
               <p className={`mt-1 numero-sm ${t}`}>{v}</p>
             </div>
@@ -256,7 +257,7 @@ async function RankingView({ escopo, metrica, mes }: { escopo: Esc; metrica: str
         <tbody>
           {lojas.map((l, i) => (
             <tr key={l.u?.id ?? i} className={`border-b last:border-0 ${l.u && !l.u.ativo ? "opacity-60" : ""}`}>
-              <td className="px-2 py-1">{met === "resultado" && i < 3 ? ["🥇", "🥈", "🥉"][i] : `${i + 1}º`}</td>
+              <td className="px-2 py-1">{met === "resultado" && i < 3 ? <span className="font-semibold text-fct-red-dark">{i + 1}º</span> : `${i + 1}º`}</td>
               <td className="px-2 py-1">
                 <span className="font-mono text-xs text-fct-tinta">{l.u?.codigo}</span> {l.u?.nome}
                 {l.u && !l.u.ativo ? <span className="ml-1 text-xs text-muted-foreground">(inativa)</span> : null}
@@ -266,7 +267,7 @@ async function RankingView({ escopo, metrica, mes }: { escopo: Esc; metrica: str
           ))}
         </tbody>
       </table>
-      <p className="px-4 py-3 text-xs text-muted-foreground">{met === "resultado" ? "Resultado = receitas − despesas realizadas. 🟢 lucro · 🔴 prejuízo." : met === "despesa" ? "Maior gasto no topo." : "Maior faturamento no topo."}</p>
+      <p className="px-4 py-3 text-xs text-muted-foreground">{met === "resultado" ? "Resultado = receitas − despesas realizadas. Verde = lucro · vermelho = prejuízo." : met === "despesa" ? "Maior gasto no topo." : "Maior faturamento no topo."}</p>
     </div>
   );
 }
@@ -396,7 +397,7 @@ async function ComparativoView({ escopo, mes, link }: { escopo: Esc; mes?: strin
   const fmtPct = (d: number, base: number) => (Math.abs(d) < 1 ? "—" : `${d > 0 ? "+" : ""}${pct(base !== 0 ? (d / Math.abs(base)) * 100 : d !== 0 ? 100 : 0, 2)}`);
   const fmtVar = (d: number) => (Math.abs(d) < 1 ? "—" : `${d > 0 ? "+" : ""}${formatarMoeda(d)}`);
   const cor = (d: number, rec: boolean) => (Math.abs(d) < 1 ? "text-muted-foreground" : (rec ? d > 0 : d < 0) ? "text-emerald-700" : "text-red-700");
-  const status = (d: number, rec: boolean) => (Math.abs(d) < 1 ? <span className="text-muted-foreground">—</span> : (rec ? d > 0 : d < 0) ? <span className="font-semibold text-emerald-700">🟢 POSITIVO</span> : <span className="font-semibold text-red-700">🔴 NEGATIVO</span>);
+  const status = (d: number, rec: boolean) => (Math.abs(d) < 1 ? <span className="text-muted-foreground">—</span> : (rec ? d > 0 : d < 0) ? <span className="font-semibold text-emerald-700"><Ponto tom="sucesso" className="mr-1.5" />Positivo</span> : <span className="font-semibold text-red-700"><Ponto tom="perigo" className="mr-1.5" />Negativo</span>);
   const linhaG = (g: string, rec: boolean) => {
     const a = val.get(`${g}|${A}`) ?? 0;
     const b = val.get(`${g}|${B}`) ?? 0;
@@ -485,7 +486,7 @@ async function ComparativoView({ escopo, mes, link }: { escopo: Esc; mes?: strin
             </tr>
           </tbody>
         </table>
-        <p className="px-4 py-3 text-xs text-muted-foreground">Compara o mês com o anterior. Status = impacto no resultado: 🟢 receita subiu ou despesa caiu · 🔴 o contrário. AC = resultado acumulado (saldo inicial = acumulado até o mês anterior).</p>
+        <p className="px-4 py-3 text-xs text-muted-foreground">Compara o mês com o anterior. Status = impacto no resultado: verde = receita subiu ou despesa caiu · vermelho = o contrário. AC = resultado acumulado (saldo inicial = acumulado até o mês anterior).</p>
       </div>
     </div>
   );

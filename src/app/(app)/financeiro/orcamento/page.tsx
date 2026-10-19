@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SelectNativo } from "@/components/form/campo";
 import { PageHeader } from "@/components/layout/page-header";
+import { Ponto } from "@/components/layout/status";
 import { Button } from "@/components/ui/button";
 import { exigirAcesso } from "@/lib/auth/session";
 import { anosFinanceiro, GRUPOS_ESCOPO, lerEscopo } from "@/lib/data/dre";
@@ -17,7 +18,7 @@ export const metadata = { title: "Orçamento" };
 
 const MESES_CURTO = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 const pctTom = (p: number | null) => (p === null ? "text-muted-foreground" : p > 100 ? "text-red-700" : p >= 90 ? "text-orange-700" : p >= 80 ? "text-amber-700" : "text-emerald-700");
-const pctTxt = (p: number | null) => (p === null ? "—" : `${p > 100 ? "🔴" : p >= 90 ? "🟠" : p >= 80 ? "🟡" : "🟢"} ${p.toFixed(0)}%`);
+const pctTxt = (p: number | null) => (p === null ? "—" : `${p.toFixed(0)}%`);
 
 export default async function OrcamentoPage({ searchParams }: PageProps<"/financeiro/orcamento">) {
   const [sessao, sp] = await Promise.all([exigirAcesso("/financeiro/orcamento"), searchParams]);
@@ -87,7 +88,7 @@ export default async function OrcamentoPage({ searchParams }: PageProps<"/financ
           ["% consumido", pctGeral === null ? "—" : `${pctGeral.toFixed(0)}%`, pctTom(pctGeral)],
           ["Acima do orçamento", String(estouros.length), estouros.length ? "text-red-700" : "text-muted-foreground"],
         ].map(([r, v, t]) => (
-          <div key={r} className="rounded-xl border bg-card px-4 py-3">
+          <div key={r} className="rounded-xl border bg-card p-4">
             <p className="rotulo">{r}</p>
             <p className={`mt-1 numero-sm ${t}`}>{v}</p>
             {r === "Acima do orçamento" && estouros.length > 0 && <p className="text-xs text-muted-foreground">{formatarMoeda(estouros.reduce((s, k) => s + (k.r - k.o), 0))} de estouro</p>}
@@ -135,7 +136,7 @@ export default async function OrcamentoPage({ searchParams }: PageProps<"/financ
                         <tr key={l.id} className={estourou ? "bg-red-50" : ""}>
                           <td className="px-2 py-1 pl-6">
                             {l.nome}
-                            {estourou ? " 🔴" : ""}
+                            {estourou ? <Ponto tom="perigo" rotulo="Passou do orçamento" className="ml-1.5" /> : null}
                           </td>
                           <CelulaEditavel action={salvarOrcamento} campos={{ ...base, categoria_id: l.id, competencia: mes, campo: "valor" }} valorAtual={c.orcado} exibicao={c.orcado == null ? "—" : formatarMoeda(c.orcado)} podeEditar={podeEditar} />
                           <CelulaEditavel action={salvarOrcamento} campos={{ ...base, categoria_id: l.id, competencia: mes, campo: "realizado" }} valorAtual={c.realizadoInformado} exibicao={formatarMoeda(real)} automatico={formatarMoeda(c.realizado)} ajustado={c.realizadoInformado != null} classe="text-red-700" podeEditar={podeEditar} />
@@ -209,7 +210,7 @@ export default async function OrcamentoPage({ searchParams }: PageProps<"/financ
       </div>
       <p className="mt-3 text-xs text-muted-foreground">
         {podeEditar ? "Digite o orçado de cada categoria (clique na célula). Na visão mês dá para sobrescrever o realizado; apague para voltar ao automático. " : ""}
-        Vermelho = passou do orçamento. % consumido: 🟢 até 80% · 🟡 até 90% · 🟠 até 100% · 🔴 acima.
+        Vermelho = passou do orçamento. % consumido: verde até 80% · amarelo até 90% · laranja até 100% · vermelho acima.
       </p>
     </>
   );

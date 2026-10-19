@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: PageProps<"/rh/funcionarios/[
 function Dado({ rotulo, valor, mono }: { rotulo: string; valor?: string | number | null; mono?: boolean }) {
   return (
     <div>
-      <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{rotulo}</dt>
+      <dt className="sobrescrito">{rotulo}</dt>
       <dd className={`mt-0.5 text-sm ${mono ? "font-mono" : ""}`}>{valor === null || valor === undefined || valor === "" ? "—" : valor}</dd>
     </div>
   );
@@ -187,7 +187,7 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
 
           <section aria-label="Resumo" className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
             {resumo.map((r) => (
-              <Link key={r.rotulo} href={r.href} className="rounded-xl border bg-card px-4 py-3 transition-colors hover:border-primary/40">
+              <Link key={r.rotulo} href={r.href} className="rounded-xl border bg-card p-4 transition-colors hover:border-primary/40">
                 <span className="flex items-center gap-1.5 rotulo">
                   <r.icone className="size-3.5" aria-hidden />
                   {r.rotulo}

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useActionState } from "react";
-import { DatabaseZap } from "lucide-react";
+import { DatabaseZap, TriangleAlert } from "lucide-react";
 import { Campo, ErroFormulario } from "@/components/form/campo";
 import { Button } from "@/components/ui/button";
 import type { EstadoMigracao } from "./actions";
@@ -58,7 +58,7 @@ export function MigrarForm({ action }: Props) {
               ["A pagar", moeda(p.lancamentos.totalPagar), `${p.lancamentos.pagar} lançamentos`],
               ["Categorias", String(p.categorias.total), `${p.categorias.combosNovos} só existiam nos lançamentos · ${p.categorias.semDre} sem DRE`],
             ].map(([r, v, n]) => (
-              <div key={r} className="rounded-xl border bg-card px-4 py-3">
+              <div key={r} className="rounded-xl border bg-card p-4">
                 <p className="rotulo">{r}</p>
                 <p className="mt-1 numero-sm">{v}</p>
                 <p className="text-xs text-muted-foreground">{n}</p>
@@ -82,7 +82,7 @@ export function MigrarForm({ action }: Props) {
                 ))}
               </ul>
             )}
-            {p.unidades.semMapa.length > 0 && <p className="mt-2 text-xs text-red-700">⚠ Sem regra de criação (a migração não roda até resolver): {p.unidades.semMapa.join(", ")}</p>}
+            {p.unidades.semMapa.length > 0 && <p className="mt-2 text-xs text-red-700"><TriangleAlert className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />Sem regra de criação (a migração não roda até resolver): {p.unidades.semMapa.join(", ")}</p>}
           </section>
 
           <section className="rounded-xl border bg-card p-5 text-sm">

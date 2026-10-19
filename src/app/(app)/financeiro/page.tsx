@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { SelectNativo } from "@/components/form/campo";
 import { PageHeader } from "@/components/layout/page-header";
+import { Ponto } from "@/components/layout/status";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
@@ -34,7 +35,7 @@ function linkLancamentos(params: Record<string, string | undefined>) {
 
 function Kpi({ rotulo, valor, nota, tom }: { rotulo: string; valor: string; nota?: string | null; tom?: string }) {
   return (
-    <div className="rounded-xl border bg-card px-4 py-3">
+    <div className="rounded-xl border bg-card p-4">
       <p className="rotulo">{rotulo}</p>
       <p className={`mt-1 numero ${tom ?? ""}`}>{valor}</p>
       {nota && <p className="text-xs text-muted-foreground">{nota}</p>}
@@ -108,7 +109,10 @@ export default async function FinanceiroPage({ searchParams }: PageProps<"/finan
         <section className="mb-6 space-y-2">
           {alertas.map((a) => (
             <div key={a.id} className={`flex items-start gap-2 rounded-lg border px-3 py-2 text-sm ${a.nivel === "critico" ? "border-red-200 bg-red-50 text-red-900" : a.nivel === "atencao" ? "border-orange-200 bg-orange-50 text-orange-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
-              <span className="text-[11px] font-semibold tracking-wide">{a.nivel === "critico" ? "🔴 CRÍTICO" : a.nivel === "atencao" ? "🟠 ATENÇÃO" : "🟡 INFO"}</span>
+              <span className="inline-flex shrink-0 items-center gap-1.5 pt-px text-[11px] font-semibold tracking-wide uppercase">
+                <Ponto tom={a.nivel === "critico" ? "perigo" : a.nivel === "atencao" ? "alerta" : "atencao"} />
+                {a.nivel === "critico" ? "Crítico" : a.nivel === "atencao" ? "Atenção" : "Info"}
+              </span>
               <span>{a.texto}</span>
             </div>
           ))}

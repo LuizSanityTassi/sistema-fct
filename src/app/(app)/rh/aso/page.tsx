@@ -39,7 +39,7 @@ export default async function AsoPage({ searchParams }: PageProps<"/rh/aso">) {
 
       <section className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {cartoes.map((c) => (
-          <div key={c.rotulo} className="rounded-xl border bg-card px-4 py-3">
+          <div key={c.rotulo} className="rounded-xl border bg-card p-4">
             <p className="rotulo">{c.rotulo}</p>
             <p className={`mt-1 numero ${c.classe}`}>
               {c.href ? (

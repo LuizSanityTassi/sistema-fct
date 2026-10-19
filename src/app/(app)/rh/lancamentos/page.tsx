@@ -161,7 +161,7 @@ export default async function LancamentosFolhaPage({ searchParams }: PageProps<"
           { rotulo: "Com pendência", valor: pendencias, alerta: pendencias > 0 },
           { rotulo: "CNPJs com código provisório", valor: semCodigo, alerta: semCodigo > 0 },
         ].map((k) => (
-          <div key={k.rotulo} className="rounded-xl border bg-card px-4 py-3">
+          <div key={k.rotulo} className="rounded-xl border bg-card p-4">
             <dt className="text-xs text-muted-foreground">{k.rotulo}</dt>
             <dd className={`numero-sm ${k.alerta ? "text-amber-700" : ""}`}>{k.valor}</dd>
           </div>

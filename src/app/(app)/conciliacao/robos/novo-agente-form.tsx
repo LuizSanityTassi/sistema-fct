@@ -40,7 +40,7 @@ export function NovoAgenteForm({ action }: Props) {
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
           <p className="font-semibold">Chave do agente “{estado.nome}” — copie agora: ela não aparece de novo.</p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <code className="rounded bg-white px-2 py-1 font-mono text-xs break-all select-all">{estado.token}</code>
+            <code className="rounded bg-card px-2 py-1 font-mono text-xs break-all ring-1 ring-border select-all">{estado.token}</code>
             <Button type="button" size="sm" variant="outline" onClick={copiar}>
               <Copy data-icon="inline-start" />
               {copiado ? "Copiada!" : "Copiar"}

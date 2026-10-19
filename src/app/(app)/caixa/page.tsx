@@ -45,17 +45,17 @@ export default async function QuebrasCaixaPage({ searchParams }: PageProps<"/cai
       ) : (
         <>
           <nav aria-label="Filtro" className="mb-4 flex gap-2 text-sm">
-            <Link href="/caixa" aria-current={!todas ? "page" : undefined} className={`rounded-full border px-3 py-1 ${!todas ? "border-primary bg-primary text-primary-foreground" : "bg-card"}`}>
+            <Link href="/caixa" aria-current={!todas ? "page" : undefined} className={`rounded-full border px-3 py-1 ${!todas ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary/40"}`}>
               Em aberto
             </Link>
-            <Link href="/caixa?ver=todas" aria-current={todas ? "page" : undefined} className={`rounded-full border px-3 py-1 ${todas ? "border-primary bg-primary text-primary-foreground" : "bg-card"}`}>
+            <Link href="/caixa?ver=todas" aria-current={todas ? "page" : undefined} className={`rounded-full border px-3 py-1 ${todas ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary/40"}`}>
               Todas
             </Link>
           </nav>
 
           {quebras.length === 0 ? (
             <p className="vazio rounded-xl border bg-card">
-              {todas ? "Nenhuma quebra de caixa ligada a você ou à sua loja." : "Nada para justificar. 🎉"}
+              {todas ? "Nenhuma quebra de caixa ligada a você ou à sua loja." : "Nada para justificar."}
               <span className="mt-1 block text-xs">
                 Se você opera caixa e acha que deveria ver algo aqui, peça ao administrador para ligar o seu usuário ao seu cadastro de funcionário. Se você é gestor, peça ao financeiro para te
                 colocar como gestor da loja.

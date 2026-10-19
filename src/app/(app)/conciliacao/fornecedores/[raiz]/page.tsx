@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { TriangleAlert } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,7 +14,7 @@ export const metadata = { title: "Ficha do fornecedor" };
 
 function Kpi({ rotulo, valor, nota, tom }: { rotulo: string; valor: string; nota?: string | null; tom?: string }) {
   return (
-    <div className="rounded-xl border bg-card px-4 py-3">
+    <div className="rounded-xl border bg-card p-4">
       <p className="rotulo">{rotulo}</p>
       <p className={`mt-1 numero-sm ${tom ?? ""}`}>{valor}</p>
       {nota && <p className="text-xs text-muted-foreground">{nota}</p>}
@@ -84,7 +85,7 @@ export default async function FichaFornecedorPage({ params }: PageProps<"/concil
               <li key={c}>{formatarCnpj(c)}</li>
             ))}
           </ul>
-          <p className="mt-3 mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Bancos emissores</p>
+          <p className="mt-3 mb-1 sobrescrito">Bancos emissores</p>
           <ul className="space-y-0.5 text-xs">
             {ficha.bancos.map((b) => (
               <li key={b}>{nomeBanco(b)}</li>
@@ -105,7 +106,7 @@ export default async function FichaFornecedorPage({ params }: PageProps<"/concil
           )}
           {aprendido.length > 0 && (
             <>
-              <p className="mt-3 mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Correspondências aprendidas</p>
+              <p className="mt-3 mb-1 sobrescrito">Correspondências aprendidas</p>
               <ul className="space-y-0.5 text-xs">
                 {aprendido.map((a) => (
                   <li key={a.fornecedor}>
@@ -199,7 +200,10 @@ export default async function FichaFornecedorPage({ params }: PageProps<"/concil
                       {b.fornecedor && b.fornecedor !== b.beneficiario ? `Trier: ${b.fornecedor}` : ""}
                       {b.fornecedor_real ? ` · fornecedor real: ${b.fornecedor_real}` : ""}
                     </p>
-                    {anom.length > 0 && <p className="text-xs font-semibold text-orange-700">⚠ {anom.join(" • ")}</p>}
+                    {anom.length > 0 && <p className="text-xs font-semibold text-orange-700">
+                        <TriangleAlert className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />
+                        {anom.join(" • ")}
+                      </p>}
                   </TableCell>
                   <TableCell className={`text-right tabular-nums ${b.fora_padrao ? "font-semibold text-orange-700" : ""}`}>{formatarMoeda(b.valor)}</TableCell>
                   <TableCell className="hidden text-xs text-muted-foreground md:table-cell">{nomeBanco(b.banco)}</TableCell>

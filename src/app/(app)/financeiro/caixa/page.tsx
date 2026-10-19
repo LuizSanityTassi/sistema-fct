@@ -139,15 +139,15 @@ async function DiarioView({ data, podeEditar }: { data: string; podeEditar: bool
             <table className="w-full text-sm">
               <tbody>
                 <tr className="border-b">
-                  <td className="py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">A receber (dia)</td>
+                  <td className="py-1.5 sobrescrito">A receber (dia)</td>
                   <CelulaEditavel action={salvarFluxoDiario} campos={{ ...base, campo: "receber_override" }} valorAtual={g("receber_override")} exibicao={formatarMoeda(receber)} automatico={formatarMoeda(recebAuto)} ajustado={g("receber_override") != null} classe="text-base font-semibold text-emerald-700" podeEditar={podeEditar} />
                 </tr>
                 <tr className="border-b">
-                  <td className="py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">A pagar (dia)</td>
+                  <td className="py-1.5 sobrescrito">A pagar (dia)</td>
                   <CelulaEditavel action={salvarFluxoDiario} campos={{ ...base, campo: "pagar_override" }} valorAtual={g("pagar_override")} exibicao={formatarMoeda(pagar)} automatico={formatarMoeda(e.pagoAuto)} ajustado={g("pagar_override") != null} classe="text-base font-semibold text-red-700" podeEditar={podeEditar} />
                 </tr>
                 <tr className="border-b">
-                  <td className="py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Balanço</td>
+                  <td className="py-1.5 sobrescrito">Balanço</td>
                   <td className={`py-1.5 text-right text-base font-semibold tabular-nums ${tom(balanco)}`}>{formatarMoeda(balanco)}</td>
                 </tr>
                 <tr>

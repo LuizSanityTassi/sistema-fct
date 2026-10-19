@@ -189,7 +189,7 @@ export default async function LancamentosPage({ searchParams }: PageProps<"/fina
           ["Resultado", moedaFin(totais.resultado), "receitas − despesas", totais.resultado < 0 ? "text-red-700" : "text-emerald-700"],
           ["Lançamentos", String(totais.qtd), competencia ? rotuloCompetencia(competencia) : "no filtro atual", ""],
         ].map(([rotulo, valor, nota, tom]) => (
-          <div key={rotulo} className="rounded-xl border bg-card px-4 py-3">
+          <div key={rotulo} className="rounded-xl border bg-card p-4">
             <p className="rotulo">{rotulo}</p>
             <p className={`mt-1 numero-sm ${tom}`}>{valor}</p>
             <p className="text-xs text-muted-foreground">{nota}</p>

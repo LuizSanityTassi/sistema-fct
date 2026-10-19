@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { Download, TriangleAlert } from "lucide-react";
+import { Download, FlaskConical, TriangleAlert } from "lucide-react";
 import { AvisoSucesso } from "@/components/form/campo";
 import { PageHeader } from "@/components/layout/page-header";
+import { Ponto } from "@/components/layout/status";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
@@ -63,7 +64,8 @@ export default async function OmiePage({ searchParams }: PageProps<"/conciliacao
           return (
             <div key={e} className="rounded-xl border bg-card p-5 text-sm">
               <h2 className="mb-2 text-sm font-semibold">
-                {pronto ? "🟢" : ch.configurado ? "🟠" : "⚪"} Omie {EMPRESAS_OMIE[e]}
+                <Ponto tom={pronto ? "sucesso" : ch.configurado ? "alerta" : "neutro"} rotulo={pronto ? "Pronto" : ch.configurado ? "Com chave, falta conferir" : "Sem chave"} className="mr-1.5" />
+                Omie {EMPRESAS_OMIE[e]}
               </h2>
               {!ch.configurado ? (
                 <p className="text-muted-foreground">
@@ -81,18 +83,18 @@ export default async function OmiePage({ searchParams }: PageProps<"/conciliacao
                   {cache ? (
                     <>
                       <li>
-                        Conta corrente: <strong>{cache.conta ? cache.conta.nome : "❌ não achada"}</strong> · Categoria: <strong>{cache.categoria ? cache.categoria.nome : "❌ não achada"}</strong>
+                        Conta corrente: <strong>{cache.conta ? cache.conta.nome : <span className="text-red-700">não achada</span>}</strong> · Categoria: <strong>{cache.categoria ? cache.categoria.nome : <span className="text-red-700">não achada</span>}</strong>
                       </li>
                       <li className="text-muted-foreground">
                         {cache.todos.length} departamentos na Omie · {Object.keys(cache.departamentos).length} ligados às filiais · cadastros de {formatarDataHora(cache.quando)}
                         {cache.por ? ` por ${cache.por}` : ""}
                       </li>
-                      {cache.departamentosFaltando.length > 0 && <li className="text-amber-800">⚠ Departamentos não achados na Omie: {cache.departamentosFaltando.join("; ")}</li>}
+                      {cache.departamentosFaltando.length > 0 && <li className="text-amber-800"><TriangleAlert className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />Departamentos não achados na Omie: {cache.departamentosFaltando.join("; ")}</li>}
                     </>
                   ) : (
                     <li className="text-amber-800">Falta buscar os cadastros (conta, categoria e departamentos).</li>
                   )}
-                  <li>{t?.testado ? <span className="text-emerald-700">Envio em lote liberado{t.testadoPor ? ` por ${t.testadoPor}` : ""}.</span> : <span>🧪 Modo teste: o próximo envio pela API lança <strong>só 1 conta</strong>; confira na Omie e libere.</span>}</li>
+                  <li>{t?.testado ? <span className="text-emerald-700">Envio em lote liberado{t.testadoPor ? ` por ${t.testadoPor}` : ""}.</span> : <span><FlaskConical className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />Modo teste: o próximo envio pela API lança <strong>só 1 conta</strong>; confira na Omie e libere.</span>}</li>
                 </ul>
               )}
               {escreve && ch.configurado && (

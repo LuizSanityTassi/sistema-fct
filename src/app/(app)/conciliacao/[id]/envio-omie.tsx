@@ -3,12 +3,14 @@
 import Link from "next/link";
 import * as React from "react";
 import { useActionState } from "react";
-import { CheckCircle2, CircleAlert, FileSpreadsheet, Send } from "lucide-react";
+import { CheckCircle2, CircleAlert, CirclePause, FileSpreadsheet, Send } from "lucide-react";
 import { ErroFormulario, SelectNativo } from "@/components/form/campo";
+import { Ponto } from "@/components/layout/status";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { ContaEnvio } from "@/lib/conciliacao/omie-envio";
 import { CATEGORIA_LABEL } from "@/lib/conciliacao/rotulos";
+import type { Tom } from "@/lib/tons";
 import type { EstadoLancamentoApi, EstadoValidacao } from "../omie-actions";
 
 type StatusEmpresa = { nome: string; configurado: boolean; pronto: boolean; testado: boolean };
@@ -102,7 +104,7 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, vali
           Planilha: baixa o modelo oficial de importação preenchido (importar em Finanças → Contas a pagar → Importar). API: lança direto — filiais 300 em diante (e TRIO) na Omie da Nazário, abaixo de 300 na da Varela.{" "}
           {(["nazario", "varela"] as const).map((e) => (
             <span key={e} className="mr-2">
-              {api[e].pronto ? "🟢" : api[e].configurado ? "🟠" : "⚪"} {api[e].nome}
+              <Ponto tom={api[e].pronto ? "sucesso" : api[e].configurado ? "alerta" : "neutro"} rotulo={api[e].pronto ? "Pronto" : api[e].configurado ? "Com chave, falta conferir" : "Sem chave"} className="mr-1" /> {api[e].nome}
               {api[e].configurado && !api[e].testado ? " (modo teste: 1 conta)" : ""}
             </span>
           ))}
@@ -195,7 +197,7 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, vali
                   <td className="p-2 text-right tabular-nums">{moeda(c.valor)}</td>
                   <td className="hidden p-2 text-xs md:table-cell">
                     <span className="text-muted-foreground">{CATEGORIA_LABEL[c.categoria] ?? c.categoria}</span>
-                    {c.enviadoEm && <p className="text-emerald-700">✔ enviado {data(c.enviadoEm.slice(0, 10))} ({c.enviadoVia})</p>}
+                    {c.enviadoEm && <p className="text-emerald-700"><CheckCircle2 className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />enviado {data(c.enviadoEm.slice(0, 10))} ({c.enviadoVia})</p>}
                     {c.pendencia && c.pendencia.status !== "pendente" && <p className="text-amber-800">pendência {c.pendencia.status}{c.pendencia.motivo ? `: ${c.pendencia.motivo}` : ""}</p>}
                   </td>
                 </tr>
@@ -233,28 +235,29 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, vali
             <div className="mt-4 space-y-3 border-t pt-3 text-sm">
               <div className="grid grid-cols-3 gap-2">
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                  <p className="text-xs font-semibold text-emerald-800">🟢 Válidas</p>
+                  <p className="text-xs font-semibold text-emerald-800"><Ponto tom="sucesso" className="mr-1.5" />Válidas</p>
                   <p className="numero-sm">{v.validas.length}</p>
                   <p className="text-xs text-emerald-800">{moeda(v.totalValidas)}</p>
                 </div>
                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-                  <p className="text-xs font-semibold text-amber-800">🟡 Precisam de atenção</p>
+                  <p className="text-xs font-semibold text-amber-800"><Ponto tom="atencao" className="mr-1.5" />Precisam de atenção</p>
                   <p className="numero-sm">{v.atencao.length}</p>
                   <p className="text-xs text-amber-800">vão junto, mas confira</p>
                 </div>
                 <div className="rounded-lg border border-red-200 bg-red-50 p-3">
-                  <p className="text-xs font-semibold text-red-800">🔴 Com problema</p>
+                  <p className="text-xs font-semibold text-red-800"><Ponto tom="perigo" className="mr-1.5" />Com problema</p>
                   <p className="numero-sm">{v.grave.length}</p>
                   <p className="text-xs text-red-800">duplicidade, já enviada, sem departamento, alerta</p>
                 </div>
               </div>
               {[
-                ["🔴 Com problema", v.grave],
-                ["🟡 Atenção", v.atencao],
-              ].map(([titulo, lista]) =>
+                ["Com problema", v.grave, "perigo"],
+                ["Atenção", v.atencao, "atencao"],
+              ].map(([titulo, lista, tom]) =>
                 (lista as typeof v.grave).length ? (
-                  <details key={titulo as string} open={titulo === "🔴 Com problema"}>
+                  <details key={titulo as string} open={titulo === "Com problema"}>
                     <summary className="cursor-pointer font-medium">
+                      <Ponto tom={tom as Tom} className="mr-1.5" />
                       {titulo as string} ({(lista as typeof v.grave).length})
                     </summary>
                     <ul className="mt-1 max-h-48 space-y-0.5 overflow-y-auto text-xs">
@@ -299,7 +302,8 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, vali
                 ))}
                 {lancamento.resultado.fora.map((f) => (
                   <li key={f.chave} className="text-muted-foreground">
-                    ⏸ {f.nome}: {f.motivo}
+                    <CirclePause className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />
+                    {f.nome}: {f.motivo}
                   </li>
                 ))}
               </ul>

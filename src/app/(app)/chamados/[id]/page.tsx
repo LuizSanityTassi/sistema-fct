@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: PageProps<"/chamados/[id]">):
 function Dado({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
   return (
     <div>
-      <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{rotulo}</dt>
+      <dt className="sobrescrito">{rotulo}</dt>
       <dd className="mt-0.5 text-sm">{children}</dd>
     </div>
   );
@@ -74,7 +74,7 @@ export default async function ChamadoPage({ params, searchParams }: PageProps<"/
         </div>
       )}
 
-      <nav aria-label="Etapas do chamado" className="mb-4 rounded-xl border bg-card px-4 py-3">
+      <nav aria-label="Etapas do chamado" className="mb-4 rounded-xl border bg-card p-4">
         <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
           {ETAPAS_CHAMADO.map((e, i) => {
             const feita = t.status !== "cancelado" && i < indiceAtual;

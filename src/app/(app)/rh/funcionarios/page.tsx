@@ -74,7 +74,7 @@ export default async function FuncionariosPage({ searchParams }: PageProps<"/rh/
             ["Desligados", contagem.desligado, "desligados"],
           ] as const
         ).map(([rotulo, valor, situacao]) => (
-          <div key={rotulo} className="rounded-xl border bg-card px-4 py-3">
+          <div key={rotulo} className="rounded-xl border bg-card p-4">
             <p className="rotulo">{rotulo}</p>
             <p className="mt-1 numero">
               {situacao ? (

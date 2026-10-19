@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Search, TriangleAlert, Workflow } from "lucide-react";
+import { CheckCircle2, Search, TriangleAlert, Workflow } from "lucide-react";
 import { AvisoSucesso, SelectNativo } from "@/components/form/campo";
 import { PageHeader } from "@/components/layout/page-header";
+import { Ponto } from "@/components/layout/status";
 import { Paginacao } from "@/components/layout/paginacao";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -157,7 +158,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
 
       <section className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-6">
         {kpis.map(([rotulo, valor, nota, tom]) => (
-          <div key={rotulo} className="rounded-xl border bg-card px-4 py-3">
+          <div key={rotulo} className="rounded-xl border bg-card p-4">
             <p className="rotulo">{rotulo}</p>
             <p className={`mt-1 numero-sm ${tom ?? ""}`}>{valor}</p>
             {nota && <p className="text-xs text-muted-foreground">{nota}</p>}
@@ -179,7 +180,8 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
       {(r.anomaliasLista ?? []).length > 0 && (
         <details id="anomalias" className="mb-4 rounded-xl border border-orange-200 bg-orange-50/50">
           <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-orange-900">
-            ⚠ Fora do padrão: {pluralizar(r.anomalias ?? 0, "boleto", "boletos")} comparando com o histórico de cada fornecedor
+            <TriangleAlert className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />
+            Fora do padrão: {pluralizar(r.anomalias ?? 0, "boleto", "boletos")} comparando com o histórico de cada fornecedor
             {(r.anomalias ?? 0) > (r.anomaliasLista?.length ?? 0) ? ` (mostrando os ${r.anomaliasLista!.length} maiores)` : ""}
           </summary>
           <ul className="divide-y border-t text-sm">
@@ -192,7 +194,8 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
                   <ul className="mt-0.5 text-xs">
                     {a.avisos.map((v) => (
                       <li key={v} className={anomaliaGrave(v) ? "font-semibold text-red-700" : "text-orange-800"}>
-                        {anomaliaGrave(v) ? "🔴" : "🟠"} {v}
+                        <Ponto tom={anomaliaGrave(v) ? "perigo" : "alerta"} className="mr-1.5" />
+                        {v}
                       </li>
                     ))}
                   </ul>
@@ -317,7 +320,8 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
             {(r.anomalias ?? 0) > 0 && filtros.grupo !== "descontos" && (
               <p className="text-xs lg:col-span-5">
                 <Link href={`${base}?aba=${filtros.grupo}&anomalias=${filtros.anomalias ? "" : "1"}`} className={`rounded-full border px-2 py-0.5 ${filtros.anomalias ? "border-orange-400 bg-orange-100 text-orange-900" : "text-orange-800 hover:border-orange-300"}`}>
-                  ⚠ {filtros.anomalias ? "mostrando só fora do padrão — clique para ver todos" : "só fora do padrão"}
+                  <TriangleAlert className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />
+                  {filtros.anomalias ? "mostrando só fora do padrão — clique para ver todos" : "só fora do padrão"}
                 </Link>
               </p>
             )}
@@ -372,7 +376,12 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
                             {it.fornecedor_real ? ` · fornecedor real: ${it.fornecedor_real}` : ""}
                           </p>
                           {it.alerta && <p className="text-xs font-semibold text-red-700">ALERTA: {it.alerta}</p>}
-                          {anomalias.length > 0 && <p className={`text-xs font-semibold ${anomalias.some(anomaliaGrave) ? "text-red-700" : "text-orange-700"}`}>⚠ {anomalias.join(" • ")}</p>}
+                          {anomalias.length > 0 && (
+                            <p className={`text-xs font-semibold ${anomalias.some(anomaliaGrave) ? "text-red-700" : "text-orange-700"}`}>
+                              <TriangleAlert className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />
+                              {anomalias.join(" • ")}
+                            </p>
+                          )}
                           {desc && (
                             <p className="text-xs text-emerald-700">
                               Desconto {formatarMoeda(desc.valor)} {desc.noVencimento === true ? `pagando até ${formatarData(desc.ate)}` : desc.noVencimento === false ? "(só antecipado)" : "(conferir data)"}
@@ -397,7 +406,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
                           <div className="flex flex-col items-start gap-1">
                             <BadgeCategoria categoria={it.categoria} />
                             {pd && (pd.status !== "pendente" || pd.auto) && <BadgeStatusPendencia status={pd.status} auto={pd.auto} />}
-                            {env && <span className="text-xs text-emerald-700">✔ enviado ao Omie em {formatarData(env.enviado_em)}</span>}
+                            {env && <span className="text-xs text-emerald-700"><CheckCircle2 className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />enviado ao Omie em {formatarData(env.enviado_em)}</span>}
                           </div>
                         </TableCell>
                       </TableRow>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
+import { Ponto } from "@/components/layout/status";
 import { exigirAcesso } from "@/lib/auth/session";
 import { EMPRESAS_OMIE, statusChaves, type EmpresaOmie } from "@/lib/conciliacao/omie-api";
 import { credenciaisTrier, SEGREDOS, statusSegredos } from "@/lib/integracoes/segredos";
@@ -13,7 +14,7 @@ export const metadata = { title: "Integrações" };
 // o diagnóstico do Trier entra no sistema e gera relatórios: precisa do tempo máximo da função
 export const maxDuration = 300;
 
-const Estado = ({ ok, texto }: { ok: boolean; texto: string }) => <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${ok ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>{ok ? "🟢" : "⚪"} {texto}</span>;
+const Estado = ({ ok, texto }: { ok: boolean; texto: string }) => <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${ok ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}><Ponto tom={ok ? "sucesso" : "atencao"} /> {texto}</span>;
 
 // dia anterior no horário de Brasília (UTC−3), em aaaa-mm-dd
 const ontemNoBrasil = () => new Date(Date.now() - 27 * 3_600_000).toISOString().slice(0, 10);

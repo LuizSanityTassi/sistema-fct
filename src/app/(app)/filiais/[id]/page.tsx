@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: PageProps<"/filiais/[id]">): 
 function Dado({ rotulo, valor, mono }: { rotulo: string; valor?: string | null; mono?: boolean }) {
   return (
     <div>
-      <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{rotulo}</dt>
+      <dt className="sobrescrito">{rotulo}</dt>
       <dd className={`mt-0.5 text-sm ${mono ? "font-mono" : ""}`}>{valor || "—"}</dd>
     </div>
   );
@@ -137,7 +137,7 @@ export default async function FilialPage({ params, searchParams }: PageProps<"/f
         <>
           <section aria-label="Resumo" className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
             {resumo.map((r) => (
-              <Link key={r.rotulo} href={r.href} className="rounded-xl border bg-card px-4 py-3 transition-colors hover:border-primary/40">
+              <Link key={r.rotulo} href={r.href} className="rounded-xl border bg-card p-4 transition-colors hover:border-primary/40">
                 <span className="flex items-center gap-1.5 rotulo">
                   <r.icone className="size-3.5" aria-hidden />
                   {r.rotulo}
@@ -172,7 +172,7 @@ export default async function FilialPage({ params, searchParams }: PageProps<"/f
               <h2 className="mb-4 text-sm font-semibold">Gestão</h2>
               <dl className="grid gap-4">
                 <div>
-                  <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Responsável</dt>
+                  <dt className="sobrescrito">Responsável</dt>
                   <dd className="mt-0.5 text-sm">
                     {responsavel ?? "—"}
                     {responsavel && <span className="block text-xs text-muted-foreground">{filial.responsavel ? (filial.responsavel.cargo ?? "Funcionário cadastrado") : "Não vinculado a um funcionário da folha"}</span>}
@@ -181,7 +181,7 @@ export default async function FilialPage({ params, searchParams }: PageProps<"/f
                 {d.leGestao && <Dado rotulo="Gerentes com acesso" valor={d.gerentes.length ? d.gerentes.join(", ") : "nenhum usuário gerente nesta loja"} />}
                 {d.ve.caixaTudo && (
                   <div>
-                    <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Gestor das quebras de caixa</dt>
+                    <dt className="sobrescrito">Gestor das quebras de caixa</dt>
                     <dd className="mt-0.5 text-sm">
                       {d.gestorNome ?? <span className="text-amber-800">não definido</span>}{" "}
                       <Link href="/financeiro/diferenca-caixa/gestores" className="text-xs text-fct-tinta underline">
@@ -343,7 +343,7 @@ export default async function FilialPage({ params, searchParams }: PageProps<"/f
               { r: "Faltas (descontadas)", v: formatarMoeda(d.caixa.faltas) },
               { r: "Sobras (descontadas)", v: formatarMoeda(d.caixa.sobras) },
             ].map((k) => (
-              <div key={k.r} className="rounded-xl border bg-card px-4 py-3">
+              <div key={k.r} className="rounded-xl border bg-card p-4">
                 <p className="rotulo">{k.r}</p>
                 <p className="mt-1 text-lg font-semibold tabular-nums">{k.v}</p>
               </div>
