@@ -15,6 +15,10 @@ export const SEGREDOS = {
   omie_nazario_app_secret: "integ_omie_nazario_app_secret",
   omie_varela_app_key: "integ_omie_varela_app_key",
   omie_varela_app_secret: "integ_omie_varela_app_secret",
+  smtp_host: "integ_smtp_host",
+  smtp_porta: "integ_smtp_porta",
+  smtp_usuario: "integ_smtp_usuario",
+  smtp_senha: "integ_smtp_senha",
 } as const;
 export type NomeSegredo = (typeof SEGREDOS)[keyof typeof SEGREDOS];
 

@@ -90,7 +90,31 @@ export function OmieForm({ action, empresa, nome, status }: { action: Acao; empr
   );
 }
 
-type AcaoDiagnostico = (prev: EstadoDiagnostico, fd: FormData) => Promise<EstadoDiagnostico>;
+export function SmtpForm({ action, status }: { action: Acao; status: { host: boolean; porta: boolean; usuario: boolean; senha: boolean; padrao: { host: string; porta: number; usuario: string } } }) {
+  const [estado, formAction, pendente] = useActionState(action, {});
+  const dica = (salvo: boolean, padrao: string) => (salvo ? "já salvo — deixe em branco para manter" : `padrão: ${padrao}`);
+  return (
+    <form action={formAction} className="space-y-3">
+      <div className="grid gap-3 md:grid-cols-[2fr_1fr_2fr_2fr]">
+        <Campo id="smtp-host" label="Servidor" dica={dica(status.host, status.padrao.host)}>
+          <Input id="smtp-host" name="host" placeholder={status.padrao.host} autoComplete="off" className="font-mono text-xs" />
+        </Campo>
+        <Campo id="smtp-porta" label="Porta" dica={dica(status.porta, String(status.padrao.porta))}>
+          <Input id="smtp-porta" name="porta" inputMode="numeric" placeholder={String(status.padrao.porta)} autoComplete="off" />
+        </Campo>
+        <Campo id="smtp-usuario" label="Usuário (e-mail)" dica={dica(status.usuario, status.padrao.usuario)}>
+          <Input id="smtp-usuario" name="usuario" type="email" placeholder={status.padrao.usuario} autoComplete="off" />
+        </Campo>
+        <Segredo id="smtp-senha" name="senha" label="Senha da caixa de e-mail" salvo={status.senha} />
+      </div>
+      <ErroFormulario mensagem={estado.erro} />
+      <Sucesso msg={estado.ok} />
+      <Botoes pendente={pendente} podeLimpar={status.host || status.porta || status.usuario || status.senha} rotulo="o e-mail" />
+    </form>
+  );
+}
+
+type AcaoDiagnostico =(prev: EstadoDiagnostico, fd: FormData) => Promise<EstadoDiagnostico>;
 
 /** Procura no menu do Trier os relatórios de caixa (para montar a busca da diferença de caixa). */
 export function DiagnosticoTrierForm({ action, ontem, ultimo }: { action: AcaoDiagnostico; ontem: string; ultimo: string | null }) {

@@ -6,7 +6,8 @@ import { getSessao } from "@/lib/auth/session";
 import { ehEmpresaOmie, EMPRESAS_OMIE, OmieErro } from "@/lib/conciliacao/omie-api";
 import { atualizarCadastrosOmie } from "@/lib/conciliacao/omie-envio";
 import { diagnosticarTrier, testarLoginTrier } from "@/lib/conciliacao/trier-robo";
-import { chavesOmieDe, credenciaisTrier, salvarSegredo, SEGREDOS } from "@/lib/integracoes/segredos";
+import { SMTP_PADRAO, testarSmtp } from "@/lib/caixa/avisos";
+import { chavesOmieDe, credenciaisTrier, lerSegredos, salvarSegredo, SEGREDOS } from "@/lib/integracoes/segredos";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/types";
 
@@ -106,7 +107,49 @@ export async function salvarOmie(_prev: EstadoIntegracao, fd: FormData): Promise
   }
 }
 
-export type RelatorioEncontrado = { pagina: string; rotulo: string; acessivel: boolean; campos: number; gerado: string };
+/** E-mail de envio dos avisos (SMTP). Campo em branco mantém o que já está salvo; "Salvar e testar" confere a senha sem mandar nada. */
+export async function salvarSmtp(_prev: EstadoIntegracao, fd: FormData): Promise<EstadoIntegracao> {
+  const sessao = await exigirAdmin();
+  if (!sessao) return { erro: "Só o administrador altera integrações." };
+  const supabase = await createClient();
+  const host = texto(fd, "host");
+  const porta = texto(fd, "porta");
+  const usuario = texto(fd, "usuario");
+  const senha = typeof fd.get("senha") === "string" ? String(fd.get("senha")) : "";
+  const limpar = fd.get("limpar") === "1";
+  const testar = fd.get("testar") === "1";
+  if (host && !/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(host)) return { erro: "Servidor inválido (ex.: mail.farmaciafct.com.br)." };
+  if (porta && !(/^\d{2,5}$/.test(porta) && Number(porta) <= 65535)) return { erro: "Porta inválida (ex.: 465)." };
+  if (usuario && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(usuario)) return { erro: "Usuário inválido: use o endereço de e-mail completo." };
+  try {
+    if (limpar) {
+      for (const n of [SEGREDOS.smtp_host, SEGREDOS.smtp_porta, SEGREDOS.smtp_usuario, SEGREDOS.smtp_senha]) await salvarSegredo(supabase, n, "");
+    } else {
+      if (host) await salvarSegredo(supabase, SEGREDOS.smtp_host, host);
+      if (porta) await salvarSegredo(supabase, SEGREDOS.smtp_porta, porta);
+      if (usuario) await salvarSegredo(supabase, SEGREDOS.smtp_usuario, usuario);
+      if (senha) await salvarSegredo(supabase, SEGREDOS.smtp_senha, senha);
+    }
+  } catch (e) {
+    return { erro: `Não consegui gravar: ${mensagem(e)}` };
+  }
+  await registrarAuditoria(supabase, { userId: sessao.id, acao: "editar", entidade: "integracoes", novo: { smtp: limpar ? "limpou" : { host: !!host, porta: !!porta, usuario: !!usuario, senha: !!senha } } });
+  revalidatePath("/configuracoes/integracoes");
+  revalidatePath("/financeiro/diferenca-caixa/avisos");
+  if (limpar) return { ok: "Configuração do e-mail apagada." };
+  if (!testar) return { ok: "E-mail de envio salvo." };
+  try {
+    const s = await lerSegredos(supabase, [SEGREDOS.smtp_host, SEGREDOS.smtp_porta, SEGREDOS.smtp_usuario, SEGREDOS.smtp_senha]);
+    if (!s.integ_smtp_senha) return { erro: "Salvo, mas ainda falta a senha para testar." };
+    const cfg = { host: s.integ_smtp_host || SMTP_PADRAO.host, porta: Number(s.integ_smtp_porta) || SMTP_PADRAO.porta, usuario: s.integ_smtp_usuario || SMTP_PADRAO.usuario, senha: s.integ_smtp_senha, configurado: true };
+    await testarSmtp(cfg);
+    return { ok: `Salvo e testado: o servidor ${cfg.host} aceitou o usuário ${cfg.usuario}. Mande um aviso de teste em Financeiro → Diferença de caixa → Avisos por e-mail.` };
+  } catch (e) {
+    return { erro: `Salvo, mas o servidor de e-mail recusou: ${mensagem(e)}` };
+  }
+}
+
+export type RelatorioEncontrado ={ pagina: string; rotulo: string; acessivel: boolean; campos: number; gerado: string };
 export type EstadoDiagnostico = { erro?: string; ok?: string; relatorios?: RelatorioEncontrado[] };
 
 /**

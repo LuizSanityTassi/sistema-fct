@@ -3,12 +3,13 @@ import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { Ponto } from "@/components/layout/status";
 import { exigirAcesso } from "@/lib/auth/session";
+import { SMTP_PADRAO } from "@/lib/caixa/avisos";
 import { EMPRESAS_OMIE, statusChaves, type EmpresaOmie } from "@/lib/conciliacao/omie-api";
 import { credenciaisTrier, SEGREDOS, statusSegredos } from "@/lib/integracoes/segredos";
 import { formatarDataHora } from "@/lib/formatos";
 import { createClient } from "@/lib/supabase/server";
-import { diagnosticarRelatoriosTrier, salvarOmie, salvarTrier } from "./actions";
-import { DiagnosticoTrierForm, OmieForm, TrierForm } from "./formularios";
+import { diagnosticarRelatoriosTrier, salvarOmie, salvarSmtp, salvarTrier } from "./actions";
+import { DiagnosticoTrierForm, OmieForm, SmtpForm, TrierForm } from "./formularios";
 
 export const metadata = { title: "Integrações" };
 // o diagnóstico do Trier entra no sistema e gera relatórios: precisa do tempo máximo da função
@@ -33,11 +34,12 @@ export default async function IntegracoesPage() {
   const ontem = ontemNoBrasil();
   const temServiceRole = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
   const trierOk = Boolean(cred.usuario && cred.senha);
+  const smtpOk = segredos[SEGREDOS.smtp_senha].configurado;
   const quando = (nome: keyof typeof SEGREDOS) => segredos[SEGREDOS[nome]].atualizadoEm;
 
   return (
     <>
-      <PageHeader eyebrow="Administração" titulo="Integrações" descricao="Tudo que precisa de chave ou senha para o sistema conversar com os outros: Trier, Omie, agente do Itaú e convite por e-mail. Os valores ficam criptografados no banco (Vault) e nunca voltam para a tela." />
+      <PageHeader eyebrow="Administração" titulo="Integrações" descricao="Tudo que precisa de chave ou senha para o sistema conversar com os outros: Trier, Omie, agente do Itaú, e-mail dos avisos e convite por e-mail. Os valores ficam criptografados no banco (Vault) e nunca voltam para a tela." />
 
       <section className="mb-4 rounded-xl border bg-card p-5">
         <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -95,6 +97,31 @@ export default async function IntegracoesPage() {
             <li>Isso também liga o convite de usuários por e-mail. Nunca cole essa chave em outro lugar (nem aqui, nem no Git).</li>
           </ol>
         )}
+      </section>
+
+      <section id="email" className="mb-4 scroll-mt-20 rounded-xl border bg-card p-5">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <h2 className="text-sm font-semibold">E-mail de envio dos avisos</h2>
+          <Estado ok={smtpOk} texto={smtpOk ? "configurado" : "falta a senha"} />
+          {quando("smtp_senha") && <span className="text-xs text-muted-foreground">senha alterada em {formatarDataHora(quando("smtp_senha")!)}</span>}
+        </div>
+        <p className="mb-3 text-xs text-muted-foreground">
+          Caixa usada para mandar os avisos do sistema (ex.: quebras de caixa esperando justificativa, toda manhã). Normalmente é a mesma <strong>nao-responda@farmaciafct.com.br</strong> do login: só falta a senha dela (a do cPanel). Os outros campos já vêm com o padrão. Os avisos em si ficam em{" "}
+          <Link href="/financeiro/diferenca-caixa/avisos" className="text-fct-tinta underline">
+            Financeiro → Diferença de caixa → Avisos por e-mail
+          </Link>
+          .
+        </p>
+        <SmtpForm
+          action={salvarSmtp}
+          status={{
+            host: segredos[SEGREDOS.smtp_host].configurado,
+            porta: segredos[SEGREDOS.smtp_porta].configurado,
+            usuario: segredos[SEGREDOS.smtp_usuario].configurado,
+            senha: smtpOk,
+            padrao: SMTP_PADRAO,
+          }}
+        />
       </section>
 
       <section className="rounded-xl border bg-card p-5 text-sm">

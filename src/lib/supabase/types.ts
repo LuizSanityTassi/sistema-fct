@@ -1822,6 +1822,53 @@ export type Database = {
           },
         ]
       }
+      caixa_avisos: {
+        Row: {
+          dia: string
+          email: string
+          enviado_em: string
+          erro: string | null
+          id: string
+          nome: string
+          origem: string
+          profile_id: string | null
+          quantidade: number
+          valor: number
+        }
+        Insert: {
+          dia: string
+          email: string
+          enviado_em?: string
+          erro?: string | null
+          id?: string
+          nome: string
+          origem: string
+          profile_id?: string | null
+          quantidade: number
+          valor: number
+        }
+        Update: {
+          dia?: string
+          email?: string
+          enviado_em?: string
+          erro?: string | null
+          id?: string
+          nome?: string
+          origem?: string
+          profile_id?: string | null
+          quantidade?: number
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caixa_avisos_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       caixa_coletas: {
         Row: {
           branch_id: string
@@ -2569,6 +2616,35 @@ export type Database = {
           },
         ]
       }
+      sistema_config: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          chave: string
+          valor: Json
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          chave: string
+          valor: Json
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          chave?: string
+          valor?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sistema_config_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tickets: {
         Row: {
           primeira_resposta_em: string | null
@@ -2972,6 +3048,13 @@ export type Database = {
         }[]
       }
       integracao_ler_segredos: {
+        Args: { p_nomes: string[] }
+        Returns: {
+          nome: string
+          valor: string
+        }[]
+      }
+      integracao_ler_segredos_servico: {
         Args: { p_nomes: string[] }
         Returns: {
           nome: string

@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AnexosQuebra } from "@/app/(app)/caixa/anexos-quebra";
+import { assuntoAviso, htmlAviso, type Destinatario } from "@/lib/caixa/avisos-email";
 import { JustificativaForm } from "@/app/(app)/caixa/justificativa-form";
 import { ImportarPosForm } from "@/app/(app)/financeiro/diferenca-caixa/importar/importar-form";
 import type { EstadoPos } from "@/app/(app)/financeiro/diferenca-caixa/importar/actions";
@@ -29,6 +30,18 @@ const PESSOAS = [
   { nome: "Ana Teste Pereira", cargo: "Gerente", filial: "F301", status: "afastado", salario: "R$ 5.900,00" },
   { nome: "Carlos Modelo Lima", cargo: "Estoquista", filial: "F002", status: "desligado", salario: "R$ 1.980,00" },
 ];
+
+const EMAIL_EXEMPLO: Destinatario = {
+  profileId: "exemplo",
+  nome: "Maria Exemplo da Silva",
+  email: "maria@exemplo.local",
+  total: 103.28,
+  quebras: [
+    { id: "1", loja: "F002", lojaNome: "Centro", dia: "2026-10-14", caixa: 4667, operador: "ADILSON EXEMPLO", diferenca: 68.1, valor: 68.1, manual: false, diasAberta: 5 },
+    { id: "2", loja: "F002", lojaNome: "Centro", dia: "2026-10-17", caixa: 4702, operador: "JOANA TESTE", diferenca: -12.4, valor: 12.4, manual: false, diasAberta: 2 },
+    { id: "3", loja: "F108", lojaNome: "Bairro", dia: "2026-10-18", caixa: null, operador: "CARLOS MODELO", diferenca: 22.78, valor: 22.78, manual: true, diasAberta: 1 },
+  ],
+};
 
 export default function VitrinePage() {
   if (process.env.NODE_ENV !== "development") notFound();
@@ -228,6 +241,14 @@ export default function VitrinePage() {
         </h2>
         <AnexosQuebra anexos={ANEXOS} usuarioId="eu" aberta />
         <JustificativaForm action={justificarExemplo} id="00000000-0000-0000-0000-00000000000a" atual={null} />
+      </section>
+
+      <section aria-labelledby="t-email" className="mb-6 rounded-xl border bg-card p-5">
+        <h2 id="t-email" className="mb-1 text-sm font-semibold">
+          E-mail diário das quebras (prévia)
+        </h2>
+        <p className="mb-3 text-xs text-muted-foreground">Assunto: {assuntoAviso(EMAIL_EXEMPLO)}</p>
+        <iframe title="Prévia do e-mail de aviso das quebras" srcDoc={htmlAviso(EMAIL_EXEMPLO, "https://portal.farmaciafct.com.br")} className="h-[720px] w-full rounded-lg border bg-white" />
       </section>
 
       <section aria-labelledby="t-tabela" className="rounded-xl border bg-card">

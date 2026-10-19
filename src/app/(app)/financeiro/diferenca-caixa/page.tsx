@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, Search, UserRoundCog, UsersRound, FileSpreadsheet } from "lucide-react";
+import { FileSpreadsheet, Mail, Plus, Search, UserRoundCog, UsersRound } from "lucide-react";
 import { SelectNativo } from "@/components/form/campo";
 import { PageHeader } from "@/components/layout/page-header";
 import { Paginacao } from "@/components/layout/paginacao";
@@ -63,6 +63,10 @@ export default async function DiferencaCaixaPage({ searchParams }: PageProps<"/f
             <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/financeiro/diferenca-caixa/operadores" />}>
               <UserRoundCog data-icon="inline-start" />
               Operadores × funcionários
+            </Button>
+            <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/financeiro/diferenca-caixa/avisos" />}>
+              <Mail data-icon="inline-start" />
+              Avisos por e-mail
             </Button>
           </>
         }

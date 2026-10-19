@@ -3,7 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 // /api/conciliacao/agente não tem sessão de usuário: autentica pela chave do agente (X-Agente) dentro da própria rota.
 // /vitrine: catálogo visual dos componentes com dados fictícios, só no ambiente local (a página dá 404 em produção).
-const ROTAS_PUBLICAS = ["/login", "/recuperar-senha", "/auth", "/api/conciliacao/agente", ...(process.env.NODE_ENV === "development" ? ["/vitrine"] : [])];
+// /api/cron: rotinas agendadas da Vercel, protegidas pelo CRON_SECRET na própria rota (sem sessão de usuário)
+const ROTAS_PUBLICAS = ["/login", "/recuperar-senha", "/auth", "/api/conciliacao/agente", "/api/cron", ...(process.env.NODE_ENV === "development" ? ["/vitrine"] : [])];
 
 // Renova a sessão em cada request e protege as rotas privadas.
 export async function updateSession(request: NextRequest) {
