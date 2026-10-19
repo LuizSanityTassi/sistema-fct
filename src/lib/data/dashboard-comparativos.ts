@@ -265,7 +265,7 @@ export async function carregarComparativos(sessao: Sessao): Promise<Comparativo[
   const pode = (rota: string) => podeAcessar(sessao.papel, rota);
   const fontes: Promise<Comparativo[]>[] = [];
   if (pode("/financeiro/diferenca-caixa")) fontes.push(quebrasDeCaixa(supabase, p, "/financeiro/diferenca-caixa"));
-  else if (sessao.papel === "gerente") fontes.push(quebrasDeCaixa(supabase, p, "/caixa"));
+  else if (sessao.papel === "gerente" || sessao.papel === "coordenador") fontes.push(quebrasDeCaixa(supabase, p, "/caixa"));
   if (pode("/conciliacao")) fontes.push(conciliacao(supabase, p));
   if (pode("/financeiro")) fontes.push(financeiro(supabase));
   if (pode("/rh/folha")) fontes.push(folha(supabase, p));

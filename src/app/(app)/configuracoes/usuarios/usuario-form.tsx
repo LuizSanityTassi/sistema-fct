@@ -16,6 +16,8 @@ export type OpcaoFuncionario = { id: string; rotulo: string };
 type Props = {
   action: (prev: EstadoUsuario, fd: FormData) => Promise<EstadoUsuario>;
   unidades: OpcaoUnidade[];
+  /** Regionais das lojas (para o coordenador de vendas). */
+  regionais?: string[];
   modo: "convite" | "edicao";
   valores: {
     email?: string | null;
@@ -26,6 +28,7 @@ type Props = {
     filiaisAdicionais?: string[];
     respondeDenuncias?: boolean;
     employee_id?: string | null;
+    regional?: string | null;
   };
   funcionarios?: OpcaoFuncionario[];
   ehProprioUsuario?: boolean;
@@ -37,11 +40,12 @@ const DESCRICAO_PAPEL: Record<AppRole, string> = {
   ti: "Chamados (menos os de RH), unidades e módulo de TI.",
   financeiro: "Financeiro completo (lançamentos, categorias, fechamento), chamados de financeiro e relatórios.",
   contador: "Financeiro de todas as unidades (lança, importa e classifica; não exclui nem fecha mês).",
-  gerente: "Funcionários e chamados da própria unidade (sem salários).",
+  coordenador: "Indicadores do financeiro, chamados e quebras de caixa de TODAS as lojas da regional dele (quebras só para ver; não vê funcionários nem salários).",
+  gerente: "Funcionários, chamados e quebras de caixa da unidade principal e das outras filiais marcadas abaixo (sem salários).",
   usuario: "Abre e acompanha os próprios chamados.",
 };
 
-export function UsuarioForm({ action, unidades, modo, valores, ehProprioUsuario, funcionarios }: Props) {
+export function UsuarioForm({ action, unidades, regionais = [], modo, valores, ehProprioUsuario, funcionarios }: Props) {
   const [estado, formAction] = useActionState(action, {});
   const erro = (c: string) => estado.erros?.[c];
   const [papel, setPapel] = React.useState<AppRole>(valores.papel ?? "usuario");
@@ -93,6 +97,18 @@ export function UsuarioForm({ action, unidades, modo, valores, ehProprioUsuario,
               ))}
             </SelectNativo>
           </Campo>
+          {papel === "coordenador" && (
+            <Campo id="regional" label="Regional que coordena" obrigatorio erro={erro("regional")} dica="Ele enxerga todas as lojas dessa regional, inclusive as que forem abertas depois.">
+              <SelectNativo id="regional" name="regional" defaultValue={valores.regional ?? ""} aria-invalid={!!erro("regional")}>
+                <option value="">— escolha —</option>
+                {regionais.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </SelectNativo>
+            </Campo>
+          )}
           {modo === "edicao" && (
             <label className="flex items-center gap-2 pt-6 text-sm">
               <input type="checkbox" name="ativo" defaultChecked={valores.ativo ?? true} disabled={ehProprioUsuario} className="size-4 accent-fct-tinta" />
@@ -132,13 +148,15 @@ export function UsuarioForm({ action, unidades, modo, valores, ehProprioUsuario,
         </section>
       )}
 
-      {modo === "edicao" && (
+      {papel !== "coordenador" && (
         <section className="rounded-xl border bg-card p-5">
-          <h2 className="mb-1 text-sm font-semibold">Unidades adicionais</h2>
+          <h2 className="mb-1 text-sm font-semibold">{papel === "gerente" ? "Outras filiais que ele gerencia" : "Unidades adicionais"}</h2>
           <p className="mb-4 text-xs text-muted-foreground">
-            {porFilial
-              ? "Gerente/usuário enxergam a unidade principal e as marcadas aqui."
-              : "Papéis corporativos já enxergam todas as unidades; esta lista não tem efeito para eles."}
+            {papel === "gerente"
+              ? "Gerente de mais de uma loja: marque as outras filiais além da principal. Ele vê funcionários, chamados e quebras de caixa delas e justifica as quebras quando a loja não tiver outro gestor."
+              : porFilial
+                ? "O usuário enxerga a unidade principal e as marcadas aqui."
+                : "Papéis corporativos já enxergam todas as unidades; esta lista não tem efeito para eles."}
           </p>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[...grupos.entries()].map(([grupo, lista]) => (
@@ -161,9 +179,7 @@ export function UsuarioForm({ action, unidades, modo, valores, ehProprioUsuario,
       )}
 
       <div className="flex items-center gap-2">
-        <BotaoSalvar rotuloPendente={modo === "convite" ? "Enviando…" : "Salvando…"}>
-          {modo === "convite" ? "Enviar convite" : "Salvar"}
-        </BotaoSalvar>
+        <BotaoSalvar rotuloPendente={modo === "convite" ? "Enviando…" : "Salvando…"}>{modo === "convite" ? "Enviar convite" : "Salvar"}</BotaoSalvar>
         <Button type="button" variant="ghost" nativeButton={false} render={<Link href="/configuracoes/usuarios" />}>
           Cancelar
         </Button>

@@ -43,6 +43,16 @@ async function origem() {
   return `${proto}://${host}`;
 }
 
+/** Coordenador precisa de uma regional que exista nas lojas; os outros papéis ficam sem regional. */
+async function regionalDoPapel(papel: string, bruto: string | undefined): Promise<{ regional: string | null } | { erro: string }> {
+  if (papel !== "coordenador") return { regional: null };
+  if (!bruto) return { erro: "Escolha a regional que ele coordena." };
+  const supabase = await createClient();
+  const { count } = await supabase.from("branches").select("id", { count: "exact", head: true }).eq("regional", bruto);
+  if (!count) return { erro: "Nenhuma loja nessa regional." };
+  return { regional: bruto };
+}
+
 async function exigirAdmin() {
   const sessao = await getSessao();
   return sessao.papel === "admin" ? sessao : null;
@@ -69,6 +79,9 @@ export async function convidarUsuario(_prev: EstadoUsuario, fd: FormData): Promi
     branch_id: texto(fd, "branch_id"),
   });
   if (!r.success) return { erro: "Confira os campos destacados.", erros: errosDoZod(r.error) };
+  const reg = await regionalDoPapel(r.data.papel, texto(fd, "regional"));
+  if ("erro" in reg) return { erro: "Confira os campos destacados.", erros: { regional: reg.erro } };
+  const filiaisConvite = [...new Set(fd.getAll("filiais").filter((v): v is string => typeof v === "string" && ehUuid(v)))];
 
   const destino = `${await origem()}/auth/confirm?next=/auth/atualizar-senha`;
   const admin = createAdminClient();
@@ -83,7 +96,9 @@ export async function convidarUsuario(_prev: EstadoUsuario, fd: FormData): Promi
   } else {
     // Sem service_role: cria a conta com a chave pública (signUp) e uma senha aleatória que ninguém conhece;
     // a pessoa recebe o e-mail de confirmação do Supabase e define a própria senha no primeiro acesso.
-    const publico = createClientPublico(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+    const publico = createClientPublico(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    });
     const { data, error } = await publico.auth.signUp({ email: r.data.email, password: randomBytes(32).toString("base64url"), options: { data: { nome: r.data.nome }, emailRedirectTo: destino } });
     if (error) return { erro: `Não foi possível criar a conta: ${error.message}` };
     if (!data.user) return { erro: "O Supabase não devolveu o usuário criado." };
@@ -96,16 +111,20 @@ export async function convidarUsuario(_prev: EstadoUsuario, fd: FormData): Promi
   const supabase = await createClient();
   const { error: erroPerfil } = await supabase
     .from("profiles")
-    .update({ nome: r.data.nome, papel: r.data.papel, branch_id: r.data.branch_id ?? null })
+    .update({ nome: r.data.nome, papel: r.data.papel, branch_id: r.data.branch_id ?? null, regional: reg.regional })
     .eq("id", userId);
   if (erroPerfil) return { erro: `Conta criada, mas o perfil não pôde ser ajustado: ${erroPerfil.message}` };
+  if (filiaisConvite.length && r.data.papel !== "coordenador") {
+    const { error: erroAcesso } = await supabase.from("user_branch_access").insert(filiaisConvite.map((branch_id) => ({ user_id: userId, branch_id })));
+    if (erroAcesso) return { erro: `Conta criada, mas as outras filiais não foram gravadas: ${erroAcesso.message}` };
+  }
 
   await registrarAuditoria(supabase, {
     userId: sessao.id,
     acao: "convidar",
     entidade: "profiles",
     registroId: userId,
-    novo: { email: r.data.email, nome: r.data.nome, papel: r.data.papel, branch_id: r.data.branch_id ?? null, modo },
+    novo: { email: r.data.email, nome: r.data.nome, papel: r.data.papel, branch_id: r.data.branch_id ?? null, regional: reg.regional, filiais_adicionais: filiaisConvite, modo },
   });
   revalidatePath("/configuracoes/usuarios");
   redirect(`/configuracoes/usuarios?convidado=1&modo=${modo}`);
@@ -126,6 +145,8 @@ export async function salvarUsuario(id: string, _prev: EstadoUsuario, fd: FormDa
 
   const r = esquemaUsuario.safeParse({ nome: texto(fd, "nome"), papel: texto(fd, "papel"), branch_id: texto(fd, "branch_id") });
   if (!r.success) return { erro: "Confira os campos destacados.", erros: errosDoZod(r.error) };
+  const reg = await regionalDoPapel(r.data.papel, texto(fd, "regional"));
+  if ("erro" in reg) return { erro: "Confira os campos destacados.", erros: { regional: reg.erro } };
   const ativo = fd.get("ativo") === "on";
   const filiais = fd.getAll("filiais").filter((v): v is string => typeof v === "string" && ehUuid(v));
 
@@ -136,7 +157,7 @@ export async function salvarUsuario(id: string, _prev: EstadoUsuario, fd: FormDa
 
   const supabase = await createClient();
   const [{ data: atual }, { data: acessosAtuais }] = await Promise.all([
-    supabase.from("profiles").select("id, nome, papel, branch_id, ativo, employee_id").eq("id", id).maybeSingle(),
+    supabase.from("profiles").select("id, nome, papel, branch_id, ativo, employee_id, regional").eq("id", id).maybeSingle(),
     supabase.from("user_branch_access").select("branch_id").eq("user_id", id),
   ]);
   if (!atual) return { erro: "Usuário não encontrado." };
@@ -147,18 +168,17 @@ export async function salvarUsuario(id: string, _prev: EstadoUsuario, fd: FormDa
     const { data: outro } = await supabase.from("profiles").select("nome").eq("employee_id", employee_id).neq("id", id).maybeSingle();
     if (outro) return { erro: `Esse funcionário já está ligado ao usuário ${outro.nome || "(sem nome)"}.` };
   }
-  const patch = { nome: r.data.nome, papel: r.data.papel, branch_id: r.data.branch_id ?? null, ativo, employee_id };
+  const patch = { nome: r.data.nome, papel: r.data.papel, branch_id: r.data.branch_id ?? null, ativo, employee_id, regional: reg.regional };
   const { error } = await supabase.from("profiles").update(patch).eq("id", id);
   if (error) return { erro: `Não foi possível salvar: ${error.message}` };
 
   const antes = (acessosAtuais ?? []).map((a) => a.branch_id).sort();
-  const depois = [...new Set(filiais)].sort();
+  // coordenador enxerga pela regional: lojas avulsas não se aplicam
+  const depois = r.data.papel === "coordenador" ? [] : [...new Set(filiais)].sort();
   if (antes.join(",") !== depois.join(",")) {
     await supabase.from("user_branch_access").delete().eq("user_id", id);
     if (depois.length > 0) {
-      const { error: erroAcesso } = await supabase
-        .from("user_branch_access")
-        .insert(depois.map((branch_id) => ({ user_id: id, branch_id })));
+      const { error: erroAcesso } = await supabase.from("user_branch_access").insert(depois.map((branch_id) => ({ user_id: id, branch_id })));
       if (erroAcesso) return { erro: `Perfil salvo, mas as unidades adicionais falharam: ${erroAcesso.message}` };
     }
   }

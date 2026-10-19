@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { exigirAcesso } from "@/lib/auth/session";
 import { listarUnidadesParaSelecao } from "@/lib/data/funcionarios";
+import { listarRegionais } from "@/lib/data/filiais";
 import { obterUsuario } from "@/lib/data/usuarios";
 import { funcionariosDoCaixa } from "@/lib/data/diferenca-caixa";
 import { formatarDataHora } from "@/lib/formatos";
@@ -13,7 +14,7 @@ export const metadata = { title: "Editar usuário" };
 export default async function EditarUsuarioPage({ params }: PageProps<"/configuracoes/usuarios/[id]/editar">) {
   const [sessao, { id }] = await Promise.all([exigirAcesso("/configuracoes/usuarios"), params]);
   if (sessao.papel !== "admin") redirect("/dashboard?erro=sem_permissao");
-  const [usuario, unidades, funcionarios] = await Promise.all([obterUsuario(id), listarUnidadesParaSelecao(), funcionariosDoCaixa()]);
+  const [usuario, unidades, funcionarios, regionais] = await Promise.all([obterUsuario(id), listarUnidadesParaSelecao(), funcionariosDoCaixa(), listarRegionais()]);
   if (!usuario) notFound();
   const opcoesFuncionario = funcionarios
     .filter((f) => f.status !== "desligado" || f.id === usuario.employee_id)
@@ -29,6 +30,7 @@ export default async function EditarUsuarioPage({ params }: PageProps<"/configur
       <UsuarioForm
         action={salvarUsuario.bind(null, usuario.id)}
         unidades={unidades}
+        regionais={regionais}
         modo="edicao"
         valores={{
           email: usuario.email,
@@ -39,6 +41,7 @@ export default async function EditarUsuarioPage({ params }: PageProps<"/configur
           filiaisAdicionais: usuario.filiaisAdicionais,
           respondeDenuncias: usuario.respondeDenuncias,
           employee_id: usuario.employee_id,
+          regional: usuario.regional,
         }}
         funcionarios={opcoesFuncionario}
         ehProprioUsuario={usuario.id === sessao.id}

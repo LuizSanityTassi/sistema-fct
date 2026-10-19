@@ -2403,6 +2403,7 @@ export type Database = {
           id: string
           nome: string
           papel: Database["public"]["Enums"]["app_role"]
+          regional: string | null
           ultimo_acesso: string | null
           updated_at: string
         }
@@ -2415,6 +2416,7 @@ export type Database = {
           id: string
           nome?: string
           papel?: Database["public"]["Enums"]["app_role"]
+          regional?: string | null
           ultimo_acesso?: string | null
           updated_at?: string
         }
@@ -2427,6 +2429,7 @@ export type Database = {
           id?: string
           nome?: string
           papel?: Database["public"]["Enums"]["app_role"]
+          regional?: string | null
           ultimo_acesso?: string | null
           updated_at?: string
         }
@@ -2997,6 +3000,7 @@ export type Database = {
         | "gerente"
         | "usuario"
         | "contador"
+        | "coordenador"
       aso_type:
         | "admissional"
         | "periodico"
@@ -3176,6 +3180,7 @@ export const Constants = {
         "gerente",
         "usuario",
         "contador",
+        "coordenador",
       ],
       aso_type: [
         "admissional",

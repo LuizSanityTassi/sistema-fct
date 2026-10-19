@@ -1,5 +1,5 @@
 // Papéis do sistema — espelham o enum `app_role` do Postgres (supabase/migrations/0001_core_schema.sql).
-export const PAPEIS = ["admin", "rh", "ti", "financeiro", "contador", "gerente", "usuario"] as const;
+export const PAPEIS = ["admin", "rh", "ti", "financeiro", "contador", "coordenador", "gerente", "usuario"] as const;
 export type AppRole = (typeof PAPEIS)[number];
 
 export const PAPEL_LABEL: Record<AppRole, string> = {
@@ -8,6 +8,7 @@ export const PAPEL_LABEL: Record<AppRole, string> = {
   ti: "TI",
   financeiro: "Financeiro",
   contador: "Contador",
+  coordenador: "Coordenador de vendas",
   gerente: "Gerente",
   usuario: "Usuário",
 };

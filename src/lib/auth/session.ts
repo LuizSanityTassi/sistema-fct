@@ -10,6 +10,8 @@ export type Sessao = {
   nome: string;
   papel: AppRole;
   branchId: string | null;
+  /** Coordenador de vendas: a regional que ele coordena (Sul, Serra, Oeste…). */
+  regional: string | null;
 };
 
 /** Usuário logado + perfil. Memoizado por requisição: layout e página compartilham a mesma leitura. */
@@ -22,7 +24,7 @@ export const getSessao = cache(async (): Promise<Sessao> => {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("nome, papel, branch_id, ativo, ultimo_acesso")
+    .select("nome, papel, branch_id, ativo, ultimo_acesso, regional")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -44,6 +46,7 @@ export const getSessao = cache(async (): Promise<Sessao> => {
     nome: profile?.nome?.trim() || user.email?.split("@")[0] || "Usuário",
     papel: ehPapel(papel) ? papel : "usuario",
     branchId: profile?.branch_id ?? null,
+    regional: profile?.regional ?? null,
   };
 });
 

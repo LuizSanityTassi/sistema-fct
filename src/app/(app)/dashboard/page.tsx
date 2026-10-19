@@ -65,12 +65,13 @@ const ACOES: { rotulo: string; href: string; icone: LucideIcon; papeis?: AppRole
   { rotulo: "Buscar caixas no Trier", href: "/financeiro/diferenca-caixa", icone: Banknote },
   { rotulo: "Lançar quebra manual", href: "/financeiro/diferenca-caixa/nova", icone: Banknote },
   { rotulo: "Justificar quebras", href: "/caixa", icone: Banknote, papeis: ["gerente"] },
+  { rotulo: "Quebras da regional", href: "/caixa", icone: Banknote, papeis: ["coordenador"] },
   { rotulo: "Nova conciliação", href: "/conciliacao/nova", icone: Scale, papeis: ["admin", "financeiro"] },
   { rotulo: "Enviar arquivos do banco", href: "/conciliacao/arquivos", icone: FileUp, papeis: ["admin", "financeiro"] },
   { rotulo: "Lançamentos da folha", href: "/rh/lancamentos", icone: ListChecks },
   { rotulo: "Novo funcionário", href: "/rh/funcionarios/novo", icone: UserPlus, papeis: ["admin", "rh"] },
   { rotulo: "Novo equipamento", href: "/ti/ativos/novo", icone: MonitorCog },
-  { rotulo: "Pedir acesso a sistema", href: "/ti/acessos/novo", icone: KeyRound, papeis: ["gerente", "usuario", "rh", "financeiro", "contador"] },
+  { rotulo: "Pedir acesso a sistema", href: "/ti/acessos/novo", icone: KeyRound, papeis: ["gerente", "usuario", "rh", "financeiro", "contador", "coordenador"] },
   { rotulo: "Abrir chamado", href: "/chamados/novo", icone: LifeBuoy },
 ];
 
@@ -124,7 +125,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   return (
     <>
       <BoasVindas data={hoje} titulo={`Olá, ${primeiroNome}`}>
-        {PAPEL_LABEL[sessao.papel]} · {sessao.papel === "gerente" || sessao.papel === "usuario" ? "números da sua unidade" : "números de todas as unidades"}
+        {PAPEL_LABEL[sessao.papel]} · {sessao.papel === "coordenador" ? `números da regional ${sessao.regional ?? "—"}` : sessao.papel === "gerente" || sessao.papel === "usuario" ? "números das suas unidades" : "números de todas as unidades"}
         {" · "}
         {pendencias.length ? pluralizar(pendencias.length, "pendência esperando ação", "pendências esperando ação") : "nada pendente agora"}.
       </BoasVindas>

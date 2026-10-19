@@ -11,7 +11,7 @@ import { listarUnidadesParaSelecao } from "@/lib/data/funcionarios";
 import { mesesParaEscolher, responderPergunta } from "@/lib/data/perguntas";
 import { formatarData, formatarMoeda } from "@/lib/formatos";
 import { podeAcessar } from "@/lib/nav";
-import { perguntaPorId, perguntasDoPapel } from "@/lib/perguntas/catalogo";
+import { perguntaPorId, perguntasDoPapel, podeFazerPergunta } from "@/lib/perguntas/catalogo";
 import type { Coluna, Valor } from "@/lib/relatorios/csv";
 import { rotuloCompetencia } from "@/lib/rh/competencia";
 
@@ -41,7 +41,7 @@ const LIMITE_TELA = 500;
 export default async function PerguntaPage({ params, searchParams }: PageProps<"/perguntas/[id]">) {
   const [sessao, { id }, sp] = await Promise.all([exigirAcesso("/perguntas"), params, searchParams]);
   const pergunta = perguntaPorId(id);
-  if (!pergunta || !podeAcessar(sessao.papel, pergunta.rota)) notFound();
+  if (!pergunta || !podeFazerPergunta(sessao.papel, pergunta)) notFound();
   const filtros = { mes: typeof sp.mes === "string" ? sp.mes : undefined, filial: typeof sp.filial === "string" ? sp.filial : undefined };
   const [resposta, unidades] = await Promise.all([responderPergunta(sessao, id, filtros), pergunta.parametros.includes("filial") ? listarUnidadesParaSelecao() : Promise.resolve([])]);
   if (!resposta) notFound();

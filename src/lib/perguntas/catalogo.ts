@@ -14,6 +14,8 @@ export type Pergunta = {
   descricao: string;
   /** Tela da área: quem não abre essa tela não vê a pergunta. */
   rota: string;
+  /** Só estes papéis (além da regra da tela). */
+  papeis?: AppRole[];
   parametros: ParametroPergunta[];
 };
 
@@ -25,7 +27,8 @@ export const PERGUNTAS: Pergunta[] = [
     area: "Caixa",
     pergunta: "Quais lojas tiveram mais quebra de caixa no mês?",
     descricao: "Quebras acima da tolerância (e as lançadas à mão) por loja: quantidade, faltas, sobras e valor.",
-    rota: "/financeiro/diferenca-caixa",
+    rota: "/caixa",
+    papeis: ["admin", "financeiro", "coordenador"],
     parametros: ["mes"],
   },
   {
@@ -33,7 +36,8 @@ export const PERGUNTAS: Pergunta[] = [
     area: "Caixa",
     pergunta: "Quais operadores mais tiveram quebra no mês?",
     descricao: "Ranking de operadores do Trier por valor de quebra, com o código do operador e a loja.",
-    rota: "/financeiro/diferenca-caixa",
+    rota: "/caixa",
+    papeis: ["admin", "financeiro", "coordenador"],
     parametros: ["mes", "filial"],
   },
   {
@@ -137,4 +141,5 @@ export const PERGUNTAS: Pergunta[] = [
 export const perguntaPorId = (id: string) => PERGUNTAS.find((p) => p.id === id) ?? null;
 
 /** Perguntas que o papel pode fazer (tem acesso à tela da área). */
-export const perguntasDoPapel = (papel: AppRole) => PERGUNTAS.filter((p) => podeAcessar(papel, p.rota));
+export const podeFazerPergunta = (papel: AppRole, p: Pergunta) => podeAcessar(papel, p.rota) && (!p.papeis || p.papeis.includes(papel));
+export const perguntasDoPapel = (papel: AppRole) => PERGUNTAS.filter((p) => podeFazerPergunta(papel, p));

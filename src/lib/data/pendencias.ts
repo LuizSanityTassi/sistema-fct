@@ -69,19 +69,94 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
           contar(supabase.from("caixa_coletas").select("dia", { count: "exact", head: true }).eq("status", "erro").gte("dia", ha7dias)),
         ]);
         if (paraDecidir)
-          out.push({ id: "caixa-decidir", severidade: "alto", area: "Caixa", quantidade: paraDecidir, minha: true, href: caixa({ situacao: "justificada" }), titulo: `${paraDecidir} ${plural(paraDecidir, "quebra justificada esperando", "quebras justificadas esperando")} a sua decisão`, detalhe: "Manter o desconto na folha ou abonar." });
+          out.push({
+            id: "caixa-decidir",
+            severidade: "alto",
+            area: "Caixa",
+            quantidade: paraDecidir,
+            minha: true,
+            href: caixa({ situacao: "justificada" }),
+            titulo: `${paraDecidir} ${plural(paraDecidir, "quebra justificada esperando", "quebras justificadas esperando")} a sua decisão`,
+            detalhe: "Manter o desconto na folha ou abonar.",
+          });
         if (semFuncionario)
-          out.push({ id: "caixa-sem-funcionario", severidade: "alto", area: "Caixa", quantidade: semFuncionario, href: "/financeiro/diferenca-caixa/operadores?mostrar=sem", titulo: `${semFuncionario} ${plural(semFuncionario, "quebra sem funcionário ligado", "quebras sem funcionário ligado")}`, detalhe: "Não entram na folha até ligar o operador do Trier ao cadastro." });
+          out.push({
+            id: "caixa-sem-funcionario",
+            severidade: "alto",
+            area: "Caixa",
+            quantidade: semFuncionario,
+            href: "/financeiro/diferenca-caixa/operadores?mostrar=sem",
+            titulo: `${semFuncionario} ${plural(semFuncionario, "quebra sem funcionário ligado", "quebras sem funcionário ligado")}`,
+            detalhe: "Não entram na folha até ligar o operador do Trier ao cadastro.",
+          });
         if (abertasSemGestor)
-          out.push({ id: "caixa-sem-gestor", severidade: "alto", area: "Caixa", quantidade: abertasSemGestor, href: "/financeiro/diferenca-caixa/gestores", titulo: `${abertasSemGestor} ${plural(abertasSemGestor, "quebra em aberto sem gestor", "quebras em aberto sem gestor")}`, detalhe: "Escolha o gestor da loja para alguém justificar." });
+          out.push({
+            id: "caixa-sem-gestor",
+            severidade: "alto",
+            area: "Caixa",
+            quantidade: abertasSemGestor,
+            href: "/financeiro/diferenca-caixa/gestores",
+            titulo: `${abertasSemGestor} ${plural(abertasSemGestor, "quebra em aberto sem gestor", "quebras em aberto sem gestor")}`,
+            detalhe: "Escolha o gestor da loja para alguém justificar.",
+          });
         if (atrasadas)
-          out.push({ id: "caixa-atrasadas", severidade: "alto", area: "Caixa", quantidade: atrasadas, href: caixa({ situacao: "pendente" }), titulo: `${atrasadas} ${plural(atrasadas, "quebra parada", "quebras paradas")} há mais de 5 dias sem justificativa`, detalhe: "Cobre o gestor da loja antes do fechamento da folha." });
+          out.push({
+            id: "caixa-atrasadas",
+            severidade: "alto",
+            area: "Caixa",
+            quantidade: atrasadas,
+            href: caixa({ situacao: "pendente" }),
+            titulo: `${atrasadas} ${plural(atrasadas, "quebra parada", "quebras paradas")} há mais de 5 dias sem justificativa`,
+            detalhe: "Cobre o gestor da loja antes do fechamento da folha.",
+          });
         else if (aguardando)
-          out.push({ id: "caixa-aguardando", severidade: "atencao", area: "Caixa", quantidade: aguardando, href: caixa({ situacao: "pendente" }), titulo: `${aguardando} ${plural(aguardando, "quebra aguardando", "quebras aguardando")} justificativa do gestor` });
+          out.push({
+            id: "caixa-aguardando",
+            severidade: "atencao",
+            area: "Caixa",
+            quantidade: aguardando,
+            href: caixa({ situacao: "pendente" }),
+            titulo: `${aguardando} ${plural(aguardando, "quebra aguardando", "quebras aguardando")} justificativa do gestor`,
+          });
         if (!ontemLido)
-          out.push({ id: "caixa-ontem", severidade: "atencao", area: "Caixa", quantidade: 1, minha: true, href: "/financeiro/diferenca-caixa", titulo: "Os caixas de ontem ainda não foram buscados no Trier", detalhe: "Use “Buscar do Trier” com o dia de ontem." });
+          out.push({
+            id: "caixa-ontem",
+            severidade: "atencao",
+            area: "Caixa",
+            quantidade: 1,
+            minha: true,
+            href: "/financeiro/diferenca-caixa",
+            titulo: "Os caixas de ontem ainda não foram buscados no Trier",
+            detalhe: "Use “Buscar do Trier” com o dia de ontem.",
+          });
         if (errosColeta)
-          out.push({ id: "caixa-erros", severidade: "atencao", area: "Caixa", quantidade: errosColeta, href: "/financeiro/diferenca-caixa", titulo: `${errosColeta} ${plural(errosColeta, "loja com erro", "lojas com erro")} na busca do Trier (últimos 7 dias)`, detalhe: "Busque de novo marcando “buscar de novo”." });
+          out.push({
+            id: "caixa-erros",
+            severidade: "atencao",
+            area: "Caixa",
+            quantidade: errosColeta,
+            href: "/financeiro/diferenca-caixa",
+            titulo: `${errosColeta} ${plural(errosColeta, "loja com erro", "lojas com erro")} na busca do Trier (últimos 7 dias)`,
+            detalhe: "Busque de novo marcando “buscar de novo”.",
+          });
+      })(),
+    );
+  } else if (sessao.papel === "coordenador") {
+    // coordenador de vendas: acompanha as quebras da regional (quem justifica é o gestor de cada loja)
+    tarefas.push(
+      (async () => {
+        const n = await contar(quebras().eq("andamento", "pendente"));
+        if (n)
+          out.push({
+            id: "caixa-regional",
+            severidade: "atencao",
+            area: "Caixa",
+            quantidade: n,
+            minha: false,
+            href: "/caixa",
+            titulo: `${n} ${plural(n, "quebra de caixa", "quebras de caixa")} sem justificativa na regional`,
+            detalhe: "Cobre os gestores das lojas: a justificativa precisa estar registrada antes do fechamento da folha.",
+          });
       })(),
     );
   } else if (pode("/caixa")) {
@@ -89,17 +164,33 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
     tarefas.push(
       (async () => {
         const comoGestor = await contar(
-          sessao.papel === "gerente"
-            ? quebras().eq("andamento", "pendente").or(`gestor_id.eq.${sessao.id},gestor_id.is.null`)
-            : quebras().eq("andamento", "pendente").eq("gestor_id", sessao.id),
+          sessao.papel === "gerente" ? quebras().eq("andamento", "pendente").or(`gestor_id.eq.${sessao.id},gestor_id.is.null`) : quebras().eq("andamento", "pendente").eq("gestor_id", sessao.id),
         );
         if (comoGestor) {
-          out.push({ id: "caixa-justificar", severidade: "alto", area: "Caixa", quantidade: comoGestor, minha: true, href: "/caixa", titulo: `${comoGestor} ${plural(comoGestor, "quebra de caixa", "quebras de caixa")} para você justificar`, detalhe: "Registre o que aconteceu antes do fechamento da folha." });
+          out.push({
+            id: "caixa-justificar",
+            severidade: "alto",
+            area: "Caixa",
+            quantidade: comoGestor,
+            minha: true,
+            href: "/caixa",
+            titulo: `${comoGestor} ${plural(comoGestor, "quebra de caixa", "quebras de caixa")} para você justificar`,
+            detalhe: "Registre o que aconteceu antes do fechamento da folha.",
+          });
           return;
         }
         const minhas = await contar(quebras().eq("andamento", "pendente"));
         if (minhas)
-          out.push({ id: "caixa-minhas", severidade: "info", area: "Caixa", quantidade: minhas, minha: true, href: "/caixa", titulo: `Você tem ${minhas} ${plural(minhas, "quebra de caixa", "quebras de caixa")}`, detalhe: "Justifique para o seu gestor: é ele quem registra no sistema." });
+          out.push({
+            id: "caixa-minhas",
+            severidade: "info",
+            area: "Caixa",
+            quantidade: minhas,
+            minha: true,
+            href: "/caixa",
+            titulo: `Você tem ${minhas} ${plural(minhas, "quebra de caixa", "quebras de caixa")}`,
+            detalhe: "Justifique para o seu gestor: é ele quem registra no sistema.",
+          });
       })(),
     );
   }
@@ -116,13 +207,43 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
           contar(abertas()),
         ]);
         if (vencidas)
-          out.push({ id: "conc-vencidas", severidade: "critico", area: "Conciliação", quantidade: vencidas, href: "/conciliacao/pendencias?ordem=vencimento", titulo: `${vencidas} ${plural(vencidas, "pendência de conciliação vencida", "pendências de conciliação vencidas")}`, detalhe: `${total} em aberto no total.` });
+          out.push({
+            id: "conc-vencidas",
+            severidade: "critico",
+            area: "Conciliação",
+            quantidade: vencidas,
+            href: "/conciliacao/pendencias?ordem=vencimento",
+            titulo: `${vencidas} ${plural(vencidas, "pendência de conciliação vencida", "pendências de conciliação vencidas")}`,
+            detalhe: `${total} em aberto no total.`,
+          });
         if (aVencer)
-          out.push({ id: "conc-a-vencer", severidade: "alto", area: "Conciliação", quantidade: aVencer, href: "/conciliacao/pendencias?ordem=vencimento", titulo: `${aVencer} ${plural(aVencer, "pendência vence", "pendências vencem")} em até 3 dias` });
+          out.push({
+            id: "conc-a-vencer",
+            severidade: "alto",
+            area: "Conciliação",
+            quantidade: aVencer,
+            href: "/conciliacao/pendencias?ordem=vencimento",
+            titulo: `${aVencer} ${plural(aVencer, "pendência vence", "pendências vencem")} em até 3 dias`,
+          });
         if (minhas)
-          out.push({ id: "conc-minhas", severidade: "alto", area: "Conciliação", quantidade: minhas, minha: true, href: `/conciliacao/pendencias?responsavel=${sessao.id}`, titulo: `${minhas} ${plural(minhas, "pendência atribuída", "pendências atribuídas")} a você` });
+          out.push({
+            id: "conc-minhas",
+            severidade: "alto",
+            area: "Conciliação",
+            quantidade: minhas,
+            minha: true,
+            href: `/conciliacao/pendencias?responsavel=${sessao.id}`,
+            titulo: `${minhas} ${plural(minhas, "pendência atribuída", "pendências atribuídas")} a você`,
+          });
         if (!vencidas && !aVencer && total)
-          out.push({ id: "conc-abertas", severidade: "atencao", area: "Conciliação", quantidade: total, href: "/conciliacao/pendencias", titulo: `${total} ${plural(total, "pendência de conciliação", "pendências de conciliação")} em aberto` });
+          out.push({
+            id: "conc-abertas",
+            severidade: "atencao",
+            area: "Conciliação",
+            quantidade: total,
+            href: "/conciliacao/pendencias",
+            titulo: `${total} ${plural(total, "pendência de conciliação", "pendências de conciliação")} em aberto`,
+          });
       })(),
     );
   }
@@ -136,9 +257,24 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
           contar(supabase.from("folha_observacoes").select("employee_id", { count: "exact", head: true }).eq("pendente", true).eq("competencia", `${compAnterior}-01`)),
         ]);
         if (obsAnterior)
-          out.push({ id: "folha-obs-anterior", severidade: "alto", area: "Folha", quantidade: obsAnterior, href: `/rh/lancamentos?competencia=${compAnterior}&so=pendentes`, titulo: `${obsAnterior} ${plural(obsAnterior, "observação pendente", "observações pendentes")} na folha do mês passado`, detalhe: "Resolva ou desmarque “pendente” antes de mandar para a contabilidade." });
+          out.push({
+            id: "folha-obs-anterior",
+            severidade: "alto",
+            area: "Folha",
+            quantidade: obsAnterior,
+            href: `/rh/lancamentos?competencia=${compAnterior}&so=pendentes`,
+            titulo: `${obsAnterior} ${plural(obsAnterior, "observação pendente", "observações pendentes")} na folha do mês passado`,
+            detalhe: "Resolva ou desmarque “pendente” antes de mandar para a contabilidade.",
+          });
         if (obsAtual)
-          out.push({ id: "folha-obs-atual", severidade: "atencao", area: "Folha", quantidade: obsAtual, href: `/rh/lancamentos?competencia=${comp}&so=pendentes`, titulo: `${obsAtual} ${plural(obsAtual, "observação pendente", "observações pendentes")} na folha deste mês` });
+          out.push({
+            id: "folha-obs-atual",
+            severidade: "atencao",
+            area: "Folha",
+            quantidade: obsAtual,
+            href: `/rh/lancamentos?competencia=${comp}&so=pendentes`,
+            titulo: `${obsAtual} ${plural(obsAtual, "observação pendente", "observações pendentes")} na folha deste mês`,
+          });
       })(),
     );
   }
@@ -150,9 +286,23 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
         const aso = () => supabase.from("employee_aso").select("id, employees!inner(status)", { count: "exact", head: true }).eq("ativo", true).neq("employees.status", "desligado");
         const [vencidos, vencendo] = await Promise.all([contar(aso().lt("data_validade", hoje)), contar(aso().gte("data_validade", hoje).lte("data_validade", em30dias))]);
         if (vencidos)
-          out.push({ id: "aso-vencidos", severidade: "critico", area: "RH", quantidade: vencidos, href: "/rh/aso?situacao=vencidos", titulo: `${vencidos} ${plural(vencidos, "ASO vencido", "ASOs vencidos")}` });
+          out.push({
+            id: "aso-vencidos",
+            severidade: "critico",
+            area: "RH",
+            quantidade: vencidos,
+            href: "/rh/aso?situacao=vencidos",
+            titulo: `${vencidos} ${plural(vencidos, "ASO vencido", "ASOs vencidos")}`,
+          });
         if (vencendo)
-          out.push({ id: "aso-vencendo", severidade: "atencao", area: "RH", quantidade: vencendo, href: "/rh/aso?situacao=proximos", titulo: `${vencendo} ${plural(vencendo, "ASO vence", "ASOs vencem")} nos próximos 30 dias` });
+          out.push({
+            id: "aso-vencendo",
+            severidade: "atencao",
+            area: "RH",
+            quantidade: vencendo,
+            href: "/rh/aso?situacao=proximos",
+            titulo: `${vencendo} ${plural(vencendo, "ASO vence", "ASOs vencem")} nos próximos 30 dias`,
+          });
       })(),
     );
   }
@@ -171,15 +321,53 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
           contar(abertos().eq("responsavel", sessao.id)),
         ]);
         if (slaEstourado)
-          out.push({ id: "chamados-sla", severidade: "critico", area: "Chamados", quantidade: slaEstourado, href: "/chamados?sla=estourado", titulo: `${slaEstourado} ${plural(slaEstourado, "chamado com SLA estourado", "chamados com SLA estourado")}`, detalhe: "Passou do prazo de primeira resposta e ninguém respondeu." });
+          out.push({
+            id: "chamados-sla",
+            severidade: "critico",
+            area: "Chamados",
+            quantidade: slaEstourado,
+            href: "/chamados?sla=estourado",
+            titulo: `${slaEstourado} ${plural(slaEstourado, "chamado com SLA estourado", "chamados com SLA estourado")}`,
+            detalhe: "Passou do prazo de primeira resposta e ninguém respondeu.",
+          });
         if (criticos)
-          out.push({ id: "chamados-criticos", severidade: "critico", area: "Chamados", quantidade: criticos, href: "/chamados?prioridade=critica", titulo: `${criticos} ${plural(criticos, "chamado crítico", "chamados críticos")} em aberto` });
+          out.push({
+            id: "chamados-criticos",
+            severidade: "critico",
+            area: "Chamados",
+            quantidade: criticos,
+            href: "/chamados?prioridade=critica",
+            titulo: `${criticos} ${plural(criticos, "chamado crítico", "chamados críticos")} em aberto`,
+          });
         if (aguardandoMim)
-          out.push({ id: "chamados-aguardando", severidade: "alto", area: "Chamados", quantidade: aguardandoMim, minha: true, href: "/chamados?status=aguardando_usuario&visao=meus", titulo: `${aguardandoMim} ${plural(aguardandoMim, "chamado seu espera", "chamados seus esperam")} uma resposta sua` });
+          out.push({
+            id: "chamados-aguardando",
+            severidade: "alto",
+            area: "Chamados",
+            quantidade: aguardandoMim,
+            minha: true,
+            href: "/chamados?status=aguardando_usuario&visao=meus",
+            titulo: `${aguardandoMim} ${plural(aguardandoMim, "chamado seu espera", "chamados seus esperam")} uma resposta sua`,
+          });
         if (semResponsavel)
-          out.push({ id: "chamados-sem-responsavel", severidade: "alto", area: "Chamados", quantidade: semResponsavel, href: "/chamados?status=aberto", titulo: `${semResponsavel} ${plural(semResponsavel, "chamado sem responsável", "chamados sem responsável")}` });
+          out.push({
+            id: "chamados-sem-responsavel",
+            severidade: "alto",
+            area: "Chamados",
+            quantidade: semResponsavel,
+            href: "/chamados?status=aberto",
+            titulo: `${semResponsavel} ${plural(semResponsavel, "chamado sem responsável", "chamados sem responsável")}`,
+          });
         if (meusAtendimentos)
-          out.push({ id: "chamados-meus", severidade: "atencao", area: "Chamados", quantidade: meusAtendimentos, minha: true, href: "/chamados?visao=atendo", titulo: `${meusAtendimentos} ${plural(meusAtendimentos, "chamado em atendimento", "chamados em atendimento")} com você` });
+          out.push({
+            id: "chamados-meus",
+            severidade: "atencao",
+            area: "Chamados",
+            quantidade: meusAtendimentos,
+            minha: true,
+            href: "/chamados?visao=atendo",
+            titulo: `${meusAtendimentos} ${plural(meusAtendimentos, "chamado em atendimento", "chamados em atendimento")} com você`,
+          });
       })(),
     );
   }
@@ -191,7 +379,15 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
       if (!comite) return;
       const novas = await contar(supabase.from("denuncias").select("id", { count: "exact", head: true }).eq("status", "recebida"));
       if (novas)
-        out.push({ id: "denuncias-novas", severidade: "alto", area: "Denúncias", quantidade: novas, minha: true, href: "/denuncias/recebidas", titulo: `${novas} ${plural(novas, "denúncia nova", "denúncias novas")} para o comitê analisar` });
+        out.push({
+          id: "denuncias-novas",
+          severidade: "alto",
+          area: "Denúncias",
+          quantidade: novas,
+          minha: true,
+          href: "/denuncias/recebidas",
+          titulo: `${novas} ${plural(novas, "denúncia nova", "denúncias novas")} para o comitê analisar`,
+        });
     })(),
   );
 

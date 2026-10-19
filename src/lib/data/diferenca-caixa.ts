@@ -146,6 +146,18 @@ export async function anexosDasQuebras(ids: string[]): Promise<Map<string, Anexo
   return mapa;
 }
 
+/** Quebras que o usuário enxerga (coordenador: as da regional), por loja e mês ou só as em aberto. */
+export async function quebrasVisiveis(f: { abertas: boolean; filial?: string | null; mes?: string | null }) {
+  const supabase = await createClient();
+  let q = supabase.from("caixa_diferencas").select(`${COLUNAS}, justificativa, justificada_por_nome, decisao_obs, branch_id`).eq("classe", "quebra");
+  if (f.abertas) q = q.in("andamento", ["pendente", "justificada"]);
+  if (f.filial && UUID.test(f.filial)) q = q.eq("branch_id", f.filial);
+  if (f.mes && /^\d{4}-\d{2}$/.test(f.mes)) q = q.eq("competencia", `${f.mes}-01`);
+  const { data, error } = await q.order("dia", { ascending: false }).limit(1000);
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
 export type FuncionarioCaixa = { id: string; nome: string; cargo: string | null; matricula: string | null; branch_id: string; filial: string; status: string };
 
 /** Funcionários (nome, cargo, matrícula, loja) para o financeiro ligar operadores e ver de quem é a quebra. */
