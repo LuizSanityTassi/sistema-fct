@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Archivo_Black, Geist, Geist_Mono } from "next/font/google";
+import { RegistrarApp } from "@/components/layout/app-instalavel";
 import { SCRIPT_TEMA } from "@/lib/tema";
 import "./globals.css";
 
@@ -25,7 +26,12 @@ export const metadata: Metadata = {
   description: "Sistema interno de gestão — Farmácias FCT",
   // sistema todo em português: o tradutor automático do navegador troca nomes do menu ("Funcionários" vira "/")
   other: { google: "notranslate" },
+  // instalado no iPhone ("Adicionar à Tela de Início"): abre em tela cheia, com este nome embaixo do ícone
+  appleWebApp: { capable: true, title: "Sistema FCT", statusBarStyle: "default" },
 };
+
+// cor da barra do celular quando instalado (faixa vermelha da marca)
+export const viewport: Viewport = { themeColor: "#c10510" };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
@@ -39,7 +45,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: SCRIPT_TEMA }} />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <RegistrarApp />
+      </body>
     </html>
   );
 }

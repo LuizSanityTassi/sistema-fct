@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, ChevronRight, ChevronsUpDown, LogOut, Menu, Monitor, Moon, PanelLeft, Sun } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronsUpDown, LogOut, Menu, Monitor, Moon, PanelLeft, Smartphone, Sun } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import { BuscaRapida } from "@/components/layout/busca-rapida";
 import { Emblema } from "@/components/layout/marca";
 import { SinoPendencias } from "@/components/layout/sino-pendencias";
 import { useTema } from "@/components/layout/tema";
+import { AvisoInstalarApp, useInstalarPeloMenu } from "@/components/layout/aviso-instalar";
 import { grupoDaRota, itemDaRota, navParaPapel } from "@/lib/nav";
 import { PAPEL_LABEL, type AppRole } from "@/lib/roles";
 import { COOKIE_MENU, type Tema } from "@/lib/tema";
@@ -178,6 +179,7 @@ const TEMAS: { valor: Tema; rotulo: string; icone: typeof Sun }[] = [
 function MenuUsuario({ usuario, onSair, recolhido }: Pick<AppShellProps, "usuario" | "onSair"> & { recolhido?: boolean }) {
   const [saindo, iniciarSaida] = React.useTransition();
   const { tema, escolher } = useTema();
+  const app = useInstalarPeloMenu();
   const sair = () => {
     iniciarSaida(async () => {
       await onSair();
@@ -233,12 +235,19 @@ function MenuUsuario({ usuario, onSair, recolhido }: Pick<AppShellProps, "usuari
             </DropdownMenuRadioGroup>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
+          {app.disponivel && (
+            <DropdownMenuItem onClick={app.acionar}>
+              <Smartphone aria-hidden />
+              {app.rotulo}
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem variant="destructive" onClick={sair} disabled={saindo}>
             <LogOut aria-hidden />
             {saindo ? "Saindo…" : "Sair"}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      {app.dialogo}
     </div>
   );
 }
@@ -353,7 +362,10 @@ export function AppShell({ usuario, onSair, menuRecolhido = false, children }: A
           </header>
 
           <main id="conteudo" tabIndex={-1} className="flex-1 outline-none">
-            <div className="mx-auto w-full max-w-[90rem] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</div>
+            <div className="mx-auto w-full max-w-[90rem] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+              <AvisoInstalarApp />
+              {children}
+            </div>
           </main>
         </div>
       </div>
