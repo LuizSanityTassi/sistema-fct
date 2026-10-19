@@ -49,7 +49,7 @@ const ACOES: { rotulo: string; href: string; icone: LucideIcon; papeis?: AppRole
   { rotulo: "Lançamentos da folha", href: "/rh/lancamentos", icone: ListChecks },
   { rotulo: "Novo funcionário", href: "/rh/funcionarios/novo", icone: UserPlus, papeis: ["admin", "rh"] },
   { rotulo: "Novo equipamento", href: "/ti/ativos/novo", icone: MonitorCog },
-  { rotulo: "Pedir acesso a sistema", href: "/ti/acessos/novo", icone: KeyRound, papeis: ["gerente", "usuario", "rh", "financeiro", "contador", "coordenador"] },
+  { rotulo: "Pedir acesso a sistema", href: "/ti/acessos/novo", icone: KeyRound, papeis: ["gerente", "usuario", "rh", "financeiro", "contador", "coordenador", "manutencao", "compras", "marketing"] },
   { rotulo: "Abrir chamado", href: "/chamados/novo", icone: LifeBuoy },
 ];
 
@@ -121,7 +121,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   return (
     <>
       <BoasVindas data={hoje} titulo={`${saudacao}, ${primeiroNome}`}>
-        {PAPEL_LABEL[sessao.papel]} · {sessao.papel === "coordenador" ? `números da regional ${sessao.regional ?? "—"}` : sessao.papel === "gerente" || sessao.papel === "usuario" ? "números das suas unidades" : "números de todas as unidades"}
+        {PAPEL_LABEL[sessao.papel]} · {sessao.papel === "coordenador" ? `números da regional ${sessao.regional ?? "—"}` : sessao.papel === "gerente" || sessao.papel === "usuario" ? "números das suas unidades" : sessao.papel === "manutencao" || sessao.papel === "compras" || sessao.papel === "marketing" ? "chamados do seu setor em todas as lojas" : "números de todas as unidades"}
         {" · "}
         {pendencias.length ? pluralizar(pendencias.length, "pendência esperando ação", "pendências esperando ação") : "nada pendente agora"}.
       </BoasVindas>

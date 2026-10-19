@@ -131,7 +131,7 @@ export const NAV: NavGrupo[] = [
         label: "Indicadores de chamados",
         href: "/chamados/indicadores",
         icon: ChartColumn,
-        papeis: ["admin", "ti", "rh", "financeiro", "coordenador"],
+        papeis: ["admin", "ti", "rh", "financeiro", "coordenador", "manutencao", "compras", "marketing"],
         descricao: "SLA, tempo de primeira resposta e de resolução, por loja, por categoria e recorrentes.",
         oculto: true,
       },

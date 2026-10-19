@@ -11,6 +11,7 @@ export const CATEGORIA_CHAMADO_LABEL: Record<CategoriaChamado, string> = {
   financeiro: "Financeiro",
   manutencao: "Manutenção",
   compras: "Compras",
+  marketing: "Marketing",
   outros: "Outros",
 };
 
@@ -59,6 +60,10 @@ export function papelAtende(papel: string, categoria: CategoriaChamado) {
   if (papel === "admin") return true;
   if (categoria === "rh") return papel === "rh";
   if (categoria === "financeiro") return papel === "financeiro" || papel === "ti";
+  // setores com perfil próprio atendem os seus; a TI continua de reserva
+  if (categoria === "manutencao") return papel === "manutencao" || papel === "ti";
+  if (categoria === "compras") return papel === "compras" || papel === "ti";
+  if (categoria === "marketing") return papel === "marketing" || papel === "ti";
   return papel === "ti";
 }
 

@@ -312,7 +312,7 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
     tarefas.push(
       (async () => {
         const abertos = () => supabase.from("tickets").select("id", { count: "exact", head: true }).not("status", "in", "(resolvido,cancelado)");
-        const atende = sessao.papel === "admin" || sessao.papel === "ti" || sessao.papel === "rh" || sessao.papel === "financeiro";
+        const atende = ["admin", "ti", "rh", "financeiro", "manutencao", "compras", "marketing"].includes(sessao.papel);
         const [slaEstourado, criticos, semResponsavel, aguardandoMim, meusAtendimentos] = await Promise.all([
           atende ? contar(abertos().is("primeira_resposta_em", null).or(filtroSlaEstourado())) : Promise.resolve(0),
           contar(abertos().eq("prioridade", "critica")),

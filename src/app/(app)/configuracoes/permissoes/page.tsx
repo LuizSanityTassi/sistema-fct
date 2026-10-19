@@ -14,7 +14,7 @@ const ESCRITA: Record<string, string> = {
   "/rh/documentos": "Administrador e RH",
   "/rh/aso": "Administrador e RH",
   "/rh/folha": "Administrador e RH (reabrir competência: só administrador)",
-  "/chamados": "Todos abrem; atendem: TI (exceto RH), RH (categoria RH), Financeiro (categoria Financeiro), administrador",
+  "/chamados": "Todos abrem; atendem: TI (exceto RH), RH (categoria RH), Financeiro, Manutenção, Compras e Marketing (cada um a sua categoria), administrador",
   "/filiais": "Administrador",
   "/ti": "Administrador e TI",
   "/relatorios": "—",

@@ -1,6 +1,7 @@
 // Tipos de chamado (a mesma lista que as lojas já usavam no sistema da Zanini, com "Suporte sistema" no lugar de
 // "Suporte Zanini"). Quem abre escolhe o TIPO; o sistema deriva a CATEGORIA, que é o setor que atende e define
-// quem vê o chamado (RH só o RH vê, Financeiro o Financeiro; o resto a TI). O tipo fica em tickets.subcategoria.
+// quem vê o chamado (RH só o RH vê; Financeiro, Manutenção, Compras e Marketing veem os seus; a TI vê tudo menos
+// RH e fica de reserva). O tipo fica em tickets.subcategoria.
 // Módulo puro (servidor e navegador).
 import type { CategoriaChamado } from "@/lib/chamados/rotulos";
 
@@ -24,7 +25,7 @@ const LISTA: TipoChamado[] = [
   { valor: "quebra_caixa", rotulo: "Quebra de Caixa", categoria: "financeiro", dica: "Dúvida sobre diferença de caixa ou desconto." },
   { valor: "rh_dp", rotulo: "RH/DP", categoria: "rh", dica: "Departamento pessoal em geral." },
   { valor: "vencidos", rotulo: "Vencidos", categoria: "compras", dica: "Produtos vencidos ou perto de vencer." },
-  { valor: "marketing", rotulo: "Solicitações de Marketing", categoria: "outros", dica: "Cartaz, encarte, ação na loja, redes sociais." },
+  { valor: "marketing", rotulo: "Solicitações de Marketing", categoria: "marketing", dica: "Cartaz, encarte, ação na loja, redes sociais." },
   { valor: "advertencia_suspensao", rotulo: "Solicitação advertência / suspensão", categoria: "rh", dica: "Pedido de medida disciplinar." },
   { valor: "uniforme", rotulo: "Uniforme", categoria: "rh", dica: "Pedido, troca ou tamanho de uniforme." },
   { valor: "suporte_sistema", rotulo: "Suporte sistema", categoria: "ti", dica: "Dúvida ou problema no Sistema FCT." },

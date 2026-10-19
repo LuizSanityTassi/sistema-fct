@@ -153,13 +153,13 @@ export async function linhaDoTempo(ticketId: string): Promise<ItemLinhaDoTempo[]
   return itens.sort((x, y) => x.quando.localeCompare(y.quando));
 }
 
-/** Pessoas que podem atender (admin/TI/RH/Financeiro). Vazio para quem não enxerga os perfis. */
+/** Pessoas que podem atender (admin, TI e os setores). Vazio para quem não enxerga os perfis. */
 export async function listarAtendentes() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("profiles")
     .select("id, nome, papel")
-    .in("papel", ["admin", "ti", "rh", "financeiro"])
+    .in("papel", ["admin", "ti", "rh", "financeiro", "manutencao", "compras", "marketing"])
     .eq("ativo", true)
     .order("nome");
   if (error) return [];

@@ -42,6 +42,9 @@ const DESCRICAO_PAPEL: Record<AppRole, string> = {
   contador: "Financeiro de todas as unidades (lança, importa e classifica; não exclui nem fecha mês).",
   coordenador: "Indicadores do financeiro, chamados e quebras de caixa de TODAS as lojas da regional dele (quebras só para ver; não vê funcionários nem salários).",
   gerente: "Funcionários, chamados e quebras de caixa da unidade principal e das outras filiais marcadas abaixo (sem salários).",
+  manutencao: "Atende os chamados de Manutenções (todas as lojas) e abre os próprios.",
+  compras: "Atende os chamados de compras e estoque (avarias, notas, inventário, vencidos) de todas as lojas.",
+  marketing: "Atende as Solicitações de Marketing de todas as lojas.",
   usuario: "Abre e acompanha os próprios chamados.",
 };
 

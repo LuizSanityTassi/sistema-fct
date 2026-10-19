@@ -3147,6 +3147,9 @@ export type Database = {
         | "usuario"
         | "contador"
         | "coordenador"
+        | "manutencao"
+        | "compras"
+        | "marketing"
       aso_type:
         | "admissional"
         | "periodico"
@@ -3182,6 +3185,7 @@ export type Database = {
         | "manutencao"
         | "compras"
         | "outros"
+        | "marketing"
       ticket_priority: "baixa" | "normal" | "alta" | "critica"
       ticket_status:
         | "aberto"
@@ -3327,6 +3331,9 @@ export const Constants = {
         "usuario",
         "contador",
         "coordenador",
+        "manutencao",
+        "compras",
+        "marketing",
       ],
       aso_type: [
         "admissional",
@@ -3366,6 +3373,7 @@ export const Constants = {
         "manutencao",
         "compras",
         "outros",
+        "marketing",
       ],
       ticket_priority: ["baixa", "normal", "alta", "critica"],
       ticket_status: [

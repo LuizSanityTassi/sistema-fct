@@ -27,8 +27,9 @@ const QUEM_ATENDE: Record<CategoriaChamado, string> = {
   ti: "a TI atende",
   rh: "o RH atende e só o RH vê o conteúdo",
   financeiro: "o Financeiro atende",
-  manutencao: "a equipe de manutenção (TI) atende",
-  compras: "compras (TI) atende",
+  manutencao: "a equipe de manutenção atende",
+  compras: "o setor de compras atende",
+  marketing: "o marketing atende",
   outros: "a TI encaminha",
 };
 
