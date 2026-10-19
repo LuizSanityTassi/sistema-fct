@@ -6,8 +6,9 @@ import { listarRegionais } from "@/lib/data/filiais";
 import { obterUsuario } from "@/lib/data/usuarios";
 import { funcionariosDoCaixa } from "@/lib/data/diferenca-caixa";
 import { formatarDataHora } from "@/lib/formatos";
-import { salvarUsuario } from "../../actions";
+import { excluirUsuario, salvarUsuario } from "../../actions";
 import { UsuarioForm } from "../../usuario-form";
+import { ExcluirUsuario } from "./excluir-usuario";
 
 export const metadata = { title: "Editar usuário" };
 
@@ -47,6 +48,15 @@ export default async function EditarUsuarioPage({ params }: PageProps<"/configur
         funcionarios={opcoesFuncionario}
         ehProprioUsuario={usuario.id === sessao.id}
       />
+      {usuario.id !== sessao.id && (
+        <section className="mt-10 flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50/40 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-red-800">Excluir usuário</h2>
+            <p className="mt-0.5 max-w-xl text-sm text-muted-foreground">Apaga o login e o cadastro de vez. Para quem só saiu da empresa, desmarque “Acesso ativo” acima: o nome continua no histórico.</p>
+          </div>
+          <ExcluirUsuario action={excluirUsuario.bind(null, usuario.id)} nome={usuario.nome || usuario.email || "este usuário"} confirmacao={usuario.email || usuario.nome} />
+        </section>
+      )}
     </>
   );
 }

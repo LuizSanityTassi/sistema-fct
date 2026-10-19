@@ -222,3 +222,43 @@ export async function enviarRedefinicaoSenha(fd: FormData) {
   });
   redirect("/configuracoes/usuarios?reset=1");
 }
+
+// ---------- excluir ----------
+
+export type EstadoExclusao = { erro?: string };
+
+/**
+ * Exclui o usuário de vez (login e perfil). Lojas extras, gestor de loja, comitê de denúncias e pedidos de acesso
+ * dele saem junto; o histórico (chamados, auditoria, lançamentos, justificativas) fica, sem o vínculo com a pessoa.
+ * Não exclui a si mesmo nem o último administrador. Nome, e-mail e cargo ficam gravados na auditoria antes.
+ */
+export async function excluirUsuario(id: string, _prev: EstadoExclusao, fd: FormData): Promise<EstadoExclusao> {
+  const sessao = await exigirAdmin();
+  if (!sessao) return { erro: "Só administradores excluem usuários." };
+  if (!ehUuid(id)) return { erro: "Usuário inválido." };
+  if (id === sessao.id) return { erro: "Você não pode excluir o seu próprio usuário." };
+  const supabase = await createClient();
+  const { data: alvo } = await supabase.from("profiles").select("id, nome, email, papel, admin_sistema, ativo").eq("id", id).maybeSingle();
+  if (!alvo) return { erro: "Usuário não encontrado." };
+  // confirmação digitando o e-mail (ou o nome, se não tiver e-mail): exclusão não tem volta
+  const confirmacao = (texto(fd, "confirmacao") ?? "").toLowerCase();
+  if (confirmacao !== (alvo.email || alvo.nome).trim().toLowerCase()) return { erro: "Digite o e-mail do usuário exatamente como aparece para confirmar." };
+  if (alvo.papel === "admin" || alvo.admin_sistema) {
+    const { count } = await supabase.from("profiles").select("id", { count: "exact", head: true }).eq("ativo", true).or("papel.eq.admin,admin_sistema.eq.true").neq("id", id);
+    if (!count) return { erro: "Este é o último administrador ativo: cadastre outro antes de excluir." };
+  }
+  const admin = createAdminClient();
+  if (!admin) return { erro: "Falta a variável SUPABASE_SERVICE_ROLE_KEY no servidor para excluir o login." };
+
+  await registrarAuditoria(supabase, {
+    userId: sessao.id,
+    acao: "excluir",
+    entidade: "profiles",
+    registroId: id,
+    anterior: { nome: alvo.nome, email: alvo.email, papel: alvo.papel, admin_sistema: alvo.admin_sistema, ativo: alvo.ativo },
+  });
+  const { error } = await admin.auth.admin.deleteUser(id);
+  if (error) return { erro: `Não consegui excluir: ${error.message}` };
+  revalidatePath("/configuracoes/usuarios");
+  redirect("/configuracoes/usuarios?excluido=1");
+}

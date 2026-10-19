@@ -48,6 +48,11 @@ export default async function UsuariosPage({ searchParams }: PageProps<"/configu
           <AvisoSucesso mensagem="Usuário salvo." />
         </div>
       )}
+      {sp.excluido === "1" && (
+        <div className="mb-4">
+          <AvisoSucesso mensagem="Usuário excluído. O registro ficou na auditoria." />
+        </div>
+      )}
       {sp.reset === "1" && (
         <div className="mb-4">
           <AvisoSucesso mensagem="E-mail de redefinição de senha enviado (se o endereço existir)." />

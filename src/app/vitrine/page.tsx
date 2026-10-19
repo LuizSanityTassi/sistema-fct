@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AnexosQuebra } from "@/app/(app)/caixa/anexos-quebra";
 import { ChamadoForm } from "@/app/(app)/chamados/chamado-form";
+import { ExcluirUsuario } from "@/app/(app)/configuracoes/usuarios/[id]/editar/excluir-usuario";
 import type { EstadoChamado } from "@/app/(app)/chamados/actions";
 import { assuntoAviso, htmlAviso, type Destinatario } from "@/lib/caixa/avisos-email";
 import { JustificativaForm } from "@/app/(app)/caixa/justificativa-form";
@@ -53,6 +54,10 @@ export default function VitrinePage() {
   if (process.env.NODE_ENV !== "development") notFound();
   async function sair() {
     "use server";
+  }
+  async function excluirExemplo(): Promise<{ erro?: string }> {
+    "use server";
+    return { erro: "Exemplo: nada foi excluído." };
   }
   async function abrirExemplo(): Promise<EstadoChamado> {
     "use server";
@@ -251,6 +256,13 @@ export default function VitrinePage() {
         </h2>
         <AnexosQuebra anexos={ANEXOS} usuarioId="eu" aberta />
         <JustificativaForm action={justificarExemplo} id="00000000-0000-0000-0000-00000000000a" atual={null} />
+      </section>
+
+      <section aria-labelledby="t-excluir" className="mb-6 flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50/40 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <h2 id="t-excluir" className="text-sm font-semibold text-red-800">
+          Excluir usuário (exemplo)
+        </h2>
+        <ExcluirUsuario action={excluirExemplo} nome="Maria Exemplo" confirmacao="maria@exemplo.local" />
       </section>
 
       <section aria-labelledby="t-chamado" className="mb-6">
