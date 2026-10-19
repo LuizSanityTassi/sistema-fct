@@ -27,14 +27,15 @@ export async function enviarTesteAvisos(): Promise<EstadoAvisos> {
   try {
     const r = await enviarTeste(admin, { profileId: sessao.id, nome: sessao.nome, email: sessao.email });
     revalidatePath(ROTA);
-    return { ok: `Teste enviado para ${sessao.email}${r.usouGestor ? `, com as quebras de ${r.usouGestor}` : ", com uma quebra de exemplo"}. Confira a caixa de entrada (e o spam, na primeira vez).` };
+    const fonte = [r.usouGestor ? `a parte de gestor com as quebras de ${r.usouGestor}` : null, r.usouColaborador ? `a parte de colaborador com as de ${r.usouColaborador}` : null].filter(Boolean);
+    return { ok: `Teste enviado para ${sessao.email}, com as duas partes do e-mail (gestor e colaborador)${fonte.length ? `: ${fonte.join("; ")}` : ", usando quebras de exemplo"}. Confira a caixa de entrada (e o spam, na primeira vez).` };
   } catch (e) {
     revalidatePath(ROTA);
     return { erro: `Não consegui enviar o teste: ${mensagem(e)}` };
   }
 }
 
-/** Envia agora para todos os gestores com quebra pendente (quem já recebeu hoje não recebe de novo). */
+/** Envia agora para todos com quebra em aberto, gestores e colaboradores (quem já recebeu hoje não recebe de novo). */
 export async function enviarAvisosAgora(): Promise<EstadoAvisos> {
   const sessao = await exigirFinanceiro();
   if (!sessao) return { erro: "Só o administrador e o financeiro mexem nos avisos." };
@@ -47,10 +48,10 @@ export async function enviarAvisosAgora(): Promise<EstadoAvisos> {
     revalidatePath(ROTA);
     const partes = [
       r.enviados ? `${pluralizar(r.enviados, "aviso enviado", "avisos enviados")}` : "nenhum aviso novo",
-      r.jaAvisados ? `${pluralizar(r.jaAvisados, "gestor já tinha recebido hoje", "gestores já tinham recebido hoje")}` : null,
+      r.jaAvisados ? `${pluralizar(r.jaAvisados, "pessoa já tinha recebido hoje", "pessoas já tinham recebido hoje")}` : null,
     ].filter(Boolean);
     if (r.falhas.length) return { erro: `${partes.join(" · ")}. Falhou para: ${r.falhas.map((f) => `${f.nome} (${f.erro})`).join("; ")}` };
-    if (!r.destinatarios) return { ok: "Ninguém para avisar agora: nenhuma quebra pendente com gestor ou gerente definido." };
+    if (!r.destinatarios) return { ok: "Ninguém para avisar agora: nenhuma quebra pendente com gestor, gerente ou colaborador com e-mail." };
     return { ok: `Pronto: ${partes.join(" · ")}.` };
   } catch (e) {
     return { erro: mensagem(e) };

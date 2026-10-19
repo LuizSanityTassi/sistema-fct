@@ -48,7 +48,9 @@ export default async function AvisosCaixaPage() {
   }
   const temCron = Boolean(process.env.CRON_SECRET);
   const ultimoAuto = (historico ?? []).find((h) => h.origem === "automatico");
-  const avisadosHoje = new Set((historico ?? []).filter((h) => previa && h.dia === previa.hoje && !h.erro && h.origem !== "teste").map((h) => h.profile_id));
+  const avisadosHoje = new Set((historico ?? []).filter((h) => previa && h.dia === previa.hoje && !h.erro && h.origem !== "teste").map((h) => h.email.toLowerCase()));
+  const nGestores = previa?.destinatarios.filter((d) => d.quebras.length).length ?? 0;
+  const nColaboradores = previa?.destinatarios.filter((d) => d.minhas.length).length ?? 0;
   const ehAdmin = sessao.papel === "admin";
 
   return (
@@ -56,7 +58,7 @@ export default async function AvisosCaixaPage() {
       <PageHeader
         eyebrow="Financeiro"
         titulo="Avisos por e-mail"
-        descricao="Toda manhã, de segunda a sábado, cada gestor que tem quebra de caixa esperando justificativa recebe um e-mail com a lista e o link para justificar. Quem não tem nada pendente não recebe nada. Ninguém recebe duas vezes no mesmo dia."
+        descricao="Toda manhã, de segunda a sábado: o gestor recebe as quebras que ele precisa justificar, com o link para o sistema; o colaborador recebe as quebras no nome dele, para explicar ao gestor. Quem não tem nada em aberto não recebe nada, e ninguém recebe duas vezes no mesmo dia (quem é as duas coisas recebe um e-mail só)."
         acoes={
           <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/financeiro/diferenca-caixa" />}>
             <ChevronLeft data-icon="inline-start" />
@@ -127,8 +129,13 @@ export default async function AvisosCaixaPage() {
         id="hoje"
         className="mb-6"
         titulo="Quem recebe hoje"
-        descricao={previa ? `${pluralizar(previa.destinatarios.length, "gestor", "gestores")} · ${pluralizar(previa.totalQuebras, "quebra pendente", "quebras pendentes")} no total` : undefined}
+        descricao={previa ? `${pluralizar(previa.destinatarios.length, "pessoa", "pessoas")} (${pluralizar(nGestores, "gestor", "gestores")}, ${pluralizar(nColaboradores, "colaborador", "colaboradores")}) · ${pluralizar(previa.totalQuebras, "quebra pendente", "quebras pendentes")} no total` : undefined}
       >
+        {previa && previa.colaboradoresSemEmail > 0 && (
+          <p className="mx-5 mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            {pluralizar(previa.colaboradoresSemEmail, "colaborador com quebra em aberto não tem", "colaboradores com quebra em aberto não têm")} e-mail: nem usuário no sistema, nem e-mail na ficha do funcionário. O RH cadastra o e-mail em Pessoas → Funcionários → Editar.
+          </p>
+        )}
         <div className="border-t px-5 py-4">
           <EnvioAvisos teste={enviarTesteAvisos} todos={enviarAvisosAgora} destinatarios={previa?.destinatarios.length ?? 0} podeEnviar={Boolean(admin && smtpOk)} />
         </div>
@@ -137,35 +144,48 @@ export default async function AvisosCaixaPage() {
             compacto
             icone={UsersRound}
             titulo="Ninguém para avisar hoje"
-            descricao={previa.totalQuebras ? "Há quebras pendentes, mas nenhuma loja com gestor ou gerente cadastrado. Veja a lista abaixo." : "Nenhuma quebra esperando justificativa."}
+            descricao={previa.totalQuebras ? "Há quebras pendentes, mas nenhum gestor cadastrado nas lojas e nenhum colaborador com e-mail. Veja abaixo." : "Nenhuma quebra esperando justificativa."}
           />
         ) : previa ? (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Gestor</TableHead>
+                <TableHead>Pessoa</TableHead>
+                <TableHead>Recebe como</TableHead>
                 <TableHead>Lojas</TableHead>
-                <TableHead className="text-right">Quebras</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
+                <TableHead className="text-right">Para justificar</TableHead>
+                <TableHead className="text-right">No nome dela</TableHead>
                 <TableHead className="text-right">Mais antiga</TableHead>
                 <TableHead>Hoje</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {previa.destinatarios.map((d) => {
-                const lojas = [...new Set(d.quebras.map((q) => q.loja))];
-                const antiga = Math.max(...d.quebras.map((q) => q.diasAberta));
+                const todas = [...d.quebras, ...d.minhas];
+                const lojas = [...new Set(todas.map((q) => q.loja))];
+                const antiga = Math.max(...todas.map((q) => q.diasAberta));
+                const comoGestor = d.quebras.length > 0;
+                const comoColaborador = d.minhas.length > 0;
                 return (
-                  <TableRow key={d.profileId}>
+                  <TableRow key={d.chave}>
                     <TableCell>
                       <span className="font-medium">{d.nome}</span>
-                      <span className="block text-xs text-muted-foreground">{d.email}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {d.email}
+                        {!d.temAcesso && " · e-mail da ficha do RH"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {comoGestor && <Status tom="info">Gestor</Status>}
+                        {comoColaborador && <Status tom="neutro">Colaborador</Status>}
+                      </div>
                     </TableCell>
                     <TableCell className="text-xs whitespace-normal">{lojas.slice(0, 6).join(", ") + (lojas.length > 6 ? ` +${lojas.length - 6}` : "")}</TableCell>
-                    <TableCell className="text-right tabular-nums">{d.quebras.length}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatarMoeda(d.total)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{comoGestor ? <>{d.quebras.length} <span className="text-xs text-muted-foreground">· {formatarMoeda(d.total)}</span></> : "—"}</TableCell>
+                    <TableCell className="text-right tabular-nums">{comoColaborador ? <>{d.minhas.length} <span className="text-xs text-muted-foreground">· {formatarMoeda(d.totalMinhas)}</span></> : "—"}</TableCell>
                     <TableCell className={`text-right tabular-nums ${antiga >= 3 ? "text-red-700" : ""}`}>{antiga === 0 ? "hoje" : `${antiga} dia(s)`}</TableCell>
-                    <TableCell>{avisadosHoje.has(d.profileId) ? <Status tom="sucesso">Avisado</Status> : <Status tom="neutro">Ainda não</Status>}</TableCell>
+                    <TableCell>{avisadosHoje.has(d.chave) ? <Status tom="sucesso">Avisado</Status> : <Status tom="neutro">Ainda não</Status>}</TableCell>
                   </TableRow>
                 );
               })}
@@ -180,7 +200,7 @@ export default async function AvisosCaixaPage() {
           className="mb-6"
           icone={MailWarning}
           titulo="Quebras sem ninguém para avisar"
-          descricao="Lojas com quebra pendente sem gestor definido e sem gerente cadastrado. Defina o gestor da loja ou convide o gerente para ele começar a receber."
+          descricao="Lojas com quebra pendente sem gestor definido e sem gerente cadastrado: ninguém consegue justificar essas quebras. Defina o gestor da loja ou convide o gerente."
           acao={<LinkPainel href="/financeiro/diferenca-caixa/gestores">Gestores das lojas</LinkPainel>}
         >
           <Table>

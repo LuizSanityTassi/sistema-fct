@@ -32,10 +32,14 @@ const PESSOAS = [
 ];
 
 const EMAIL_EXEMPLO: Destinatario = {
+  chave: "maria@exemplo.local",
   profileId: "exemplo",
   nome: "Maria Exemplo da Silva",
   email: "maria@exemplo.local",
+  temAcesso: true,
   total: 103.28,
+  minhas: [{ id: "4", loja: "F002", lojaNome: "Centro", dia: "2026-10-16", caixa: 4690, operador: "MARIA EXEMPLO", diferenca: 9.5, valor: 9.5, manual: false, diasAberta: 3, quemJustifica: "Carla" }],
+  totalMinhas: 9.5,
   quebras: [
     { id: "1", loja: "F002", lojaNome: "Centro", dia: "2026-10-14", caixa: 4667, operador: "ADILSON EXEMPLO", diferenca: 68.1, valor: 68.1, manual: false, diasAberta: 5 },
     { id: "2", loja: "F002", lojaNome: "Centro", dia: "2026-10-17", caixa: 4702, operador: "JOANA TESTE", diferenca: -12.4, valor: 12.4, manual: false, diasAberta: 2 },
