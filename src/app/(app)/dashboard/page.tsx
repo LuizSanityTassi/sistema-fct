@@ -30,7 +30,7 @@ import { formatarData, formatarMoeda, pluralizar } from "@/lib/formatos";
 import { podeAcessar } from "@/lib/nav";
 import { ROTULO_SEVERIDADE } from "@/lib/pendencias-visual";
 import type { AppRole } from "@/lib/roles";
-import { PAPEL_LABEL } from "@/lib/roles";
+import { rotuloCargo } from "@/lib/roles";
 import { rotuloCompetencia } from "@/lib/rh/competencia";
 import { ASO_TIPO_LABEL } from "@/lib/rh/rotulos";
 import type { Tom } from "@/lib/tons";
@@ -121,7 +121,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   return (
     <>
       <BoasVindas data={hoje} titulo={`${saudacao}, ${primeiroNome}`}>
-        {PAPEL_LABEL[sessao.papel]} · {sessao.papel === "coordenador" ? `números da regional ${sessao.regional ?? "—"}` : sessao.papel === "gerente" || sessao.papel === "usuario" ? "números das suas unidades" : sessao.papel === "manutencao" || sessao.papel === "compras" || sessao.papel === "marketing" ? "chamados do seu setor em todas as lojas" : "números de todas as unidades"}
+        {rotuloCargo(sessao.cargo, sessao.adminSistema)} · {sessao.papel === "coordenador" ? `números da regional ${sessao.regional ?? "—"}` : sessao.papel === "gerente" || sessao.papel === "usuario" ? "números das suas unidades" : sessao.papel === "manutencao" || sessao.papel === "compras" || sessao.papel === "marketing" ? "chamados do seu setor em todas as lojas" : "números de todas as unidades"}
         {" · "}
         {pendencias.length ? pluralizar(pendencias.length, "pendência esperando ação", "pendências esperando ação") : "nada pendente agora"}.
       </BoasVindas>

@@ -35,7 +35,7 @@ const rotuloPapel = (p: string) => PAPEL_LABEL[p as AppRole] ?? p;
 
 /** Avisa os administradores ativos de um pedido novo (sem e-mail configurado, não manda nada). */
 export async function avisarAdminsPedido(admin: Admin, p: PedidoEmail) {
-  const { data: admins } = await admin.from("profiles").select("nome, email").eq("papel", "admin").eq("ativo", true);
+  const { data: admins } = await admin.from("profiles").select("nome, email").or("papel.eq.admin,admin_sistema.eq.true").eq("ativo", true);
   const para = (admins ?? []).filter((a) => a.email).map((a) => ({ nome: a.nome || a.email!, email: a.email! }));
   return enviarMensagem(admin, para, `Pedido de acesso: ${p.solicitante_nome} → ${p.tela}`, {
     titulo: "Novo pedido de acesso",

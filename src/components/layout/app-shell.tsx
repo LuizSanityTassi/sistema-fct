@@ -33,7 +33,10 @@ import { cn } from "@/lib/utils";
 export type UsuarioShell = {
   nome: string;
   email: string;
+  /** papel que vale para o menu (permissões) */
   papel: AppRole;
+  /** como o cargo aparece (ex.: "TI · administrador do sistema"); sem ele, o nome do papel */
+  rotuloCargo?: string;
 };
 
 type AppShellProps = {
@@ -203,7 +206,7 @@ function MenuUsuario({ usuario, onSair, recolhido }: Pick<AppShellProps, "usuari
             <>
               <span className="min-w-0 flex-1 leading-tight">
                 <span className="block truncate text-[13px] font-medium text-foreground">{usuario.nome}</span>
-                <span className="block truncate text-xs text-muted-foreground">{PAPEL_LABEL[usuario.papel]}</span>
+                <span className="block truncate text-xs text-muted-foreground">{usuario.rotuloCargo ?? PAPEL_LABEL[usuario.papel]}</span>
               </span>
               <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" aria-hidden />
             </>

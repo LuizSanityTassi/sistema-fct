@@ -133,6 +133,11 @@ export default async function UsuariosPage({ searchParams }: PageProps<"/configu
                   </TableCell>
                   <TableCell>
                     <Badge variant="secondary">{PAPEL_LABEL[u.papel]}</Badge>
+                    {u.admin_sistema && u.papel !== "admin" && (
+                      <Badge variant="outline" className="ml-1" title="Tem todos os poderes de administrador">
+                        administrador do sistema
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
                     {u.unidade ? (

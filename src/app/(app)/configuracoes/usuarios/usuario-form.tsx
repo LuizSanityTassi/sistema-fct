@@ -29,6 +29,7 @@ type Props = {
     respondeDenuncias?: boolean;
     employee_id?: string | null;
     regional?: string | null;
+    adminSistema?: boolean;
   };
   funcionarios?: OpcaoFuncionario[];
   ehProprioUsuario?: boolean;
@@ -52,6 +53,9 @@ export function UsuarioForm({ action, unidades, regionais = [], modo, valores, e
   const [estado, formAction] = useActionState(action, {});
   const erro = (c: string) => estado.erros?.[c];
   const [papel, setPapel] = React.useState<AppRole>(valores.papel ?? "usuario");
+  const [adminSistema, setAdminSistema] = React.useState(valores.adminSistema ?? false);
+  // no próprio usuário, trocar de cargo mantém os poderes de administrador (senão a pessoa se trancaria para fora)
+  const travarAdminSistema = !!ehProprioUsuario && papel !== "admin";
   const grupos = new Map<string, OpcaoUnidade[]>();
   for (const u of unidades) grupos.set(u.grupo, [...(grupos.get(u.grupo) ?? []), u]);
   const porFilial = papel === "gerente" || papel === "usuario";
@@ -76,15 +80,34 @@ export function UsuarioForm({ action, unidades, regionais = [], modo, valores, e
             <Input id="nome" name="nome" defaultValue={valores.nome ?? ""} maxLength={80} aria-invalid={!!erro("nome")} />
           </Campo>
           <Campo id="papel" label="Papel" obrigatorio erro={erro("papel")} dica={DESCRICAO_PAPEL[papel]}>
-            <SelectNativo id="papel" name="papel" value={papel} onChange={(e) => setPapel(e.target.value as AppRole)} disabled={ehProprioUsuario}>
+            <SelectNativo id="papel" name="papel" value={papel} onChange={(e) => setPapel(e.target.value as AppRole)}>
               {PAPEIS.map((p) => (
                 <option key={p} value={p}>
                   {PAPEL_LABEL[p]}
                 </option>
               ))}
             </SelectNativo>
-            {ehProprioUsuario && <input type="hidden" name="papel" value={papel} />}
           </Campo>
+          {papel !== "admin" && (
+            <label className="flex items-start gap-2.5 rounded-lg border bg-muted/30 p-3 text-sm sm:col-span-2">
+              <input
+                type="checkbox"
+                name="admin_sistema"
+                checked={travarAdminSistema || adminSistema}
+                onChange={(e) => setAdminSistema(e.target.checked)}
+                disabled={travarAdminSistema}
+                className="mt-0.5 size-4"
+              />
+              {travarAdminSistema && <input type="hidden" name="admin_sistema" value="on" />}
+              <span>
+                <span className="font-medium">Administrador do sistema</span>
+                <span className="block text-xs text-muted-foreground">
+                  Todos os poderes do Administrador (usuários, permissões, integrações, salários, folha, auditoria), mantendo o cargo {PAPEL_LABEL[papel]}. Só para quem cuida do sistema.
+                  {travarAdminSistema && " No seu próprio usuário fica sempre marcado, para você não perder o acesso."}
+                </span>
+              </span>
+            </label>
+          )}
           <Campo id="branch_id" label="Unidade principal" erro={erro("branch_id")} dica={porFilial ? "Define o que gerente/usuário enxergam" : "Opcional para papéis corporativos"}>
             <SelectNativo id="branch_id" name="branch_id" defaultValue={valores.branch_id ?? ""}>
               <option value="">—</option>

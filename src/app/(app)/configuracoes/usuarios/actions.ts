@@ -111,7 +111,7 @@ export async function convidarUsuario(_prev: EstadoUsuario, fd: FormData): Promi
   const supabase = await createClient();
   const { error: erroPerfil } = await supabase
     .from("profiles")
-    .update({ nome: r.data.nome, papel: r.data.papel, branch_id: r.data.branch_id ?? null, regional: reg.regional })
+    .update({ nome: r.data.nome, papel: r.data.papel, admin_sistema: r.data.papel !== "admin" && fd.get("admin_sistema") === "on", branch_id: r.data.branch_id ?? null, regional: reg.regional })
     .eq("id", userId);
   if (erroPerfil) return { erro: `Conta criada, mas o perfil não pôde ser ajustado: ${erroPerfil.message}` };
   if (filiaisConvite.length && r.data.papel !== "coordenador") {
@@ -150,14 +150,16 @@ export async function salvarUsuario(id: string, _prev: EstadoUsuario, fd: FormDa
   const ativo = fd.get("ativo") === "on";
   const filiais = fd.getAll("filiais").filter((v): v is string => typeof v === "string" && ehUuid(v));
 
+  // cargo Administrador já tem tudo; nos outros cargos vale a marcação "Administrador do sistema"
+  const admin_sistema = r.data.papel !== "admin" && fd.get("admin_sistema") === "on";
   if (id === sessao.id) {
-    if (r.data.papel !== "admin") return { erro: "Você não pode remover o seu próprio papel de administrador." };
+    if (r.data.papel !== "admin" && !admin_sistema) return { erro: "Para trocar o seu próprio cargo, mantenha marcado “Administrador do sistema” (senão você perde o acesso de administrador)." };
     if (!ativo) return { erro: "Você não pode desativar o seu próprio usuário." };
   }
 
   const supabase = await createClient();
   const [{ data: atual }, { data: acessosAtuais }] = await Promise.all([
-    supabase.from("profiles").select("id, nome, papel, branch_id, ativo, employee_id, regional").eq("id", id).maybeSingle(),
+    supabase.from("profiles").select("id, nome, papel, admin_sistema, branch_id, ativo, employee_id, regional").eq("id", id).maybeSingle(),
     supabase.from("user_branch_access").select("branch_id").eq("user_id", id),
   ]);
   if (!atual) return { erro: "Usuário não encontrado." };
@@ -168,7 +170,7 @@ export async function salvarUsuario(id: string, _prev: EstadoUsuario, fd: FormDa
     const { data: outro } = await supabase.from("profiles").select("nome").eq("employee_id", employee_id).neq("id", id).maybeSingle();
     if (outro) return { erro: `Esse funcionário já está ligado ao usuário ${outro.nome || "(sem nome)"}.` };
   }
-  const patch = { nome: r.data.nome, papel: r.data.papel, branch_id: r.data.branch_id ?? null, ativo, employee_id, regional: reg.regional };
+  const patch = { nome: r.data.nome, papel: r.data.papel, admin_sistema, branch_id: r.data.branch_id ?? null, ativo, employee_id, regional: reg.regional };
   const { error } = await supabase.from("profiles").update(patch).eq("id", id);
   if (error) return { erro: `Não foi possível salvar: ${error.message}` };
 

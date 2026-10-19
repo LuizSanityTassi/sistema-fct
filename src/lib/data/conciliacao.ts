@@ -277,7 +277,7 @@ export async function resumoPendencias() {
 /** Quem pode cuidar de pendência (admin e financeiro ativos). */
 export async function listarResponsaveis() {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("profiles").select("id, nome, papel").eq("ativo", true).in("papel", ["admin", "financeiro"]).order("nome");
+  const { data, error } = await supabase.from("profiles").select("id, nome, papel").eq("ativo", true).or("papel.in.(admin,financeiro),admin_sistema.eq.true").order("nome");
   if (error) throw error;
   return data;
 }

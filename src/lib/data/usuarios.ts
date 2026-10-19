@@ -25,7 +25,7 @@ export async function listarUsuarios(f: FiltrosUsuarios) {
   const de = (f.pagina - 1) * TAMANHO_PAGINA;
   let consulta = supabase
     .from("profiles")
-    .select("id, nome, email, papel, ativo, ultimo_acesso, created_at, branch_id, unidade:branches!profiles_branch_id_fkey(id, codigo, nome)", { count: "exact" });
+    .select("id, nome, email, papel, admin_sistema, ativo, ultimo_acesso, created_at, branch_id, unidade:branches!profiles_branch_id_fkey(id, codigo, nome)", { count: "exact" });
   if (f.situacao !== "todos") consulta = consulta.eq("ativo", f.situacao === "ativos");
   if (f.papel) consulta = consulta.eq("papel", f.papel);
   if (f.q) {

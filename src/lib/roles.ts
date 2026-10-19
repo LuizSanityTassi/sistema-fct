@@ -16,6 +16,11 @@ export const PAPEL_LABEL: Record<AppRole, string> = {
   usuario: "Usuário",
 };
 
+/** Como o cargo aparece na tela: "TI · administrador do sistema" para quem tem a marcação. */
+export function rotuloCargo(cargo: AppRole, adminSistema = false) {
+  return adminSistema ? `${PAPEL_LABEL[cargo]} · administrador do sistema` : PAPEL_LABEL[cargo];
+}
+
 export function ehPapel(valor: unknown): valor is AppRole {
   return typeof valor === "string" && (PAPEIS as readonly string[]).includes(valor);
 }

@@ -42,6 +42,7 @@ export default async function EditarUsuarioPage({ params }: PageProps<"/configur
           respondeDenuncias: usuario.respondeDenuncias,
           employee_id: usuario.employee_id,
           regional: usuario.regional,
+          adminSistema: usuario.admin_sistema,
         }}
         funcionarios={opcoesFuncionario}
         ehProprioUsuario={usuario.id === sessao.id}

@@ -2505,6 +2505,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          admin_sistema: boolean
           ativo: boolean
           branch_id: string | null
           created_at: string
@@ -2518,6 +2519,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          admin_sistema?: boolean
           ativo?: boolean
           branch_id?: string | null
           created_at?: string
@@ -2531,6 +2533,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          admin_sistema?: boolean
           ativo?: boolean
           branch_id?: string | null
           created_at?: string

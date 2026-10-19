@@ -8,7 +8,12 @@ export type Sessao = {
   id: string;
   email: string;
   nome: string;
+  /** Papel que vale para as PERMISSÕES: "admin" para quem tem a marcação "Administrador do sistema". */
   papel: AppRole;
+  /** Cargo cadastrado (o que aparece na tela), ex.: TI. */
+  cargo: AppRole;
+  /** Tem todos os poderes de administrador mantendo o cargo (profiles.admin_sistema). */
+  adminSistema: boolean;
   branchId: string | null;
   /** Coordenador de vendas: a regional que ele coordena (Sul, Serra, Oeste…). */
   regional: string | null;
@@ -24,7 +29,7 @@ export const getSessao = cache(async (): Promise<Sessao> => {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("nome, papel, branch_id, ativo, ultimo_acesso, regional")
+    .select("nome, papel, branch_id, ativo, ultimo_acesso, regional, admin_sistema")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -39,12 +44,15 @@ export const getSessao = cache(async (): Promise<Sessao> => {
     await supabase.from("profiles").update({ ultimo_acesso: new Date().toISOString() }).eq("id", user.id);
   }
 
-  const papel = profile?.papel;
+  const cargo: AppRole = ehPapel(profile?.papel) ? profile.papel : "usuario";
+  const adminSistema = !!profile?.admin_sistema && cargo !== "admin";
   return {
     id: user.id,
     email: user.email ?? "",
     nome: profile?.nome?.trim() || user.email?.split("@")[0] || "Usuário",
-    papel: ehPapel(papel) ? papel : "usuario",
+    papel: adminSistema ? "admin" : cargo,
+    cargo,
+    adminSistema,
     branchId: profile?.branch_id ?? null,
     regional: profile?.regional ?? null,
   };
