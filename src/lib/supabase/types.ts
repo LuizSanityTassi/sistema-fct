@@ -1141,6 +1141,59 @@ export type Database = {
         }
         Relationships: []
       }
+      fin_contas_bancarias: {
+        Row: {
+          agencia: string | null
+          apelido: string
+          ativa: boolean
+          atualizado_em: string
+          atualizado_por: string | null
+          banco: string | null
+          conta: string | null
+          criado_em: string
+          grupo: string | null
+          id: string
+          observacao: string | null
+          tipo: string
+        }
+        Insert: {
+          agencia?: string | null
+          apelido: string
+          ativa?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          banco?: string | null
+          conta?: string | null
+          criado_em?: string
+          grupo?: string | null
+          id?: string
+          observacao?: string | null
+          tipo?: string
+        }
+        Update: {
+          agencia?: string | null
+          apelido?: string
+          ativa?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          banco?: string | null
+          conta?: string | null
+          criado_em?: string
+          grupo?: string | null
+          id?: string
+          observacao?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_contas_bancarias_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fin_dre_ajustes: {
         Row: {
           atualizado_em: string

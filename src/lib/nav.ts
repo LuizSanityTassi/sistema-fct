@@ -10,6 +10,7 @@ import {
   FileText,
   FolderOpen,
   KeyRound,
+  Landmark,
   Laptop,
   ListChecks,
   MessageCircleQuestion,
@@ -200,6 +201,13 @@ export const NAV: NavGrupo[] = [
         icon: Wallet,
         papeis: ["admin", "financeiro", "contador", "coordenador", "gerente"],
         descricao: "Entradas e saídas realizadas por unidade.",
+      },
+      {
+        label: "Carteira",
+        href: "/financeiro/carteira",
+        icon: Landmark,
+        papeis: ["admin", "financeiro", "contador"],
+        descricao: "Contas bancárias, aplicações, caixas e cofres da empresa.",
       },
       {
         label: "Categorias",
