@@ -2039,6 +2039,58 @@ export type Database = {
           },
         ]
       }
+      caixa_retirada_conferencias: {
+        Row: {
+          branch_id: string
+          comentario: string | null
+          conferido: boolean
+          conta_id: string | null
+          criado_em: string
+          criado_por: string | null
+          criado_por_nome: string | null
+          deposito_ate: string
+          deposito_de: string
+          diferenca: number | null
+          id: string
+          retirada_ate: string
+          retirada_de: string
+          total_declarado: number
+          total_retirada: number
+        }
+        Insert: {
+          branch_id: string
+          comentario?: string | null
+          conferido?: boolean
+          conta_id?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          criado_por_nome?: string | null
+          deposito_ate: string
+          deposito_de: string
+          id?: string
+          retirada_ate: string
+          retirada_de: string
+          total_declarado: number
+          total_retirada: number
+        }
+        Update: {
+          branch_id?: string
+          comentario?: string | null
+          conferido?: boolean
+          conta_id?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          criado_por_nome?: string | null
+          deposito_ate?: string
+          deposito_de?: string
+          id?: string
+          retirada_ate?: string
+          retirada_de?: string
+          total_declarado?: number
+          total_retirada?: number
+        }
+        Relationships: []
+      }
       caixa_sangrias: {
         Row: {
           branch_id: string

@@ -219,6 +219,13 @@ export const NAV: NavGrupo[] = [
         descricao: "O financeiro confere com o extrato as sangrias lançadas pelas lojas.",
       },
       {
+        label: "Retiradas de caixa",
+        href: "/financeiro/retiradas",
+        icon: ArrowLeftRight,
+        papeis: ["admin", "financeiro"],
+        descricao: "Dinheiro retirado dos caixas (Trier) × depósitos declarados nas sangrias, por loja.",
+      },
+      {
         label: "Carteira",
         href: "/financeiro/carteira",
         icon: Landmark,
