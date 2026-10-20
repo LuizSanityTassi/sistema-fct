@@ -66,6 +66,18 @@ export async function credenciaisTrier(supabase: Cliente): Promise<CredenciaisTr
   } catch {
     /* sem permissão de leitura: cai no ambiente */
   }
+  return resolverTrier(s);
+}
+
+/** O mesmo, para as rotinas automáticas (cron), que rodam sem usuário: lê pelo cliente service_role. */
+export async function credenciaisTrierServico(admin: Cliente): Promise<CredenciaisTrier> {
+  const { data } = await admin.rpc("integracao_ler_segredos_servico", { p_nomes: [SEGREDOS.trier_url, SEGREDOS.trier_usuario, SEGREDOS.trier_senha] });
+  const s: Partial<Record<NomeSegredo, string>> = {};
+  for (const r of data ?? []) if (r.valor) s[r.nome as NomeSegredo] = r.valor;
+  return resolverTrier(s);
+}
+
+function resolverTrier(s: Partial<Record<NomeSegredo, string>>): CredenciaisTrier {
   if (s.integ_trier_usuario && s.integ_trier_senha) {
     return { url: comBarra((s.integ_trier_url || process.env.TRIER_URL || TRIER_URL_PADRAO).trim()), usuario: s.integ_trier_usuario, senha: s.integ_trier_senha, origem: "sistema" };
   }

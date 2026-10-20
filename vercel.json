@@ -2,6 +2,10 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "regions": ["gru1"],
   "crons": [
+    { "path": "/api/cron/caixa-trier", "schedule": "0 6 * * *" },
+    { "path": "/api/cron/caixa-trier", "schedule": "0 7 * * *" },
+    { "path": "/api/cron/caixa-trier", "schedule": "0 8 * * *" },
+    { "path": "/api/cron/caixa-trier", "schedule": "0 9 * * *" },
     {
       "path": "/api/cron/avisos-caixa",
       "schedule": "30 10 * * 1-6"
