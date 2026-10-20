@@ -15,7 +15,7 @@ export default async function EditarContaPage({ params }: PageProps<"/financeiro
   if (sessao.papel !== "admin" && sessao.papel !== "financeiro") semAcesso("/financeiro/carteira");
   if (!ehUuid(id)) notFound();
   const supabase = await createClient();
-  const { data } = await supabase.from("fin_contas_bancarias").select("id, apelido, banco, agencia, conta, tipo, grupo, ativa, observacao, atualizado_em").eq("id", id).maybeSingle();
+  const { data } = await supabase.from("fin_contas_bancarias").select("id, apelido, banco, agencia, conta, tipo, grupo, ativa, aceita_sangria, observacao, atualizado_em").eq("id", id).maybeSingle();
   if (!data) notFound();
   const conta = data as ContaBancaria;
   return (

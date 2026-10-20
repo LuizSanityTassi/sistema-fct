@@ -33,6 +33,8 @@ export type ContaBancaria = {
   tipo: string;
   grupo: string | null;
   ativa: boolean;
+  /** Aparece como banco de depósito no cadastro de sangria. */
+  aceita_sangria: boolean;
   observacao: string | null;
   atualizado_em: string;
 };

@@ -52,12 +52,13 @@ export async function salvarConta(id: string | null, _prev: EstadoConta, fd: For
     grupo: d.grupo ?? null,
     observacao: d.observacao ?? null,
     ativa: id ? fd.get("ativa") === "on" : true,
+    aceita_sangria: fd.get("aceita_sangria") === "on",
   };
 
   const supabase = await createClient();
   const repetido = (codigo?: string) => (codigo === "23505" ? "Já existe uma conta com esse apelido." : null);
   if (id) {
-    const { data: atual } = await supabase.from("fin_contas_bancarias").select("apelido, banco, agencia, conta, tipo, grupo, observacao, ativa").eq("id", id).maybeSingle();
+    const { data: atual } = await supabase.from("fin_contas_bancarias").select("apelido, banco, agencia, conta, tipo, grupo, observacao, ativa, aceita_sangria").eq("id", id).maybeSingle();
     if (!atual) return { erro: "Conta não encontrada." };
     const { error } = await supabase.from("fin_contas_bancarias").update(registro).eq("id", id);
     if (error) return { erro: repetido(error.code) ?? `Não foi possível salvar: ${error.message}` };

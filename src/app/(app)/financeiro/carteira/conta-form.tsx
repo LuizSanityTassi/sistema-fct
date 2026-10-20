@@ -63,6 +63,10 @@ export function ContaForm({ action, conta }: { action: (prev: EstadoConta, fd: F
           <Campo id="observacao" label="Observação" erro={erro("observacao")} className="sm:col-span-2">
             <Input id="observacao" name="observacao" defaultValue={conta?.observacao ?? ""} maxLength={500} />
           </Campo>
+          <label className="flex items-center gap-2 text-sm sm:col-span-2">
+            <input type="checkbox" name="aceita_sangria" defaultChecked={conta?.aceita_sangria ?? true} className="size-4" />
+            Aparece nas sangrias <span className="text-muted-foreground">(a loja pode escolher esta conta como banco do depósito)</span>
+          </label>
           {conta && (
             <label className="flex items-center gap-2 text-sm sm:col-span-2">
               <input type="checkbox" name="ativa" defaultChecked={conta.ativa} className="size-4" />

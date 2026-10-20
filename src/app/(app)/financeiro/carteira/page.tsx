@@ -18,7 +18,7 @@ export default async function CarteiraPage({ searchParams }: PageProps<"/finance
   const escreve = sessao.papel === "admin" || sessao.papel === "financeiro";
   const verInativas = sp.inativas === "1";
   const supabase = await createClient();
-  const { data } = await supabase.from("fin_contas_bancarias").select("id, apelido, banco, agencia, conta, tipo, grupo, ativa, observacao, atualizado_em").order("apelido");
+  const { data } = await supabase.from("fin_contas_bancarias").select("id, apelido, banco, agencia, conta, tipo, grupo, ativa, aceita_sangria, observacao, atualizado_em").order("apelido");
   const todas = (data ?? []) as ContaBancaria[];
   const inativas = todas.filter((c) => !c.ativa).length;
   const lista = verInativas ? todas : todas.filter((c) => c.ativa);
@@ -79,6 +79,11 @@ export default async function CarteiraPage({ searchParams }: PageProps<"/finance
                     {!c.ativa && (
                       <Status tom="neutro" className="ml-2">
                         Inativa
+                      </Status>
+                    )}
+                    {c.ativa && !c.aceita_sangria && (
+                      <Status tom="neutro" className="ml-2">
+                        Fora das sangrias
                       </Status>
                     )}
                     {c.observacao && <span className="block text-xs text-muted-foreground">{c.observacao}</span>}

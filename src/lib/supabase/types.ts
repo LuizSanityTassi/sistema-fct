@@ -1194,6 +1194,7 @@ export type Database = {
       }
       fin_contas_bancarias: {
         Row: {
+          aceita_sangria: boolean
           agencia: string | null
           apelido: string
           ativa: boolean
@@ -1208,6 +1209,7 @@ export type Database = {
           tipo: string
         }
         Insert: {
+          aceita_sangria?: boolean
           agencia?: string | null
           apelido: string
           ativa?: boolean
@@ -1222,6 +1224,7 @@ export type Database = {
           tipo?: string
         }
         Update: {
+          aceita_sangria?: boolean
           agencia?: string | null
           apelido?: string
           ativa?: boolean
