@@ -987,6 +987,45 @@ export type Database = {
         }
         Relationships: []
       }
+      dre_contabil_rateios: {
+        Row: {
+          competencia: string
+          criado_em: string
+          criado_por: string | null
+          criado_por_nome: string | null
+          empresa: string
+          id: string
+          item: string
+          linha: string
+          observacao: string | null
+          valor: number
+        }
+        Insert: {
+          competencia: string
+          criado_em?: string
+          criado_por?: string | null
+          criado_por_nome?: string | null
+          empresa: string
+          id?: string
+          item: string
+          linha: string
+          observacao?: string | null
+          valor: number
+        }
+        Update: {
+          competencia?: string
+          criado_em?: string
+          criado_por?: string | null
+          criado_por_nome?: string | null
+          empresa?: string
+          id?: string
+          item?: string
+          linha?: string
+          observacao?: string | null
+          valor?: number
+        }
+        Relationships: []
+      }
       employee_aso: {
         Row: {
           ativo: boolean

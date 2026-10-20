@@ -1,5 +1,5 @@
 // Leitura da DRE contábil (servidor). O RLS deixa ver só Administrador, Financeiro e Contador.
-import { calcularDre, ehLinhaDre, somarLancamentos, type Lancamentos } from "@/lib/financeiro/dre-contabil";
+import { baseDoRateio, calcularDre, ehLinhaDre, ehLinhaRateio, ratear, somarLancamentos, type Lancamentos, type LinhaRateio } from "@/lib/financeiro/dre-contabil";
 import { createClient } from "@/lib/supabase/server";
 
 /** Empresas com DRE importada e os meses de cada uma ("aaaa-mm"), do mais recente. */
@@ -19,8 +19,47 @@ export async function empresasDre() {
   return [...porEmpresa.values()].map((e) => ({ ...e, meses: [...e.meses].sort().reverse() })).sort((a, b) => a.empresa.localeCompare(b.empresa, "pt-BR"));
 }
 
-/** Lançamentos da empresa nos meses pedidos: por filial (chave = branch_id; "" = da empresa) e mês. */
+export type RateioDre = { id: string; competencia: string; item: string; linha: LinhaRateio; valor: number; observacao: string | null; criado_por_nome: string | null; criado_em: string };
+
+/** Valores da empresa a ratear por faturamento, nos meses pedidos. */
+export async function rateiosDre(empresa: string, de: string, ate: string): Promise<RateioDre[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("dre_contabil_rateios")
+    .select("id, competencia, item, linha, valor, observacao, criado_por_nome, criado_em")
+    .eq("empresa", empresa)
+    .gte("competencia", `${de}-01`)
+    .lte("competencia", `${ate}-01`)
+    .order("competencia")
+    .order("item");
+  if (error) throw new Error(error.message);
+  return (data ?? []).flatMap((r) => (ehLinhaRateio(r.linha) ? [{ ...r, competencia: r.competencia.slice(0, 7), linha: r.linha, valor: Number(r.valor) }] : []));
+}
+
+/** Divisão de cada rateio do mês entre as filiais (pela receita bruta do mês). */
+export function distribuirRateios(mapa: MapaDre, mes: string, rateios: RateioDre[]) {
+  const bases = [...mapa.keys()].filter(Boolean).map((id) => ({ id, base: baseDoRateio(mapa.get(id)?.get(mes) ?? {}) }));
+  return rateios.filter((r) => r.competencia === mes).map((r) => ({ rateio: r, porFilial: ratear(r.valor, bases) }));
+}
+
+/**
+ * Lançamentos da empresa nos meses pedidos: por filial (chave = branch_id; "" = da empresa) e mês, já com os rateios
+ * por faturamento somados na conta de cada um.
+ */
 export async function lancamentosDre(empresa: string, de: string, ate: string) {
+  const [mapa, rateios] = await Promise.all([lancamentosImportados(empresa, de, ate), rateiosDre(empresa, de, ate)]);
+  for (const mes of new Set(rateios.map((r) => r.competencia))) {
+    for (const { rateio, porFilial } of distribuirRateios(mapa, mes, rateios)) {
+      for (const [filial, { valor }] of porFilial) {
+        const lanc = mapa.get(filial)!.get(mes)!;
+        lanc[rateio.linha] = (lanc[rateio.linha] ?? 0) + valor;
+      }
+    }
+  }
+  return { mapa, rateios };
+}
+
+async function lancamentosImportados(empresa: string, de: string, ate: string) {
   const supabase = await createClient();
   const linhas: { branch_id: string | null; competencia: string; linha: string; valor: number }[] = [];
   for (let inicio = 0; ; inicio += 1000) {
@@ -50,7 +89,7 @@ export async function lancamentosDre(empresa: string, de: string, ate: string) {
   return mapa;
 }
 
-export type MapaDre = Awaited<ReturnType<typeof lancamentosDre>>;
+export type MapaDre = Awaited<ReturnType<typeof lancamentosImportados>>;
 
 /** Lançamentos somados de uma filial (ou "*" = consolidado, com os valores da empresa) nos meses dados. */
 export function somar(mapa: MapaDre, filial: string, meses: string[]): Lancamentos {

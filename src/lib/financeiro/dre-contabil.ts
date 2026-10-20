@@ -265,3 +265,59 @@ export function montarImportacao(abas: { nome: string; matriz: unknown[][] }[]):
   }
   return { filiais: lidas.map((l) => ({ aba: l.aba, codigo: l.codigo })), abasIgnoradas, meses, mesesSemVendas, valores, porMes, diferencas };
 }
+
+// ---------- rateio por faturamento (aba "FAT %" da planilha) ----------
+
+/** Contas que podem receber rateio (as de receita bruta não: elas são a base da divisão). */
+export const LINHAS_RATEIO = [
+  "impostos_vendas",
+  "comissoes",
+  "despesas_pessoal",
+  "despesas_administrativas",
+  "despesas_comerciais",
+  "outras_despesas",
+  "despesas_financeiras",
+  "ir_csll",
+  "receita_financeira",
+  "outras_receitas",
+] as const satisfies readonly LinhaDre[];
+export type LinhaRateio = (typeof LINHAS_RATEIO)[number];
+export const ehLinhaRateio = (v: unknown): v is LinhaRateio => typeof v === "string" && (LINHAS_RATEIO as readonly string[]).includes(v);
+
+const RECEITAS_RATEIO = new Set<LinhaRateio>(["receita_financeira", "outras_receitas"]);
+/** O valor vai digitado sem sinal; na DRE, receita entra positiva e despesa/dedução negativa. */
+export const comSinalDaConta = (linha: LinhaRateio, valor: number) => (RECEITAS_RATEIO.has(linha) ? Math.abs(valor) : -Math.abs(valor));
+
+/** Os itens que a planilha rateia hoje (PIS/COFINS, ICMS e despesa financeira). */
+export const SUGESTOES_RATEIO: { item: string; linha: LinhaRateio }[] = [
+  { item: "PIS/COFINS", linha: "impostos_vendas" },
+  { item: "ICMS", linha: "impostos_vendas" },
+  { item: "Despesa financeira", linha: "despesas_financeiras" },
+];
+
+/** Receita bruta (base do rateio) de um conjunto de lançamentos. */
+export const baseDoRateio = (l: Lancamentos) => (l.vendas ?? 0) + (l.outras_receitas_brutas ?? 0);
+
+/**
+ * Divide o total entre as filiais pela participação de cada uma na base (receita bruta do mês). Filial sem receita
+ * não recebe. Os centavos que sobram do arredondamento vão para a filial de maior base, para a soma bater com o total.
+ */
+export function ratear(total: number, bases: { id: string; base: number }[]) {
+  const comBase = bases.filter((b) => b.base > 0);
+  const soma = comBase.reduce((s, b) => s + b.base, 0);
+  const out = new Map<string, { participacao: number; valor: number }>();
+  if (!soma || !total) return out;
+  let distribuido = 0;
+  for (const b of comBase) {
+    const valor = centavos((total * b.base) / soma);
+    out.set(b.id, { participacao: b.base / soma, valor });
+    distribuido += valor;
+  }
+  const resto = centavos(total - distribuido);
+  if (resto) {
+    const maior = comBase.reduce((a, b) => (b.base > a.base ? b : a));
+    const r = out.get(maior.id)!;
+    r.valor = centavos(r.valor + resto);
+  }
+  return out;
+}
