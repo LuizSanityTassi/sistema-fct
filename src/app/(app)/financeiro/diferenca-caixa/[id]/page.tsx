@@ -10,6 +10,7 @@ import { COR_SITUACAO, ROTULO_SITUACAO, situacaoDoCaixa, textoDiferenca } from "
 import { gruposDeGestores } from "@/lib/caixa/gestores";
 import { anexosDasQuebras, funcionariosDoCaixa, gestoresDasLojas, obterCaixa, usuariosDoCaixa } from "@/lib/data/diferenca-caixa";
 import { ehFarmaceutico } from "@/lib/rh/lancamentos";
+import { periodoDaQuebra } from "@/lib/rh/competencia";
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formatos";
 import { decidirQuebra, excluirQuebraManual, moverGestorQuebra } from "../actions";
 import { GestorForm } from "../gestores/gestor-form";
@@ -89,7 +90,7 @@ export default async function CaixaDetalhePage({ params }: PageProps<"/financeir
                 c.classe !== "quebra"
                   ? "—"
                   : naFolha
-                    ? `${formatarMoeda(Number(c.valor_quebra))} em ${MESES[mes - 1]}/${ano}`
+                    ? `${formatarMoeda(Number(c.valor_quebra))} em ${MESES[mes - 1]}/${ano} (caixas de ${periodoDaQuebra(c.competencia.slice(0, 7))})`
                     : farmaceutico
                       ? "não (farmacêutico)"
                       : c.andamento === "abonada"

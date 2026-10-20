@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ROTULO_SITUACAO_POS, type SituacaoPos } from "@/lib/caixa/planilha-pos";
 import { formatarData, formatarMoeda } from "@/lib/formatos";
-import { competenciaAtual, rotuloCompetencia, somarMeses } from "@/lib/rh/competencia";
+import { competenciaQuebraAtual, periodoDaQuebra, rotuloCompetencia, somarMeses } from "@/lib/rh/competencia";
 import type { EstadoPos } from "./actions";
 
 const COR: Record<SituacaoPos, string> = {
@@ -30,8 +30,8 @@ export function ImportarPosForm({ conferir, lancar }: { conferir: Acao; lancar: 
   const [competencia, setCompetencia] = React.useState("");
   const [arquivoNome, setArquivoNome] = React.useState("");
   const previa = conf.previa;
-  const compUsada = competencia || previa?.competencia || competenciaAtual();
-  const meses = [...new Set([...Array.from({ length: 6 }, (_, i) => somarMeses(competenciaAtual(), 1 - i)), ...(previa ? [previa.competencia] : [])])].sort().reverse();
+  const compUsada = competencia || previa?.competencia || competenciaQuebraAtual();
+  const meses = [...new Set([...Array.from({ length: 6 }, (_, i) => somarMeses(competenciaQuebraAtual(), 1 - i)), ...(previa ? [previa.competencia] : [])])].sort().reverse();
 
   // a mesma planilha serve para conferir e para lançar: o formulário não é limpo entre um e outro
   const submeter = (e: React.FormEvent<HTMLFormElement>) => {
@@ -76,7 +76,7 @@ export function ImportarPosForm({ conferir, lancar }: { conferir: Acao; lancar: 
             <SelectNativo value={compUsada} onChange={(e) => setCompetencia(e.target.value)}>
               {meses.map((m) => (
                 <option key={m} value={m}>
-                  {rotuloCompetencia(m)}
+                  {rotuloCompetencia(m)} ({periodoDaQuebra(m)})
                 </option>
               ))}
             </SelectNativo>

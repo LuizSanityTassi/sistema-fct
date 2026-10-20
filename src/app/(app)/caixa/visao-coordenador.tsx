@@ -6,14 +6,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { COR_SITUACAO, ROTULO_SITUACAO, situacaoDoCaixa, textoDiferenca } from "@/lib/caixa/rotulos";
 import { anexosDasQuebras, quebrasVisiveis } from "@/lib/data/diferenca-caixa";
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formatos";
-import { competenciaAtual, rotuloCompetencia, somarMeses } from "@/lib/rh/competencia";
+import { competenciaQuebraAtual, periodoDaQuebra, rotuloCompetencia, somarMeses } from "@/lib/rh/competencia";
 import { createClient } from "@/lib/supabase/server";
 import { AnexosQuebra } from "./anexos-quebra";
 
 /** Quebras de caixa de todas as lojas da regional do coordenador (só leitura; quem justifica é o gestor da loja). */
 export async function VisaoCoordenador({ usuarioId, regional, sp }: { usuarioId: string; regional: string | null; sp: Record<string, string | string[] | undefined> }) {
   const ver = sp.ver === "mes" ? "mes" : "abertas";
-  const mes = typeof sp.mes === "string" && /^\d{4}-\d{2}$/.test(sp.mes) ? sp.mes : competenciaAtual();
+  const mes = typeof sp.mes === "string" && /^\d{4}-\d{2}$/.test(sp.mes) ? sp.mes : competenciaQuebraAtual();
   const filial = typeof sp.filial === "string" && sp.filial ? sp.filial : null;
   const supabase = await createClient();
   const [{ data: lojas }, quebras] = await Promise.all([
@@ -40,7 +40,7 @@ export async function VisaoCoordenador({ usuarioId, regional, sp }: { usuarioId:
   const resumo = [...porLoja.values()].sort((a, b) => b.valor - a.valor);
   const total = resumo.reduce((s, l) => s + l.valor, 0);
   const pendentes = resumo.reduce((s, l) => s + l.pendentes, 0);
-  const meses = Array.from({ length: 6 }, (_, i) => somarMeses(competenciaAtual(), -i));
+  const meses = Array.from({ length: 6 }, (_, i) => somarMeses(competenciaQuebraAtual(), -i));
   const link = (extra: Record<string, string>) => `/caixa?${new URLSearchParams({ ...(filial ? { filial } : {}), ...extra }).toString()}`;
 
   if (!regional) {
@@ -88,7 +88,7 @@ export async function VisaoCoordenador({ usuarioId, regional, sp }: { usuarioId:
             <SelectNativo name="mes" defaultValue={mes} className="w-48">
               {meses.map((m) => (
                 <option key={m} value={m}>
-                  {rotuloCompetencia(m)}
+                  {rotuloCompetencia(m)} ({periodoDaQuebra(m)})
                 </option>
               ))}
             </SelectNativo>
@@ -101,7 +101,7 @@ export async function VisaoCoordenador({ usuarioId, regional, sp }: { usuarioId:
 
       <section className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
-          ["Quebras", String(quebras.length), ver === "abertas" ? "em aberto (todos os meses)" : rotuloCompetencia(mes)],
+          ["Quebras", String(quebras.length), ver === "abertas" ? "em aberto (todos os meses)" : `${rotuloCompetencia(mes)} · caixas de ${periodoDaQuebra(mes)}`],
           ["Esperando justificativa", String(pendentes), "o gestor da loja justifica"],
           ["Valor", formatarMoeda(total), "faltas e sobras acima da tolerância"],
           ["Lojas com quebra", String(resumo.length), `de ${(lojas ?? []).length} na regional ${regional}`],

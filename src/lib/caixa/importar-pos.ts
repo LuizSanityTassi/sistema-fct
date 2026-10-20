@@ -5,6 +5,7 @@
 import * as XLSX from "xlsx";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/types";
+import { competenciaDaQuebra, competenciaQuebraAtual } from "@/lib/rh/competencia";
 import { chaveDaVenda, lerPlanilhaPos, type LinhaPrevia, type PreviaPos, type SituacaoPos } from "./planilha-pos";
 
 export { ROTULO_SITUACAO_POS, type LinhaPrevia, type PreviaPos, type SituacaoPos } from "./planilha-pos";
@@ -14,8 +15,8 @@ type Cliente = SupabaseClient<Database>;
 
 const FARMACEUTICO = /FARMAC[EÊ]UTIC/i;
 
-/** Competência sugerida: o mês do corte da planilha (21/08 a 20/09 → setembro). */
-export const competenciaDoCorte = (corte: string | null) => (corte ? corte.slice(0, 7) : new Date().toISOString().slice(0, 7));
+/** Competência sugerida: a do corte da planilha, no ciclo 21 a 20 (21/08 a 20/09 → setembro). */
+export const competenciaDoCorte = (corte: string | null) => (corte ? competenciaDaQuebra(corte) : competenciaQuebraAtual());
 
 function lerArquivo(buf: Buffer, ano: number) {
   const wb = XLSX.read(buf, { type: "buffer" });
