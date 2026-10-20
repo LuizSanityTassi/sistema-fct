@@ -24,7 +24,7 @@ function campos(fd: FormData) {
 /** Ajuste manual do contador numa célula categoria × mês (vazio volta ao automático). */
 export async function salvarAjusteDre(fd: FormData): Promise<RespostaCelula> {
   const sessao = await getSessao();
-  if (!podeLancar(sessao.papel)) return { erro: "Só Administrador, Financeiro e Contador ajustam a DRE." };
+  if (!podeLancar(sessao.papel)) return { erro: "Só Administrador, Financeiro e Contador ajustam o caixa contábil." };
   const { grupo, filial, competencia, valor, bruto } = campos(fd);
   const categoriaId = String(fd.get("categoria_id") ?? "");
   if (!grupo || !competencia || !ehUuid(categoriaId)) return { erro: "Dados inválidos." };

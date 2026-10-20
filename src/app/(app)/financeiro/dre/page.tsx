@@ -13,7 +13,7 @@ import { createClient } from "@/lib/supabase/server";
 import { salvarAjusteDre, salvarSaldoDre } from "./actions";
 import { DreTabela } from "./dre-tabela";
 
-export const metadata = { title: "DRE" };
+export const metadata = { title: "Caixa contábil" };
 
 export default async function DrePage({ searchParams }: PageProps<"/financeiro/dre">) {
   const [sessao, sp] = await Promise.all([exigirAcesso("/financeiro/dre"), searchParams]);
@@ -43,7 +43,7 @@ export default async function DrePage({ searchParams }: PageProps<"/financeiro/d
     <>
       <PageHeader
         eyebrow="Financeiro"
-        titulo="DRE"
+        titulo="Caixa contábil"
         descricao={`Demonstrativo contábil ${escopo.grupo === "TODOS" ? "do grupo" : `· ${escopo.grupo}`}${filialSel ? ` · ${filialSel.codigo} ${filialSel.nome}` : ""} · ${escopo.ano}. Receitas, custo e despesas por mês, com ajustes do contador e cadeia de caixa.`}
         acoes={
           <Button variant="outline" nativeButton={false} render={<Link href={`/financeiro/analise?grupo=${encodeURIComponent(escopo.grupo)}&ano=${escopo.ano}`} />}>

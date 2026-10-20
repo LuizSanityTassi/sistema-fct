@@ -104,7 +104,7 @@ export function ImportarForm({ action, anoPadrao, hoje }: Props) {
           {a.invalidos > 0 && <p className="text-xs text-red-700">{a.invalidos} linha(s) inválida(s) (valor zero ou data ruim) ficam de fora.</p>}
           {a.categoriasNovas.length > 0 && (
             <div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
-              <p className="font-medium">{a.categoriasNovas.length} categoria(s) nova(s) serão criadas (sem classificação na DRE — classifique depois em Categorias):</p>
+              <p className="font-medium">{a.categoriasNovas.length} categoria(s) nova(s) serão criadas (sem classificação no caixa contábil — classifique depois em Categorias):</p>
               <p className="text-xs">{a.categoriasNovas.map((c) => `${c.tipo === "pagar" ? "Pagar" : "Receber"} · ${c.grupo} › ${c.nome} (${c.qtd})`).join(" · ")}</p>
             </div>
           )}

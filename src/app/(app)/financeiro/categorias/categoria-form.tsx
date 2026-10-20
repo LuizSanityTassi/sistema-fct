@@ -77,14 +77,14 @@ export function CategoriaForm({ action, opcoes, valores = {}, modo }: Props) {
       </section>
 
       <section className="rounded-xl border bg-card p-5">
-        <h2 className="mb-1 text-sm font-semibold">Classificação na DRE</h2>
+        <h2 className="mb-1 text-sm font-semibold">Classificação no caixa contábil</h2>
         <p className="mb-4 text-xs text-muted-foreground">Em qual bloco do demonstrativo de resultado a categoria entra e se soma ou subtrai.</p>
         <div className="grid gap-4 sm:grid-cols-3">
-          <Campo id="dre_familia" label="Família (DRE)" erro={erro("dre_familia")} dica="Ex.: TOTAL RECEITAS, DESPESAS OPERACIONAIS">
+          <Campo id="dre_familia" label="Família (caixa contábil)" erro={erro("dre_familia")} dica="Ex.: TOTAL RECEITAS, DESPESAS OPERACIONAIS">
             <Input id="dre_familia" name="dre_familia" list="lista-dre-familias" defaultValue={v("dre_familia")} maxLength={60} />
             <Sugestoes id="lista-dre-familias" itens={opcoes.dreFamilias} />
           </Campo>
-          <Campo id="dre_grupo" label="Grupo (DRE)" erro={erro("dre_grupo")}>
+          <Campo id="dre_grupo" label="Grupo (caixa contábil)" erro={erro("dre_grupo")}>
             <Input id="dre_grupo" name="dre_grupo" list="lista-dre-grupos" defaultValue={v("dre_grupo")} maxLength={60} />
             <Sugestoes id="lista-dre-grupos" itens={opcoes.dreGrupos} />
           </Campo>

@@ -15,7 +15,7 @@ export default async function NovaCategoriaPage() {
 
   return (
     <>
-      <PageHeader eyebrow="Financeiro" titulo="Nova categoria" descricao="Grupo e nome identificam a categoria; a classificação diz onde ela entra na DRE e na visão financeira." />
+      <PageHeader eyebrow="Financeiro" titulo="Nova categoria" descricao="Grupo e nome identificam a categoria; a classificação diz onde ela entra no caixa contábil e na visão financeira." />
       <CategoriaForm action={salvarCategoria.bind(null, null)} opcoes={opcoesClassificacao(categorias)} modo="nova" />
     </>
   );

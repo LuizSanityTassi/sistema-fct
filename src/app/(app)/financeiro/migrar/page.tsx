@@ -14,7 +14,7 @@ export default async function MigrarPage({ searchParams }: PageProps<"/financeir
 
   return (
     <>
-      <PageHeader eyebrow="Financeiro" titulo="Migrar o fluxo de caixa anterior" descricao="Traz lançamentos, categorias (com molde da DRE), unidades que faltam, ajustes do contador, saldos, orçamento e inadimplência do sistema antigo (SQLite)." />
+      <PageHeader eyebrow="Financeiro" titulo="Migrar o fluxo de caixa anterior" descricao="Traz lançamentos, categorias (com molde do caixa contábil), unidades que faltam, ajustes do contador, saldos, orçamento e inadimplência do sistema antigo (SQLite)." />
       {sp.ok === "1" && (
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
           <span>
@@ -25,7 +25,7 @@ export default async function MigrarPage({ searchParams }: PageProps<"/financeir
             ver visão geral
           </Link>
           <Link href="/financeiro/dre" className="underline">
-            ver DRE
+            ver caixa contábil
           </Link>
         </div>
       )}

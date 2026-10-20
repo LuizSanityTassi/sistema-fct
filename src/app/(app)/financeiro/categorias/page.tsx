@@ -29,7 +29,7 @@ export default async function CategoriasPage({ searchParams }: PageProps<"/finan
       <PageHeader
         eyebrow="Financeiro"
         titulo="Categorias"
-        descricao="Plano de categorias dos lançamentos e como cada uma entra na DRE e na visão financeira."
+        descricao="Plano de categorias dos lançamentos e como cada uma entra no caixa contábil e na visão financeira."
         acoes={
           escreve ? (
             <Button nativeButton={false} render={<Link href="/financeiro/categorias/nova" />}>
@@ -77,7 +77,7 @@ export default async function CategoriasPage({ searchParams }: PageProps<"/finan
 
       <p className="mb-3 text-xs text-muted-foreground">
         {ativas.length} categorias ativas ({ativas.filter((c) => c.tipo === "receber").length} a receber · {ativas.filter((c) => c.tipo === "pagar").length} a pagar)
-        {semDre > 0 ? ` · ${semDre} sem classificação na DRE` : ""} · mostrando {lista.length}
+        {semDre > 0 ? ` · ${semDre} sem classificação no caixa contábil` : ""} · mostrando {lista.length}
       </p>
 
       <div className="rounded-xl border bg-card">
@@ -86,7 +86,7 @@ export default async function CategoriasPage({ searchParams }: PageProps<"/finan
             <TableRow>
               <TableHead className="w-24">Tipo</TableHead>
               <TableHead>Categoria</TableHead>
-              <TableHead className="hidden lg:table-cell">DRE</TableHead>
+              <TableHead className="hidden lg:table-cell">Caixa contábil</TableHead>
               <TableHead className="hidden xl:table-cell">Financeiro</TableHead>
               <TableHead className="hidden w-24 sm:table-cell">Situação</TableHead>
               {escreve && <TableHead className="w-16" />}

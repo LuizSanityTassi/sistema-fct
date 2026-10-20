@@ -150,7 +150,7 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
               <>
                 <tr className="bg-amber-600 text-white font-semibold">
                   <td className="px-2 py-1" colSpan={dre.meses.length + 3}>
-                    NÃO CLASSIFICADAS ({dre.naoClassificadas.length}) — categorias fora do molde da DRE (classifique em Categorias)
+                    NÃO CLASSIFICADAS ({dre.naoClassificadas.length}) — categorias fora do molde do caixa contábil (classifique em Categorias)
                   </td>
                 </tr>
                 {dre.naoClassificadas.filter((c) => casa(c.nome)).map((c) => linhaCategoria(c, 1))}

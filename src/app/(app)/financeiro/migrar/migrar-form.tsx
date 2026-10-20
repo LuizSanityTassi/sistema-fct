@@ -27,7 +27,7 @@ export function MigrarForm({ action }: Props) {
       <section className="rounded-xl border bg-card p-5">
         <h2 className="mb-1 text-sm font-semibold">Arquivos do sistema anterior</h2>
         <p className="mb-4 text-xs text-muted-foreground">
-          Envie o <strong>fluxo-caixa.db</strong> (pasta <code>backend/data</code> do fluxo de caixa) e, junto, os arquivos <strong>seed-dre.json</strong> e <strong>seed-financeiro.json</strong> (pasta <code>backend</code>) para classificar as categorias na DRE e na visão financeira. Nada sai do servidor: o banco é lido e descartado.
+          Envie o <strong>fluxo-caixa.db</strong> (pasta <code>backend/data</code> do fluxo de caixa) e, junto, os arquivos <strong>seed-dre.json</strong> e <strong>seed-financeiro.json</strong> (pasta <code>backend</code>) para classificar as categorias no caixa contábil e na visão financeira. Nada sai do servidor: o banco é lido e descartado.
         </p>
         <ErroFormulario mensagem={estado.erro} />
         <div className="mt-3 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
@@ -56,7 +56,7 @@ export function MigrarForm({ action }: Props) {
               ["Lançamentos", String(p.lancamentos.total), `${p.lancamentos.jaExistem} já estão no sistema · ${dataBr(p.lancamentos.de)} a ${dataBr(p.lancamentos.ate)}`],
               ["A receber", moeda(p.lancamentos.totalReceber), `${p.lancamentos.receber} lançamentos`],
               ["A pagar", moeda(p.lancamentos.totalPagar), `${p.lancamentos.pagar} lançamentos`],
-              ["Categorias", String(p.categorias.total), `${p.categorias.combosNovos} só existiam nos lançamentos · ${p.categorias.semDre} sem DRE`],
+              ["Categorias", String(p.categorias.total), `${p.categorias.combosNovos} só existiam nos lançamentos · ${p.categorias.semDre} fora do caixa contábil`],
             ].map(([r, v, n]) => (
               <div key={r} className="rounded-xl border bg-card p-4">
                 <p className="rotulo">{r}</p>
@@ -88,8 +88,8 @@ export function MigrarForm({ action }: Props) {
           <section className="rounded-xl border bg-card p-5 text-sm">
             <h2 className="mb-2 text-sm font-semibold">Extras</h2>
             <p className="text-xs text-muted-foreground">
-              Molde da DRE: {p.extras.estruturaDre} grupos · ajustes do contador: {p.extras.overrides} · saldos: {p.extras.saldos} · orçamento: {p.extras.orcamento} · fluxo mensal: {p.extras.fluxoMensal} · fluxo diário: {p.extras.fluxoDiario} · inadimplência: {p.extras.inadimplencia}
-              {!p.extras.estruturaDre && " · (seed-dre.json não enviado: a DRE fica sem molde; dá para enviar depois)"}
+              Molde do caixa contábil: {p.extras.estruturaDre} grupos · ajustes do contador: {p.extras.overrides} · saldos: {p.extras.saldos} · orçamento: {p.extras.orcamento} · fluxo mensal: {p.extras.fluxoMensal} · fluxo diário: {p.extras.fluxoDiario} · inadimplência: {p.extras.inadimplencia}
+              {!p.extras.estruturaDre && " · (seed-dre.json não enviado: o caixa contábil fica sem molde; dá para enviar depois)"}
             </p>
           </section>
 

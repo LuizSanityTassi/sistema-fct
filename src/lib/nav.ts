@@ -237,7 +237,7 @@ export const NAV: NavGrupo[] = [
         href: "/financeiro/categorias",
         icon: ScrollText,
         papeis: ["admin", "financeiro", "contador"],
-        descricao: "Plano de categorias e molde da DRE.",
+        descricao: "Plano de categorias e molde do caixa contábil.",
       },
       {
         label: "Importar do Omie",
@@ -247,7 +247,7 @@ export const NAV: NavGrupo[] = [
         descricao: "Relatórios do Omie em Excel viram lançamentos realizados por unidade.",
       },
       {
-        label: "DRE",
+        label: "Caixa contábil",
         href: "/financeiro/dre",
         icon: ChartColumn,
         papeis: ["admin", "financeiro", "contador", "coordenador", "gerente"],
