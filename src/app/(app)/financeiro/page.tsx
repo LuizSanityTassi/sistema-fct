@@ -50,13 +50,19 @@ export default async function FinanceiroPage({ searchParams }: PageProps<"/finan
   const anos = [...new Set([anoAtual, ...competencias.map((c) => c.slice(0, 4))])].sort().reverse();
   const anoPedido = typeof sp.ano === "string" ? sp.ano : "";
   const ano = anos.includes(anoPedido) ? anoPedido : (competencias[0]?.slice(0, 4) ?? anoAtual);
-  const [resumo, fechados, categorias] = await Promise.all([resumoPeriodo(`${ano}-01`, `${ano}-12`), listarMesesFechados(), listarCategorias()]);
+  // tudo do ano em paralelo (o DRE dos alertas não espera o resumo)
+  const [resumo, fechados, categorias, dreAno] = await Promise.all([
+    resumoPeriodo(`${ano}-01`, `${ano}-12`),
+    listarMesesFechados(),
+    listarCategorias(),
+    rpcPaginado((a, b) => supabaseRpc().then((s) => s.rpc("fin_dre", { p_de: `${ano}-01`, p_ate: `${ano}-12` }).range(a, b))),
+  ]);
   const fechado = new Set(fechados.map((m) => m.competencia));
   const vazio = resumo.total.qtd === 0;
   const mesRef = resumo.porMes.length ? resumo.porMes[resumo.porMes.length - 1].competencia : null;
   const alertas = mesRef
     ? montarAlertas(
-        (await rpcPaginado((a, b) => supabaseRpc().then((s) => s.rpc("fin_dre", { p_de: `${ano}-01`, p_ate: `${ano}-12` }).range(a, b)))).map((l) => ({ categoria_id: l.categoria_id, competencia: l.competencia.trim(), tipo: l.tipo, total: Number(l.total) })),
+        dreAno.map((l) => ({ categoria_id: l.categoria_id, competencia: l.competencia.trim(), tipo: l.tipo, total: Number(l.total) })),
         categorias,
         mesRef,
         rotuloCompetencia,

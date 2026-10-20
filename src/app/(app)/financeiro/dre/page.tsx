@@ -18,15 +18,19 @@ export const metadata = { title: "DRE" };
 export default async function DrePage({ searchParams }: PageProps<"/financeiro/dre">) {
   const [sessao, sp] = await Promise.all([exigirAcesso("/financeiro/dre"), searchParams]);
   const escopo = lerEscopo(sp);
-  const [anos, unidades, dre] = await Promise.all([anosFinanceiro(), listarUnidadesFinanceiro(), dreDoPeriodo(escopo, escopo.ano, escopo.de)]);
   const supabase = await createClient();
-  const { data: ajustesRows } = await supabase
-    .from("fin_dre_ajustes")
-    .select("categoria_id, competencia, valor")
-    .eq("grupo", escopo.grupo)
-    .filter("branch_id", escopo.filial ? "eq" : "is", escopo.filial ?? null)
-    .gte("competencia", `${escopo.ano}-01`)
-    .lte("competencia", `${escopo.ano}-12`);
+  const [anos, unidades, dre, { data: ajustesRows }] = await Promise.all([
+    anosFinanceiro(),
+    listarUnidadesFinanceiro(),
+    dreDoPeriodo(escopo, escopo.ano, escopo.de),
+    supabase
+      .from("fin_dre_ajustes")
+      .select("categoria_id, competencia, valor")
+      .eq("grupo", escopo.grupo)
+      .filter("branch_id", escopo.filial ? "eq" : "is", escopo.filial ?? null)
+      .gte("competencia", `${escopo.ano}-01`)
+      .lte("competencia", `${escopo.ano}-12`),
+  ]);
   const ajustes = Object.fromEntries((ajustesRows ?? []).map((a) => [`${a.categoria_id}|${a.competencia.trim()}`, Number(a.valor)]));
   const unidadesDoGrupo = unidades.filter((u) => escopo.grupo === "TODOS" || u.grupo === escopo.grupo);
   const gruposUnid = new Map<string, typeof unidades>();
