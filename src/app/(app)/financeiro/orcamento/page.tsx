@@ -11,7 +11,7 @@ import { moedaFin } from "@/lib/financeiro/formatos";
 import { podeFecharMes } from "@/lib/financeiro/permissoes";
 import { formatarMoeda } from "@/lib/formatos";
 import { rotuloCompetencia } from "@/lib/rh/competencia";
-import { CelulaEditavel } from "../dre/celula-editavel";
+import { CelulaEditavel } from "../caixa-contabil/celula-editavel";
 import { salvarOrcamento } from "./actions";
 
 export const metadata = { title: "Orçamento" };

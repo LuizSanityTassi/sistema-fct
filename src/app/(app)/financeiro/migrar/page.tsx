@@ -24,7 +24,7 @@ export default async function MigrarPage({ searchParams }: PageProps<"/financeir
           <Link href="/financeiro" className="underline">
             ver visão geral
           </Link>
-          <Link href="/financeiro/dre" className="underline">
+          <Link href="/financeiro/caixa-contabil" className="underline">
             ver caixa contábil
           </Link>
         </div>

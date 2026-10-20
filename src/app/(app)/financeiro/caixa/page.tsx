@@ -11,7 +11,7 @@ import { podeFecharMes } from "@/lib/financeiro/permissoes";
 import { EMPRESAS_CAIXA } from "@/lib/financeiro/rotulos";
 import { formatarData, formatarMoeda } from "@/lib/formatos";
 import { competenciaAtual, rotuloCompetencia } from "@/lib/rh/competencia";
-import { CelulaEditavel } from "../dre/celula-editavel";
+import { CelulaEditavel } from "../caixa-contabil/celula-editavel";
 import { salvarFluxoDiario, salvarFluxoMensal } from "./actions";
 import { CampoTexto } from "./campo-texto";
 

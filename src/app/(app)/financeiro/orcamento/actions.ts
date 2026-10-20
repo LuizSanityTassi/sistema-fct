@@ -9,7 +9,7 @@ import { ehGrupoFinanceiro } from "@/lib/financeiro/rotulos";
 import { lerDecimal } from "@/lib/formatos";
 import { competenciaValida } from "@/lib/rh/competencia";
 import { createClient } from "@/lib/supabase/server";
-import type { RespostaCelula } from "../dre/actions";
+import type { RespostaCelula } from "../caixa-contabil/actions";
 
 /** Orçado (campo "valor") ou realizado informado (campo "realizado") de categoria × mês. Vazio limpa. */
 export async function salvarOrcamento(fd: FormData): Promise<RespostaCelula> {

@@ -39,7 +39,7 @@ export async function salvarAjusteDre(fd: FormData): Promise<RespostaCelula> {
     if (error) return { erro: error.message };
   }
   await registrarAuditoria(supabase, { userId: sessao.id, acao: "editar", entidade: "fin_dre_ajustes", novo: { grupo, filial, categoria_id: categoriaId, competencia, valor } });
-  revalidatePath("/financeiro/dre");
+  revalidatePath("/financeiro/caixa-contabil");
   return { ok: true };
 }
 
@@ -61,6 +61,6 @@ export async function salvarSaldoDre(fd: FormData): Promise<RespostaCelula> {
     if (error) return { erro: error.message };
   }
   await registrarAuditoria(supabase, { userId: sessao.id, acao: "editar", entidade: "fin_dre_saldos", novo: { grupo, filial, competencia, campo, valor } });
-  revalidatePath("/financeiro/dre");
+  revalidatePath("/financeiro/caixa-contabil");
   return { ok: true };
 }

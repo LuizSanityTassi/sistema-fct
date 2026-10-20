@@ -1,121 +1,342 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
+import { FileUp, ScrollText } from "lucide-react";
 import { SelectNativo } from "@/components/form/campo";
 import { PageHeader } from "@/components/layout/page-header";
+import { EstadoVazio } from "@/components/layout/painel";
+import { Status } from "@/components/layout/status";
 import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
-import { anosFinanceiro, dreDoPeriodo, GRUPOS_ESCOPO, lerEscopo } from "@/lib/data/dre";
-import { listarUnidadesFinanceiro } from "@/lib/data/financeiro";
+import { contas, empresasDre, lancamentosDre, somar } from "@/lib/data/dre-contabil";
+import { calcularDre, situacaoDoLucro, type Lancamentos } from "@/lib/financeiro/dre-contabil";
 import { moedaFin } from "@/lib/financeiro/formatos";
-import { podeLancar } from "@/lib/financeiro/permissoes";
-import { ordemGrupo } from "@/lib/financeiro/rotulos";
+import { formatarDataHora } from "@/lib/formatos";
 import { rotuloCompetencia } from "@/lib/rh/competencia";
 import { createClient } from "@/lib/supabase/server";
-import { salvarAjusteDre, salvarSaldoDre } from "./actions";
-import { DreTabela } from "./dre-tabela";
+import { Demonstrativo } from "./demonstrativo";
 
-export const metadata = { title: "Caixa contábil" };
+export const metadata = { title: "DRE" };
 
+const pct = new Intl.NumberFormat("pt-BR", { style: "percent", minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const mostraPct = (v: number | null | undefined) => (v === null || v === undefined || !Number.isFinite(v) ? "—" : pct.format(v));
+const tom = (v: number) => (v < 0 ? "text-red-700 dark:text-red-400" : v > 0 ? "text-emerald-700 dark:text-emerald-400" : "");
+const query = (p: Record<string, string | undefined>) => new URLSearchParams(Object.entries(p).filter((e): e is [string, string] => !!e[1])).toString();
+const ORDENS = { lucro: "Lucro / prejuízo", operacional: "Lucro operacional", faturamento: "Faturamento", margem: "M.C. %" } as const;
+type Ordem = keyof typeof ORDENS;
+
+/** DRE contábil por filial (planilha do contador): resumo por filial (mês ou acumulado) e o demonstrativo mês a mês. */
 export default async function DrePage({ searchParams }: PageProps<"/financeiro/dre">) {
   const [sessao, sp] = await Promise.all([exigirAcesso("/financeiro/dre"), searchParams]);
-  const escopo = lerEscopo(sp);
+  const s = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : "");
+  const podeImportar = sessao.papel === "admin" || sessao.papel === "financeiro" || sessao.papel === "contador";
+  const botaoImportar = podeImportar ? (
+    <Button nativeButton={false} render={<Link href="/financeiro/dre/importar" />}>
+      <FileUp data-icon="inline-start" />
+      Importar planilha
+    </Button>
+  ) : undefined;
+
+  const empresas = await empresasDre();
+  if (!empresas.length) {
+    return (
+      <>
+        <PageHeader eyebrow="Financeiro" titulo="DRE" descricao="DRE contábil por filial, a partir da planilha que o contador manda todo mês." acoes={botaoImportar} />
+        <section className="rounded-xl border bg-card">
+          <EstadoVazio icone={ScrollText} titulo="Nenhuma DRE importada ainda" descricao="Importe a planilha “DRE POR FILIAIS” do contador para ver o resultado de cada filial." />
+        </section>
+      </>
+    );
+  }
+
+  const emp = empresas.find((e) => e.empresa === s("empresa")) ?? empresas[0];
+  const anos = [...new Set(emp.meses.map((m) => m.slice(0, 4)))].sort().reverse();
+  const ano = anos.includes(s("ano")) ? s("ano") : anos[0];
+  const mesesDoAno = emp.meses.filter((m) => m.startsWith(ano)).sort();
+  const ver = s("ver") === "demonstrativo" ? "demonstrativo" : "resumo";
+  const mapa = await lancamentosDre(emp.empresa, `${ano}-01`, `${ano}-12`);
+
+  const ids = [...mapa.keys()].filter(Boolean);
   const supabase = await createClient();
-  const [anos, unidades, dre, { data: ajustesRows }] = await Promise.all([
-    anosFinanceiro(),
-    listarUnidadesFinanceiro(),
-    dreDoPeriodo(escopo, escopo.ano, escopo.de),
-    supabase
-      .from("fin_dre_ajustes")
-      .select("categoria_id, competencia, valor")
-      .eq("grupo", escopo.grupo)
-      .filter("branch_id", escopo.filial ? "eq" : "is", escopo.filial ?? null)
-      .gte("competencia", `${escopo.ano}-01`)
-      .lte("competencia", `${escopo.ano}-12`),
-  ]);
-  const ajustes = Object.fromEntries((ajustesRows ?? []).map((a) => [`${a.categoria_id}|${a.competencia.trim()}`, Number(a.valor)]));
-  const unidadesDoGrupo = unidades.filter((u) => escopo.grupo === "TODOS" || u.grupo === escopo.grupo);
-  const gruposUnid = new Map<string, typeof unidades>();
-  for (const u of unidadesDoGrupo) gruposUnid.set(u.grupo, [...(gruposUnid.get(u.grupo) ?? []), u]);
-  const filialSel = escopo.filial ? unidades.find((u) => u.id === escopo.filial) : undefined;
-  const podeEditar = podeLancar(sessao.papel);
-  const ultimo = dre.mesesTotal[dre.mesesTotal.length - 1];
+  const { data: lojas } = ids.length ? await supabase.from("branches").select("id, codigo, nome").in("id", ids) : { data: [] };
+  const porId = new Map((lojas ?? []).map((l) => [l.id, l]));
+  const filiaisOrdenadas = ids.map((id) => ({ id, codigo: porId.get(id)?.codigo ?? "?", nome: porId.get(id)?.nome ?? "" })).sort((a, b) => a.codigo.localeCompare(b.codigo));
+  const base = { empresa: emp.empresa, ano };
 
   return (
     <>
       <PageHeader
         eyebrow="Financeiro"
-        titulo="Caixa contábil"
-        descricao={`Demonstrativo contábil ${escopo.grupo === "TODOS" ? "do grupo" : `· ${escopo.grupo}`}${filialSel ? ` · ${filialSel.codigo} ${filialSel.nome}` : ""} · ${escopo.ano}. Receitas, custo e despesas por mês, com ajustes do contador e cadeia de caixa.`}
-        acoes={
-          <Button variant="outline" nativeButton={false} render={<Link href={`/financeiro/analise?grupo=${encodeURIComponent(escopo.grupo)}&ano=${escopo.ano}`} />}>
-            Ranking e comparativo
-          </Button>
-        }
+        titulo="DRE"
+        descricao={`DRE contábil da ${emp.empresa} por filial (planilha do contador). Última importação: ${emp.ultima.arquivo ?? "planilha"} · ${emp.ultima.por ?? "—"} · ${formatarDataHora(emp.ultima.em)}.`}
+        acoes={botaoImportar}
       />
 
-      <form method="get" className="mb-4 grid gap-2 rounded-xl border bg-card p-3 sm:grid-cols-2 lg:grid-cols-[auto_1fr_auto_auto_auto_auto] lg:items-center">
-        <SelectNativo name="grupo" defaultValue={escopo.grupo} aria-label="Grupo" className="lg:w-44">
-          {GRUPOS_ESCOPO.map((g) => (
-            <option key={g} value={g}>
-              {g === "TODOS" ? "Todas (grupo)" : g}
-            </option>
-          ))}
-        </SelectNativo>
-        <SelectNativo name="filial" defaultValue={escopo.filial ?? ""} aria-label="Unidade">
-          <option value="">Todas as unidades</option>
-          {[...gruposUnid.keys()].sort(ordemGrupo).map((g) => (
-            <optgroup key={g} label={g}>
-              {gruposUnid.get(g)!.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.codigo} — {u.nome}
-                  {u.ativo ? "" : " (inativa)"}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </SelectNativo>
-        <SelectNativo name="ano" defaultValue={escopo.ano} aria-label="Ano" className="lg:w-28">
+      <nav className="mb-4 flex flex-wrap items-center gap-2 text-sm" aria-label="Visões da DRE">
+        {(
+          [
+            ["resumo", "Resumo por filial"],
+            ["demonstrativo", "Demonstrativo"],
+          ] as const
+        ).map(([v, r]) => (
+          <Link
+            key={v}
+            href={`/financeiro/dre?${query({ ...base, ver: v === "resumo" ? undefined : v, filial: v === "demonstrativo" ? s("filial") || undefined : undefined })}`}
+            aria-current={ver === v ? "page" : undefined}
+            className={`rounded-full border px-3 py-1 ${ver === v ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary/40"}`}
+          >
+            {r}
+          </Link>
+        ))}
+      </nav>
+
+      {ver === "resumo" ? (
+        <Resumo s={s} base={base} empresas={empresas.map((e) => e.empresa)} anos={anos} mesesDoAno={mesesDoAno} mapa={mapa} filiais={filiaisOrdenadas} />
+      ) : (
+        <VerDemonstrativo s={s} base={base} empresas={empresas.map((e) => e.empresa)} anos={anos} mesesDoAno={mesesDoAno} mapa={mapa} filiais={filiaisOrdenadas} />
+      )}
+    </>
+  );
+}
+
+type Props = {
+  s: (k: string) => string;
+  base: { empresa: string; ano: string };
+  empresas: string[];
+  anos: string[];
+  mesesDoAno: string[];
+  mapa: Awaited<ReturnType<typeof lancamentosDre>>;
+  filiais: { id: string; codigo: string; nome: string }[];
+};
+
+function Filtros({ base, empresas, anos, ver, children }: { base: Props["base"]; empresas: string[]; anos: string[]; ver: string; children?: ReactNode }) {
+  return (
+    <form method="get" className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border bg-card p-4">
+      {ver !== "resumo" && <input type="hidden" name="ver" value={ver} />}
+      {empresas.length > 1 && (
+        <label className="grid gap-1 text-sm">
+          <span className="font-medium">Empresa</span>
+          <SelectNativo name="empresa" defaultValue={base.empresa} className="w-40">
+            {empresas.map((e) => (
+              <option key={e} value={e}>
+                {e}
+              </option>
+            ))}
+          </SelectNativo>
+        </label>
+      )}
+      {empresas.length === 1 && <input type="hidden" name="empresa" value={base.empresa} />}
+      <label className="grid gap-1 text-sm">
+        <span className="font-medium">Ano</span>
+        <SelectNativo name="ano" defaultValue={base.ano} className="w-28">
           {anos.map((a) => (
             <option key={a} value={a}>
               {a}
             </option>
           ))}
         </SelectNativo>
-        <SelectNativo name="de" defaultValue={escopo.de ?? ""} aria-label="Totais a partir de" className="lg:w-48" title="Meses anteriores aparecem, mas não entram no total">
-          <option value="">Totais desde o 1º mês</option>
-          {dre.meses.map((m) => (
-            <option key={m} value={m}>
-              Totais a partir de {rotuloCompetencia(m)}
-            </option>
-          ))}
-        </SelectNativo>
-        <Button type="submit" variant="outline">
-          Aplicar
-        </Button>
-        <Button type="button" variant="ghost" nativeButton={false} render={<Link href="/financeiro/dre" />}>
-          Limpar
-        </Button>
-      </form>
+      </label>
+      {children}
+      <Button type="submit" variant="outline">
+        Ver
+      </Button>
+    </form>
+  );
+}
 
-      {dre.meses.length === 0 ? (
-        <section className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">Sem lançamentos para este recorte em {escopo.ano}.</section>
-      ) : (
-        <>
-          <section className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            {[
-              ["Receitas", moedaFin(dre.receitas.total), "text-emerald-700"],
-              ["Saídas", moedaFin(dre.saidas.total), "text-red-700"],
-              ["Resultado", moedaFin(dre.resultado.total), dre.resultado.total < 0 ? "text-red-700" : "text-emerald-700"],
-              ["Caixa acumulado", moedaFin(ultimo ? (dre.acumulado[ultimo] ?? 0) : 0), (ultimo ? (dre.acumulado[ultimo] ?? 0) : 0) < 0 ? "text-red-700" : "text-emerald-700"],
-            ].map(([r, v, t]) => (
-              <div key={r} className="rounded-xl border bg-card p-4">
-                <p className="rotulo">{r}</p>
-                <p className={`mt-1 numero-sm ${t}`}>{v}</p>
-              </div>
+function Resumo({ s, base, empresas, anos, mesesDoAno, mapa, filiais }: Props) {
+  const periodo = s("mes") === "acumulado" ? "acumulado" : mesesDoAno.includes(s("mes")) ? s("mes") : mesesDoAno[mesesDoAno.length - 1];
+  const meses = periodo === "acumulado" ? mesesDoAno : [periodo];
+  const ordem: Ordem = s("ordem") in ORDENS ? (s("ordem") as Ordem) : "lucro";
+  const temLancamento = (id: string) => meses.some((m) => Object.values(mapa.get(id)?.get(m) ?? {}).some((v) => v));
+  const linhas = filiais
+    .filter((f) => temLancamento(f.id))
+    .map((f) => ({ ...f, c: contas(mapa, f.id, meses) }))
+    .sort((a, b) => {
+      const k = (x: typeof a) => (ordem === "operacional" ? x.c.lucroOperacional : ordem === "faturamento" ? x.c.receitaBruta : ordem === "margem" ? (x.c.margemPct ?? -9) : x.c.lucro);
+      return k(b) - k(a);
+    });
+  const consolidado = contas(mapa, "*", meses);
+  const daEmpresa = calcularDre(somar(mapa, "", meses));
+  const somaFiliais = calcularDre(
+    filiais.reduce<Lancamentos>((acc, f) => {
+      const l = somar(mapa, f.id, meses);
+      for (const [k, v] of Object.entries(l)) acc[k as keyof Lancamentos] = (acc[k as keyof Lancamentos] ?? 0) + (v ?? 0);
+      return acc;
+    }, {}),
+  );
+  const conta = { prejuizo: 0, empate: 0, lucro: 0 };
+  for (const l of linhas) conta[situacaoDoLucro(l.c.lucro)]++;
+  const nomePeriodo = periodo === "acumulado" ? `acumulado de ${rotuloCompetencia(mesesDoAno[0])} a ${rotuloCompetencia(mesesDoAno[mesesDoAno.length - 1])}` : rotuloCompetencia(periodo);
+  const linkOrdem = (o: Ordem) => `/financeiro/dre?${query({ ...base, mes: s("mes") || undefined, ordem: o === "lucro" ? undefined : o })}`;
+
+  return (
+    <>
+      <Filtros base={base} empresas={empresas} anos={anos} ver="resumo">
+        <label className="grid gap-1 text-sm">
+          <span className="font-medium">Período</span>
+          <SelectNativo name="mes" defaultValue={periodo} className="w-52">
+            {[...mesesDoAno].reverse().map((m) => (
+              <option key={m} value={m}>
+                {rotuloCompetencia(m)}
+              </option>
             ))}
-          </section>
-          <DreTabela dre={dre} escopo={{ grupo: escopo.grupo, filial: escopo.filial ?? "" }} podeEditar={podeEditar} salvarAjuste={salvarAjusteDre} salvarSaldo={salvarSaldoDre} ajustes={ajustes} />
-        </>
-      )}
+            <option value="acumulado">Acumulado do ano</option>
+          </SelectNativo>
+        </label>
+        {ordem !== "lucro" && <input type="hidden" name="ordem" value={ordem} />}
+      </Filtros>
+
+      <div className="mb-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <Cartao rotulo="Lucro / prejuízo" valor={moedaFin(consolidado.lucro)} tom={tom(consolidado.lucro)} nota={`${nomePeriodo}, com depreciação`} />
+        <Cartao rotulo="Receita bruta" valor={moedaFin(consolidado.receitaBruta)} nota={`receita líquida ${moedaFin(consolidado.receitaLiquida)}`} />
+        <Cartao rotulo="Margem de contribuição" valor={mostraPct(consolidado.margemPct)} nota={`${moedaFin(consolidado.margem)} · CMV ${mostraPct(consolidado.cmvSobreBruta)} da receita bruta`} />
+        <Cartao rotulo="Filiais" valor={`${conta.lucro} com lucro`} nota={`${conta.empate} praticamente empataram (até R$ 2.000) · ${conta.prejuizo} com prejuízo`} />
+      </div>
+
+      <section className="rounded-xl border bg-card">
+        <header className="flex flex-wrap items-center justify-between gap-2 px-5 pt-4 pb-3">
+          <h2 className="text-sm font-semibold">Resultado por filial · {nomePeriodo}</h2>
+          <p className="text-xs text-muted-foreground">
+            Ordenar por:{" "}
+            {(Object.keys(ORDENS) as Ordem[]).map((o, i) => (
+              <span key={o}>
+                {i > 0 && " · "}
+                <Link href={linkOrdem(o)} className={o === ordem ? "font-semibold text-foreground" : "hover:underline"}>
+                  {ORDENS[o]}
+                </Link>
+              </span>
+            ))}
+          </p>
+        </header>
+        {linhas.length === 0 ? (
+          <EstadoVazio compacto icone={ScrollText} titulo="Nenhuma filial com lançamento nesse período" />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Filial</TableHead>
+                <TableHead className="text-right">Faturamento</TableHead>
+                <TableHead className="hidden text-right md:table-cell">Part. %</TableHead>
+                <TableHead className="text-right">M.C. %</TableHead>
+                <TableHead className="hidden text-right lg:table-cell" title="Custo das mercadorias sobre a receita bruta">
+                  CMV %
+                </TableHead>
+                <TableHead className="hidden text-right xl:table-cell">Impostos %</TableHead>
+                <TableHead className="hidden text-right xl:table-cell">Comissões %</TableHead>
+                <TableHead className="hidden text-right lg:table-cell" title="Despesas sobre a receita bruta">
+                  Despesas %
+                </TableHead>
+                <TableHead className="hidden text-right md:table-cell">L. operacional</TableHead>
+                <TableHead className="text-right">Lucro / prejuízo</TableHead>
+                <TableHead className="hidden text-right sm:table-cell" title="Lucro / prejuízo sobre a receita bruta">
+                  L/P %
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {linhas.map((l) => {
+                const sit = situacaoDoLucro(l.c.lucro);
+                return (
+                  <TableRow key={l.id}>
+                    <TableCell>
+                      <Link href={`/financeiro/dre?${query({ ...base, ver: "demonstrativo", filial: l.id })}`} className="font-medium hover:underline">
+                        <span className="font-mono text-xs">{l.codigo}</span> {l.nome}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{moedaFin(l.c.receitaBruta)}</TableCell>
+                    <TableCell className="hidden text-right tabular-nums text-muted-foreground md:table-cell">{mostraPct(consolidado.receitaBruta ? l.c.receitaBruta / consolidado.receitaBruta : null)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{mostraPct(l.c.margemPct)}</TableCell>
+                    <TableCell className="hidden text-right tabular-nums lg:table-cell">{mostraPct(l.c.cmvSobreBruta)}</TableCell>
+                    <TableCell className="hidden text-right tabular-nums xl:table-cell">{mostraPct(l.c.impostosSobreBruta)}</TableCell>
+                    <TableCell className="hidden text-right tabular-nums xl:table-cell">{mostraPct(l.c.comissoesSobreBruta)}</TableCell>
+                    <TableCell className="hidden text-right tabular-nums lg:table-cell">{mostraPct(l.c.despesasSobreBruta)}</TableCell>
+                    <TableCell className={`hidden text-right tabular-nums md:table-cell ${tom(l.c.lucroOperacional)}`}>{moedaFin(l.c.lucroOperacional)}</TableCell>
+                    <TableCell className={`text-right font-medium tabular-nums ${tom(l.c.lucro)}`}>
+                      {moedaFin(l.c.lucro)}
+                      {sit === "empate" && <span className="block text-[11px] font-normal text-muted-foreground">praticamente empatou</span>}
+                    </TableCell>
+                    <TableCell className="hidden text-right tabular-nums sm:table-cell">{mostraPct(l.c.lucroSobreBruta)}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+            <TableFooter>
+              <TableRow>
+                <TableCell>Soma das filiais</TableCell>
+                <TableCell className="text-right tabular-nums">{moedaFin(somaFiliais.receitaBruta)}</TableCell>
+                <TableCell className="hidden md:table-cell" />
+                <TableCell className="text-right tabular-nums">{mostraPct(somaFiliais.margemPct)}</TableCell>
+                <TableCell className="hidden lg:table-cell" />
+                <TableCell className="hidden xl:table-cell" />
+                <TableCell className="hidden xl:table-cell" />
+                <TableCell className="hidden lg:table-cell" />
+                <TableCell className={`hidden text-right tabular-nums md:table-cell ${tom(somaFiliais.lucroOperacional)}`}>{moedaFin(somaFiliais.lucroOperacional)}</TableCell>
+                <TableCell className={`text-right tabular-nums ${tom(somaFiliais.lucro)}`}>{moedaFin(somaFiliais.lucro)}</TableCell>
+                <TableCell className="hidden sm:table-cell" />
+              </TableRow>
+              {daEmpresa.despesas !== 0 && (
+                <TableRow>
+                  <TableCell>Depreciação (da empresa)</TableCell>
+                  <TableCell colSpan={8} className="hidden md:table-cell" />
+                  <TableCell className="text-right tabular-nums text-red-700 dark:text-red-400">{moedaFin(daEmpresa.despesas)}</TableCell>
+                  <TableCell className="hidden sm:table-cell" />
+                </TableRow>
+              )}
+              <TableRow>
+                <TableCell className="font-semibold">Total com depreciação</TableCell>
+                <TableCell colSpan={8} className="hidden md:table-cell" />
+                <TableCell className={`text-right font-semibold tabular-nums ${tom(consolidado.lucro)}`}>{moedaFin(consolidado.lucro)}</TableCell>
+                <TableCell className="hidden text-right tabular-nums sm:table-cell">{mostraPct(consolidado.lucroSobreBruta)}</TableCell>
+              </TableRow>
+            </TableFooter>
+          </Table>
+        )}
+      </section>
     </>
+  );
+}
+
+function VerDemonstrativo({ s, base, empresas, anos, mesesDoAno, mapa, filiais }: Props) {
+  const filial = filiais.find((f) => f.id === s("filial"));
+  const chave = filial ? filial.id : "*";
+  const porMes = new Map(mesesDoAno.map((m) => [m, somar(mapa, chave, [m])]));
+  return (
+    <>
+      <Filtros base={base} empresas={empresas} anos={anos} ver="demonstrativo">
+        <label className="grid gap-1 text-sm">
+          <span className="font-medium">Filial</span>
+          <SelectNativo name="filial" defaultValue={filial?.id ?? ""} className="w-64">
+            <option value="">Consolidado da empresa</option>
+            {filiais.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.codigo} — {f.nome}
+              </option>
+            ))}
+          </SelectNativo>
+        </label>
+      </Filtros>
+      <section className="rounded-xl border bg-card">
+        <header className="flex flex-wrap items-center justify-between gap-2 px-5 pt-4 pb-3">
+          <h2 className="text-sm font-semibold">{filial ? `${filial.codigo} ${filial.nome}` : `Consolidado da ${base.empresa}`} · {base.ano}</h2>
+          {filial ? (
+            <Status tom="info">sem a depreciação, que é da empresa</Status>
+          ) : (
+            <Status tom="neutro">todas as filiais + depreciação</Status>
+          )}
+        </header>
+        <Demonstrativo meses={mesesDoAno} porMes={porMes} />
+      </section>
+    </>
+  );
+}
+
+function Cartao({ rotulo, valor, nota, tom: cor }: { rotulo: string; valor: string; nota?: string; tom?: string }) {
+  return (
+    <div className="rounded-xl border bg-card p-4">
+      <p className="rotulo">{rotulo}</p>
+      <p className={`mt-1.5 numero-sm ${cor ?? ""}`}>{valor}</p>
+      {nota && <p className="text-xs text-muted-foreground">{nota}</p>}
+    </div>
   );
 }

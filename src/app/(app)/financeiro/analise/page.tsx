@@ -13,7 +13,7 @@ import { podeFecharMes } from "@/lib/financeiro/permissoes";
 import { formatarMoeda } from "@/lib/formatos";
 import { rotuloCompetencia } from "@/lib/rh/competencia";
 import { salvarInadimplencia } from "../caixa/actions";
-import { CelulaEditavel } from "../dre/celula-editavel";
+import { CelulaEditavel } from "../caixa-contabil/celula-editavel";
 
 export const metadata = { title: "Inadimplência e ranking" };
 

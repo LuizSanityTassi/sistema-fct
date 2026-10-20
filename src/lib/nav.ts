@@ -247,8 +247,15 @@ export const NAV: NavGrupo[] = [
         descricao: "Relatórios do Omie em Excel viram lançamentos realizados por unidade.",
       },
       {
-        label: "Caixa contábil",
+        label: "DRE",
         href: "/financeiro/dre",
+        icon: ScrollText,
+        papeis: ["admin", "financeiro", "contador"],
+        descricao: "DRE contábil por filial (planilha do contador): resultado do mês e acumulado, ranking e indicadores.",
+      },
+      {
+        label: "Caixa contábil",
+        href: "/financeiro/caixa-contabil",
         icon: ChartColumn,
         papeis: ["admin", "financeiro", "contador", "coordenador", "gerente"],
         descricao: "Demonstrativo contábil por grupo/unidade e mês, com ajustes do contador e caixa.",

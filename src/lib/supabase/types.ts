@@ -918,6 +918,75 @@ export type Database = {
           },
         ]
       }
+      dre_contabil: {
+        Row: {
+          branch_id: string | null
+          competencia: string
+          empresa: string
+          id: string
+          importacao_id: string
+          linha: string
+          valor: number
+        }
+        Insert: {
+          branch_id?: string | null
+          competencia: string
+          empresa: string
+          id?: string
+          importacao_id: string
+          linha: string
+          valor: number
+        }
+        Update: {
+          branch_id?: string | null
+          competencia?: string
+          empresa?: string
+          id?: string
+          importacao_id?: string
+          linha?: string
+          valor?: number
+        }
+        Relationships: []
+      }
+      dre_contabil_importacoes: {
+        Row: {
+          arquivo: string | null
+          avisos: Json | null
+          criado_em: string
+          criado_por: string | null
+          criado_por_nome: string | null
+          empresa: string
+          filiais: number
+          id: string
+          meses: string[]
+          valores: number
+        }
+        Insert: {
+          arquivo?: string | null
+          avisos?: Json | null
+          criado_em?: string
+          criado_por?: string | null
+          criado_por_nome?: string | null
+          empresa: string
+          filiais?: number
+          id?: string
+          meses: string[]
+          valores?: number
+        }
+        Update: {
+          arquivo?: string | null
+          avisos?: Json | null
+          criado_em?: string
+          criado_por?: string | null
+          criado_por_nome?: string | null
+          empresa?: string
+          filiais?: number
+          id?: string
+          meses?: string[]
+          valores?: number
+        }
+        Relationships: []
+      }
       employee_aso: {
         Row: {
           ativo: boolean
@@ -3379,6 +3448,10 @@ export type Database = {
           valor_anterior: Json
           valor_novo: Json
         }[]
+      }
+      dre_contabil_importar: {
+        Args: { p_arquivo: string; p_avisos?: Json; p_empresa: string; p_meses: string[]; p_valores: Json }
+        Returns: string
       }
       contas_para_deposito: {
         Args: never

@@ -8,7 +8,7 @@ import { EMPRESAS_CAIXA } from "@/lib/financeiro/rotulos";
 import { lerDecimal } from "@/lib/formatos";
 import { competenciaValida } from "@/lib/rh/competencia";
 import { createClient } from "@/lib/supabase/server";
-import type { RespostaCelula } from "../dre/actions";
+import type { RespostaCelula } from "../caixa-contabil/actions";
 
 const empresaValida = (e: string) => EMPRESAS_CAIXA.some((x) => x.nome === e);
 const DATA_RE = /^\d{4}-\d{2}-\d{2}$/;

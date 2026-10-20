@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import type { RespostaCelula } from "../dre/actions";
+import type { RespostaCelula } from "../caixa-contabil/actions";
 
 type Props = { action: (fd: FormData) => Promise<RespostaCelula>; campos: Record<string, string>; valorAtual: string; placeholder?: string; podeEditar: boolean };
 
