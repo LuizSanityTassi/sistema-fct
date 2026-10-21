@@ -3,9 +3,9 @@
 // nas linhas; o sistema guarda só os lançamentos (vendas, deduções, custos, despesas, financeiro, IR) e calcula o resto
 // (receita líquida, margem, lucro, %s, ponto de equilíbrio) — igual às fórmulas da planilha.
 //
-// Depreciação: a planilha lança na aba da matriz, mas o resultado de cada filial NÃO desconta (o "Total despesas"
-// das abas soma só pessoal…outras) e o consolidado desconta ("TOTAL COM DEPRECIAÇÃO"). Por isso ela fica guardada
-// como valor da EMPRESA (sem filial): entra no consolidado e não no resultado da matriz.
+// Depreciação: a planilha lança na aba da matriz. Na da Nazário o resultado da matriz NÃO desconta (o "Total
+// despesas" soma só pessoal…outras; o consolidado desconta no "TOTAL COM DEPRECIAÇÃO"): aí ela fica guardada como
+// valor da EMPRESA (sem filial). Na da Varela a aba da matriz já desconta: aí fica na filial. O consolidado é o mesmo.
 
 export const LINHAS_DRE = [
   "vendas",
@@ -92,12 +92,19 @@ function mesDoCabecalho(v: unknown): string | null {
 const numero = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
 const centavos = (v: number) => Math.round(v * 100) / 100;
 
-/** Aba de filial: "CHAPECÓ 302" → código F302; "TRIO" → TRIO. Abas de resumo devolvem null. */
+/** Abas sem número que são unidades do cadastro. */
+const ABAS_ESPECIAIS: Record<string, string> = { trio: "TRIO", televendas: "TLV", terceirizadas: "TERC" };
+
+/**
+ * Aba de filial: "CHAPECÓ 302" → F302; "MATRIZ 01" → F001 (Varela numera com 2 dígitos); "TRIO", "TELEVENDAS" e
+ * "TERCEIRIZADAS" → TRIO, TLV e TERC. Abas de resumo devolvem null.
+ */
 export function codigoDaAba(nome: string): string | null {
   const t = nome.trim();
-  if (/^trio$/i.test(t)) return "TRIO";
-  const m = /\b(\d{3})\s*$/.exec(t);
-  return m ? `F${m[1]}` : null;
+  const especial = ABAS_ESPECIAIS[sem(t)];
+  if (especial) return especial;
+  const m = /\b(\d{1,3})\s*$/.exec(t);
+  return m ? `F${m[1].padStart(3, "0")}` : null;
 }
 
 export type AbaLida = {
@@ -249,7 +256,9 @@ export function montarImportacao(abas: { nome: string; matriz: unknown[][] }[]):
     const doMes: Lancamentos[] = [];
     for (const l of lidas) {
       const lanc = { ...(l.valores[mes] ?? {}) };
-      if (lanc.depreciacao) {
+      // a depreciação fica onde o contador pôs: se o lucro da aba já desconta (Varela), é da filial; senão (Nazário), da empresa
+      const planilhaDesconta = lanc.depreciacao !== undefined && l.lucroPlanilha[mes] !== undefined && Math.abs(l.lucroPlanilha[mes] - calcularDre(lanc).lucro) < 0.01;
+      if (lanc.depreciacao && !planilhaDesconta) {
         daEmpresa.depreciacao = centavos((daEmpresa.depreciacao ?? 0) + lanc.depreciacao);
         delete lanc.depreciacao;
       }
