@@ -44,6 +44,28 @@ const ORDENS: Record<string, (c: ContasDre) => number> = {
 };
 type Direcao = "asc" | "desc";
 
+/**
+ * Títulos de coluna que ordenam a tabela pela URL (?ordem=&dir=): 1º clique do maior para o menor (a coluna "filial":
+ * A→Z), o 2º inverte; a seta mostra a coluna e o sentido. Voltar à ordem padrão da tela limpa os parâmetros.
+ */
+function cabecalhosOrdenaveis(ordem: string, dir: Direcao, ordemPadrao: string, link: (p: { ordem?: string; dir?: Direcao }) => string) {
+  return function Cabecalho(coluna: string, rotulo: string, className = "", title?: string) {
+    const ativa = ordem === coluna;
+    const padrao: Direcao = coluna === "filial" ? "asc" : "desc";
+    const proxima: Direcao = ativa ? (dir === "desc" ? "asc" : "desc") : padrao;
+    const Icone = !ativa ? ArrowUpDown : dir === "desc" ? ArrowDown : ArrowUp;
+    const href = link({ ordem: coluna === ordemPadrao && proxima === padrao ? undefined : coluna, dir: proxima === padrao ? undefined : proxima });
+    return (
+      <TableHead key={coluna} className={className} title={title} aria-sort={ativa ? (dir === "desc" ? "descending" : "ascending") : undefined}>
+        <Link href={href} scroll={false} className={`inline-flex items-center gap-1 hover:text-foreground ${ativa ? "font-semibold text-foreground" : ""}`}>
+          {rotulo}
+          <Icone className={`size-3.5 ${ativa ? "" : "opacity-40"}`} aria-hidden />
+        </Link>
+      </TableHead>
+    );
+  };
+}
+
 /** DRE contábil por filial (planilha do contador): resumo por filial (mês ou acumulado), o demonstrativo mês a mês e o rateio por faturamento. */
 export default async function DrePage({ searchParams }: PageProps<"/financeiro/dre">) {
   const [sessao, sp] = await Promise.all([exigirAcesso("/financeiro/dre"), searchParams]);
@@ -193,21 +215,7 @@ function Resumo({ s, base, empresas, anos, mesesDoAno, mapa, rateios, filiais }:
   const conta = { prejuizo: 0, empate: 0, lucro: 0 };
   for (const l of linhas) conta[situacaoDoLucro(l.c.lucro)]++;
   const nomePeriodo = periodo === "acumulado" ? `acumulado de ${rotuloCompetencia(mesesDoAno[0])} a ${rotuloCompetencia(mesesDoAno[mesesDoAno.length - 1])}` : rotuloCompetencia(periodo);
-  const cabecalho = (coluna: string, rotulo: string, className = "", title?: string) => {
-    const ativa = ordem === coluna;
-    const padrao: Direcao = coluna === "filial" ? "asc" : "desc";
-    const proxima: Direcao = ativa ? (dir === "desc" ? "asc" : "desc") : padrao;
-    const Icone = !ativa ? ArrowUpDown : dir === "desc" ? ArrowDown : ArrowUp;
-    const href = `/financeiro/dre?${query({ ...base, mes: s("mes") || undefined, ordem: coluna === "lucro" && proxima === "desc" ? undefined : coluna, dir: proxima === padrao ? undefined : proxima })}`;
-    return (
-      <TableHead className={className} title={title} aria-sort={ativa ? (dir === "desc" ? "descending" : "ascending") : undefined}>
-        <Link href={href} scroll={false} className={`inline-flex items-center gap-1 hover:text-foreground ${ativa ? "font-semibold text-foreground" : ""}`}>
-          {rotulo}
-          <Icone className={`size-3.5 ${ativa ? "" : "opacity-40"}`} aria-hidden />
-        </Link>
-      </TableHead>
-    );
-  };
+  const cabecalho = cabecalhosOrdenaveis(ordem, dir, "lucro", (p) => `/financeiro/dre?${query({ ...base, mes: s("mes") || undefined, ...p })}`);
 
   return (
     <>
@@ -364,7 +372,21 @@ function Rateio({ s, base, empresas, anos, mesesDoAno, mapa, rateios, filiais, p
   const distribuicao = distribuirRateios(mapa, mes, doMes);
   const comBase = filiais.map((f) => ({ ...f, base: baseDoRateio(mapa.get(f.id)?.get(mes) ?? {}) }));
   const totalBase = comBase.reduce((t, f) => t + Math.max(0, f.base), 0);
-  const linhas = comBase.filter((f) => f.base > 0).sort((a, b) => b.base - a.base);
+  // # = posição no faturamento (o ranking da planilha), qualquer que seja a ordem da tabela
+  const porFaturamento = comBase.filter((f) => f.base > 0).sort((a, b) => b.base - a.base);
+  const posicao = new Map(porFaturamento.map((f, i) => [f.id, i + 1]));
+  const rateado = (id: string) => distribuicao.reduce((t, { porFilial }) => t + (porFilial.get(id)?.valor ?? 0), 0);
+  // ordenar: filial, faturamento/part (a base), cada item (pelo tamanho do valor) ou o total rateado
+  const colunasItem = new Map(distribuicao.map(({ rateio, porFilial }) => [`i-${rateio.id}`, porFilial]));
+  const ordem = ["filial", "faturamento", "part", "total"].includes(s("ordem")) || colunasItem.has(s("ordem")) ? s("ordem") : "faturamento";
+  const dir: Direcao = s("dir") === "asc" || s("dir") === "desc" ? (s("dir") as Direcao) : ordem === "filial" ? "asc" : "desc";
+  const chave = (f: (typeof porFaturamento)[number]) =>
+    ordem === "total" ? Math.abs(rateado(f.id)) : colunasItem.has(ordem) ? Math.abs(colunasItem.get(ordem)!.get(f.id)?.valor ?? 0) : f.base;
+  const linhas = [...porFaturamento].sort((a, b) => {
+    const r = ordem === "filial" ? a.codigo.localeCompare(b.codigo) : chave(a) - chave(b) || a.codigo.localeCompare(b.codigo);
+    return dir === "asc" ? r : -r;
+  });
+  const cabecalho = cabecalhosOrdenaveis(ordem, dir, "faturamento", (p) => `/financeiro/dre?${query({ ...base, ver: "rateio", mes, ...p })}`);
   const semFaturamento = comBase.filter((f) => f.base <= 0 && Object.values(mapa.get(f.id)?.get(mes) ?? {}).some((v) => v));
   const totalRateado = doMes.reduce((t, r) => t + r.valor, 0);
 
@@ -426,24 +448,22 @@ function Rateio({ s, base, empresas, anos, mesesDoAno, mapa, rateios, filiais, p
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-10">#</TableHead>
-                <TableHead>Filial</TableHead>
-                <TableHead className="text-right">Faturamento</TableHead>
-                <TableHead className="text-right">Part. %</TableHead>
-                {distribuicao.map(({ rateio }) => (
-                  <TableHead key={rateio.id} className="text-right">
-                    {rateio.item}
-                  </TableHead>
-                ))}
-                {distribuicao.length > 1 && <TableHead className="text-right">Total rateado</TableHead>}
+                <TableHead className="w-10" title="Posição no faturamento do mês">
+                  #
+                </TableHead>
+                {cabecalho("filial", "Filial")}
+                {cabecalho("faturamento", "Faturamento", "text-right")}
+                {cabecalho("part", "Part. %", "text-right")}
+                {distribuicao.map(({ rateio }) => cabecalho(`i-${rateio.id}`, rateio.item, "text-right", "Ordena pelo tamanho do valor rateado"))}
+                {distribuicao.length > 1 && cabecalho("total", "Total rateado", "text-right", "Ordena pelo tamanho do total rateado")}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {linhas.map((f, i) => {
+              {linhas.map((f) => {
                 const daFilial = distribuicao.map(({ porFilial }) => porFilial.get(f.id)?.valor ?? 0);
                 return (
                   <TableRow key={f.id}>
-                    <TableCell className="text-xs text-muted-foreground tabular-nums">{i + 1}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground tabular-nums">{posicao.get(f.id)}</TableCell>
                     <TableCell>
                       <span className="font-mono text-xs">{f.codigo}</span> {f.nome}
                     </TableCell>
