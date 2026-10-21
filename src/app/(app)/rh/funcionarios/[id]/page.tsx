@@ -165,8 +165,8 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
         <div className="mb-6">
           <AvisoSucesso
             mensagem={
-              typeof sp.folha === "string" && /^\d{4}-\d{2}$/.test(sp.folha)
-                ? `Funcionário salvo. Mudou de filial: os lançamentos da folha de ${rotuloCompetencia(sp.folha)} em diante foram para a filial nova (os meses anteriores ficam na antiga, já enviados à contabilidade).`
+              sp.folha === "1"
+                ? "Funcionário salvo. Mudou de filial: todos os lançamentos da folha dele foram junto para a filial nova."
                 : "Funcionário salvo com sucesso."
             }
           />

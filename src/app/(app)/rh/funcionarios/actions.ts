@@ -17,10 +17,6 @@ export type EstadoFormulario = {
 };
 
 const PAPEIS_RH = ["admin", "rh"] as const;
-
-/** Mês atual em Brasília ("aaaa-mm"): a partir dele a folha segue a filial nova. */
-const competenciaAtualBrasil = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date()).slice(0, 7);
-
 function texto(fd: FormData, nome: string) {
   const v = fd.get(nome);
   if (typeof v !== "string") return undefined;
@@ -149,7 +145,7 @@ export async function salvarFuncionario(
   if (id) {
     const { data: atual } = await supabase.from("employees").select("*").eq("id", id).maybeSingle();
     if (!atual) return { erro: "Funcionário não encontrado." };
-    // trocar a filial leva junto a folha do mês atual em diante (gatilho do banco, migração 0058)
+    // trocar a filial leva junto todos os lançamentos da folha da pessoa (gatilho do banco, migrações 0058/0059)
     const { error } = await supabase.from("employees").update(registro).eq("id", id);
     if (error) return { erro: mensagemErroBanco(error) };
     mudouFilial = atual.branch_id !== registro.branch_id;
@@ -219,7 +215,7 @@ export async function salvarFuncionario(
   revalidatePath(`/rh/funcionarios/${destino}`);
   revalidatePath(`/filiais/${d.branch_id}`);
   if (mudouFilial) revalidatePath("/rh/lancamentos");
-  redirect(`/rh/funcionarios/${destino}?salvo=1${mudouFilial ? `&folha=${competenciaAtualBrasil()}` : ""}`);
+  redirect(`/rh/funcionarios/${destino}?salvo=1${mudouFilial ? "&folha=1" : ""}`);
 }
 
 const esquemaStatus = z
