@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { FileUp, ScrollText, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, FileUp, ScrollText, Trash2 } from "lucide-react";
 import { SelectNativo } from "@/components/form/campo";
 import { PageHeader } from "@/components/layout/page-header";
 import { EstadoVazio } from "@/components/layout/painel";
@@ -24,8 +24,25 @@ const pct = new Intl.NumberFormat("pt-BR", { style: "percent", minimumFractionDi
 const mostraPct = (v: number | null | undefined) => (v === null || v === undefined || !Number.isFinite(v) ? "—" : pct.format(v));
 const tom = (v: number) => (v < 0 ? "text-red-700 dark:text-red-400" : v > 0 ? "text-emerald-700 dark:text-emerald-400" : "");
 const query = (p: Record<string, string | undefined>) => new URLSearchParams(Object.entries(p).filter((e): e is [string, string] => !!e[1])).toString();
-const ORDENS = { lucro: "Lucro / prejuízo", operacional: "Lucro operacional", faturamento: "Faturamento", margem: "M.C. %" } as const;
-type Ordem = keyof typeof ORDENS;
+type ContasDre = ReturnType<typeof calcularDre>;
+const semValor = Number.NEGATIVE_INFINITY;
+/**
+ * Colunas que ordenam o resumo por filial (clique no título). Custos em % (CMV, impostos, comissões, despesas) ordenam
+ * pelo tamanho do custo: "maior para menor" = quem gasta mais primeiro, mesmo aparecendo com sinal de menos.
+ */
+const ORDENS: Record<string, (c: ContasDre) => number> = {
+  faturamento: (c) => c.receitaBruta,
+  part: (c) => c.receitaBruta,
+  margem: (c) => c.margemPct ?? semValor,
+  cmv: (c) => Math.abs(c.cmvSobreBruta ?? 0),
+  impostos: (c) => Math.abs(c.impostosSobreBruta ?? 0),
+  comissoes: (c) => Math.abs(c.comissoesSobreBruta ?? 0),
+  despesas: (c) => Math.abs(c.despesasSobreBruta ?? 0),
+  operacional: (c) => c.lucroOperacional,
+  lucro: (c) => c.lucro,
+  lp: (c) => c.lucroSobreBruta ?? semValor,
+};
+type Direcao = "asc" | "desc";
 
 /** DRE contábil por filial (planilha do contador): resumo por filial (mês ou acumulado), o demonstrativo mês a mês e o rateio por faturamento. */
 export default async function DrePage({ searchParams }: PageProps<"/financeiro/dre">) {
@@ -153,14 +170,16 @@ function Filtros({ base, empresas, anos, ver, children }: { base: Props["base"];
 function Resumo({ s, base, empresas, anos, mesesDoAno, mapa, rateios, filiais }: Props) {
   const periodo = s("mes") === "acumulado" ? "acumulado" : mesesDoAno.includes(s("mes")) ? s("mes") : mesesDoAno[mesesDoAno.length - 1];
   const meses = periodo === "acumulado" ? mesesDoAno : [periodo];
-  const ordem: Ordem = s("ordem") in ORDENS ? (s("ordem") as Ordem) : "lucro";
+  // ordem: uma coluna de ORDENS ou "filial"; primeiro clique = maior para menor (filial: A→Z), o segundo inverte
+  const ordem = s("ordem") === "filial" || Object.hasOwn(ORDENS, s("ordem")) ? s("ordem") : "lucro";
+  const dir: Direcao = s("dir") === "asc" || s("dir") === "desc" ? (s("dir") as Direcao) : ordem === "filial" ? "asc" : "desc";
   const temLancamento = (id: string) => meses.some((m) => Object.values(mapa.get(id)?.get(m) ?? {}).some((v) => v));
   const linhas = filiais
     .filter((f) => temLancamento(f.id))
     .map((f) => ({ ...f, c: contas(mapa, f.id, meses) }))
     .sort((a, b) => {
-      const k = (x: typeof a) => (ordem === "operacional" ? x.c.lucroOperacional : ordem === "faturamento" ? x.c.receitaBruta : ordem === "margem" ? (x.c.margemPct ?? -9) : x.c.lucro);
-      return k(b) - k(a);
+      const r = ordem === "filial" ? a.codigo.localeCompare(b.codigo) : ORDENS[ordem](a.c) - ORDENS[ordem](b.c) || a.codigo.localeCompare(b.codigo);
+      return dir === "asc" ? r : -r;
     });
   const consolidado = contas(mapa, "*", meses);
   const daEmpresa = calcularDre(somar(mapa, "", meses));
@@ -174,7 +193,21 @@ function Resumo({ s, base, empresas, anos, mesesDoAno, mapa, rateios, filiais }:
   const conta = { prejuizo: 0, empate: 0, lucro: 0 };
   for (const l of linhas) conta[situacaoDoLucro(l.c.lucro)]++;
   const nomePeriodo = periodo === "acumulado" ? `acumulado de ${rotuloCompetencia(mesesDoAno[0])} a ${rotuloCompetencia(mesesDoAno[mesesDoAno.length - 1])}` : rotuloCompetencia(periodo);
-  const linkOrdem = (o: Ordem) => `/financeiro/dre?${query({ ...base, mes: s("mes") || undefined, ordem: o === "lucro" ? undefined : o })}`;
+  const cabecalho = (coluna: string, rotulo: string, className = "", title?: string) => {
+    const ativa = ordem === coluna;
+    const padrao: Direcao = coluna === "filial" ? "asc" : "desc";
+    const proxima: Direcao = ativa ? (dir === "desc" ? "asc" : "desc") : padrao;
+    const Icone = !ativa ? ArrowUpDown : dir === "desc" ? ArrowDown : ArrowUp;
+    const href = `/financeiro/dre?${query({ ...base, mes: s("mes") || undefined, ordem: coluna === "lucro" && proxima === "desc" ? undefined : coluna, dir: proxima === padrao ? undefined : proxima })}`;
+    return (
+      <TableHead className={className} title={title} aria-sort={ativa ? (dir === "desc" ? "descending" : "ascending") : undefined}>
+        <Link href={href} scroll={false} className={`inline-flex items-center gap-1 hover:text-foreground ${ativa ? "font-semibold text-foreground" : ""}`}>
+          {rotulo}
+          <Icone className={`size-3.5 ${ativa ? "" : "opacity-40"}`} aria-hidden />
+        </Link>
+      </TableHead>
+    );
+  };
 
   return (
     <>
@@ -191,6 +224,7 @@ function Resumo({ s, base, empresas, anos, mesesDoAno, mapa, rateios, filiais }:
           </SelectNativo>
         </label>
         {ordem !== "lucro" && <input type="hidden" name="ordem" value={ordem} />}
+        {s("dir") && <input type="hidden" name="dir" value={dir} />}
       </Filtros>
 
       <div className="mb-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -206,17 +240,7 @@ function Resumo({ s, base, empresas, anos, mesesDoAno, mapa, rateios, filiais }:
             Resultado por filial · {nomePeriodo}
             {rateios.some((r) => meses.includes(r.competencia)) && <span className="ml-2 text-xs font-normal text-muted-foreground">(com o rateio por faturamento)</span>}
           </h2>
-          <p className="text-xs text-muted-foreground">
-            Ordenar por:{" "}
-            {(Object.keys(ORDENS) as Ordem[]).map((o, i) => (
-              <span key={o}>
-                {i > 0 && " · "}
-                <Link href={linkOrdem(o)} className={o === ordem ? "font-semibold text-foreground" : "hover:underline"}>
-                  {ORDENS[o]}
-                </Link>
-              </span>
-            ))}
-          </p>
+          <p className="text-xs text-muted-foreground">Clique no título da coluna para ordenar; clique de novo para inverter.</p>
         </header>
         {linhas.length === 0 ? (
           <EstadoVazio compacto icone={ScrollText} titulo="Nenhuma filial com lançamento nesse período" />
@@ -224,23 +248,17 @@ function Resumo({ s, base, empresas, anos, mesesDoAno, mapa, rateios, filiais }:
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Filial</TableHead>
-                <TableHead className="text-right">Faturamento</TableHead>
-                <TableHead className="hidden text-right md:table-cell">Part. %</TableHead>
-                <TableHead className="text-right">M.C. %</TableHead>
-                <TableHead className="hidden text-right lg:table-cell" title="Custo das mercadorias sobre a receita bruta">
-                  CMV %
-                </TableHead>
-                <TableHead className="hidden text-right xl:table-cell">Impostos %</TableHead>
-                <TableHead className="hidden text-right xl:table-cell">Comissões %</TableHead>
-                <TableHead className="hidden text-right lg:table-cell" title="Despesas sobre a receita bruta">
-                  Despesas %
-                </TableHead>
-                <TableHead className="hidden text-right md:table-cell">L. operacional</TableHead>
-                <TableHead className="text-right">Lucro / prejuízo</TableHead>
-                <TableHead className="hidden text-right sm:table-cell" title="Lucro / prejuízo sobre a receita bruta">
-                  L/P %
-                </TableHead>
+                {cabecalho("filial", "Filial")}
+                {cabecalho("faturamento", "Faturamento", "text-right")}
+                {cabecalho("part", "Part. %", "hidden text-right md:table-cell")}
+                {cabecalho("margem", "M.C. %", "text-right")}
+                {cabecalho("cmv", "CMV %", "hidden text-right lg:table-cell", "Custo das mercadorias sobre a receita bruta (ordena pelo tamanho do custo)")}
+                {cabecalho("impostos", "Impostos %", "hidden text-right xl:table-cell", "Ordena pelo tamanho do imposto")}
+                {cabecalho("comissoes", "Comissões %", "hidden text-right xl:table-cell", "Ordena pelo tamanho da comissão")}
+                {cabecalho("despesas", "Despesas %", "hidden text-right lg:table-cell", "Despesas sobre a receita bruta (ordena pelo tamanho da despesa)")}
+                {cabecalho("operacional", "L. operacional", "hidden text-right md:table-cell")}
+                {cabecalho("lucro", "Lucro / prejuízo", "text-right")}
+                {cabecalho("lp", "L/P %", "hidden text-right sm:table-cell", "Lucro / prejuízo sobre a receita bruta")}
               </TableRow>
             </TableHeader>
             <TableBody>
