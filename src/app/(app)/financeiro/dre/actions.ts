@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { comSinalDaConta, ehLinhaRateio } from "@/lib/financeiro/dre-contabil";
+import { CHAVE_LEMBRETE_DRE } from "@/lib/financeiro/dre-lembrete";
 import { lerValor } from "@/lib/sangrias/rotulos";
 import { createClient } from "@/lib/supabase/server";
 
@@ -50,4 +51,22 @@ export async function excluirRateio(fd: FormData) {
   const { data } = await supabase.from("dre_contabil_rateios").delete().eq("id", id).select("empresa, competencia, item, valor").maybeSingle();
   if (data) await registrarAuditoria(supabase, { userId: sessao.id, acao: "excluir", entidade: "dre_contabil_rateios", registroId: id, anterior: data });
   revalidatePath("/financeiro/dre");
+}
+
+export type EstadoLembrete = { erro?: string; ok?: string };
+
+/** Liga/desliga o lembrete no sino e escolhe o dia do mês a partir do qual a DRE do mês anterior conta como atrasada. */
+export async function salvarLembreteDre(_prev: EstadoLembrete, fd: FormData): Promise<EstadoLembrete> {
+  const sessao = await getSessao();
+  if (sessao.papel !== "admin" && sessao.papel !== "financeiro") return { erro: "Só Administrador e Financeiro mudam o lembrete." };
+  const dia = Number(texto(fd, "dia"));
+  const ligado = fd.get("ligado") === "on";
+  if (!Number.isInteger(dia) || dia < 1 || dia > 28) return { erro: "Escolha um dia de 1 a 28." };
+  const valor = { ligado, dia };
+  const supabase = await createClient();
+  const { error } = await supabase.from("sistema_config").upsert({ chave: CHAVE_LEMBRETE_DRE, valor, atualizado_por: sessao.id, atualizado_em: new Date().toISOString() });
+  if (error) return { erro: `Não foi possível salvar: ${error.message}` };
+  await registrarAuditoria(supabase, { userId: sessao.id, acao: "editar", entidade: "sistema_config", novo: { chave: CHAVE_LEMBRETE_DRE, ...valor } });
+  revalidatePath("/financeiro/dre/importar");
+  return { ok: ligado ? `Lembrete ligado: a partir do dia ${dia}, o sino avisa se a DRE do mês anterior não tiver sido importada.` : "Lembrete desligado." };
 }

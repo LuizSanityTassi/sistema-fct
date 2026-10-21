@@ -19,14 +19,14 @@ export async function empresasDre() {
   return [...porEmpresa.values()].map((e) => ({ ...e, meses: [...e.meses].sort().reverse() })).sort((a, b) => a.empresa.localeCompare(b.empresa, "pt-BR"));
 }
 
-export type RateioDre = { id: string; competencia: string; item: string; linha: LinhaRateio; valor: number; observacao: string | null; criado_por_nome: string | null; criado_em: string };
+export type RateioDre = { id: string; empresa: string; competencia: string; item: string; linha: LinhaRateio; valor: number; observacao: string | null; criado_por_nome: string | null; criado_em: string };
 
 /** Valores da empresa a ratear por faturamento, nos meses pedidos. */
 export async function rateiosDre(empresa: string, de: string, ate: string): Promise<RateioDre[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("dre_contabil_rateios")
-    .select("id, competencia, item, linha, valor, observacao, criado_por_nome, criado_em")
+    .select("id, empresa, competencia, item, linha, valor, observacao, criado_por_nome, criado_em")
     .eq("empresa", empresa)
     .gte("competencia", `${de}-01`)
     .lte("competencia", `${ate}-01`)
@@ -98,3 +98,22 @@ export function somar(mapa: MapaDre, filial: string, meses: string[]): Lancament
 }
 
 export const contas = (mapa: MapaDre, filial: string, meses: string[]) => calcularDre(somar(mapa, filial, meses));
+
+/** Filial (ou "", valores da empresa) com algum lançamento no mês. */
+export const temLancamento = (mapa: MapaDre, filial: string, mes: string) => Object.values(mapa.get(filial)?.get(mes) ?? {}).some((v) => v);
+
+/**
+ * Junta os lançamentos de várias empresas num mapa só ("todas as empresas"). As filiais não se repetem entre empresas;
+ * os valores da própria empresa (chave "", a depreciação da Nazário) somam mês a mês.
+ */
+export function juntarMapas(mapas: MapaDre[]): MapaDre {
+  const out: MapaDre = new Map();
+  for (const mapa of mapas) {
+    for (const [filial, porMes] of mapa) {
+      let destino = out.get(filial);
+      if (!destino) out.set(filial, (destino = new Map()));
+      for (const [mes, lanc] of porMes) destino.set(mes, somarLancamentos([destino.get(mes) ?? {}, lanc]));
+    }
+  }
+  return out;
+}

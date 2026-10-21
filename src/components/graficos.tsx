@@ -76,6 +76,64 @@ export function BarrasDuplas({ dados, rotuloA, rotuloB, titulo, className }: { d
   );
 }
 
+export type ColunaResultado = { rotulo: string; valor: number; texto: string };
+
+/**
+ * Colunas com sinal (ex.: lucro ou prejuízo por mês): acima da linha do zero em verde, abaixo em vermelho, com o valor
+ * no título (passar o mouse) e numa tabela para leitor de tela.
+ */
+export function ColunasResultado({ dados, titulo, rotuloValor, className }: { dados: ColunaResultado[]; titulo: string; rotuloValor: string; className?: string }) {
+  const max = Math.max(0, ...dados.map((d) => d.valor));
+  const min = Math.min(0, ...dados.map((d) => d.valor));
+  const faixa = max - min || 1;
+  const zero = (max / faixa) * 100; // distância do topo até a linha do zero, em %
+  const altura = (v: number) => `${Math.max(v ? 1.5 : 0, (Math.abs(v) / faixa) * 100)}%`;
+  return (
+    <div className={className}>
+      <div className="relative h-44" aria-hidden>
+        <div className="absolute inset-x-0 border-t border-dashed border-foreground/25" style={{ top: `${zero}%` }} />
+        <div className="relative flex h-full gap-1.5 sm:gap-3">
+          {dados.map((d) => (
+            <div key={d.rotulo} className="group relative h-full min-w-0 flex-1" title={`${d.rotulo}: ${d.texto}`}>
+              <span
+                className={cn(
+                  "absolute inset-x-0 mx-auto w-full max-w-7 transition-opacity group-hover:opacity-80",
+                  d.valor >= 0 ? "rounded-t-[3px] bg-emerald-600" : "rounded-b-[3px] bg-red-600",
+                )}
+                style={d.valor >= 0 ? { bottom: `${100 - zero}%`, height: altura(d.valor) } : { top: `${zero}%`, height: altura(d.valor) }}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="mt-2 flex gap-1.5 sm:gap-3" aria-hidden>
+        {dados.map((d) => (
+          <span key={d.rotulo} className="min-w-0 flex-1 truncate text-center text-[11px] text-muted-foreground">
+            {d.rotulo}
+          </span>
+        ))}
+      </div>
+      <table className="sr-only">
+        <caption>{titulo}</caption>
+        <thead>
+          <tr>
+            <th>Período</th>
+            <th>{rotuloValor}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {dados.map((d) => (
+            <tr key={d.rotulo}>
+              <td>{d.rotulo}</td>
+              <td>{d.texto}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 /** Barra horizontal de proporção (ex.: funcionários por regional). */
 export function BarraProporcao({ pct, className }: { pct: number; className?: string }) {
   return (

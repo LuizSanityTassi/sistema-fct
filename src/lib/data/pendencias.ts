@@ -3,12 +3,13 @@
 // abrir a tela de destino (mesma regra do menu). O link já leva para a tela filtrada.
 import type { Sessao } from "@/lib/auth/session";
 import { filtroSlaEstourado } from "@/lib/chamados/sla";
+import { CHAVE_LEMBRETE_DRE, lerLembreteDre, mesesAtrasadosDre } from "@/lib/financeiro/dre-lembrete";
 import { podeAcessar } from "@/lib/nav";
-import { competenciaAtual } from "@/lib/rh/competencia";
+import { competenciaAtual, rotuloCompetencia } from "@/lib/rh/competencia";
 import { createClient } from "@/lib/supabase/server";
 
 export type Severidade = "critico" | "alto" | "atencao" | "info";
-export type AreaPendencia = "Caixa" | "Conciliação" | "Folha" | "RH" | "Chamados" | "Denúncias" | "Acessos";
+export type AreaPendencia = "Caixa" | "Conciliação" | "DRE" | "Folha" | "RH" | "Chamados" | "Denúncias" | "Acessos";
 
 export type Pendencia = {
   id: string;
@@ -387,6 +388,36 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
             href: `/financeiro/sangrias?situacao=pendente&de=${ha120dias}`,
             titulo: `${aConferir} ${plural(aConferir, "sangria a conferir", "sangrias a conferir")} com o extrato`,
           });
+      })(),
+    );
+  }
+
+  // ---------- DRE do contador que já devia ter chegado (quem importa: admin, financeiro, contador) ----------
+  if (pode("/financeiro/dre") && (financeiro || sessao.papel === "contador")) {
+    tarefas.push(
+      (async () => {
+        const [{ data: cfg }, { data: importacoes }] = await Promise.all([
+          supabase.from("sistema_config").select("valor").eq("chave", CHAVE_LEMBRETE_DRE).maybeSingle(),
+          supabase.from("dre_contabil_importacoes").select("empresa, meses"),
+        ]);
+        const config = lerLembreteDre(cfg?.valor);
+        const porEmpresa = new Map<string, string[]>();
+        for (const i of importacoes ?? []) porEmpresa.set(i.empresa, [...(porEmpresa.get(i.empresa) ?? []), ...i.meses.map((m) => m.slice(0, 7))]);
+        for (const [empresa, meses] of porEmpresa) {
+          const faltam = mesesAtrasadosDre(meses, hoje, config);
+          if (!faltam.length) continue;
+          const nomes = faltam.length > 2 ? `${rotuloCompetencia(faltam[0])} a ${rotuloCompetencia(faltam.at(-1)!)}` : faltam.map(rotuloCompetencia).join(" e ");
+          out.push({
+            id: `dre-${empresa}`,
+            severidade: faltam.length > 1 ? "alto" : "atencao",
+            area: "DRE",
+            quantidade: faltam.length,
+            minha: true,
+            href: "/financeiro/dre/importar",
+            titulo: `DRE de ${nomes} da ${empresa} ainda não importada${faltam.length > 1 ? "s" : ""}`,
+            detalhe: `Importe a planilha “DRE POR FILIAIS” que o contador manda (lembrete a partir do dia ${config.dia}).`,
+          });
+        }
       })(),
     );
   }

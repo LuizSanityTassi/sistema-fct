@@ -207,6 +207,17 @@ export function somarLancamentos(lista: Lancamentos[]): Lancamentos {
   return out;
 }
 
+/**
+ * Variação de um valor contra o período anterior (null = não há o anterior). A % só existe quando faz sentido: o
+ * anterior não é zero e o sinal não virou (de prejuízo para lucro, % não diz nada — fica a diferença em R$).
+ */
+export function variacaoDre(atual: number, anterior: number | null) {
+  if (anterior === null) return null;
+  const diferenca = centavos(atual - anterior);
+  const pct = anterior !== 0 && Math.sign(atual) === Math.sign(anterior) ? diferenca / Math.abs(anterior) : null;
+  return { diferenca, pct };
+}
+
 /** Resultado do mês para o resumo: "praticamente empatou" = de 0 a R$ 2.000 (como na planilha). */
 export const EMPATE_ATE = 2000;
 export function situacaoDoLucro(lucro: number) {

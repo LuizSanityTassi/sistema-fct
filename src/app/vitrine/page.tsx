@@ -5,7 +5,7 @@ import { Download, Plus, Search, TriangleAlert } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { BoasVindas } from "@/components/layout/boas-vindas";
 import { BadgeAtivo, BadgeStatusFuncionario } from "@/components/layout/badge-status";
-import { BarrasDuplas } from "@/components/graficos";
+import { BarrasDuplas, ColunasResultado } from "@/components/graficos";
 import { PageHeader } from "@/components/layout/page-header";
 import { EstadoVazio, Indicador, LinkPainel, Painel } from "@/components/layout/painel";
 import { Status } from "@/components/layout/status";
@@ -156,6 +156,29 @@ export default function VitrinePage() {
           <EstadoVazio compacto titulo="Nenhum chamado urgente" descricao="Nada de prioridade alta ou crítica em aberto." />
         </Painel>
       </div>
+
+      <Painel id="v-lucro" titulo="Lucro / prejuízo mês a mês" descricao="Gráfico da DRE: verde = lucro, vermelho = prejuízo" className="mb-6">
+        <div className="px-5 pb-5">
+          <ColunasResultado
+            titulo="Lucro ou prejuízo por mês"
+            rotuloValor="Lucro / prejuízo"
+            dados={(
+              [
+                ["dez/25", 182000],
+                ["jan/26", -45000],
+                ["fev/26", 64000],
+                ["mar/26", 120500],
+                ["abr/26", -210300],
+                ["mai/26", -96000],
+                ["jun/26", 15000],
+                ["jul/26", 0],
+                ["ago/26", -276423],
+                ["set/26", -374733],
+              ] as const
+            ).map(([r, v]) => ({ rotulo: r, valor: v, texto: `R$ ${v.toLocaleString("pt-BR")}` }))}
+          />
+        </div>
+      </Painel>
 
       <div className="mb-6 grid gap-4 lg:grid-cols-3">
         <Painel id="v-fin" titulo="Receitas × despesas" descricao="Últimos 6 meses lançados no financeiro" className="lg:col-span-2">
