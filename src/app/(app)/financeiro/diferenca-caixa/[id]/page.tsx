@@ -8,7 +8,7 @@ import { exigirAcesso } from "@/lib/auth/session";
 import { movimentadoDoCaixa, type FormaCaixa } from "@/lib/caixa/diferencas";
 import { COR_SITUACAO, ROTULO_SITUACAO, situacaoDoCaixa, textoDiferenca } from "@/lib/caixa/rotulos";
 import { gruposDeGestores } from "@/lib/caixa/gestores";
-import { anexosDasQuebras, funcionariosDoCaixa, gestoresDasLojas, obterCaixa, usuariosDoCaixa } from "@/lib/data/diferenca-caixa";
+import { anexosDasQuebras, funcionariosDoCaixa, gestoresDasLojas, obterCaixa, quebraNaFolha, usuariosDoCaixa } from "@/lib/data/diferenca-caixa";
 import { empresaDasFiliais } from "@/lib/data/filiais";
 import { semQuebraDeCaixa } from "@/lib/rh/lancamentos";
 import { createClient } from "@/lib/supabase/server";
@@ -38,7 +38,8 @@ export default async function CaixaDetalhePage({ params }: PageProps<"/financeir
   const [ano, mes] = c.competencia.split("-").map(Number);
   const empresas = funcionario ? await empresaDasFiliais(await createClient()) : new Map<string, string | null>();
   const farmaceutico = !!funcionario && semQuebraDeCaixa(funcionario.cargo, funcionario.branch_id ? empresas.get(funcionario.branch_id) : null);
-  const naFolha = c.classe === "quebra" && c.andamento !== "abonada" && !!c.employee_id && !farmaceutico;
+  const folhaLigada = await quebraNaFolha();
+  const naFolha = folhaLigada && c.classe === "quebra" && c.andamento !== "abonada" && !!c.employee_id && !farmaceutico;
 
   const linha = (rotulo: string, valor: React.ReactNode) => (
     <div>
@@ -94,8 +95,10 @@ export default async function CaixaDetalhePage({ params }: PageProps<"/financeir
                   ? "—"
                   : naFolha
                     ? `${formatarMoeda(Number(c.valor_quebra))} em ${MESES[mes - 1]}/${ano} (caixas de ${periodoDaQuebra(c.competencia.slice(0, 7))})`
-                    : farmaceutico
-                      ? "não (farmacêutico)"
+                    : !folhaLigada
+                      ? "não (quebra na folha desligada)"
+                      : farmaceutico
+                      ? "não (farmacêutico da Varela)"
                       : c.andamento === "abonada"
                         ? "não (abonada)"
                         : "não (sem funcionário ligado)",

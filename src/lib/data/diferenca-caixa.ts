@@ -1,8 +1,16 @@
 // Leituras da diferença de caixa (servidor). A RLS decide o que cada um vê: financeiro/admin tudo; colaborador,
 // responsável e gerente só as quebras do seu caixa ou da sua filial.
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 
 export const TAMANHO_PAGINA_CAIXA = 50;
+
+/** A quebra do app vai para os Lançamentos da folha? (interruptor do financeiro; desligado desde 21/10/2026, migração 0060) */
+export const quebraNaFolha = cache(async () => {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("caixa_quebra_folha_ligada");
+  return data !== false;
+});
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DIA = /^\d{4}-\d{2}-\d{2}$/;
 

@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { exigirAcesso } from "@/lib/auth/session";
 import { TOLERANCIA_CAIXA } from "@/lib/caixa/diferencas";
 import { COR_SITUACAO, ROTULO_SITUACAO, situacaoDoCaixa, textoDiferenca } from "@/lib/caixa/rotulos";
-import { anexosDasQuebras, minhasQuebras } from "@/lib/data/diferenca-caixa";
+import { anexosDasQuebras, minhasQuebras, quebraNaFolha } from "@/lib/data/diferenca-caixa";
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formatos";
 import { justificarQuebra } from "./actions";
 import { AnexosQuebra } from "./anexos-quebra";
@@ -18,7 +18,7 @@ export default async function QuebrasCaixaPage({ searchParams }: PageProps<"/cai
   const coordenador = sessao.papel === "coordenador";
   const todas = sp.ver === "todas";
   const quebras = financeiro || coordenador ? [] : await minhasQuebras(!todas);
-  const anexos = await anexosDasQuebras(quebras.map((q) => q.id));
+  const [anexos, naFolha] = await Promise.all([anexosDasQuebras(quebras.map((q) => q.id)), quebraNaFolha()]);
 
   return (
     <>
@@ -28,7 +28,7 @@ export default async function QuebrasCaixaPage({ searchParams }: PageProps<"/cai
         descricao={
           coordenador
             ? `Todas as quebras (diferença acima de ${formatarMoeda(TOLERANCIA_CAIXA)}) das lojas da sua regional, com a justificativa do gestor e os anexos. Quem justifica é o gestor de cada loja; o financeiro decide se mantém o desconto ou abona.`
-            : `Quando a diferença do caixa passa de ${formatarMoeda(TOLERANCIA_CAIXA)} (faltando ou sobrando), ela vira quebra e entra no desconto da folha. Aqui o gestor da loja registra a justificativa (o colaborador vê a quebra dele e justifica para o gestor); o financeiro decide se mantém o desconto ou abona.`
+            : `Quando a diferença do caixa passa de ${formatarMoeda(TOLERANCIA_CAIXA)} (faltando ou sobrando), ela vira quebra${naFolha ? " e entra no desconto da folha" : ""}. Aqui o gestor da loja registra a justificativa (o colaborador vê a quebra dele e justifica para o gestor); o financeiro decide se mantém o desconto ou abona.`
         }
       />
 
@@ -112,7 +112,7 @@ export default async function QuebrasCaixaPage({ searchParams }: PageProps<"/cai
                         {q.justificativa && <p className="rounded-lg border bg-muted/30 p-3 whitespace-pre-wrap">{q.justificativa}</p>}
                         <AnexosQuebra anexos={anexos.get(q.id) ?? []} usuarioId={sessao.id} aberta={false} />
                         <p className="text-muted-foreground">
-                          {q.andamento === "abonada" ? "O financeiro abonou: não há desconto." : "O financeiro manteve o desconto na folha."}
+                          {q.andamento === "abonada" ? "O financeiro abonou: não há desconto." : naFolha ? "O financeiro manteve o desconto na folha." : "O financeiro manteve a quebra."}
                           {q.justificada_em && ` Justificada em ${formatarDataHora(q.justificada_em)}.`}
                         </p>
                       </div>

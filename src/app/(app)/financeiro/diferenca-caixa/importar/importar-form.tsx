@@ -24,7 +24,7 @@ const ORDEM: SituacaoPos[] = ["lancar", "farmaceutico", "sem_funcionario", "sem_
 
 type Acao = (prev: EstadoPos, fd: FormData) => Promise<EstadoPos>;
 
-export function ImportarPosForm({ conferir, lancar }: { conferir: Acao; lancar: Acao }) {
+export function ImportarPosForm({ conferir, lancar, naFolha }: { conferir: Acao; lancar: Acao; naFolha: boolean }) {
   const [conf, enviarConferir, conferindo] = useActionState(conferir, {});
   const [lanc, enviarLancar, lancando] = useActionState(lancar, {});
   const [competencia, setCompetencia] = React.useState("");
@@ -100,14 +100,14 @@ export function ImportarPosForm({ conferir, lancar }: { conferir: Acao; lancar: 
             <p className="font-medium">
               {resultado.lancadas === 0
                 ? "Nada novo para lançar: tudo da planilha já tinha sido importado ou ficou de fora."
-                : `${resultado.lancadas === 1 ? "1 quebra lançada" : `${resultado.lancadas} quebras lançadas`} (${formatarMoeda(resultado.valor)}) na folha de ${rotuloCompetencia(compUsada).toLowerCase()}.`}
+                : `${resultado.lancadas === 1 ? "1 quebra lançada" : `${resultado.lancadas} quebras lançadas`} (${formatarMoeda(resultado.valor)}) ${naFolha ? "na folha" : "na competência"} de ${rotuloCompetencia(compUsada).toLowerCase()}.`}
             </p>
             <p className="mt-0.5">
               Elas aparecem em{" "}
               <Link href={`/financeiro/diferenca-caixa?situacao=pendente${periodo}`} className="font-medium underline">
                 Diferença de caixa
               </Link>{" "}
-              para o gestor justificar e vão para os Lançamentos da folha. Se foi engano, desfaça o lote logo abaixo.
+              para o gestor justificar{naFolha ? " e vão para os Lançamentos da folha" : " (a quebra na folha está desligada: não vão para os Lançamentos)"}. Se foi engano, desfaça o lote logo abaixo.
             </p>
           </div>
         </div>

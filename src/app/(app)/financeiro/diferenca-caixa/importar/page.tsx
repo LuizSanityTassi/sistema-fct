@@ -11,6 +11,7 @@ import { formatarDataHora, formatarMoeda } from "@/lib/formatos";
 import { rotuloCompetencia } from "@/lib/rh/competencia";
 import { createClient } from "@/lib/supabase/server";
 import { conferirPlanilhaPos, desfazerImportacaoPos, lancarPlanilhaPos } from "./actions";
+import { quebraNaFolha } from "@/lib/data/diferenca-caixa";
 import { ImportarPosForm } from "./importar-form";
 
 export const metadata = { title: "Importar planilha POS" };
@@ -49,7 +50,7 @@ export default async function ImportarPosPage({ searchParams }: PageProps<"/fina
         </p>
       )}
 
-      <ImportarPosForm conferir={conferirPlanilhaPos} lancar={lancarPlanilhaPos} />
+      <ImportarPosForm conferir={conferirPlanilhaPos} lancar={lancarPlanilhaPos} naFolha={await quebraNaFolha()} />
 
       <section className="mt-6 rounded-xl border bg-card">
         <div className="px-5 py-4">

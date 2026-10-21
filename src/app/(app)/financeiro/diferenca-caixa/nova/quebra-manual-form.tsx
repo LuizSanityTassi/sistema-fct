@@ -12,7 +12,7 @@ import type { EstadoManual } from "../actions";
 export type GrupoColaboradores = { loja: string; opcoes: { id: string; rotulo: string; branchId: string }[] };
 type Loja = { id: string; codigo: string; nome: string };
 
-export function QuebraManualForm({ action, grupos, lojas, hoje }: { action: (prev: EstadoManual, fd: FormData) => Promise<EstadoManual>; grupos: GrupoColaboradores[]; lojas: Loja[]; hoje: string }) {
+export function QuebraManualForm({ action, grupos, lojas, hoje, naFolha }: { action: (prev: EstadoManual, fd: FormData) => Promise<EstadoManual>; grupos: GrupoColaboradores[]; lojas: Loja[]; hoje: string; naFolha: boolean }) {
   const [estado, enviar, pendente] = useActionState(action, {});
   const [colaborador, setColaborador] = React.useState("");
   const lojaDoColaborador = grupos.flatMap((g) => g.opcoes).find((o) => o.id === colaborador)?.branchId ?? "";
@@ -22,7 +22,7 @@ export function QuebraManualForm({ action, grupos, lojas, hoje }: { action: (pre
   if (estado.ok && estado.id) {
     return (
       <div className="space-y-4">
-        <AvisoSucesso mensagem="Quebra lançada: já entrou no desconto da folha do mês e foi para o gestor da loja justificar." />
+        <AvisoSucesso mensagem={naFolha ? "Quebra lançada: já entrou no desconto da folha do mês e foi para o gestor da loja justificar." : "Quebra lançada: foi para o gestor da loja justificar (a quebra na folha está desligada)."} />
         <div className="flex flex-wrap gap-2">
           <Button nativeButton={false} render={<Link href={`/financeiro/diferenca-caixa/${estado.id}`} />}>
             Ver a quebra

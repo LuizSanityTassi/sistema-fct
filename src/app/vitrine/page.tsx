@@ -253,7 +253,7 @@ export default function VitrinePage() {
         <h2 id="t-pos" className="mb-2 text-sm font-semibold">
           Importar planilha POS (exemplo: escolha qualquer .xlsx e clique em Conferir)
         </h2>
-        <ImportarPosForm conferir={conferirExemplo} lancar={lancarExemplo} />
+        <ImportarPosForm conferir={conferirExemplo} lancar={lancarExemplo} naFolha />
       </section>
 
       <section aria-labelledby="t-quebra" className="mb-6 space-y-3 rounded-xl border bg-card p-5">

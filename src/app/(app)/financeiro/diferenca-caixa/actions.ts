@@ -29,6 +29,22 @@ const revalidar = () => {
   revalidatePath("/caixa");
 };
 
+export type EstadoQuebraFolha = { erro?: string; ok?: string };
+
+/** Liga/desliga a quebra do app nos Lançamentos da folha; o banco recalcula a folha de todas as quebras na hora. */
+export async function definirQuebraNaFolha(_prev: EstadoQuebraFolha, fd: FormData): Promise<EstadoQuebraFolha> {
+  const sessao = await exigirFinanceiro();
+  if (!sessao) return { erro: "Só o financeiro e o administrador ligam ou desligam." };
+  const ligar = texto(fd, "ligar") === "1";
+  const supabase = await createClient();
+  const { data: naFolha, error } = await supabase.rpc("caixa_quebra_folha_definir", { p_ligado: ligar });
+  if (error) return { erro: error.message };
+  await registrarAuditoria(supabase, { userId: sessao.id, acao: "editar", entidade: "folha_lancamentos", novo: { quebra_caixa_na_folha: ligar, lancamentos_de_quebra: naFolha } });
+  revalidar();
+  revalidatePath("/rh/lancamentos");
+  return { ok: ligar ? `Ligado: ${naFolha} lançamento(s) de quebra voltaram para a folha.` : "Desligado: as quebras do app saíram da folha (os lançamentos do RH ficam)." };
+}
+
 function diasEntre(de: string, ate: string) {
   const out: string[] = [];
   for (let t = Date.parse(`${de}T12:00:00Z`); t <= Date.parse(`${ate}T12:00:00Z`); t += 86_400_000) out.push(new Date(t).toISOString().slice(0, 10));

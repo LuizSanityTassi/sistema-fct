@@ -34,7 +34,7 @@ export function DecisaoForm({ action, andamento }: { action: (prev: EstadoDecisa
           Manter o desconto
         </Button>
         <Button type="submit" name="decisao" value="abonada" disabled={pendente} variant="outline" className="border-emerald-300 text-emerald-800">
-          Abonar (tira da folha)
+          Abonar (sem desconto)
         </Button>
         {(decidida || andamento === "justificada") && (
           <Button type="submit" name="decisao" value="pendente" disabled={pendente} variant="ghost">

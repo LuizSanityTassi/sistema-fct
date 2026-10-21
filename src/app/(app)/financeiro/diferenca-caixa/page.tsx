@@ -10,11 +10,12 @@ import { exigirAcesso } from "@/lib/auth/session";
 import { filiaisDoTrier } from "@/lib/caixa/coleta";
 import { movimentadoDoCaixa, TOLERANCIA_CAIXA } from "@/lib/caixa/diferencas";
 import { COR_SITUACAO, FILTROS_SITUACAO, ROTULO_CURTO, situacaoDoCaixa, textoDiferenca } from "@/lib/caixa/rotulos";
-import { coletasDoPeriodo, funcionariosDoCaixa, lerFiltrosCaixa, listarCaixas, resumoCaixas, TAMANHO_PAGINA_CAIXA } from "@/lib/data/diferenca-caixa";
+import { coletasDoPeriodo, funcionariosDoCaixa, lerFiltrosCaixa, listarCaixas, quebraNaFolha, resumoCaixas, TAMANHO_PAGINA_CAIXA } from "@/lib/data/diferenca-caixa";
 import { formatarData, formatarMoeda } from "@/lib/formatos";
 import { createClient } from "@/lib/supabase/server";
-import { buscarDoTrier } from "./actions";
+import { buscarDoTrier, definirQuebraNaFolha } from "./actions";
 import { BuscaTrier } from "./busca-trier";
+import { QuebraNaFolha } from "./quebra-folha";
 
 export const metadata = { title: "Diferença de caixa" };
 // a busca no Trier roda dentro da ação desta página: precisa do tempo máximo da função
@@ -24,7 +25,7 @@ export default async function DiferencaCaixaPage({ searchParams }: PageProps<"/f
   const [, sp] = await Promise.all([exigirAcesso("/financeiro/diferenca-caixa"), searchParams]);
   const f = lerFiltrosCaixa(sp);
   const supabase = await createClient();
-  const [filiais, resultado, resumo, coletas, funcionarios] = await Promise.all([filiaisDoTrier(supabase), listarCaixas(f), resumoCaixas(f), coletasDoPeriodo(f.de, f.ate), funcionariosDoCaixa()]);
+  const [filiais, resultado, resumo, coletas, funcionarios, naFolha] = await Promise.all([filiaisDoTrier(supabase), listarCaixas(f), resumoCaixas(f), coletasDoPeriodo(f.de, f.ate), funcionariosDoCaixa(), quebraNaFolha()]);
   const nomeFuncionario = new Map(funcionarios.map((x) => [x.id, x.nome]));
   const params = { de: f.de, ate: f.ate, filial: f.filial ?? undefined, situacao: f.situacao || undefined, q: f.q ?? undefined };
   const filtroUrl = (extra: Record<string, string>) => `/financeiro/diferenca-caixa?${new URLSearchParams({ de: f.de, ate: f.ate, ...(f.filial ? { filial: f.filial } : {}), ...extra })}`;
@@ -45,7 +46,7 @@ export default async function DiferencaCaixaPage({ searchParams }: PageProps<"/f
       <PageHeader
         eyebrow="Financeiro"
         titulo="Diferença de caixa"
-        descricao={`Declarado × movimentado de cada caixa, lido do Trier (Relatório de Diferenças de Caixa). Até ${formatarMoeda(TOLERANCIA_CAIXA)} é tolerância e só aparece aqui; acima vira quebra: entra no desconto da folha e vai para o gestor da loja justificar (o colaborador só vê).`}
+        descricao={`Declarado × movimentado de cada caixa, lido do Trier (Relatório de Diferenças de Caixa). Até ${formatarMoeda(TOLERANCIA_CAIXA)} é tolerância e só aparece aqui; acima vira quebra${naFolha ? ": entra no desconto da folha e vai" : " e vai"} para o gestor da loja justificar (o colaborador só vê).`}
         acoes={
           <>
             <Button size="sm" nativeButton={false} render={<Link href="/financeiro/diferenca-caixa/nova" />}>
@@ -71,6 +72,8 @@ export default async function DiferencaCaixaPage({ searchParams }: PageProps<"/f
           </>
         }
       />
+
+      <QuebraNaFolha ligado={naFolha} action={definirQuebraNaFolha} />
 
       <section aria-labelledby="t-busca" className="mb-4 rounded-xl border bg-card p-4">
         <h2 id="t-busca" className="mb-3 text-sm font-semibold">
