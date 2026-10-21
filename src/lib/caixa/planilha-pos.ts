@@ -24,7 +24,7 @@ export type SituacaoPos = "lancar" | "duplicada" | "farmaceutico" | "sem_funcion
 export const ROTULO_SITUACAO_POS: Record<SituacaoPos, string> = {
   lancar: "Vai lançar",
   duplicada: "Já importada",
-  farmaceutico: "Farmacêutico (não tem quebra)",
+  farmaceutico: "Farmacêutico da Varela (não tem quebra)",
   sem_funcionario: "Vendedor sem cadastro ligado",
   sem_loja: "Loja não encontrada",
   invalida: "Data ou valor inválido",

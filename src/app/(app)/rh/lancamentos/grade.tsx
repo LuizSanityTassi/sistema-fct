@@ -14,7 +14,8 @@ export type FuncionarioGrade = {
   matricula: string | null;
   funcao: string;
   ativoNoMes: boolean;
-  farmaceutico: boolean;
+  /** farmacêutico da VARELA: sem quebra de caixa */
+  semQuebra: boolean;
   valores: Record<string, number>;
   obs: { texto: string; pendente: boolean } | null;
 };
@@ -181,8 +182,8 @@ const Linha = React.memo(function Linha({ f, eventos, linha, registrar, inscreve
       </td>
       {eventos.map((e, c) => (
         <td key={e.id} className="px-1 py-1">
-          {e.chave === CHAVE_QUEBRA_CAIXA && f.farmaceutico ? (
-            <span className="block w-[5.5rem] px-1.5 text-right text-xs text-muted-foreground" title="Farmacêutico não tem quebra de caixa">
+          {e.chave === CHAVE_QUEBRA_CAIXA && f.semQuebra ? (
+            <span className="block w-[5.5rem] px-1.5 text-right text-xs text-muted-foreground" title="Farmacêutico da Varela não tem quebra de caixa">
               n/a
             </span>
           ) : (

@@ -46,7 +46,7 @@ export function QuebraManualForm({ action, grupos, lojas, hoje }: { action: (pre
       noValidate
     >
       <ErroFormulario mensagem={estado.erro} />
-      <Campo id="employee_id" label="Colaborador" obrigatorio erro={erro("employee_id")} dica="Farmacêutico não aparece: não tem quebra de caixa.">
+      <Campo id="employee_id" label="Colaborador" obrigatorio erro={erro("employee_id")} dica="Farmacêutico da Varela não aparece: não tem quebra de caixa.">
         <SelectNativo id="employee_id" name="employee_id" value={colaborador} onChange={(e) => setColaborador(e.target.value)}>
           <option value="">Escolha…</option>
           {grupos.map((g) => (

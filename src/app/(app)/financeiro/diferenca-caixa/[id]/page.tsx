@@ -9,7 +9,9 @@ import { movimentadoDoCaixa, type FormaCaixa } from "@/lib/caixa/diferencas";
 import { COR_SITUACAO, ROTULO_SITUACAO, situacaoDoCaixa, textoDiferenca } from "@/lib/caixa/rotulos";
 import { gruposDeGestores } from "@/lib/caixa/gestores";
 import { anexosDasQuebras, funcionariosDoCaixa, gestoresDasLojas, obterCaixa, usuariosDoCaixa } from "@/lib/data/diferenca-caixa";
-import { ehFarmaceutico } from "@/lib/rh/lancamentos";
+import { empresaDasFiliais } from "@/lib/data/filiais";
+import { semQuebraDeCaixa } from "@/lib/rh/lancamentos";
+import { createClient } from "@/lib/supabase/server";
 import { periodoDaQuebra } from "@/lib/rh/competencia";
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formatos";
 import { decidirQuebra, excluirQuebraManual, moverGestorQuebra } from "../actions";
@@ -34,7 +36,8 @@ export default async function CaixaDetalhePage({ params }: PageProps<"/financeir
   const st = situacaoDoCaixa(c.classe, c.andamento);
   const formas = (Array.isArray(c.formas) ? c.formas : []) as unknown as FormaCaixa[];
   const [ano, mes] = c.competencia.split("-").map(Number);
-  const farmaceutico = ehFarmaceutico(funcionario?.cargo);
+  const empresas = funcionario ? await empresaDasFiliais(await createClient()) : new Map<string, string | null>();
+  const farmaceutico = !!funcionario && semQuebraDeCaixa(funcionario.cargo, funcionario.branch_id ? empresas.get(funcionario.branch_id) : null);
   const naFolha = c.classe === "quebra" && c.andamento !== "abonada" && !!c.employee_id && !farmaceutico;
 
   const linha = (rotulo: string, valor: React.ReactNode) => (

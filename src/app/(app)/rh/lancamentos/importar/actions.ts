@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { rpcPaginado } from "@/lib/data/dre";
+import { empresaDasFiliais } from "@/lib/data/filiais";
 import { carregarEventos } from "@/lib/data/lancamentos-folha";
 import { competenciaValida, rotuloCompetencia } from "@/lib/rh/competencia";
 import { lerPlanilhaRh, type AbaLida } from "@/lib/rh/importacao-rh";
@@ -71,11 +72,12 @@ export async function importarPlanilhaRh(_prev: EstadoImportacaoRh, fd: FormData
 
   const supabase = await createClient();
   const data = competenciaParaData(competencia);
-  const [eventos, funcionarios, existentes, obsExistentes] = await Promise.all([
+  const [eventos, funcionarios, existentes, obsExistentes, empresas] = await Promise.all([
     carregarEventos(supabase),
     rpcPaginado((a, b) => supabase.from("employees").select("id, nome, cargo, branch_id, status, data_admissao, data_desligamento").order("id").range(a, b)),
     rpcPaginado((a, b) => supabase.from("folha_lancamentos").select("employee_id, evento_id, valor").eq("competencia", data).order("id").range(a, b)),
     rpcPaginado((a, b) => supabase.from("folha_observacoes").select("employee_id, texto, pendente").eq("competencia", data).order("employee_id").range(a, b)),
+    empresaDasFiliais(supabase),
   ]);
   const eventoPorChave = new Map(eventos.map((e) => [e.chave, e]));
   const valorExistente = new Map(existentes.map((l) => [`${l.employee_id}|${l.evento_id}`, Number(l.valor)]));
@@ -137,7 +139,7 @@ export async function importarPlanilhaRh(_prev: EstadoImportacaoRh, fd: FormData
     const ev = eventoPorChave.get(v.chave);
     if (!ev || !ev.ativo) continue;
     const valorTxt = formatarValorGrade(v.valor);
-    if (eventoNaoSeAplica(v.chave, emp.cargo)) {
+    if (eventoNaoSeAplica(v.chave, emp.cargo, emp.branch_id ? empresas.get(emp.branch_id) : null)) {
       quebraFarmaceuticos.push({ nome: emp.nome, valor: valorTxt });
       continue;
     }

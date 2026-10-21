@@ -1,10 +1,12 @@
 // Leitura dos lançamentos da folha (eventos variáveis do mês) — só servidor. RLS: admin e RH.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { rpcPaginado } from "@/lib/data/dre";
+import { empresaDasFiliais } from "@/lib/data/filiais";
 import {
   ativoNaCompetencia,
   competenciaParaData,
   funcaoCurta,
+  semQuebraDeCaixa,
   nomeArquivoDominio,
   nomeEmpresa,
   numeroFilialCnpj,
@@ -40,6 +42,8 @@ export type FuncionarioFolha = {
   /** CNPJ da planilha do mês: o dos lançamentos já gravados, senão o atual */
   branchPlanilha: string;
   ativoNoMes: boolean;
+  /** quebra de caixa não vale para ele (farmacêutico da VARELA) */
+  semQuebra: boolean;
 };
 
 export type DadosCompetencia = {
@@ -117,13 +121,15 @@ export const arquivoDaFilial = (f: FilialFolha, competencia: string) => nomeArqu
 
 export async function carregarCompetencia(supabase: Cliente, competencia: string): Promise<DadosCompetencia> {
   const data = competenciaParaData(competencia);
-  const [eventos, filiais, funcionarios, lancamentos, obs] = await Promise.all([
+  const [eventos, filiais, funcionarios, lancamentos, obs, empresas] = await Promise.all([
     carregarEventos(supabase),
     carregarFiliais(supabase),
     rpcPaginado((a, b) =>
       supabase
         .from("employees")
         .select("id, nome, matricula, cargo, branch_id, status, data_admissao, data_desligamento")
+        // desligado não entra na grade nem na planilha da contabilidade, nem com valor lançado (pedido de 21/10/2026)
+        .neq("status", "desligado")
         .order("nome")
         .order("id")
         .range(a, b),
@@ -134,6 +140,7 @@ export async function carregarCompetencia(supabase: Cliente, competencia: string
     rpcPaginado((a, b) =>
       supabase.from("folha_observacoes").select("employee_id, texto, pendente").eq("competencia", data).order("employee_id").range(a, b),
     ),
+    empresaDasFiliais(supabase),
   ]);
 
   const valores = new Map<string, Record<string, number>>();
@@ -160,6 +167,7 @@ export async function carregarCompetencia(supabase: Cliente, competencia: string
       branchId: e.branch_id,
       branchPlanilha: branchLanc.get(e.id) ?? e.branch_id,
       ativoNoMes,
+      semQuebra: semQuebraDeCaixa(e.cargo, empresas.get(e.branch_id)),
     });
   }
   return { competencia, eventos, filiais, funcionarios: lista, valores, observacoes };

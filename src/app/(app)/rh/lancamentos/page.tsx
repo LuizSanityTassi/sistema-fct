@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { exigirAcesso } from "@/lib/auth/session";
 import { arquivoDaFilial, carregarCompetencia, codigoEmpresaDaPlanilha } from "@/lib/data/lancamentos-folha";
 import { competenciaAtual, competenciaValida, rotuloCompetencia, somarMeses } from "@/lib/rh/competencia";
-import { ehFarmaceutico, normalizarNome } from "@/lib/rh/lancamentos";
+import { normalizarNome } from "@/lib/rh/lancamentos";
 import { createClient } from "@/lib/supabase/server";
 import { GradeLancamentos, LinkBaixarPlanilha, type GrupoGrade } from "./grade";
 
@@ -69,7 +69,7 @@ export default async function LancamentosFolhaPage({ searchParams }: PageProps<"
           matricula: x.matricula,
           funcao: x.funcao,
           ativoNoMes: x.ativoNoMes,
-          farmaceutico: ehFarmaceutico(x.cargo),
+          semQuebra: x.semQuebra,
           valores: dados.valores.get(x.id) ?? {},
           obs: dados.observacoes.get(x.id) ?? null,
         })),

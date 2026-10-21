@@ -68,8 +68,18 @@ export const ehFarmaceutico = (cargo: string | null | undefined) => normalizarNo
 
 export const CHAVE_QUEBRA_CAIXA = "quebra_caixa";
 
-/** Regra da empresa: farmacêutico não tem quebra de caixa (nem na grade, nem na importação, nem na planilha). */
-export const eventoNaoSeAplica = (chaveEvento: string, cargo: string | null | undefined) => chaveEvento === CHAVE_QUEBRA_CAIXA && ehFarmaceutico(cargo);
+/**
+ * Farmacêutico da VARELA não tem quebra de caixa; o da NAZÁRIO tem, como qualquer colaborador (pedido de 21/10/2026).
+ * empresa = organizations.nome_fantasia da filial do funcionário; sem empresa no cadastro, vale a regra antiga (sem
+ * quebra). A mesma regra do banco: private.sem_quebra_de_caixa (migração 0057).
+ */
+export function semQuebraDeCaixa(cargo: string | null | undefined, empresa: string | null | undefined) {
+  return ehFarmaceutico(cargo) && (!empresa || normalizarNome(empresa) === "VARELA");
+}
+
+/** Evento que não vale para o funcionário: quebra de caixa de quem não tem (nem na grade, nem na importação, nem na planilha). */
+export const eventoNaoSeAplica = (chaveEvento: string, cargo: string | null | undefined, empresa: string | null | undefined) =>
+  chaveEvento === CHAVE_QUEBRA_CAIXA && semQuebraDeCaixa(cargo, empresa);
 
 /**
  * Valor digitado na grade: "9,58", "9.58", "1.234,56", "1.234" → número com 2 casas.

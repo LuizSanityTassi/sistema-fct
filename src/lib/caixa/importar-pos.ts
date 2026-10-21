@@ -5,7 +5,9 @@
 import * as XLSX from "xlsx";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/types";
+import { empresaDasFiliais } from "@/lib/data/filiais";
 import { competenciaDaQuebra, competenciaQuebraAtual } from "@/lib/rh/competencia";
+import { semQuebraDeCaixa } from "@/lib/rh/lancamentos";
 import { chaveDaVenda, lerPlanilhaPos, type LinhaPrevia, type PreviaPos, type SituacaoPos } from "./planilha-pos";
 
 export { ROTULO_SITUACAO_POS, type LinhaPrevia, type PreviaPos, type SituacaoPos } from "./planilha-pos";
@@ -13,7 +15,6 @@ import { sugerirFuncionario } from "./vinculo";
 
 type Cliente = SupabaseClient<Database>;
 
-const FARMACEUTICO = /FARMAC[EÊ]UTIC/i;
 
 /** Competência sugerida: a do corte da planilha, no ciclo 21 a 20 (21/08 a 20/09 → setembro). */
 export const competenciaDoCorte = (corte: string | null) => (corte ? competenciaDaQuebra(corte) : competenciaQuebraAtual());
@@ -29,13 +30,14 @@ export async function previaPos(supabase: Cliente, buf: Buffer, competenciaPedid
   const competencia = competenciaPedida ?? competenciaDoCorte(planilha.corte);
   const codigos = [...new Set(planilha.linhas.map((l) => l.vendedor).filter((v): v is number => v !== null))];
   const chaves = planilha.linhas.map(chaveDaVenda);
-  const [{ data: lojas }, { data: funcionarios, error: eF }, { data: operadores }, { data: jaTem }] = await Promise.all([
+  const [{ data: lojas }, { data: funcionarios, error: eF }, { data: operadores }, { data: jaTem }, empresas] = await Promise.all([
     supabase.from("branches").select("id, codigo"),
     supabase.rpc("caixa_funcionarios"),
     codigos.length
       ? supabase.from("caixa_operadores").select("cod_operador, employee_id").in("cod_operador", codigos)
       : Promise.resolve({ data: [] as { cod_operador: number; employee_id: string | null }[] }),
     chaves.length ? supabase.from("caixa_diferencas").select("chave_importacao").in("chave_importacao", chaves) : Promise.resolve({ data: [] as { chave_importacao: string | null }[] }),
+    empresaDasFiliais(supabase),
   ]);
   if (eF) throw new Error(eF.message);
   const lojaDe = new Map((lojas ?? []).map((b) => [b.codigo.toUpperCase(), b.id]));
@@ -67,7 +69,7 @@ export async function previaPos(supabase: Cliente, buf: Buffer, competenciaPedid
           ? "sem_loja"
           : !f
             ? "sem_funcionario"
-            : FARMACEUTICO.test(f.cargo ?? "")
+            : semQuebraDeCaixa(f.cargo, f.branch_id ? empresas.get(f.branch_id) : null)
               ? "farmaceutico"
               : "lancar";
     const codTrier = l.vendedor !== null && opDe.has(l.vendedor) ? l.vendedor : null;

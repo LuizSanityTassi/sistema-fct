@@ -5,7 +5,9 @@ import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { coletarDiferencas, filiaisDoTrier } from "@/lib/caixa/coleta";
 import type { PedidoCaixaTrier } from "@/lib/conciliacao/trier-robo";
+import { empresaDasFiliais } from "@/lib/data/filiais";
 import { credenciaisTrier } from "@/lib/integracoes/segredos";
+import { semQuebraDeCaixa } from "@/lib/rh/lancamentos";
 import { createClient } from "@/lib/supabase/server";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -169,7 +171,8 @@ export async function lancarQuebraManual(_prev: EstadoManual, fd: FormData): Pro
   if (e0) return { erro: e0.message };
   const func = (funcionarios ?? []).find((f) => f.id === employeeId);
   if (!func) return { erro: "Colaborador não encontrado.", erros: { employee_id: "Colaborador não encontrado." } };
-  if (/FARMAC[EÊ]UTIC/i.test(func.cargo ?? "")) return { erro: "Farmacêutico não tem quebra de caixa.", erros: { employee_id: "Farmacêutico não tem quebra de caixa." } };
+  const empresas = await empresaDasFiliais(supabase);
+  if (semQuebraDeCaixa(func.cargo, func.branch_id ? empresas.get(func.branch_id) : null)) return { erro: "Farmacêutico da Varela não tem quebra de caixa.", erros: { employee_id: "Farmacêutico da Varela não tem quebra de caixa." } };
   const loja = UUID.test(branchId) ? branchId : func.branch_id;
   const { data, error } = await supabase
     .from("caixa_diferencas")

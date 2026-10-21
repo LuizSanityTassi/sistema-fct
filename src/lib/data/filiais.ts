@@ -1,5 +1,14 @@
 import { cache } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import type { Database } from "@/lib/supabase/types";
+
+/** Empresa do cadastro (VARELA, NAZÁRIO…) de cada filial, para regras por empresa (ex.: quebra do farmacêutico). */
+export async function empresaDasFiliais(supabase: SupabaseClient<Database>) {
+  const { data, error } = await supabase.from("branches").select("id, organizacao:organizations(nome_fantasia)");
+  if (error) throw new Error(error.message);
+  return new Map((data ?? []).map((b) => [b.id, (b.organizacao as { nome_fantasia: string | null } | null)?.nome_fantasia ?? null]));
+}
 
 export const TAMANHO_PAGINA = 25;
 

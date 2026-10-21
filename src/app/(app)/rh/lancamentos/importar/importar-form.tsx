@@ -144,7 +144,7 @@ export function ImportarRhForm({ action, competencia }: Props) {
             ))}
           />
           <Lista
-            titulo="Quebra de caixa de farmacêutico ignorada (farmacêutico não tem quebra de caixa)"
+            titulo="Quebra de caixa de farmacêutico da Varela ignorada (farmacêutico da Varela não tem quebra de caixa)"
             itens={a.quebraFarmaceuticos.map((x, i) => (
               <li key={i}>
                 {x.nome}: R$ {x.valor}

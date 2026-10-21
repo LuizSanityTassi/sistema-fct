@@ -1,7 +1,7 @@
 // Monta as planilhas da contabilidade de uma competência (só servidor): um .xls por CNPJ com os funcionários
 // registrados nele e os eventos que têm código da Domínio.
 import { arquivoDaFilial, codigoEmpresaDaPlanilha, razaoSocialDaPlanilha, type DadosCompetencia, type FilialFolha } from "@/lib/data/lancamentos-folha";
-import { eventoNaoSeAplica, matriculaPlanilha, ordenarPorMatricula } from "./lancamentos";
+import { CHAVE_QUEBRA_CAIXA, matriculaPlanilha, ordenarPorMatricula } from "./lancamentos";
 import { gerarPlanilhaDominio, type ColunaEvento } from "./planilha-dominio";
 
 export type PlanilhaGerada = {
@@ -56,7 +56,7 @@ export function gerarPlanilhas(dados: DadosCompetencia, filtro: { branchId?: str
         matricula: matriculaPlanilha(f.matricula),
         nome: f.nome.toUpperCase(),
         funcao: f.funcao,
-        valores: Object.fromEntries(Object.entries(dados.valores.get(f.id) ?? {}).filter(([ev]) => !eventoNaoSeAplica(chavePorId.get(ev) ?? "", f.cargo))),
+        valores: Object.fromEntries(Object.entries(dados.valores.get(f.id) ?? {}).filter(([ev]) => !(f.semQuebra && chavePorId.get(ev) === CHAVE_QUEBRA_CAIXA))),
       })),
       });
     } catch (e) {

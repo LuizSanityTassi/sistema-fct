@@ -4,7 +4,8 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { exigirAcesso } from "@/lib/auth/session";
 import { funcionariosDoCaixa } from "@/lib/data/diferenca-caixa";
-import { ehFarmaceutico } from "@/lib/rh/lancamentos";
+import { empresaDasFiliais } from "@/lib/data/filiais";
+import { semQuebraDeCaixa } from "@/lib/rh/lancamentos";
 import { createClient } from "@/lib/supabase/server";
 import { lancarQuebraManual } from "../actions";
 import { QuebraManualForm, type GrupoColaboradores } from "./quebra-manual-form";
@@ -17,10 +18,10 @@ const hojeNoBrasil = () => new Date(Date.now() - 3 * 3_600_000).toISOString().sl
 export default async function NovaQuebraPage() {
   await exigirAcesso("/financeiro/diferenca-caixa");
   const supabase = await createClient();
-  const [funcionarios, { data: lojas }] = await Promise.all([funcionariosDoCaixa(), supabase.from("branches").select("id, codigo, nome").eq("ativo", true).order("codigo")]);
+  const [funcionarios, { data: lojas }, empresas] = await Promise.all([funcionariosDoCaixa(), supabase.from("branches").select("id, codigo, nome").eq("ativo", true).order("codigo"), empresaDasFiliais(supabase)]);
   const porLoja = new Map<string, GrupoColaboradores>();
   for (const f of funcionarios) {
-    if (f.status === "desligado" || ehFarmaceutico(f.cargo)) continue;
+    if (f.status === "desligado" || semQuebraDeCaixa(f.cargo, f.branch_id ? empresas.get(f.branch_id) : null)) continue;
     const g = porLoja.get(f.filial) ?? { loja: `Loja ${f.filial}`, opcoes: [] };
     g.opcoes.push({ id: f.id, branchId: f.branch_id, rotulo: `${f.nome}${f.matricula ? ` · mat. ${f.matricula}` : ""}${f.cargo ? ` · ${f.cargo}` : ""}` });
     porLoja.set(f.filial, g);
