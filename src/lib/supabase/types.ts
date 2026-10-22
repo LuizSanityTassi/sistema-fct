@@ -2504,6 +2504,61 @@ export type Database = {
         }
         Relationships: []
       }
+      folha_eventos_filial: {
+        Row: {
+          arquivo: string | null
+          branch_id: string
+          codigo: number
+          coluna: number
+          evento_id: string | null
+          rotulo: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          arquivo?: string | null
+          branch_id: string
+          codigo: number
+          coluna: number
+          evento_id?: string | null
+          rotulo: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          arquivo?: string | null
+          branch_id?: string
+          codigo?: number
+          coluna?: number
+          evento_id?: string | null
+          rotulo?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "folha_eventos_filial_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folha_eventos_filial_evento_id_fkey"
+            columns: ["evento_id"]
+            isOneToOne: false
+            referencedRelation: "folha_eventos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folha_eventos_filial_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       folha_lancamentos: {
         Row: {
           branch_id: string
@@ -4024,6 +4079,10 @@ export type Database = {
       }
     }
     Functions: {
+      folha_codigos_dominio_importar: {
+        Args: { p_filiais: Json }
+        Returns: number
+      }
       conc_fornecedor_ficha: {
         Args: { p_raiz: string }
         Returns: {

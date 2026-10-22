@@ -4,7 +4,8 @@
 //   C3 código da empresa · C4 razão social · C5 CNPJ · C6 competência (mm/yyyy)
 //   linhas 11 a 50: A = 11 (tipo de cálculo), B = matrícula, C = nome, D = função, E..R = valores dos eventos
 //   linha 52: as fórmulas do modelo (COUNTA(B11:B51), =C10, SUM(X12:X51)) com o resultado já calculado.
-// Os eventos são ligados às colunas pelo código da linha 10 do modelo. Só servidor.
+// Os eventos são ligados às colunas pelo código da linha 10 do modelo — ou, com `posicional` (filial com os códigos da
+// Domínio cadastrados), cada evento vai na sua coluna (E, F, …) com o rótulo e o código daquele CNPJ. Só servidor.
 import { MODELO_DOMINIO_B64 } from "./modelo-dominio-b64";
 import { definirResultadoFormula, definirValor, gravarModelo, lerModelo, valorNoModelo, type ModeloXls } from "./modelo-xls";
 
@@ -26,6 +27,11 @@ export type DadosPlanilha = {
   competencia: string;
   eventos: ColunaEvento[];
   linhas: LinhaPlanilha[];
+  /**
+   * Códigos da filial: `eventos` são as colunas da planilha dela, na ordem (1ª = coluna E), com o rótulo e o código da
+   * contabilidade; as colunas do modelo que sobram ficam sem título. Sem isto, liga pelo código da linha 10 do modelo.
+   */
+  posicional?: boolean;
 };
 
 export const TIPO_CALCULO_FOLHA = 11;
@@ -65,25 +71,42 @@ export function preencherModeloDominio(d: DadosPlanilha): ModeloXls {
   const m = lerModelo(Buffer.from(MODELO_DOMINIO_B64, "base64"));
   const doModelo = colunasDoModelo(m);
 
-  // eventos com código que o modelo não tem viram colunas novas depois da R, com o estilo da coluna R
+  // eventos que não cabem nas colunas do modelo viram colunas novas depois da R, com o estilo da coluna R
   const colunaDoEvento = new Map<string, number>();
   let proxima = C_ULTIMO_MODELO + 1;
   const extras: number[] = [];
-  for (const e of d.eventos) {
-    const c = doModelo.get(e.codigo);
-    if (c !== undefined) {
-      colunaDoEvento.set(e.id, c);
-      continue;
-    }
+  const colunaNova = () => {
     const nova = proxima++;
     extras.push(nova);
-    colunaDoEvento.set(e.id, nova);
     for (let r = 0; r <= L_TOTAL; r++) {
       const xf = m.celulas.get(r * 1024 + C_ULTIMO_MODELO)?.xf;
       if (xf !== undefined && r !== L_TOTAL) definirValor(m, r, nova, null, xf);
     }
-    definirValor(m, L_NOMES, nova, e.nome);
-    definirValor(m, L_CODIGOS, nova, e.codigo);
+    return nova;
+  };
+  if (d.posicional) {
+    d.eventos.forEach((e, k) => {
+      const c = C_PRIMEIRO_EVENTO + k <= C_ULTIMO_MODELO ? C_PRIMEIRO_EVENTO + k : colunaNova();
+      colunaDoEvento.set(e.id, c);
+      definirValor(m, L_NOMES, c, e.nome);
+      definirValor(m, L_CODIGOS, c, e.codigo);
+    });
+    for (let c = C_PRIMEIRO_EVENTO + d.eventos.length; c <= C_ULTIMO_MODELO; c++) {
+      definirValor(m, L_NOMES, c, null);
+      definirValor(m, L_CODIGOS, c, null);
+    }
+  } else {
+    for (const e of d.eventos) {
+      const c = doModelo.get(e.codigo);
+      if (c !== undefined) {
+        colunaDoEvento.set(e.id, c);
+        continue;
+      }
+      const nova = colunaNova();
+      colunaDoEvento.set(e.id, nova);
+      definirValor(m, L_NOMES, nova, e.nome);
+      definirValor(m, L_CODIGOS, nova, e.codigo);
+    }
   }
 
   definirValor(m, 2, 2, d.codigoEmpresa);

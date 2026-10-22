@@ -46,10 +46,15 @@ export type FuncionarioFolha = {
   semQuebra: boolean;
 };
 
+/** Coluna de evento da planilha de uma filial, com o código da Domínio daquele CNPJ (folha_eventos_filial). */
+export type ColunaFilial = { coluna: number; rotulo: string; codigo: number; eventoId: string | null };
+
 export type DadosCompetencia = {
   competencia: string;
   eventos: EventoFolha[];
   filiais: FilialFolha[];
+  /** filial → colunas da planilha dela (na ordem); filial sem entrada usa os códigos gerais dos eventos */
+  codigosFilial: Map<string, ColunaFilial[]>;
   /** ativos no mês ou com lançamento/observação no mês */
   funcionarios: FuncionarioFolha[];
   /** employeeId → eventoId → valor */
@@ -119,11 +124,24 @@ export function codigoEmpresaDaPlanilha(f: FilialFolha): { codigo: number | null
 
 export const arquivoDaFilial = (f: FilialFolha, competencia: string) => nomeArquivoDominio(f.cnpj, competencia, f.codigo);
 
+/**
+ * Códigos da Domínio por filial: as colunas de evento da planilha de cada CNPJ, na ordem da contabilidade (na Domínio
+ * cada CNPJ tem os seus códigos, ex.: "Feriado trabalhado" 259 numa filial e 202 noutra).
+ */
+export async function carregarCodigosFilial(supabase: Cliente): Promise<Map<string, ColunaFilial[]>> {
+  const { data, error } = await supabase.from("folha_eventos_filial").select("branch_id, coluna, rotulo, codigo, evento_id").order("branch_id").order("coluna");
+  if (error) throw new Error(error.message);
+  const mapa = new Map<string, ColunaFilial[]>();
+  for (const c of data) mapa.set(c.branch_id, [...(mapa.get(c.branch_id) ?? []), { coluna: c.coluna, rotulo: c.rotulo, codigo: c.codigo, eventoId: c.evento_id }]);
+  return mapa;
+}
+
 export async function carregarCompetencia(supabase: Cliente, competencia: string): Promise<DadosCompetencia> {
   const data = competenciaParaData(competencia);
-  const [eventos, filiais, funcionarios, lancamentos, obs, empresas] = await Promise.all([
+  const [eventos, filiais, codigosFilial, funcionarios, lancamentos, obs, empresas] = await Promise.all([
     carregarEventos(supabase),
     carregarFiliais(supabase),
+    carregarCodigosFilial(supabase),
     rpcPaginado((a, b) =>
       supabase
         .from("employees")
@@ -170,5 +188,5 @@ export async function carregarCompetencia(supabase: Cliente, competencia: string
       semQuebra: semQuebraDeCaixa(e.cargo, empresas.get(e.branch_id)),
     });
   }
-  return { competencia, eventos, filiais, funcionarios: lista, valores, observacoes };
+  return { competencia, eventos, filiais, codigosFilial, funcionarios: lista, valores, observacoes };
 }
