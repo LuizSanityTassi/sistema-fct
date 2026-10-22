@@ -34,18 +34,19 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
   const foraTotal = (m: string) => !dre.mesesTotal.includes(m);
   const base = { grupo: escopo.grupo, filial: escopo.filial };
 
-  const linhaTotal = ({ nome, porMes, total, classe, nivelVisual }: { nome: string; porMes: Record<string, number>; total: number; classe: string; nivelVisual: number }) => (
+  // escura = linha de fundo escuro (família, total de saídas): tudo nela fica branco, inclusive o % (o cinza some no fundo)
+  const linhaTotal = ({ nome, porMes, total, classe, nivelVisual, escura = false }: { nome: string; porMes: Record<string, number>; total: number; classe: string; nivelVisual: number; escura?: boolean }) => (
     <tr key={`total-${nome}-${nivelVisual}`} className={classe}>
       <td className="px-2 py-1" style={{ paddingLeft: 8 + nivelVisual * 14 }}>
         {nome}
       </td>
       {dre.meses.map((m) => (
-        <td key={m} className={`px-2 py-1 text-right tabular-nums ${foraTotal(m) ? "text-muted-foreground/70" : ""}`}>
+        <td key={m} className={`px-2 py-1 text-right tabular-nums ${foraTotal(m) ? (escura ? "opacity-70" : "text-muted-foreground/70") : ""}`}>
           {moedaDre(porMes[m] ?? 0)}
         </td>
       ))}
       <td className="px-2 py-1 text-right font-semibold tabular-nums">{moedaDre(total)}</td>
-      <td className="px-2 py-1 text-right tabular-nums text-muted-foreground">{pctFmt(total, dre.totalReceitas)}</td>
+      <td className={`px-2 py-1 text-right tabular-nums ${escura ? "" : "text-muted-foreground"}`}>{pctFmt(total, dre.totalReceitas)}</td>
     </tr>
   );
 
@@ -136,7 +137,7 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
             )}
             {dre.familias.map((f) => (
               <React.Fragment key={f.nome}>
-                {casa(f.nome) || f.grupos.some((g) => casa(g.nome) || g.categorias.some((c) => casa(c.nome))) ? linhaTotal({ nome: f.nome, porMes: f.porMes, total: f.total, classe: "bg-primary text-primary-foreground font-semibold", nivelVisual: 0 }) : null}
+                {casa(f.nome) || f.grupos.some((g) => casa(g.nome) || g.categorias.some((c) => casa(c.nome))) ? linhaTotal({ nome: f.nome, porMes: f.porMes, total: f.total, classe: "bg-primary text-primary-foreground font-semibold", nivelVisual: 0, escura: true }) : null}
                 {mostraGrupos &&
                   f.grupos.map((g) => (
                     <React.Fragment key={g.nome}>
@@ -156,7 +157,7 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
                 {dre.naoClassificadas.filter((c) => casa(c.nome)).map((c) => linhaCategoria(c, 1))}
               </>
             )}
-            {linhaTotal({ nome: "Total de saídas", porMes: dre.saidas.porMes, total: dre.saidas.total, classe: "bg-neutral-700 text-white font-semibold", nivelVisual: 0 })}
+            {linhaTotal({ nome: "Total de saídas", porMes: dre.saidas.porMes, total: dre.saidas.total, classe: "bg-neutral-700 text-white font-semibold", nivelVisual: 0, escura: true })}
             <tr className="border-t-2 border-fct-yellow font-bold">
               <td className="px-2 py-1.5">RESULTADO REALIZADO TOTAL MÊS</td>
               {dre.meses.map((m) => (
