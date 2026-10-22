@@ -835,6 +835,670 @@ export type Database = {
           },
         ]
       }
+      gi_conc_agentes: {
+        Row: {
+          criado_em: string
+          criado_por: string | null
+          id: string
+          nome: string
+          revogado_em: string | null
+          token_hash: string
+          ultimo_uso: string | null
+          uploads: number
+        }
+        Insert: {
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          nome: string
+          revogado_em?: string | null
+          token_hash: string
+          ultimo_uso?: string | null
+          uploads?: number
+        }
+        Update: {
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          nome?: string
+          revogado_em?: string | null
+          token_hash?: string
+          ultimo_uso?: string | null
+          uploads?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gi_conc_agentes_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gi_conc_aprendizado: {
+        Row: {
+          atualizado_em: string
+          beneficiario: string | null
+          bloqueado: boolean
+          confirmado: boolean
+          fornecedor: string
+          id: string
+          raiz: string
+          taxas: number[]
+          vezes: number
+        }
+        Insert: {
+          atualizado_em?: string
+          beneficiario?: string | null
+          bloqueado?: boolean
+          confirmado?: boolean
+          fornecedor: string
+          id?: string
+          raiz: string
+          taxas?: number[]
+          vezes?: number
+        }
+        Update: {
+          atualizado_em?: string
+          beneficiario?: string | null
+          bloqueado?: boolean
+          confirmado?: boolean
+          fornecedor?: string
+          id?: string
+          raiz?: string
+          taxas?: number[]
+          vezes?: number
+        }
+        Relationships: []
+      }
+      gi_conc_arquivos: {
+        Row: {
+          arquivado_em: string | null
+          arquivado_por: string | null
+          enviado_em: string
+          enviado_por: string | null
+          extensao: string
+          filial: number | null
+          id: string
+          meta: Json
+          motivo_arquivo: string | null
+          nome: string
+          origem: string
+          sha256: string
+          storage_path: string
+          tamanho: number
+          tipo: Database["public"]["Enums"]["conc_tipo_arquivo"]
+          vezes: number
+        }
+        Insert: {
+          arquivado_em?: string | null
+          arquivado_por?: string | null
+          enviado_em?: string
+          enviado_por?: string | null
+          extensao: string
+          filial?: number | null
+          id?: string
+          meta?: Json
+          motivo_arquivo?: string | null
+          nome: string
+          origem?: string
+          sha256: string
+          storage_path: string
+          tamanho: number
+          tipo: Database["public"]["Enums"]["conc_tipo_arquivo"]
+          vezes?: number
+        }
+        Update: {
+          arquivado_em?: string | null
+          arquivado_por?: string | null
+          enviado_em?: string
+          enviado_por?: string | null
+          extensao?: string
+          filial?: number | null
+          id?: string
+          meta?: Json
+          motivo_arquivo?: string | null
+          nome?: string
+          origem?: string
+          sha256?: string
+          storage_path?: string
+          tamanho?: number
+          tipo?: Database["public"]["Enums"]["conc_tipo_arquivo"]
+          vezes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gi_conc_arquivos_arquivado_por_fkey"
+            columns: ["arquivado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gi_conc_arquivos_enviado_por_fkey"
+            columns: ["enviado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gi_conc_conciliacoes: {
+        Row: {
+          arquivos: string[]
+          criado_em: string
+          criado_por: string | null
+          duracao_ms: number | null
+          fil_max: number
+          fil_min: number
+          id: string
+          pct_bateu: number | null
+          pct_valor_bateu: number | null
+          qtd_dda: number
+          qtd_trier: number
+          resumo: Json
+          titulo: string | null
+          total_dda: number
+          total_so_dda: number
+          total_trier: number
+          venc_fim: string | null
+          venc_ini: string | null
+        }
+        Insert: {
+          arquivos?: string[]
+          criado_em?: string
+          criado_por?: string | null
+          duracao_ms?: number | null
+          fil_max: number
+          fil_min: number
+          id?: string
+          pct_bateu?: number | null
+          pct_valor_bateu?: number | null
+          qtd_dda?: number
+          qtd_trier?: number
+          resumo?: Json
+          titulo?: string | null
+          total_dda?: number
+          total_so_dda?: number
+          total_trier?: number
+          venc_fim?: string | null
+          venc_ini?: string | null
+        }
+        Update: {
+          arquivos?: string[]
+          criado_em?: string
+          criado_por?: string | null
+          duracao_ms?: number | null
+          fil_max?: number
+          fil_min?: number
+          id?: string
+          pct_bateu?: number | null
+          pct_valor_bateu?: number | null
+          qtd_dda?: number
+          qtd_trier?: number
+          resumo?: Json
+          titulo?: string | null
+          total_dda?: number
+          total_so_dda?: number
+          total_trier?: number
+          venc_fim?: string | null
+          venc_ini?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gi_conc_conciliacoes_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gi_conc_config: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          chave: string
+          valor: Json
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          chave: string
+          valor: Json
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          chave?: string
+          valor?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gi_conc_config_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gi_conc_depara: {
+        Row: {
+          alerta: string | null
+          ativo: boolean
+          created_at: string
+          dda: string
+          fornecedores: string[]
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          alerta?: string | null
+          ativo?: boolean
+          created_at?: string
+          dda: string
+          fornecedores?: string[]
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          alerta?: string | null
+          ativo?: boolean
+          created_at?: string
+          dda?: string
+          fornecedores?: string[]
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      gi_conc_enviados_omie: {
+        Row: {
+          arquivo_id: string | null
+          beneficiario: string | null
+          chave: string
+          conciliacao_id: string | null
+          desfeito_em: string | null
+          desfeito_por: string | null
+          empresa: string | null
+          enviado_em: string
+          enviado_por: string | null
+          filial: number | null
+          grupo: string | null
+          motivo_desfazer: string | null
+          omie_codigo: string | null
+          valor: number | null
+          vencimento: string | null
+          via: string
+        }
+        Insert: {
+          arquivo_id?: string | null
+          beneficiario?: string | null
+          chave: string
+          conciliacao_id?: string | null
+          desfeito_em?: string | null
+          desfeito_por?: string | null
+          empresa?: string | null
+          enviado_em?: string
+          enviado_por?: string | null
+          filial?: number | null
+          grupo?: string | null
+          motivo_desfazer?: string | null
+          omie_codigo?: string | null
+          valor?: number | null
+          vencimento?: string | null
+          via?: string
+        }
+        Update: {
+          arquivo_id?: string | null
+          beneficiario?: string | null
+          chave?: string
+          conciliacao_id?: string | null
+          desfeito_em?: string | null
+          desfeito_por?: string | null
+          empresa?: string | null
+          enviado_em?: string
+          enviado_por?: string | null
+          filial?: number | null
+          grupo?: string | null
+          motivo_desfazer?: string | null
+          omie_codigo?: string | null
+          valor?: number | null
+          vencimento?: string | null
+          via?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gi_conc_enviados_omie_arquivo_id_fkey"
+            columns: ["arquivo_id"]
+            isOneToOne: false
+            referencedRelation: "gi_conc_arquivos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gi_conc_enviados_omie_conciliacao_id_fkey"
+            columns: ["conciliacao_id"]
+            isOneToOne: false
+            referencedRelation: "gi_conc_conciliacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gi_conc_enviados_omie_desfeito_por_fkey"
+            columns: ["desfeito_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gi_conc_enviados_omie_enviado_por_fkey"
+            columns: ["enviado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gi_conc_itens: {
+        Row: {
+          alerta: string | null
+          barra: string | null
+          beneficiario: string | null
+          branch_id: string | null
+          categoria: string
+          chave: string
+          cnpj: string | null
+          conciliacao_id: string
+          dados: Json
+          desconto: Json | null
+          diferenca: number | null
+          documento: string | null
+          filial: number | null
+          fornecedor: string | null
+          fornecedor_real: string | null
+          grupo: string
+          id: string
+          numdoc: string | null
+          taxa: number | null
+          valor: number
+          valor_trier: number | null
+          vencimento: string | null
+        }
+        Insert: {
+          alerta?: string | null
+          barra?: string | null
+          beneficiario?: string | null
+          branch_id?: string | null
+          categoria: string
+          chave: string
+          cnpj?: string | null
+          conciliacao_id: string
+          dados?: Json
+          desconto?: Json | null
+          diferenca?: number | null
+          documento?: string | null
+          filial?: number | null
+          fornecedor?: string | null
+          fornecedor_real?: string | null
+          grupo: string
+          id?: string
+          numdoc?: string | null
+          taxa?: number | null
+          valor: number
+          valor_trier?: number | null
+          vencimento?: string | null
+        }
+        Update: {
+          alerta?: string | null
+          barra?: string | null
+          beneficiario?: string | null
+          branch_id?: string | null
+          categoria?: string
+          chave?: string
+          cnpj?: string | null
+          conciliacao_id?: string
+          dados?: Json
+          desconto?: Json | null
+          diferenca?: number | null
+          documento?: string | null
+          filial?: number | null
+          fornecedor?: string | null
+          fornecedor_real?: string | null
+          grupo?: string
+          id?: string
+          numdoc?: string | null
+          taxa?: number | null
+          valor?: number
+          valor_trier?: number | null
+          vencimento?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gi_conc_itens_conciliacao_id_fkey"
+            columns: ["conciliacao_id"]
+            isOneToOne: false
+            referencedRelation: "gi_conc_conciliacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gi_conc_pendencias: {
+        Row: {
+          atribuido_em: string | null
+          auto: boolean
+          beneficiario: string | null
+          branch_id: string | null
+          chave: string
+          cnpj: string | null
+          conciliacao_id: string | null
+          criado_em: string
+          decidido_em: string | null
+          decidido_por: string | null
+          detalhe: string | null
+          documento: string | null
+          filial: number | null
+          historico: Json
+          motivo: string | null
+          problema: string
+          regra_id: string | null
+          responsavel: string | null
+          status: Database["public"]["Enums"]["conc_status_pendencia"]
+          valor: number
+          vencimento: string | null
+          visto_em: string
+        }
+        Insert: {
+          atribuido_em?: string | null
+          auto?: boolean
+          beneficiario?: string | null
+          branch_id?: string | null
+          chave: string
+          cnpj?: string | null
+          conciliacao_id?: string | null
+          criado_em?: string
+          decidido_em?: string | null
+          decidido_por?: string | null
+          detalhe?: string | null
+          documento?: string | null
+          filial?: number | null
+          historico?: Json
+          motivo?: string | null
+          problema: string
+          regra_id?: string | null
+          responsavel?: string | null
+          status?: Database["public"]["Enums"]["conc_status_pendencia"]
+          valor?: number
+          vencimento?: string | null
+          visto_em?: string
+        }
+        Update: {
+          atribuido_em?: string | null
+          auto?: boolean
+          beneficiario?: string | null
+          branch_id?: string | null
+          chave?: string
+          cnpj?: string | null
+          conciliacao_id?: string | null
+          criado_em?: string
+          decidido_em?: string | null
+          decidido_por?: string | null
+          detalhe?: string | null
+          documento?: string | null
+          filial?: number | null
+          historico?: Json
+          motivo?: string | null
+          problema?: string
+          regra_id?: string | null
+          responsavel?: string | null
+          status?: Database["public"]["Enums"]["conc_status_pendencia"]
+          valor?: number
+          vencimento?: string | null
+          visto_em?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gi_conc_pendencias_conciliacao_id_fkey"
+            columns: ["conciliacao_id"]
+            isOneToOne: false
+            referencedRelation: "gi_conc_conciliacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gi_conc_pendencias_decidido_por_fkey"
+            columns: ["decidido_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gi_conc_pendencias_regra_id_fkey"
+            columns: ["regra_id"]
+            isOneToOne: false
+            referencedRelation: "gi_conc_regras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gi_conc_pendencias_responsavel_fkey"
+            columns: ["responsavel"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gi_conc_regras: {
+        Row: {
+          ativo: boolean
+          categoria_omie: string | null
+          cnpj_raiz: string | null
+          created_at: string
+          criado_por: string | null
+          departamento_omie: string | null
+          filiais: number[]
+          id: string
+          nome: string
+          nome_contem: string | null
+          ordem: number
+          pendencia_acao: Database["public"]["Enums"]["conc_status_pendencia"] | null
+          pendencia_motivo: string | null
+          problemas: string[]
+          ultima_vez: string | null
+          updated_at: string
+          valor_max: number | null
+          valor_min: number | null
+          vezes: number
+        }
+        Insert: {
+          ativo?: boolean
+          categoria_omie?: string | null
+          cnpj_raiz?: string | null
+          created_at?: string
+          criado_por?: string | null
+          departamento_omie?: string | null
+          filiais?: number[]
+          id?: string
+          nome: string
+          nome_contem?: string | null
+          ordem?: number
+          pendencia_acao?: Database["public"]["Enums"]["conc_status_pendencia"] | null
+          pendencia_motivo?: string | null
+          problemas?: string[]
+          ultima_vez?: string | null
+          updated_at?: string
+          valor_max?: number | null
+          valor_min?: number | null
+          vezes?: number
+        }
+        Update: {
+          ativo?: boolean
+          categoria_omie?: string | null
+          cnpj_raiz?: string | null
+          created_at?: string
+          criado_por?: string | null
+          departamento_omie?: string | null
+          filiais?: number[]
+          id?: string
+          nome?: string
+          nome_contem?: string | null
+          ordem?: number
+          pendencia_acao?: Database["public"]["Enums"]["conc_status_pendencia"] | null
+          pendencia_motivo?: string | null
+          problemas?: string[]
+          ultima_vez?: string | null
+          updated_at?: string
+          valor_max?: number | null
+          valor_min?: number | null
+          vezes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gi_conc_regras_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gi_conc_filiais: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          atualizado_por: string | null
+          cnpj: string | null
+          codigo: number
+          departamento_omie: string | null
+          nome: string
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cnpj?: string | null
+          codigo: number
+          departamento_omie?: string | null
+          nome: string
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cnpj?: string | null
+          codigo?: number
+          departamento_omie?: string | null
+          nome?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gi_conc_filiais_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       departments: {
         Row: {
           ativo: boolean
@@ -3253,6 +3917,35 @@ export type Database = {
           },
         ]
       }
+      gi_conc_boletos_vistos: {
+        Row: {
+          anomalias: Json | null
+          banco: string | null
+          beneficiario: string | null
+          categoria: string | null
+          chave: string | null
+          cnpj_num: string | null
+          conciliacao_id: string | null
+          criado_em: string | null
+          filial: number | null
+          fora_padrao: boolean | null
+          fornecedor: string | null
+          fornecedor_real: string | null
+          grupo: string | null
+          raiz: string | null
+          valor: number | null
+          vencimento: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gi_conc_itens_conciliacao_id_fkey"
+            columns: ["conciliacao_id"]
+            isOneToOne: false
+            referencedRelation: "gi_conc_conciliacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_current_salary: {
         Row: {
           employee_id: string | null
@@ -3355,6 +4048,60 @@ export type Database = {
         }[]
       }
       conc_regras_registrar_uso: {
+        Args: { p_ids: string[]; p_qtds: number[] }
+        Returns: undefined
+      }
+      gi_conc_fornecedor_ficha: {
+        Args: { p_raiz: string }
+        Returns: {
+          bancos: string[]
+          boletos: number
+          cnpjs: string[]
+          divergencias: number
+          exatos: number
+          fora_padrao: number
+          fornecedores: string[]
+          maximo: number
+          mediana: number
+          minimo: number
+          nome: string
+          p10: number
+          p90: number
+          primeiro: string
+          raiz: string
+          total: number
+          ultimo: string
+          ultimo_venc: string
+        }[]
+      }
+      gi_conc_fornecedor_historico: {
+        Args: { p_raizes: string[] }
+        Returns: {
+          bancos: string[]
+          cnpjs: string[]
+          n: number
+          raiz: string
+          valores: Json
+        }[]
+      }
+      gi_conc_fornecedores_lista: {
+        Args: { p_limite?: number; p_q?: string }
+        Returns: {
+          bancos: number
+          cnpjs: number
+          divergencias: number
+          exatos: number
+          fora_padrao: number
+          nome: string
+          primeiro: string
+          qtd: number
+          raiz: string
+          total: number
+          ultimo: string
+          ultimo_venc: string
+        }[]
+      }
+      gi_conc_regras_registrar_uso: {
         Args: { p_ids: string[]; p_qtds: number[] }
         Returns: undefined
       }
