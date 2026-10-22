@@ -17,8 +17,8 @@ type Props = {
 };
 
 const inteiro = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
-/** Número cheio, sem centavos (regra 41), igual à planilha da diretoria. */
-const moedaDre = (v: number) => (v ? `${v < 0 ? "-" : ""}R$ ${inteiro.format(arred41(Math.abs(v)))}` : "—");
+/** Número cheio, sem centavos (regra 41) e sem "R$" (pedido do usuário: só no Caixa contábil), igual à planilha da diretoria. */
+const moedaDre = (v: number) => (v ? `${v < 0 ? "-" : ""}${inteiro.format(arred41(Math.abs(v)))}` : "—");
 const MESES_CURTO = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 const rotuloMes = (m: string) => `${MESES_CURTO[Number(m.slice(5, 7)) - 1]}/${m.slice(2, 4)}`;
 const pctFmt = (v: number, base: number) => (base > 0 ? `${((v / base) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%` : "—");

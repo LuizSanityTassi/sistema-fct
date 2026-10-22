@@ -16,6 +16,9 @@ import { DreTabela } from "./dre-tabela";
 
 export const metadata = { title: "Caixa contábil" };
 
+/** Valores do Caixa contábil sem "R$" (pedido do usuário; só nesta tela — o resto do financeiro continua com R$). */
+const semRs = (v: number) => moedaFin(v).replace("R$ ", "");
+
 export default async function DrePage({ searchParams }: PageProps<"/financeiro/caixa-contabil">) {
   const [sessao, sp] = await Promise.all([exigirAcesso("/financeiro/caixa-contabil"), searchParams]);
   const escopo = lerEscopo(sp);
@@ -104,10 +107,10 @@ export default async function DrePage({ searchParams }: PageProps<"/financeiro/c
         <>
           <section className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
             {[
-              ["Receitas", moedaFin(dre.receitas.total), "text-emerald-700"],
-              ["Saídas", moedaFin(dre.saidas.total), "text-red-700"],
-              ["Resultado", moedaFin(dre.resultado.total), dre.resultado.total < 0 ? "text-red-700" : "text-emerald-700"],
-              ["Caixa acumulado", moedaFin(ultimo ? (dre.acumulado[ultimo] ?? 0) : 0), (ultimo ? (dre.acumulado[ultimo] ?? 0) : 0) < 0 ? "text-red-700" : "text-emerald-700"],
+              ["Receitas", semRs(dre.receitas.total), "text-emerald-700"],
+              ["Saídas", semRs(dre.saidas.total), "text-red-700"],
+              ["Resultado", semRs(dre.resultado.total), dre.resultado.total < 0 ? "text-red-700" : "text-emerald-700"],
+              ["Caixa acumulado", semRs(ultimo ? (dre.acumulado[ultimo] ?? 0) : 0), (ultimo ? (dre.acumulado[ultimo] ?? 0) : 0) < 0 ? "text-red-700" : "text-emerald-700"],
             ].map(([r, v, t]) => (
               <div key={r} className="rounded-xl border bg-card p-4">
                 <p className="rotulo">{r}</p>
