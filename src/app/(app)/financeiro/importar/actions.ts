@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSessao } from "@/lib/auth/session";
-import { mapaFiliais } from "@/lib/data/conciliacao";
 import { ehUuid } from "@/lib/data/filiais";
 import { listarUnidadesFinanceiro } from "@/lib/data/financeiro";
 import { analisarImportacao, executarImportacao, desfazerLote, lerPlanilhaOmie, type Analise, type LeituraArquivo, type ResolverUnidade } from "@/lib/financeiro/importacao-omie";
@@ -34,14 +33,20 @@ function texto(fd: FormData, nome: string) {
   return t === "" ? undefined : t;
 }
 
-/** Unidade pelo texto do Omie: CNPJ → código Fxxx → nomes especiais. */
+/**
+ * Unidade pelo texto do Omie: CNPJ → código Fxxx → nomes especiais. O CNPJ vale para TODAS as unidades, inclusive as
+ * de código sem número (terceirizadas como CIRLEI, JERIVA, RFA, ELEGANCE e a TRIO), que o departamento do Omie traz
+ * pelo CNPJ.
+ */
 async function montarResolvedor(): Promise<{ resolver: ResolverUnidade; rotulo: Map<string, string> }> {
-  const [filiais, unidades] = await Promise.all([mapaFiliais(), listarUnidadesFinanceiro()]);
+  const supabase = await createClient();
+  const [{ data: comCnpj, error }, unidades] = await Promise.all([supabase.from("branches").select("id, cnpj").not("cnpj", "is", null), listarUnidadesFinanceiro()]);
+  if (error) throw new Error(error.message);
   const porCodigo = new Map(unidades.map((u) => [u.codigo.toUpperCase(), u]));
   const porCnpj = new Map<string, string>();
-  for (const [cnpj, n] of filiais.porCnpj) {
-    const b = filiais.porFilial.get(n);
-    if (b) porCnpj.set(cnpj, b.id);
+  for (const b of comCnpj ?? []) {
+    const cnpj = (b.cnpj ?? "").replace(/\D/g, "");
+    if (cnpj.length === 14) porCnpj.set(cnpj, b.id);
   }
   const rotulo = new Map(unidades.map((u) => [u.id, `${u.codigo} ${u.nome}`]));
   const resolver: ResolverUnidade = (textoFilial) => {
