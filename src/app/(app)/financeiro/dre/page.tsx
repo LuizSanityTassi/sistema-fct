@@ -15,7 +15,7 @@ import { formatarDataHora } from "@/lib/formatos";
 import { rotuloCompetencia } from "@/lib/rh/competencia";
 import { createClient } from "@/lib/supabase/server";
 import { excluirRateio, salvarRateio } from "./actions";
-import { AvisoCobertura, cabecalhosOrdenaveis, Cartao, empresasSemDre, Filtros, mostraPct, OpcoesFiliais, query, TODAS, tom, type Direcao, type Props } from "./comum";
+import { AbasDre, AvisoCobertura, cabecalhosOrdenaveis, Cartao, empresasSemDre, Filtros, mostraPct, OpcoesFiliais, query, TODAS, tom, VISOES_DRE, type Direcao, type Props, type VisaoDre } from "./comum";
 import { Comparativo } from "./comparativo";
 import { Demonstrativo } from "./demonstrativo";
 import { RateioForm } from "./rateio-form";
@@ -41,14 +41,6 @@ const ORDENS: Record<string, (c: ContasDre) => number> = {
   lucro: (c) => c.lucro,
   lp: (c) => c.lucroSobreBruta ?? semValor,
 };
-const VISOES = [
-  ["resumo", "Resumo por filial"],
-  ["demonstrativo", "Demonstrativo"],
-  ["comparativo", "Comparativo"],
-  ["rateio", "Rateio por faturamento"],
-] as const;
-type Visao = (typeof VISOES)[number][0];
-
 /**
  * DRE contábil por filial (planilha do contador): resumo por filial (mês ou acumulado), o demonstrativo mês a mês, o
  * comparativo com o mês anterior e o ano passado e o rateio por faturamento. "Todas as empresas" junta Varela e Nazário.
@@ -60,7 +52,7 @@ export default async function DrePage({ searchParams }: PageProps<"/financeiro/d
   const botaoImportar = podeImportar ? (
     <Button nativeButton={false} render={<Link href="/financeiro/dre/importar" />}>
       <FileUp data-icon="inline-start" />
-      Importar planilha
+      Importar novo mês
     </Button>
   ) : undefined;
 
@@ -82,7 +74,7 @@ export default async function DrePage({ searchParams }: PageProps<"/financeiro/d
   const anos = [...new Set(meses.map((m) => m.slice(0, 4)))].sort().reverse();
   const ano = anos.includes(s("ano")) ? s("ano") : anos[0];
   const mesesDoAno = meses.filter((m) => m.startsWith(ano));
-  const ver: Visao = VISOES.some(([v]) => v === s("ver")) ? (s("ver") as Visao) : "resumo";
+  const ver: VisaoDre = VISOES_DRE.some(([v]) => v === s("ver")) ? (s("ver") as VisaoDre) : "resumo";
   // o comparativo olha também o ano passado (mesmo mês e os últimos 12 meses)
   const de = ver === "comparativo" ? `${Number(ano) - 1}-01` : `${ano}-01`;
   const dados = await Promise.all(selecionadas.map((e) => lancamentosDre(e.empresa, de, `${ano}-12`)));
@@ -118,21 +110,9 @@ export default async function DrePage({ searchParams }: PageProps<"/financeiro/d
         eyebrow="Financeiro"
         titulo="DRE"
         descricao={`DRE contábil ${todas ? `de todas as empresas (${empresas.map((e) => e.empresa).join(" + ")})` : `da ${selecionadas[0].empresa}`} por filial (planilha do contador). Última importação: ${ultima.arquivo ?? "planilha"} · ${ultima.por ?? "—"} · ${formatarDataHora(ultima.em)}.`}
-        acoes={botaoImportar}
       />
 
-      <nav className="mb-4 flex flex-wrap items-center gap-2 text-sm" aria-label="Visões da DRE">
-        {VISOES.map(([v, r]) => (
-          <Link
-            key={v}
-            href={`/financeiro/dre?${query({ ...base, ver: v === "resumo" ? undefined : v, filial: v === "demonstrativo" ? s("filial") || undefined : undefined })}`}
-            aria-current={ver === v ? "page" : undefined}
-            className={`rounded-full border px-3 py-1 ${ver === v ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary/40"}`}
-          >
-            {r}
-          </Link>
-        ))}
-      </nav>
+      <AbasDre ativa={ver} base={base} filial={s("filial") || undefined} podeImportar={podeImportar} />
 
       {ver === "resumo" ? (
         <Resumo {...props} porEmpresa={dados.map((d, i) => ({ empresa: selecionadas[i].empresa, mapa: d.mapa }))} />

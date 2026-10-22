@@ -4,7 +4,7 @@ import * as React from "react";
 import { useActionState } from "react";
 import Link from "next/link";
 import { CircleCheckBig, TriangleAlert } from "lucide-react";
-import { ErroFormulario } from "@/components/form/campo";
+import { ErroFormulario, SelectNativo } from "@/components/form/campo";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { moedaFin } from "@/lib/financeiro/formatos";
@@ -14,6 +14,46 @@ import type { EstadoDre } from "./actions";
 type Acao = (prev: EstadoDre, fd: FormData) => Promise<EstadoDre>;
 
 const mesCurto = (m: string) => rotuloCompetencia(m).replace(/^(\w{3})\w* de (\d{4})$/, "$1/$2");
+
+/**
+ * O que gravar da planilha: só o mês novo (padrão: o mais recente que ainda não está no sistema) ou todos os meses
+ * (substitui os que já estão). O contador manda a planilha do ano inteiro todo mês; o normal é gravar só o mês novo.
+ */
+function EscolhaDoMes({ meses, jaNoSistema, desabilitado, importando }: { meses: string[]; jaNoSistema: string[]; desabilitado: boolean; importando: boolean }) {
+  const novos = meses.filter((m) => !jaNoSistema.includes(m));
+  const [modo, setModo] = React.useState<"mes" | "todos">("mes");
+  const [mes, setMes] = React.useState(novos.at(-1) ?? meses.at(-1) ?? "");
+  const substitui = modo === "todos" ? jaNoSistema : jaNoSistema.filter((m) => m === mes);
+  return (
+    <div className="flex flex-wrap items-end gap-x-5 gap-y-3 border-b px-5 py-4">
+      <fieldset className="grid gap-2 text-sm">
+        <legend className="mb-1 font-medium">O que importar</legend>
+        <label className="flex items-center gap-2">
+          <input type="radio" name="modo" value="mes" checked={modo === "mes"} onChange={() => setModo("mes")} className="size-4 accent-fct-tinta" />
+          Só o mês
+          <SelectNativo name="mes" value={mes} onChange={(e) => setMes(e.target.value)} disabled={modo !== "mes"} aria-label="Mês a importar" className="h-8 w-52">
+            {[...meses].reverse().map((m) => (
+              <option key={m} value={m}>
+                {rotuloCompetencia(m)}
+                {jaNoSistema.includes(m) ? " (já no sistema)" : " (novo)"}
+              </option>
+            ))}
+          </SelectNativo>
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="radio" name="modo" value="todos" checked={modo === "todos"} onChange={() => setModo("todos")} className="size-4 accent-fct-tinta" />
+          Todos os {meses.length} meses da planilha
+        </label>
+      </fieldset>
+      <div className="grid gap-1">
+        <Button type="submit" name="passo" value="importar" disabled={desabilitado}>
+          {importando ? "Importando…" : modo === "mes" ? `Importar ${mesCurto(mes)}` : "Importar todos os meses"}
+        </Button>
+        <p className="text-xs text-muted-foreground">{substitui.length ? `Substitui o que já está no sistema em ${substitui.map(mesCurto).join(", ")}.` : "Mês novo: nada é substituído."}</p>
+      </div>
+    </div>
+  );
+}
 
 export function ImportarDreForm({ conferir, importar }: { conferir: Acao; importar: Acao }) {
   const [conf, enviarConferir, conferindo] = useActionState(conferir, {});
@@ -52,7 +92,7 @@ export function ImportarDreForm({ conferir, importar }: { conferir: Acao; import
           </Button>
         </div>
         <p className="mt-3 text-xs text-muted-foreground">
-          Cada aba de filial (“CHAPECÓ 302”, “TRIO”…) vira a filial do cadastro (F302, TRIO). Entram só os meses com vendas; um mês que já está no sistema é substituído pelo do arquivo.
+          Todo mês o contador manda a planilha atualizada: confira e importe só o mês novo (os meses anteriores ficam como estão). Cada aba de filial (“CHAPECÓ 302”, “TRIO”…) vira a filial do cadastro (F302, TRIO); entram só os meses com vendas.
         </p>
       </section>
 
@@ -73,25 +113,19 @@ export function ImportarDreForm({ conferir, importar }: { conferir: Acao; import
       {previa && !previa.erro && (
         <>
           <section className="rounded-xl border bg-card">
-            <header className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3">
-              <div>
-                <h2 className="text-sm font-semibold">
-                  {previa.empresa} · {previa.filiais.length} filiais · {previa.meses.map(mesCurto).join(", ")}
-                </h2>
-                <p className="text-xs text-muted-foreground">
-                  {previa.substitui.length ? `Substitui o que já está no sistema em ${previa.substitui.map(mesCurto).join(", ")}.` : "Meses novos: nada é substituído."}
-                </p>
-              </div>
-              <Button type="submit" name="passo" value="importar" disabled={ocupado || !podeImportar}>
-                {importando ? "Importando…" : "Importar"}
-              </Button>
+            <header className="border-b px-5 py-3">
+              <h2 className="text-sm font-semibold">
+                {previa.empresa} · {previa.filiais.length} filiais · {previa.meses.map(mesCurto).join(", ")}
+              </h2>
             </header>
+            <EscolhaDoMes key={`${conf.nomeArquivo}|${previa.meses.join()}`} meses={previa.meses} jaNoSistema={previa.substitui} desabilitado={ocupado || !podeImportar} importando={importando} />
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Mês</TableHead>
                   <TableHead className="text-right">Receita bruta</TableHead>
                   <TableHead className="text-right">Lucro / prejuízo (com depreciação)</TableHead>
+                  <TableHead className="hidden sm:table-cell">No sistema</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -100,6 +134,7 @@ export function ImportarDreForm({ conferir, importar }: { conferir: Acao; import
                     <TableCell>{rotuloCompetencia(m.mes)}</TableCell>
                     <TableCell className="text-right tabular-nums">{moedaFin(m.vendas)}</TableCell>
                     <TableCell className={`text-right tabular-nums ${m.lucro < 0 ? "text-red-700" : "text-emerald-700"}`}>{moedaFin(m.lucro)}</TableCell>
+                    <TableCell className="hidden text-xs sm:table-cell">{previa.substitui.includes(m.mes) ? <span className="text-muted-foreground">já importado</span> : <span className="font-medium text-emerald-700">novo</span>}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

@@ -15,7 +15,14 @@ export type EstadoImportacao = {
   erro?: string;
   leituras?: LeituraArquivo[];
   analise?: Omit<Analise, "itens"> & { amostra: AmostraItem[]; porSituacao: Record<string, number> };
+  /** "importar novo mês": meses que o arquivo trazia e quantas linhas de outros meses ficaram de fora */
+  meses?: { mes: string; qtd: number }[];
+  foraDoMes?: number;
 };
+
+const MES = /^\d{4}-(0[1-9]|1[0-2])$/;
+/** Telas que usam esta importação e para onde ela volta depois de gravar. */
+const VOLTAS = new Set(["/financeiro/importar", "/financeiro/caixa-contabil/importar"]);
 
 const MAX_ARQUIVO = 25 * 1024 * 1024;
 const ESPECIAIS: Record<string, string> = { TERCEIRIZADAS: "TERC", TELEVENDAS: "TLV", "423 - ADMINISTRATIVO 20-82": "F423" };
@@ -91,11 +98,24 @@ export async function importarOmie(_prev: EstadoImportacao, fd: FormData): Promi
   } catch (e) {
     return { erro: e instanceof Error ? e.message : "Não foi possível ler os arquivos." };
   }
+  // "importar novo mês" (aba do Caixa contábil): só as linhas do mês escolhido entram; as dos outros meses ficam de fora
+  const mesTxt = texto(fd, "mes");
+  const mes = mesTxt && MES.test(mesTxt) ? mesTxt : null;
+  const porMes = new Map<string, number>();
+  for (const i of lidos.itens) porMes.set(i.data.slice(0, 7), (porMes.get(i.data.slice(0, 7)) ?? 0) + 1);
+  const meses = [...porMes].map(([m, qtd]) => ({ mes: m, qtd })).sort((a, b) => a.mes.localeCompare(b.mes));
+  const itensDoMes = mes ? lidos.itens.filter((i) => i.data.startsWith(mes)) : lidos.itens;
+  const foraDoMes = lidos.itens.length - itensDoMes.length;
+  if (mes && lidos.itens.length && !itensDoMes.length) {
+    const tem = meses.map((m) => `${m.mes.slice(5)}/${m.mes.slice(0, 4)} (${m.qtd})`).join(", ");
+    return { erro: `O arquivo não tem lançamentos de ${mes.slice(5)}/${mes.slice(0, 4)}. Meses no arquivo: ${tem}.`, leituras: lidos.leituras, meses, foraDoMes };
+  }
+
   const supabase = await createClient();
   const admin = sessao.papel === "admin";
   let analise: Analise;
   try {
-    analise = await analisarImportacao(supabase, lidos.itens, admin);
+    analise = await analisarImportacao(supabase, itensDoMes, admin);
   } catch (e) {
     return { erro: e instanceof Error ? e.message : "Não foi possível analisar.", leituras: lidos.leituras };
   }
@@ -111,7 +131,10 @@ export async function importarOmie(_prev: EstadoImportacao, fd: FormData): Promi
     revalidatePath("/financeiro");
     revalidatePath("/financeiro/lancamentos");
     revalidatePath("/financeiro/importar");
-    redirect(`/financeiro/importar?lote=${r.loteId}&inseridos=${r.inseridos}&pulados=${r.pulados}`);
+    revalidatePath("/financeiro/caixa-contabil");
+    const voltar = texto(fd, "voltar");
+    const destino = voltar && VOLTAS.has(voltar) ? voltar : "/financeiro/importar";
+    redirect(`${destino}?lote=${r.loteId}&inseridos=${r.inseridos}&pulados=${r.pulados}${mes ? `&mes=${mes}` : ""}`);
   }
 
   const porSituacao: Record<string, number> = {};
@@ -119,6 +142,8 @@ export async function importarOmie(_prev: EstadoImportacao, fd: FormData): Promi
   const { itens, ...resto } = analise;
   return {
     leituras: lidos.leituras,
+    meses,
+    foraDoMes,
     analise: {
       ...resto,
       porSituacao,
@@ -131,16 +156,19 @@ export async function desfazerLoteImportacao(fd: FormData) {
   const sessao = await getSessao();
   const lote = texto(fd, "lote");
   if (!lote || !ehUuid(lote)) return;
-  if (!podeExcluirLancamento(sessao.papel)) redirect(`/financeiro/importar?erro=${encodeURIComponent("Só Administrador e Financeiro desfazem importações.")}`);
+  const voltar = texto(fd, "voltar");
+  const tela = voltar && VOLTAS.has(voltar) ? voltar : "/financeiro/importar";
+  if (!podeExcluirLancamento(sessao.papel)) redirect(`${tela}?erro=${encodeURIComponent("Só Administrador e Financeiro desfazem importações.")}`);
   const supabase = await createClient();
   let removidos = 0;
   try {
     removidos = await desfazerLote(supabase, sessao.id, lote);
   } catch (e) {
-    redirect(`/financeiro/importar?erro=${encodeURIComponent(e instanceof Error ? e.message : "falha")}`);
+    redirect(`${tela}?erro=${encodeURIComponent(e instanceof Error ? e.message : "falha")}`);
   }
   revalidatePath("/financeiro");
   revalidatePath("/financeiro/lancamentos");
   revalidatePath("/financeiro/importar");
-  redirect(`/financeiro/importar?desfeito=${removidos}`);
+  revalidatePath("/financeiro/caixa-contabil");
+  redirect(`${tela}?desfeito=${removidos}`);
 }

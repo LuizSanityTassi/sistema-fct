@@ -1,7 +1,7 @@
 // Peças comuns das visões da DRE (resumo, demonstrativo, comparativo e rateio).
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, FileUp } from "lucide-react";
 import { SelectNativo } from "@/components/form/campo";
 import { Button } from "@/components/ui/button";
 import { TableHead } from "@/components/ui/table";
@@ -33,6 +33,42 @@ export type Props = {
   /** meses que cada empresa escolhida tem importados (para avisar quando o total junta empresas diferentes) */
   mesesPorEmpresa: Map<string, Set<string>>;
 };
+
+export const VISOES_DRE = [
+  ["resumo", "Resumo por filial"],
+  ["demonstrativo", "Demonstrativo"],
+  ["comparativo", "Comparativo"],
+  ["rateio", "Rateio por faturamento"],
+] as const;
+export type VisaoDre = (typeof VISOES_DRE)[number][0];
+
+/**
+ * Abas da DRE: as visões (mesma tela, ?ver=) e "Importar novo mês" (tela própria, para o contador subir a planilha do
+ * mês; só para quem importa).
+ */
+export function AbasDre({ ativa, base, filial, podeImportar }: { ativa: VisaoDre | "importar"; base?: Props["base"]; filial?: string; podeImportar: boolean }) {
+  const classe = (sel: boolean) => `rounded-full border px-3 py-1 ${sel ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary/40"}`;
+  return (
+    <nav className="mb-4 flex flex-wrap items-center gap-2 text-sm" aria-label="Visões da DRE">
+      {VISOES_DRE.map(([v, r]) => (
+        <Link
+          key={v}
+          href={`/financeiro/dre${base || v !== "resumo" ? "?" : ""}${query({ ...base, ver: v === "resumo" ? undefined : v, filial: v === "demonstrativo" ? filial : undefined })}`}
+          aria-current={ativa === v ? "page" : undefined}
+          className={classe(ativa === v)}
+        >
+          {r}
+        </Link>
+      ))}
+      {podeImportar && (
+        <Link href="/financeiro/dre/importar" aria-current={ativa === "importar" ? "page" : undefined} className={`inline-flex items-center gap-1.5 ${classe(ativa === "importar")}`}>
+          <FileUp className="size-3.5" aria-hidden />
+          Importar novo mês
+        </Link>
+      )}
+    </nav>
+  );
+}
 
 /** Empresas escolhidas que não têm DRE em algum dos meses dados. */
 export function empresasSemDre(mesesPorEmpresa: Map<string, Set<string>>, meses: string[]) {

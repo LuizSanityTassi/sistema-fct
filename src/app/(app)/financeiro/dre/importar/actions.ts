@@ -34,16 +34,24 @@ export async function conferirPlanilhaDre(_prev: EstadoDre, fd: FormData): Promi
   }
 }
 
-/** Passo 2: grava. Os meses do arquivo substituem os mesmos meses já importados daquela empresa. */
+const MES = /^d{4}-(0[1-9]|1[0-2])$/;
+
+/**
+ * Passo 2: grava. modo "mes" (padrão da aba Importar novo mês) = só o mês escolhido; modo "todos" = todos os meses do
+ * arquivo. Os meses gravados substituem os mesmos meses já importados daquela empresa.
+ */
 export async function importarPlanilhaDre(_prev: EstadoDre, fd: FormData): Promise<EstadoDre> {
   const sessao = await getSessao();
   if (!podeImportar(sessao.papel)) return { erro: "Só Administrador, Financeiro e Contador importam a DRE." };
   const envio = await lerEnvio(fd);
   if ("erro" in envio) return { erro: envio.erro };
+  const todos = fd.get("modo") === "todos";
+  const mes = typeof fd.get("mes") === "string" ? String(fd.get("mes")) : "";
+  if (!todos && !MES.test(mes)) return { erro: "Escolha o mês a importar." };
   const supabase = await createClient();
   try {
-    const r = await importarDre(supabase, envio.buf, envio.nome);
-    await registrarAuditoria(supabase, { userId: sessao.id, acao: "importar", entidade: "dre_contabil", registroId: r.id, novo: { arquivo: envio.nome, empresa: r.empresa, meses: r.meses, filiais: r.filiais, valores: r.valores } });
+    const r = await importarDre(supabase, envio.buf, envio.nome, todos ? undefined : [mes]);
+    await registrarAuditoria(supabase, { userId: sessao.id, acao: "importar", entidade: "dre_contabil", registroId: r.id, novo: { arquivo: envio.nome, empresa: r.empresa, meses: r.meses, filiais: r.filiais, valores: r.valores, modo: todos ? "todos os meses" : "novo mês" } });
     revalidatePath("/financeiro/dre");
     return { resultado: { empresa: r.empresa, meses: r.meses, filiais: r.filiais, valores: r.valores } };
   } catch (e) {

@@ -67,22 +67,30 @@ export async function previaDre(supabase: Cliente, buf: Buffer): Promise<PreviaD
   };
 }
 
-/** Passo 2: grava (substitui os meses do arquivo daquela empresa). */
-export async function importarDre(supabase: Cliente, buf: Buffer, arquivo: string) {
+/**
+ * Passo 2: grava. `somenteMeses` (aaaa-mm) limita a gravação a esses meses ("importar novo mês": a planilha do
+ * contador traz o ano todo, mas só o mês escolhido entra); sem ele, todos os meses do arquivo. Os meses gravados
+ * substituem os mesmos meses já importados daquela empresa; os outros não mudam.
+ */
+export async function importarDre(supabase: Cliente, buf: Buffer, arquivo: string, somenteMeses?: string[]) {
   const { imp, porCodigo, filiais, empresas } = await prepararDre(supabase, buf);
   if (empresas.length !== 1) throw new Error("Confira a planilha de novo: não deu para saber de qual empresa ela é.");
   const semCadastro = filiais.filter((f) => !f.nome);
   if (semCadastro.length) throw new Error(`Abas sem filial no cadastro: ${semCadastro.map((f) => f.aba).join(", ")}.`);
   if (!imp.meses.length) throw new Error("Nenhum mês com vendas na planilha.");
-  const valores = imp.valores.map((v) => ({ branch_id: v.codigo ? porCodigo.get(v.codigo)!.id : null, competencia: `${v.mes}-01`, linha: v.linha, valor: v.valor }));
+  const meses = somenteMeses ? imp.meses.filter((m) => somenteMeses.includes(m)) : imp.meses;
+  if (!meses.length) throw new Error("O mês escolhido não está na planilha (ou ainda não tem vendas nela).");
+  const valores = imp.valores
+    .filter((v) => meses.includes(v.mes))
+    .map((v) => ({ branch_id: v.codigo ? porCodigo.get(v.codigo)!.id : null, competencia: `${v.mes}-01`, linha: v.linha, valor: v.valor }));
   const avisos = { mesesSemVendas: imp.mesesSemVendas, diferencas: imp.diferencas, abasIgnoradas: imp.abasIgnoradas };
   const { data, error } = await supabase.rpc("dre_contabil_importar", {
     p_empresa: empresas[0],
     p_arquivo: arquivo,
-    p_meses: imp.meses.map((m) => `${m}-01`),
+    p_meses: meses.map((m) => `${m}-01`),
     p_valores: valores as unknown as Json,
     p_avisos: avisos as unknown as Json,
   });
   if (error) throw new Error(error.message);
-  return { id: data, empresa: empresas[0], meses: imp.meses, filiais: filiais.length, valores: valores.length };
+  return { id: data, empresa: empresas[0], meses, filiais: filiais.length, valores: valores.length };
 }

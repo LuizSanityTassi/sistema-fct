@@ -8,13 +8,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { EstadoImportacao } from "./actions";
 
-type Props = { action: (prev: EstadoImportacao, fd: FormData) => Promise<EstadoImportacao>; anoPadrao: number; hoje: string };
+type Props = {
+  action: (prev: EstadoImportacao, fd: FormData) => Promise<EstadoImportacao>;
+  anoPadrao: number;
+  hoje: string;
+  /** "importar novo mês" (aba do Caixa contábil): mês sugerido (aaaa-mm); só as linhas dele entram */
+  mesPadrao?: string;
+  /** tela para onde voltar depois de importar */
+  voltar?: string;
+};
+
+const mesBr = (m: string) => `${m.slice(5, 7)}/${m.slice(0, 4)}`;
 
 const moeda = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const dataBr = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 const SITUACAO: Record<string, string> = { novo: "novo", dup_arquivo: "repetido no arquivo", dup_banco: "já no sistema", mes_fechado: "mês fechado", invalido: "inválido" };
 
-export function ImportarForm({ action, anoPadrao, hoje }: Props) {
+export function ImportarForm({ action, anoPadrao, hoje, mesPadrao, voltar }: Props) {
   const [estado, enviar, pendente] = useActionState(action, {});
   // envio manual: com <form action> o React limpa o formulário (e os arquivos) depois da prévia
   const aoEnviar = (e: React.FormEvent<HTMLFormElement>) => {
@@ -34,7 +44,13 @@ export function ImportarForm({ action, anoPadrao, hoje }: Props) {
           ligada ao plano de categorias (as que não existirem são criadas). Tudo entra como realizado, origem “Omie”, com proteção anti-duplicidade (mesma unidade + tipo + categoria + valor + data).
         </p>
         <ErroFormulario mensagem={estado.erro} />
-        <div className="mt-3 grid gap-4 sm:grid-cols-[1fr_auto_auto]">
+        {voltar && <input type="hidden" name="voltar" value={voltar} />}
+        <div className={`mt-3 grid gap-4 ${mesPadrao !== undefined ? "sm:grid-cols-[1fr_auto_auto_auto]" : "sm:grid-cols-[1fr_auto_auto]"}`}>
+          {mesPadrao !== undefined && (
+            <Campo id="mes" label="Mês a importar" obrigatorio dica="Só as linhas desse mês entram">
+              <Input id="mes" name="mes" type="month" required defaultValue={mesPadrao} className="w-44" />
+            </Campo>
+          )}
           <Campo id="arquivos" label="Arquivos (.xlsx)" obrigatorio>
             <input
               id="arquivos"
@@ -82,6 +98,12 @@ export function ImportarForm({ action, anoPadrao, hoje }: Props) {
             </li>
           ))}
         </ul>
+      )}
+
+      {estado.meses && estado.meses.length > 0 && (estado.foraDoMes ?? 0) > 0 && (
+        <p className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-2 text-sm text-sky-900 dark:border-sky-500/40 dark:bg-sky-500/10 dark:text-sky-200">
+          O arquivo traz {estado.meses.map((m) => `${mesBr(m.mes)} (${m.qtd})`).join(", ")}: {estado.foraDoMes} linha(s) de outros meses ficam de fora.
+        </p>
       )}
 
       {a && (

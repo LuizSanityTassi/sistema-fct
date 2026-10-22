@@ -10,6 +10,7 @@ import { podeLancar } from "@/lib/financeiro/permissoes";
 import { ordemGrupo } from "@/lib/financeiro/rotulos";
 import { rotuloCompetencia } from "@/lib/rh/competencia";
 import { createClient } from "@/lib/supabase/server";
+import { AbasCaixaContabil } from "./abas";
 import { salvarAjusteDre, salvarSaldoDre } from "./actions";
 import { DreTabela } from "./dre-tabela";
 
@@ -51,6 +52,7 @@ export default async function DrePage({ searchParams }: PageProps<"/financeiro/c
           </Button>
         }
       />
+      <AbasCaixaContabil ativa="demonstrativo" podeImportar={podeEditar} />
 
       <form method="get" className="mb-4 grid gap-2 rounded-xl border bg-card p-3 sm:grid-cols-2 lg:grid-cols-[auto_1fr_auto_auto_auto_auto] lg:items-center">
         <SelectNativo name="grupo" defaultValue={escopo.grupo} aria-label="Grupo" className="lg:w-44">
