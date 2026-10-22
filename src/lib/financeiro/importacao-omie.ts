@@ -1,7 +1,9 @@
-// Importação dos relatórios do Omie para fin_lancamentos (só servidor). Dois formatos, iguais aos do
-// fluxo de caixa anterior:
+// Importação dos relatórios do Omie para fin_lancamentos (só servidor). Três formatos:
 //  • "LANÇAMENTOS DESPESAS" (export "Fluxo Por Filial"): FILIAL · TIPO · GRUPO · Categoria · Valor Pago · MÊS,
 //    com as células mescladas (linha herda filial/tipo/grupo da de cima) e o mês por nome → dia 1 do mês;
+//  • "Pagamentos/Recebimentos Fluxo de Caixa – Tabela" (Finanças → Fluxo de Caixa → Tabela, exportado do pivot):
+//    Departamento · Tipo · Grupo · Categoria · Valor da Conta, departamento/tipo/grupo só na 1ª linha de cada bloco,
+//    linha "Total geral" no fim e SEM data (o período é o filtro da tela do Omie) → dia 1 do mês escolhido;
 //  • "Contas a Pagar/Receber" (pivot por CNPJ): Empresa · CNPJ · Razão Social · Categoria · Emissão · Valor da Conta.
 // A unidade sai do CNPJ (ou código Fxxx / nome especial). Tudo entra como realizado, origem "omie".
 import { randomUUID } from "node:crypto";
@@ -24,7 +26,7 @@ export type ItemImportado = {
   data: string;
 };
 
-export type LeituraArquivo = { nome: string; formato: "lancamentos" | "contas" | "desconhecido"; lidos: number; avisos: string[]; semUnidade: string[]; usaramReferencia: number };
+export type LeituraArquivo = { nome: string; formato: "lancamentos" | "tabela" | "contas" | "desconhecido"; lidos: number; avisos: string[]; semUnidade: string[]; usaramReferencia: number; /** informação (não é erro) */ nota?: string };
 
 export type ResolverUnidade = (texto: string) => string | null;
 
@@ -44,8 +46,11 @@ function dataOmie(v: unknown): string | null {
   return null;
 }
 
-/** Lê um arquivo do Omie e devolve os itens (ainda sem categoria resolvida) + resumo da leitura. */
-export function lerPlanilhaOmie(nome: string, buf: Buffer, opcoes: { ano: number; dataReferencia: string; resolverUnidade: ResolverUnidade }): { itens: ItemImportado[]; leitura: LeituraArquivo } {
+/**
+ * Lê um arquivo do Omie e devolve os itens (ainda sem categoria resolvida) + resumo da leitura. `mes` (aaaa-mm, da
+ * tela "Importar novo mês") dá a data das linhas do relatório em tabela, que não tem data.
+ */
+export function lerPlanilhaOmie(nome: string, buf: Buffer, opcoes: { ano: number; dataReferencia: string; resolverUnidade: ResolverUnidade; mes?: string | null }): { itens: ItemImportado[]; leitura: LeituraArquivo } {
   const itens: ItemImportado[] = [];
   const leitura: LeituraArquivo = { nome, formato: "desconhecido", lidos: 0, avisos: [], semUnidade: [], usaramReferencia: 0 };
   const semUnidade = new Set<string>();
@@ -54,7 +59,53 @@ export function lerPlanilhaOmie(nome: string, buf: Buffer, opcoes: { ano: number
 
   // (1) "LANÇAMENTOS DESPESAS": cabeçalho com FILIAL e Valor Pago
   const lanc = planilhas.map((p) => ({ ...p, hi: p.rows.findIndex((r) => Array.isArray(r) && r.some((c) => /filial/i.test(String(c))) && r.some((c) => /valor\s*pago/i.test(String(c)))) })).find((p) => p.hi >= 0);
-  if (lanc) {
+  // (2) tabela do Fluxo de Caixa: cabeçalho com Departamento e Valor da Conta (antes do pivot por CNPJ: a linha de
+  //     filtros do relatório de recebimentos lista a categoria "Clientes Pix CNPJ" e enganaria a detecção do pivot)
+  const tabela = lanc
+    ? undefined
+    : planilhas
+        .map((p) => ({ ...p, hi: p.rows.findIndex((r) => Array.isArray(r) && r.some((c) => /^departamento$/i.test(limpar(c))) && r.some((c) => /^valor da conta$/i.test(limpar(c)))) }))
+        .find((p) => p.hi >= 0);
+  if (tabela) {
+    leitura.formato = "tabela";
+    const H = tabela.rows[tabela.hi].map((x) => limpar(x).toLowerCase());
+    const col = (re: RegExp) => H.findIndex((h) => re.test(h));
+    const cD = col(/^departamento$/), cT = col(/^tipo$/), cG = col(/^grupo$/), cC = col(/^categoria$/), cV = col(/^valor da conta$/);
+    const titulo = limpar(tabela.rows[0]?.[0]) + " " + tabela.nome;
+    let tipo: FinTipo = /receb/i.test(titulo) ? "receber" : "pagar";
+    let grupo = "";
+    let departamento = "";
+    let branchId: string | null = null;
+    const data = opcoes.mes ? `${opcoes.mes}-01` : opcoes.dataReferencia;
+    for (let i = tabela.hi + 1; i < tabela.rows.length; i++) {
+      const r = tabela.rows[i] ?? [];
+      const dv = cD >= 0 ? limpar(r[cD]) : "";
+      if (/^total geral$/i.test(dv)) break;
+      if (dv) {
+        departamento = dv;
+        branchId = opcoes.resolverUnidade(dv);
+      }
+      const tv = cT >= 0 ? limpar(r[cT]) : "";
+      if (/receber/i.test(tv)) tipo = "receber";
+      else if (/pagar/i.test(tv)) tipo = "pagar";
+      const gv = cG >= 0 ? limpar(r[cG]) : "";
+      if (gv) grupo = gv;
+      const categoria = cC >= 0 ? limpar(r[cC]) : "";
+      const vv = cV >= 0 ? r[cV] : null;
+      if (!categoria || vv === "" || vv == null || Number.isNaN(Number(vv)) || !departamento) continue;
+      if (!branchId) {
+        semUnidade.add(departamento);
+        continue;
+      }
+      const valor = r2(Math.abs(Number(vv)));
+      if (!valor) continue;
+      if (!opcoes.mes) leitura.usaramReferencia += 1;
+      itens.push({ arquivo: nome, filialTexto: departamento, branchId, tipo, grupo: grupo || null, categoria, valor, data });
+    }
+    leitura.nota = opcoes.mes
+      ? `Relatório em tabela do Omie: não traz data — os valores entram em ${opcoes.mes.slice(5)}/${opcoes.mes.slice(0, 4)}. Confira se ele foi exportado filtrando só esse mês.`
+      : `Relatório em tabela do Omie: não traz data — os valores entram na data de referência (${opcoes.dataReferencia.split("-").reverse().join("/")}). Melhor usar Caixa contábil → Importar novo mês, que pergunta o mês.`;
+  } else if (lanc) {
     leitura.formato = "lancamentos";
     const H = lanc.rows[lanc.hi].map((x) => String(x).toLowerCase());
     const col = (re: RegExp) => H.findIndex((h) => re.test(h));
@@ -96,7 +147,7 @@ export function lerPlanilhaOmie(nome: string, buf: Buffer, opcoes: { ano: number
     // (2) pivot por CNPJ: tipo pelo nome da aba
     const piv = planilhas.map((p) => ({ ...p, hi: p.rows.findIndex((r) => Array.isArray(r) && r.some((c) => /CNPJ/i.test(String(c)))) })).find((p) => p.hi >= 0);
     if (!piv) {
-      leitura.avisos.push('formato não reconhecido (esperado "LANÇAMENTOS DESPESAS" ou "Contas a Pagar/Receber" do Omie).');
+      leitura.avisos.push('formato não reconhecido (esperado "LANÇAMENTOS DESPESAS", a tabela de Pagamentos/Recebimentos do Fluxo de Caixa ou "Contas a Pagar/Receber" do Omie).');
       return { itens, leitura };
     }
     leitura.formato = "contas";

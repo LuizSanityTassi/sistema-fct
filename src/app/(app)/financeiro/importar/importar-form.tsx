@@ -40,7 +40,8 @@ export function ImportarForm({ action, anoPadrao, hoje, mesPadrao, voltar }: Pro
       <section className="rounded-xl border bg-card p-5">
         <h2 className="mb-1 text-sm font-semibold">Arquivos do Omie</h2>
         <p className="mb-4 text-xs text-muted-foreground">
-          Excel exportado do Omie: <strong>Fluxo Por Filial</strong> (aba “LANÇAMENTOS DESPESAS”: FILIAL · TIPO · GRUPO · Categoria · Valor Pago · MÊS) ou <strong>Contas a Pagar/Receber</strong> (Empresa · CNPJ · Razão Social · Categoria · Emissão · Valor). A unidade sai do CNPJ; a categoria é
+          Excel exportado do Omie: <strong>Fluxo Por Filial</strong> (aba “LANÇAMENTOS DESPESAS”: FILIAL · TIPO · GRUPO · Categoria · Valor Pago · MÊS), <strong>Pagamentos/Recebimentos do Fluxo de Caixa em tabela</strong> (Departamento · Tipo · Grupo · Categoria · Valor da Conta; não tem data: entra no mês escolhido) ou{" "}
+          <strong>Contas a Pagar/Receber</strong> (Empresa · CNPJ · Razão Social · Categoria · Emissão · Valor). A unidade sai do CNPJ; a categoria é
           ligada ao plano de categorias (as que não existirem são criadas). Tudo entra como realizado, origem “Omie”, com proteção anti-duplicidade (mesma unidade + tipo + categoria + valor + data).
         </p>
         <ErroFormulario mensagem={estado.erro} />
@@ -85,8 +86,9 @@ export function ImportarForm({ action, anoPadrao, hoje, mesPadrao, voltar }: Pro
               {l.lidos > 0 ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" aria-hidden /> : <CircleAlert className="mt-0.5 size-4 shrink-0 text-red-600" aria-hidden />}
               <div>
                 <p className="font-medium">
-                  {l.nome} <span className="text-xs text-muted-foreground">— {l.lidos} linhas · {l.formato === "lancamentos" ? "lançamentos por filial" : l.formato === "contas" ? "contas a pagar/receber" : "formato não reconhecido"}</span>
+                  {l.nome} <span className="text-xs text-muted-foreground">— {l.lidos} linhas · {l.formato === "lancamentos" ? "lançamentos por filial" : l.formato === "tabela" ? "tabela do fluxo de caixa" : l.formato === "contas" ? "contas a pagar/receber" : "formato não reconhecido"}</span>
                 </p>
+                {l.nota && <p className="text-xs text-sky-800 dark:text-sky-300">{l.nota}</p>}
                 {l.usaramReferencia > 0 && <p className="text-xs text-muted-foreground">{l.usaramReferencia} linha(s) sem data usaram a data de referência.</p>}
                 {l.semUnidade.length > 0 && <p className="text-xs text-amber-800"><TriangleAlert className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />Sem unidade cadastrada (ignoradas): {l.semUnidade.join(", ")}</p>}
                 {l.avisos.map((av) => (

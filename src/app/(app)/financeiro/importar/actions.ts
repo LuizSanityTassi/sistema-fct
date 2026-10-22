@@ -68,6 +68,8 @@ async function lerArquivos(fd: FormData) {
   const ano = anoTxt && /^\d{4}$/.test(anoTxt) ? Number(anoTxt) : new Date().getFullYear();
   const ref = texto(fd, "referencia");
   const dataReferencia = ref && /^\d{4}-\d{2}-\d{2}$/.test(ref) ? ref : new Date().toISOString().slice(0, 10);
+  const mesTxt = texto(fd, "mes");
+  const mes = mesTxt && MES.test(mesTxt) ? mesTxt : null; // relatório em tabela (sem data) entra neste mês
   const { resolver, rotulo } = await montarResolvedor();
   const leituras: LeituraArquivo[] = [];
   const itens = [];
@@ -77,7 +79,7 @@ async function lerArquivos(fd: FormData) {
       continue;
     }
     try {
-      const r = lerPlanilhaOmie(f.name, Buffer.from(await f.arrayBuffer()), { ano, dataReferencia, resolverUnidade: resolver });
+      const r = lerPlanilhaOmie(f.name, Buffer.from(await f.arrayBuffer()), { ano, dataReferencia, resolverUnidade: resolver, mes });
       leituras.push(r.leitura);
       itens.push(...r.itens);
     } catch (e) {
