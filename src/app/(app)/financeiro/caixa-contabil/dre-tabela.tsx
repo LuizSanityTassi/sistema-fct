@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { CAMPOS_SALDO, type Dre } from "@/lib/financeiro/dre";
 import { arred41 } from "@/lib/financeiro/formatos";
@@ -13,10 +14,11 @@ type Props = {
   podeEditar: boolean;
   salvarAjuste: (fd: FormData) => Promise<RespostaCelula>;
   salvarSaldo: (fd: FormData) => Promise<RespostaCelula>;
-  salvarLinha: (fd: FormData) => Promise<RespostaCelula>;
-  ajustes: Record<string, number>; // `${categoriaId}|${mes}` → valor manual
+  /** memória de cálculo: `${categoriaId}|${mes}` e `saldo:${campo}|${mes}` → conta digitada */
+  contas: Record<string, string>;
+  /** mostrando as contas sem valor; link que liga/desliga */
+  vazias: { ligado: boolean; href: string };
 };
-type Digitavel = { chave: string; auto: Record<string, number>; digitado: Record<string, number | null> };
 
 const inteiro = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 /** Número cheio, sem centavos (regra 41) e sem "R$" (pedido do usuário: só no Caixa contábil), igual à planilha da diretoria. */
@@ -27,8 +29,8 @@ const pctFmt = (v: number, base: number) => (base > 0 ? `${((v / base) * 100).to
 const tom = (v: number) => (v < 0 ? "text-red-700" : v > 0 ? "text-emerald-700" : "text-muted-foreground");
 const DICA_SALDO_MES = "Digite o valor do mês. No total do grupo (ou de todas), mês sem valor digitado mostra a soma das filiais.";
 
-export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, salvarLinha, ajustes }: Props) {
-  const [nivel, setNivel] = React.useState<1 | 2 | 3>(1);
+export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, contas, vazias }: Props) {
+  const [nivel, setNivel] = React.useState<1 | 2 | 3>(vazias.ligado ? 3 : 1);
   const [busca, setBusca] = React.useState("");
   const termo = busca.trim().toLowerCase();
   const mostraGrupos = nivel >= 2 || !!termo;
@@ -38,50 +40,16 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
   const base = { grupo: escopo.grupo, filial: escopo.filial };
 
   // escura = linha de fundo escuro (família, total de saídas): tudo nela fica branco, inclusive o % (o cinza some no fundo)
-  // editavel = linha de total que se digita (família, grupo): o digitado vale no lugar da soma; saídas e resultado continuam somando
-  const linhaTotal = ({
-    nome,
-    porMes,
-    total,
-    classe,
-    nivelVisual,
-    escura = false,
-    editavel,
-  }: {
-    nome: string;
-    porMes: Record<string, number>;
-    total: number;
-    classe: string;
-    nivelVisual: number;
-    escura?: boolean;
-    editavel?: Digitavel;
-  }) => (
+  const linhaTotal = ({ nome, porMes, total, classe, nivelVisual, escura = false }: { nome: string; porMes: Record<string, number>; total: number; classe: string; nivelVisual: number; escura?: boolean }) => (
     <tr key={`total-${nome}-${nivelVisual}`} className={classe}>
       <td className="px-2 py-1" style={{ paddingLeft: 8 + nivelVisual * 14 }}>
         {nome}
       </td>
-      {dre.meses.map((m) => {
-        const classeMes = foraTotal(m) ? (escura ? "opacity-70" : "text-muted-foreground/70") : "";
-        if (!editavel)
-          return (
-            <td key={m} className={`px-2 py-1 text-right tabular-nums ${classeMes}`}>
-              {moedaDre(porMes[m] ?? 0)}
-            </td>
-          );
-        return (
-          <CelulaEditavel
-            key={m}
-            action={salvarLinha}
-            campos={{ ...base, linha: editavel.chave, competencia: m }}
-            valorAtual={editavel.digitado[m] ?? null}
-            exibicao={moedaDre(porMes[m] ?? 0)}
-            automatico={moedaDre(editavel.auto[m] ?? 0)}
-            ajustado={editavel.digitado[m] != null}
-            classe={classeMes}
-            podeEditar={podeEditar}
-          />
-        );
-      })}
+      {dre.meses.map((m) => (
+        <td key={m} className={`px-2 py-1 text-right tabular-nums ${foraTotal(m) ? (escura ? "opacity-70" : "text-muted-foreground/70") : ""}`}>
+          {moedaDre(porMes[m] ?? 0)}
+        </td>
+      ))}
       <td className="px-2 py-1 text-right font-semibold tabular-nums">{moedaDre(total)}</td>
       <td className={`px-2 py-1 text-right tabular-nums ${escura ? "" : "text-muted-foreground"}`}>{pctFmt(total, dre.totalReceitas)}</td>
     </tr>
@@ -94,13 +62,13 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
       </td>
       {dre.meses.map((m) => {
         const cel = c.porMes[m];
-        const manual = ajustes[`${c.id}|${m}`];
         return (
           <CelulaEditavel
             key={m}
             action={salvarAjuste}
             campos={{ ...base, categoria_id: c.id, competencia: m }}
-            valorAtual={manual ?? null}
+            base={cel.valor}
+            conta={contas[`${c.id}|${m}`]}
             exibicao={moedaDre(cel.valor)}
             automatico={moedaDre(cel.auto)}
             ajustado={cel.ajustado}
@@ -132,7 +100,19 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
             );
           }
           const gravado = digitadoDe(m);
-          return <CelulaEditavel key={m} action={salvarSaldo} campos={{ ...base, campo, competencia: m }} valorAtual={gravado} exibicao={v == null ? "—" : moedaDre(v)} ajustado={gravado != null} podeEditar classe="font-semibold" />;
+          return (
+            <CelulaEditavel
+              key={m}
+              action={salvarSaldo}
+              campos={{ ...base, campo, competencia: m }}
+              base={v}
+              conta={contas[`saldo:${campo}|${m}`]}
+              exibicao={v == null ? "—" : moedaDre(v)}
+              ajustado={gravado != null}
+              podeEditar
+              classe="font-semibold"
+            />
+          );
         })}
         <td className="px-2 py-1 text-right tabular-nums">{somaTotal && total ? moedaDre(total) : "—"}</td>
         <td className="px-2 py-1 text-right tabular-nums text-muted-foreground">{somaTotal && total ? pctFmt(total, dre.totalReceitas) : "—"}</td>
@@ -149,6 +129,13 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
             {n === 1 ? "Totais" : n === 2 ? "Grupos" : "Categorias"}
           </button>
         ))}
+        <Link
+          href={vazias.href}
+          className={`rounded-full border px-3 py-1 text-xs ${vazias.ligado ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary/40"}`}
+          title="Mostra também as contas do molde que não tiveram valor, para digitar nelas"
+        >
+          {vazias.ligado ? "Esconder contas sem valor" : "Mostrar contas sem valor"}
+        </Link>
         <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar categoria" className="ml-auto w-56" aria-label="Buscar categoria" />
       </div>
       <div className="overflow-x-auto rounded-xl border bg-card">
@@ -177,15 +164,11 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
             )}
             {dre.familias.map((f) => (
               <React.Fragment key={f.nome}>
-                {casa(f.nome) || f.grupos.some((g) => casa(g.nome) || g.categorias.some((c) => casa(c.nome)))
-                  ? linhaTotal({ nome: f.nome, porMes: f.porMes, total: f.total, classe: "bg-primary text-primary-foreground font-semibold", nivelVisual: 0, escura: true, editavel: f })
-                  : null}
+                {casa(f.nome) || f.grupos.some((g) => casa(g.nome) || g.categorias.some((c) => casa(c.nome))) ? linhaTotal({ nome: f.nome, porMes: f.porMes, total: f.total, classe: "bg-primary text-primary-foreground font-semibold", nivelVisual: 0, escura: true }) : null}
                 {mostraGrupos &&
                   f.grupos.map((g) => (
                     <React.Fragment key={g.nome}>
-                      {(casa(g.nome) || g.categorias.some((c) => casa(c.nome))) && g.nome !== f.nome
-                        ? linhaTotal({ nome: g.nome, porMes: g.porMes, total: g.total, classe: "bg-muted/50 font-semibold", nivelVisual: 1, editavel: g })
-                        : null}
+                      {(casa(g.nome) || g.categorias.some((c) => casa(c.nome))) && g.nome !== f.nome ? linhaTotal({ nome: g.nome, porMes: g.porMes, total: g.total, classe: "bg-muted/50 font-semibold", nivelVisual: 1 }) : null}
                       {mostraCategorias && g.categorias.filter((c) => casa(c.nome)).map((c) => linhaCategoria(c, 2))}
                     </React.Fragment>
                   ))}

@@ -56,9 +56,8 @@ export async function anosFinanceiro() {
   return anos.sort().reverse();
 }
 
-type LinhaAjusteDre = { grupo: string; branch_id: string | null; categoria_id: string; competencia: string; valor: number; atualizado_em: string };
-type LinhaSaldoDre = { grupo: string; branch_id: string | null; campo: string; competencia: string; valor: number; atualizado_em: string };
-type LinhaTotalDre = { grupo: string; branch_id: string | null; linha: string; competencia: string; valor: number; atualizado_em: string };
+type LinhaAjusteDre = { grupo: string; branch_id: string | null; categoria_id: string; competencia: string; valor: number; formula: string | null; atualizado_em: string };
+type LinhaSaldoDre = { grupo: string; branch_id: string | null; campo: string; competencia: string; valor: number; formula: string | null; atualizado_em: string };
 /** Nós do caixa contábil: todas → grupos → filiais. */
 type NoDre = { tipo: "filial"; branch: string } | { tipo: "grupo"; grupo: string } | { tipo: "todos"; branches?: string[] };
 type ResultadoNoDre = { dre: Dre; delta: Map<string, number>; saldosMes: Map<string, number> };
@@ -89,28 +88,31 @@ function noDegrau(serie: Record<string, number>, m: string) {
 /**
  * Caixa contábil do recorte. O que se ajusta numa filial (célula categoria × mês, saldos) também vale no total do grupo
  * e no de todas: o total soma as filiais com os ajustes delas, e um ajuste digitado no próprio total tem prioridade
- * sobre essa soma. Mesma coisa dos grupos para "todas".
+ * sobre essa soma. Mesma coisa dos grupos para "todas". `vazias` = mostra também as contas do molde sem valor (para
+ * digitar numa conta que não teve lançamento).
  */
-export async function dreDoPeriodo(e: Escopo, ano: string, de?: string): Promise<Dre & { ajustesProprios: Record<string, number> }> {
+export async function dreDoPeriodo(
+  e: Escopo,
+  ano: string,
+  de?: string,
+  opcoes: { vazias?: boolean } = {},
+): Promise<Dre & { ajustesProprios: Record<string, number>; contasProprias: Record<string, string> }> {
   const supabase = await createClient();
   const periodo = { de: `${ano}-01`, ate: `${ano}-12` };
-  const [branchesEscopo, unidades, categorias, estrutura, ajustes, saldos, totais] = await Promise.all([
+  const [branchesEscopo, unidades, categorias, estrutura, ajustes, saldos] = await Promise.all([
     unidadesDoEscopo(e),
     listarUnidadesFinanceiro(),
     listarCategorias(),
     estruturaDre(),
     rpcPaginado<LinhaAjusteDre>((a, b) =>
-      supabase.from("fin_dre_ajustes").select("grupo, branch_id, categoria_id, competencia, valor, atualizado_em").gte("competencia", periodo.de).lte("competencia", periodo.ate).order("id").range(a, b),
+      supabase.from("fin_dre_ajustes").select("grupo, branch_id, categoria_id, competencia, valor, formula, atualizado_em").gte("competencia", periodo.de).lte("competencia", periodo.ate).order("id").range(a, b),
     ),
     rpcPaginado<LinhaSaldoDre>((a, b) =>
-      supabase.from("fin_dre_saldos").select("grupo, branch_id, campo, competencia, valor, atualizado_em").gte("competencia", periodo.de).lte("competencia", periodo.ate).order("id").range(a, b),
-    ),
-    rpcPaginado<LinhaTotalDre>((a, b) =>
-      supabase.from("fin_dre_ajustes_linhas").select("grupo, branch_id, linha, competencia, valor, atualizado_em").gte("competencia", periodo.de).lte("competencia", periodo.ate).order("id").range(a, b),
+      supabase.from("fin_dre_saldos").select("grupo, branch_id, campo, competencia, valor, formula, atualizado_em").gte("competencia", periodo.de).lte("competencia", periodo.ate).order("id").range(a, b),
     ),
   ]);
   const cats: CategoriaDre[] = categorias.map((c) => ({ id: c.id, nome: c.nome, grupo: c.grupo, tipo: c.tipo as FinTipo, dre_familia: c.dre_familia, dre_grupo: c.dre_grupo, dre_sinal: c.dre_sinal }));
-  const vazio = () => ({ ...montarDre({ categorias: [], estrutura, valores: new Map(), ajustes: new Map(), saldos: new Map(), mesesComDados: [] }), ajustesProprios: {} });
+  const vazio = () => ({ ...montarDre({ categorias: [], estrutura, valores: new Map(), ajustes: new Map(), saldos: new Map(), mesesComDados: [] }), ajustesProprios: {}, contasProprias: {} });
   if (branchesEscopo && branchesEscopo.length === 0) return vazio();
 
   const comp = (c: string) => c.trim();
@@ -118,12 +120,9 @@ export async function dreDoPeriodo(e: Escopo, ano: string, de?: string): Promise
   const ajTotal = ajustes.filter((l) => !l.branch_id);
   const salFilial = maisRecente(saldos.filter((l) => l.branch_id), (l) => `${l.branch_id}|${l.campo}|${comp(l.competencia)}`);
   const salTotal = saldos.filter((l) => !l.branch_id);
-  const linFilial = maisRecente(totais.filter((l) => l.branch_id), (l) => `${l.branch_id}|${l.linha}|${comp(l.competencia)}`);
-  const linTotal = totais.filter((l) => !l.branch_id);
-  const daFilial = (b: string) => ajFilial.some((l) => l.branch_id === b) || salFilial.some((l) => l.branch_id === b) || linFilial.some((l) => l.branch_id === b);
+  const daFilial = (b: string) => ajFilial.some((l) => l.branch_id === b) || salFilial.some((l) => l.branch_id === b);
   const doGrupo = (g: string) => unidades.filter((u) => u.grupo === g).map((u) => u.id);
-  const temNoGrupo = (g: string) =>
-    ajTotal.some((l) => l.grupo === g) || salTotal.some((l) => l.grupo === g) || linTotal.some((l) => l.grupo === g) || doGrupo(g).some(daFilial);
+  const temNoGrupo = (g: string) => ajTotal.some((l) => l.grupo === g) || salTotal.some((l) => l.grupo === g) || doGrupo(g).some(daFilial);
 
   const calcular = async (no: NoDre): Promise<ResultadoNoDre> => {
     const branches = no.tipo === "filial" ? [no.branch] : no.tipo === "grupo" ? doGrupo(no.grupo) : no.branches;
@@ -174,17 +173,7 @@ export async function dreDoPeriodo(e: Escopo, ano: string, de?: string): Promise
     const somaDeBaixo = new Map<string, number>();
     for (const f of deBaixo) for (const [k, v] of f.saldosMes) somaDeBaixo.set(k, r2((somaDeBaixo.get(k) ?? 0) + v));
     for (const [k, v] of somaDeBaixo) if (!saldosNo.has(k)) saldosNo.set(k, v);
-    // linhas de total: as digitadas aqui; as de baixo sobem como diferença
-    const linProprias = no.tipo === "filial" ? linFilial.filter((l) => l.branch_id === no.branch) : linTotal.filter((l) => l.grupo === grupoTotal);
-    const ajustesLinhas = new Map(linProprias.map((l) => [`${l.linha}|${comp(l.competencia)}`, Number(l.valor)]));
-    const deltasLinhas = new Map<string, number>();
-    for (const f of deBaixo)
-      for (const [k, d] of Object.entries(f.dre.deltaLinhas)) {
-        deltasLinhas.set(k, r2((deltasLinhas.get(k) ?? 0) + d));
-        mesesComDados.add(k.slice(-7));
-      }
-
-    const meses = [...new Set([...mesesComDados, ...[...ajustesNo.keys(), ...ajustesLinhas.keys()].map((k) => k.slice(-7))])].sort();
+    const meses = [...new Set([...mesesComDados, ...[...ajustesNo.keys()].map((k) => k.split("|")[1])])].sort();
     const correcoes = new Map(meses.map((m) => [m, r2(deBaixo.reduce((s, f) => s + noDegrau(f.dre.correcao, m), 0))]));
 
     const dre = montarDre({
@@ -198,16 +187,21 @@ export async function dreDoPeriodo(e: Escopo, ano: string, de?: string): Promise
       de,
       correcoes,
       eventos: deBaixo.flatMap((f) => f.dre.eventos),
-      ajustesLinhas,
-      deltasLinhas,
+      todasCategorias: no === topo && opcoes.vazias,
     });
     return { dre, delta, saldosMes: new Map([...saldosNo].filter(([k]) => !k.startsWith("saldo_inicial|"))) };
   };
 
   const topo: NoDre = e.filial ? { tipo: "filial", branch: e.filial } : e.grupo === "TODOS" || e.grupos ? { tipo: "todos", branches: branchesEscopo } : { tipo: "grupo", grupo: e.grupo };
   const { dre } = await calcular(topo);
-  const proprios = e.filial ? ajFilial.filter((l) => l.branch_id === e.filial) : ajTotal.filter((l) => l.grupo === (topo.tipo === "grupo" ? topo.grupo : "TODOS"));
-  return { ...dre, ajustesProprios: Object.fromEntries(proprios.map((l) => [`${l.categoria_id}|${comp(l.competencia)}`, Number(l.valor)])) };
+  const grupoTopo = topo.tipo === "grupo" ? topo.grupo : "TODOS";
+  const proprios = e.filial ? ajFilial.filter((l) => l.branch_id === e.filial) : ajTotal.filter((l) => l.grupo === grupoTopo);
+  const saldosTopo = e.filial ? salFilial.filter((l) => l.branch_id === e.filial) : salTotal.filter((l) => l.grupo === grupoTopo);
+  // memória de cálculo das células deste recorte: `${categoria}|${mes}` e `saldo:${campo}|${mes}`
+  const contasProprias: Record<string, string> = {};
+  for (const l of proprios) if (l.formula) contasProprias[`${l.categoria_id}|${comp(l.competencia)}`] = l.formula;
+  for (const l of saldosTopo) if (l.formula) contasProprias[`saldo:${l.campo}|${comp(l.competencia)}`] = l.formula;
+  return { ...dre, ajustesProprios: Object.fromEntries(proprios.map((l) => [`${l.categoria_id}|${comp(l.competencia)}`, Number(l.valor)])), contasProprias };
 }
 
 /** Resumo por unidade × mês × grupo de categoria (para ranking, resumo por loja e comparativo). */

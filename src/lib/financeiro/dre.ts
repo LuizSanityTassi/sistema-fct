@@ -9,14 +9,8 @@ export type EstruturaDre = { familia: string; grupo: string; ordem_familia: numb
 
 export type CelulaDre = { valor: number; auto: number; ajustado: boolean };
 export type LinhaCategoria = { id: string; nome: string; porMes: Record<string, CelulaDre>; total: number };
-/** Linhas de total também se digitam: o digitado (sem sinal, como nas categorias) vale no lugar da soma de baixo (auto). */
-type TotalDigitavel = { chave: string; porMes: Record<string, number>; total: number; auto: Record<string, number>; digitado: Record<string, number | null> };
-export type LinhaGrupo = TotalDigitavel & { nome: string; categorias: LinhaCategoria[] };
-export type LinhaFamilia = TotalDigitavel & { nome: string; sinal: number; grupos: LinhaGrupo[] };
-
-/** Chave da linha de total (fin_dre_ajustes_linhas.linha). */
-export const chaveFamilia = (familia: string) => `F|${familia}`;
-export const chaveGrupo = (familia: string, grupo: string) => `G|${familia}|${grupo}`;
+export type LinhaGrupo = { nome: string; porMes: Record<string, number>; total: number; categorias: LinhaCategoria[] };
+export type LinhaFamilia = { nome: string; sinal: number; porMes: Record<string, number>; total: number; grupos: LinhaGrupo[] };
 
 export type Dre = {
   meses: string[];
@@ -40,8 +34,6 @@ export type Dre = {
   correcao: Record<string, number>;
   /** meses com saldo inicial digitado aqui ou nas filiais/grupos de baixo */
   eventos: string[];
-  /** `${linha}|${mes}` → quanto a linha de total ficou diferente da soma das categorias (com sinal; sobe para o total de cima) */
-  deltaLinhas: Record<string, number>;
 };
 
 export const CAMPOS_SALDO = [
@@ -63,11 +55,9 @@ export function montarDre(args: {
   de?: string; // competência inicial dos totais
   correcoes?: Map<string, number>; // mês → soma das correções de saldo das filiais/grupos de baixo
   eventos?: string[]; // meses com saldo inicial digitado nas filiais/grupos de baixo
-  ajustesLinhas?: Map<string, number>; // `${linha}|${mes}` → valor digitado na linha de total (sem sinal)
-  deltasLinhas?: Map<string, number>; // `${linha}|${mes}` → soma dos deltaLinhas das filiais/grupos de baixo
+  todasCategorias?: boolean; // mostra também as contas do molde sem valor (para digitar nelas)
 }): Dre {
-  const mesDaChave = (k: string) => k.slice(-7);
-  const meses = [...new Set([...args.mesesComDados, ...[...args.ajustes.keys(), ...(args.ajustesLinhas?.keys() ?? []), ...(args.deltasLinhas?.keys() ?? [])].map(mesDaChave)])].sort();
+  const meses = [...new Set([...args.mesesComDados, ...[...args.ajustes.keys()].map((k) => k.split("|")[1])])].sort();
   const de = (args.de && meses.find((m) => m >= args.de!)) || meses[0];
   const mesesTotal = meses.filter((m) => !de || m >= de);
   const porId = new Map(args.categorias.map((c) => [c.id, c]));
@@ -88,31 +78,27 @@ export function montarDre(args: {
     if (!ordemFam.has(e.familia)) ordemFam.set(e.familia, e.ordem_familia);
     ordemGrp.set(`${e.familia}|${e.grupo}`, e.ordem_grupo);
   }
-  const comDados = args.categorias.filter((c) => temDado(c.id));
+  const comValor = args.categorias.filter((c) => temDado(c.id));
+  // contas sem valor: as do molde, uma por nome em cada grupo (há categorias repetidas em grupos de origem diferentes)
+  const vistas = new Set(comValor.map((c) => `${c.dre_familia}|${c.dre_grupo ?? c.dre_familia}|${c.nome}`));
+  const semValor = !args.todasCategorias
+    ? []
+    : [...args.categorias]
+        .sort((a, b) => Number(a.grupo !== a.dre_grupo) - Number(b.grupo !== b.dre_grupo))
+        .filter((c) => {
+          if (!c.dre_familia || temDado(c.id)) return false;
+          const k = `${c.dre_familia}|${c.dre_grupo ?? c.dre_familia}|${c.nome}`;
+          if (vistas.has(k)) return false;
+          vistas.add(k);
+          return true;
+        });
+  const comDados = [...comValor, ...semValor];
   const linhaCat = (c: CategoriaDre, sinal: number): LinhaCategoria => ({
     id: c.id,
     nome: c.nome,
     porMes: Object.fromEntries(meses.map((m) => [m, { valor: r2(sinal * eff(c.id, m)), auto: r2(sinal * auto(c.id, m)), ajustado: args.ajustes.has(`${c.id}|${m}`) }])),
     total: r2(sinal * effTot(c.id)),
   });
-
-  // linha de total: soma de baixo (+ o que as filiais/grupos de baixo digitaram nela); digitado aqui vale no lugar
-  const deltaLinhas: Record<string, number> = {};
-  const totalDigitavel = (chave: string, sinal: number, somaMes: (m: string) => number): TotalDigitavel => {
-    const auto = Object.fromEntries(meses.map((m) => [m, r2(somaMes(m) + (args.deltasLinhas?.get(`${chave}|${m}`) ?? 0))]));
-    const digitado = Object.fromEntries(meses.map((m) => [m, args.ajustesLinhas?.get(`${chave}|${m}`) ?? null]));
-    const porMes = Object.fromEntries(
-      meses.map((m) => {
-        const v = digitado[m];
-        return [m, v !== null ? r2(sinal * Math.abs(v)) : auto[m]];
-      }),
-    );
-    for (const m of meses) {
-      const d = r2(porMes[m] - somaMes(m));
-      if (d) deltaLinhas[`${chave}|${m}`] = d;
-    }
-    return { chave, porMes, total: r2(mesesTotal.reduce((s, m) => s + porMes[m], 0)), auto, digitado };
-  };
 
   const familias: LinhaFamilia[] = [];
   const nomesFam = [...new Set([...ordemFam.keys(), ...comDados.map((c) => c.dre_familia).filter((f): f is string => !!f)])].sort((a, b) => (ordemFam.get(a) ?? 999) - (ordemFam.get(b) ?? 999) || a.localeCompare(b));
@@ -125,9 +111,20 @@ export function montarDre(args: {
     const grupos: LinhaGrupo[] = nomesGrp.map((g) => {
       const lista = cats.filter((c) => (c.dre_grupo ?? fam) === g).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")).map((c) => linhaCat(c, sinal));
       lista.forEach((l) => usadas.add(l.id));
-      return { nome: g, categorias: lista, ...totalDigitavel(chaveGrupo(fam, g), sinal, (m) => r2(lista.reduce((s, l) => s + l.porMes[m].valor, 0))) };
+      return {
+        nome: g,
+        porMes: Object.fromEntries(meses.map((m) => [m, r2(lista.reduce((s, l) => s + l.porMes[m].valor, 0))])),
+        total: r2(lista.reduce((s, l) => s + l.total, 0)),
+        categorias: lista,
+      };
     });
-    familias.push({ nome: fam, sinal, grupos, ...totalDigitavel(chaveFamilia(fam), sinal, (m) => r2(grupos.reduce((s, g) => s + g.porMes[m], 0))) });
+    familias.push({
+      nome: fam,
+      sinal,
+      porMes: Object.fromEntries(meses.map((m) => [m, r2(grupos.reduce((s, g) => s + g.porMes[m], 0))])),
+      total: r2(grupos.reduce((s, g) => s + g.total, 0)),
+      grupos,
+    });
   }
   const naoClassificadas = comDados
     .filter((c) => !usadas.has(c.id))
@@ -210,7 +207,6 @@ export function montarDre(args: {
     totalReceitas: soma(receitaMes),
     correcao,
     eventos: [...eventos].sort(),
-    deltaLinhas,
   };
 }
 

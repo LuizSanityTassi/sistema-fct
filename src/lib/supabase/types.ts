@@ -2028,6 +2028,7 @@ export type Database = {
           categoria_id: string
           chave: string | null
           competencia: string
+          formula: string | null
           grupo: string
           id: string
           valor: number
@@ -2039,6 +2040,7 @@ export type Database = {
           categoria_id: string
           chave?: string | null
           competencia: string
+          formula?: string | null
           grupo?: string
           id?: string
           valor: number
@@ -2050,6 +2052,7 @@ export type Database = {
           categoria_id?: string
           chave?: string | null
           competencia?: string
+          formula?: string | null
           grupo?: string
           id?: string
           valor?: number
@@ -2074,57 +2077,6 @@ export type Database = {
             columns: ["categoria_id"]
             isOneToOne: false
             referencedRelation: "fin_categorias"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      fin_dre_ajustes_linhas: {
-        Row: {
-          atualizado_em: string
-          atualizado_por: string | null
-          branch_id: string | null
-          chave: string | null
-          competencia: string
-          grupo: string
-          id: string
-          linha: string
-          valor: number
-        }
-        Insert: {
-          atualizado_em?: string
-          atualizado_por?: string | null
-          branch_id?: string | null
-          chave?: string | null
-          competencia: string
-          grupo?: string
-          id?: string
-          linha: string
-          valor: number
-        }
-        Update: {
-          atualizado_em?: string
-          atualizado_por?: string | null
-          branch_id?: string | null
-          chave?: string | null
-          competencia?: string
-          grupo?: string
-          id?: string
-          linha?: string
-          valor?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fin_dre_ajustes_linhas_atualizado_por_fkey"
-            columns: ["atualizado_por"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fin_dre_ajustes_linhas_branch_id_fkey"
-            columns: ["branch_id"]
-            isOneToOne: false
-            referencedRelation: "branches"
             referencedColumns: ["id"]
           },
         ]
@@ -2161,6 +2113,7 @@ export type Database = {
           campo: string
           chave: string | null
           competencia: string
+          formula: string | null
           grupo: string
           id: string
           valor: number
@@ -2172,6 +2125,7 @@ export type Database = {
           campo: string
           chave?: string | null
           competencia: string
+          formula?: string | null
           grupo?: string
           id?: string
           valor: number
@@ -2183,6 +2137,7 @@ export type Database = {
           campo?: string
           chave?: string | null
           competencia?: string
+          formula?: string | null
           grupo?: string
           id?: string
           valor?: number

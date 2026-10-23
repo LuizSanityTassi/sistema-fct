@@ -10,7 +10,7 @@ import { podeLancar } from "@/lib/financeiro/permissoes";
 import { ordemGrupo } from "@/lib/financeiro/rotulos";
 import { rotuloCompetencia } from "@/lib/rh/competencia";
 import { AbasCaixaContabil } from "./abas";
-import { salvarAjusteDre, salvarAjusteLinhaDre, salvarSaldoDre } from "./actions";
+import { salvarAjusteDre, salvarSaldoDre } from "./actions";
 import { DreTabela } from "./dre-tabela";
 
 export const metadata = { title: "Caixa contábil" };
@@ -21,8 +21,13 @@ const semRs = (v: number) => moedaFin(v).replace("R$ ", "");
 export default async function DrePage({ searchParams }: PageProps<"/financeiro/caixa-contabil">) {
   const [sessao, sp] = await Promise.all([exigirAcesso("/financeiro/caixa-contabil"), searchParams]);
   const escopo = lerEscopo(sp);
-  const [anos, unidades, dre] = await Promise.all([anosFinanceiro(), listarUnidadesFinanceiro(), dreDoPeriodo(escopo, escopo.ano, escopo.de)]);
-  const ajustes = dre.ajustesProprios;
+  const vazias = sp.vazias === "1";
+  const [anos, unidades, dre] = await Promise.all([anosFinanceiro(), listarUnidadesFinanceiro(), dreDoPeriodo(escopo, escopo.ano, escopo.de, { vazias })]);
+  // liga/desliga "mostrar contas sem valor" mantendo o recorte
+  const paramsVazias = new URLSearchParams();
+  for (const k of ["grupo", "filial", "ano", "de"]) if (typeof sp[k] === "string" && sp[k]) paramsVazias.set(k, sp[k]);
+  if (!vazias) paramsVazias.set("vazias", "1");
+  const hrefVazias = `/financeiro/caixa-contabil${paramsVazias.size ? `?${paramsVazias}` : ""}`;
   const unidadesDoGrupo = unidades.filter((u) => escopo.grupo === "TODOS" || u.grupo === escopo.grupo);
   const gruposUnid = new Map<string, typeof unidades>();
   for (const u of unidadesDoGrupo) gruposUnid.set(u.grupo, [...(gruposUnid.get(u.grupo) ?? []), u]);
@@ -80,6 +85,7 @@ export default async function DrePage({ searchParams }: PageProps<"/financeiro/c
             </option>
           ))}
         </SelectNativo>
+        {vazias && <input type="hidden" name="vazias" value="1" />}
         <Button type="submit" variant="outline">
           Aplicar
         </Button>
@@ -111,8 +117,8 @@ export default async function DrePage({ searchParams }: PageProps<"/financeiro/c
             podeEditar={podeEditar}
             salvarAjuste={salvarAjusteDre}
             salvarSaldo={salvarSaldoDre}
-            salvarLinha={salvarAjusteLinhaDre}
-            ajustes={ajustes}
+            contas={dre.contasProprias}
+            vazias={{ ligado: vazias, href: hrefVazias }}
           />
         </>
       )}
