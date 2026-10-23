@@ -9,31 +9,45 @@ export type EstruturaDre = { familia: string; grupo: string; ordem_familia: numb
 
 export type CelulaDre = { valor: number; auto: number; ajustado: boolean };
 export type LinhaCategoria = { id: string; nome: string; porMes: Record<string, CelulaDre>; total: number };
-export type LinhaGrupo = { nome: string; porMes: Record<string, number>; total: number; categorias: LinhaCategoria[] };
-export type LinhaFamilia = { nome: string; sinal: number; porMes: Record<string, number>; total: number; grupos: LinhaGrupo[] };
+/** Linha de total que também se digita: o digitado vale no lugar da conta (auto) e o resto soma a partir dele. */
+export type SerieDigitavel = { chave: string; porMes: Record<string, number>; total: number; auto: Record<string, number>; digitado: Record<string, number | null> };
+export type LinhaGrupo = SerieDigitavel & { nome: string; categorias: LinhaCategoria[] };
+export type LinhaFamilia = SerieDigitavel & { nome: string; sinal: number; grupos: LinhaGrupo[] };
+
+/** Chaves das linhas de total (fin_dre_ajustes_linhas.linha). */
+export const chaveFamilia = (familia: string) => `F|${familia}`;
+export const chaveGrupo = (familia: string, grupo: string) => `G|${familia}|${grupo}`;
+export const CHAVE_SAIDAS = "S";
+export const CHAVE_RESULTADO = "R";
 
 export type Dre = {
   meses: string[];
   mesesTotal: string[];
   familias: LinhaFamilia[];
   naoClassificadas: LinhaCategoria[];
-  saidas: { porMes: Record<string, number>; total: number };
-  resultado: { porMes: Record<string, number>; total: number };
+  saidas: SerieDigitavel;
+  resultado: SerieDigitavel;
   receitas: { porMes: Record<string, number>; total: number };
   saldoInicial: Record<string, number | null>;
   /** saldo inicial digitado no mês (null = calculado pela cadeia) */
   saldoDigitado: Record<string, number | null>;
   acumulado: Record<string, number | null>;
+  /** resultado acumulado pela conta (sem o digitado no mês) */
+  acumuladoAuto: Record<string, number | null>;
   saldos: Record<string, Record<string, number | null>>; // campo → mês → valor
-  /** caixinha / contas correntes / limites digitados neste recorte (no total, sem eles vale a soma das filiais) */
+  /** digitados neste recorte: caixinha / contas correntes / limites (no total, sem eles vale a soma das filiais),
+   *  acumulado, capacidade, payback */
   saldosDigitados: Record<string, Record<string, number | null>>;
   capacidade: Record<string, number | null>;
   payback: Record<string, number | null>;
   totalReceitas: number;
-  /** quanto o saldo deste recorte difere da conta sem nenhum saldo digitado, mês a mês (sobe para o total de cima) */
+  /** quanto o saldo (no começo / no fim do mês) difere da conta sem nenhum saldo digitado (sobe para o total de cima) */
   correcao: Record<string, number>;
+  correcaoFim: Record<string, number>;
   /** meses com saldo inicial digitado aqui ou nas filiais/grupos de baixo */
   eventos: string[];
+  /** `${linha}|${mes}` → quanto a linha de total ficou diferente da conta (sobe para o total de cima) */
+  deltaLinhas: Record<string, number>;
 };
 
 export const CAMPOS_SALDO = [
@@ -41,6 +55,8 @@ export const CAMPOS_SALDO = [
   { campo: "contas_correntes", rotulo: "TOTAL CONTAS CORRENTES" },
   { campo: "limites_bancos", rotulo: "LIMITES BANCOS" },
 ] as const;
+/** Campos de fin_dre_saldos que só valem no recorte onde foram digitados (o total de cima não soma). */
+export const CAMPOS_DIGITADOS_LOCAIS = ["acumulado", "capacidade", "payback"] as const;
 
 const r2 = (v: number) => Math.round(v * 100) / 100;
 
@@ -53,11 +69,15 @@ export function montarDre(args: {
   saldosProprios?: Map<string, number>; // os digitados neste recorte (padrão: saldos)
   mesesComDados: string[];
   de?: string; // competência inicial dos totais
-  correcoes?: Map<string, number>; // mês → soma das correções de saldo das filiais/grupos de baixo
+  correcoes?: Map<string, number>; // mês → soma das correções de saldo (começo do mês) das filiais/grupos de baixo
+  correcoesFim?: Map<string, number>; // idem, no fim do mês (padrão: correcoes)
   eventos?: string[]; // meses com saldo inicial digitado nas filiais/grupos de baixo
   todasCategorias?: boolean; // mostra também as contas do molde sem valor (para digitar nelas)
+  ajustesLinhas?: Map<string, number>; // `${linha}|${mes}` → digitado na linha de total (família/grupo sem sinal; S e R com sinal)
+  deltasLinhas?: Map<string, number>; // `${linha}|${mes}` → soma dos deltaLinhas das filiais/grupos de baixo
 }): Dre {
-  const meses = [...new Set([...args.mesesComDados, ...[...args.ajustes.keys()].map((k) => k.split("|")[1])])].sort();
+  const mesDaChave = (k: string) => k.slice(-7);
+  const meses = [...new Set([...args.mesesComDados, ...[...args.ajustes.keys(), ...(args.ajustesLinhas?.keys() ?? []), ...(args.deltasLinhas?.keys() ?? [])].map(mesDaChave)])].sort();
   const de = (args.de && meses.find((m) => m >= args.de!)) || meses[0];
   const mesesTotal = meses.filter((m) => !de || m >= de);
   const porId = new Map(args.categorias.map((c) => [c.id, c]));
@@ -100,6 +120,24 @@ export function montarDre(args: {
     total: r2(sinal * effTot(c.id)),
   });
 
+  // linha de total: soma de baixo (+ o que as filiais/grupos de baixo digitaram nela); digitado aqui vale no lugar
+  const deltaLinhas: Record<string, number> = {};
+  const serie = (chave: string, somaMes: (m: string) => number, comSinal: (digitado: number) => number): SerieDigitavel => {
+    const auto: Record<string, number> = {};
+    const digitado: Record<string, number | null> = {};
+    const porMes: Record<string, number> = {};
+    for (const m of meses) {
+      const soma = somaMes(m);
+      auto[m] = r2(soma + (args.deltasLinhas?.get(`${chave}|${m}`) ?? 0));
+      const dig = args.ajustesLinhas?.get(`${chave}|${m}`) ?? null;
+      digitado[m] = dig;
+      porMes[m] = dig !== null ? r2(comSinal(dig)) : auto[m];
+      const d = r2(porMes[m] - soma);
+      if (d) deltaLinhas[`${chave}|${m}`] = d;
+    }
+    return { chave, porMes, total: r2(mesesTotal.reduce((s, m) => s + porMes[m], 0)), auto, digitado };
+  };
+
   const familias: LinhaFamilia[] = [];
   const nomesFam = [...new Set([...ordemFam.keys(), ...comDados.map((c) => c.dre_familia).filter((f): f is string => !!f)])].sort((a, b) => (ordemFam.get(a) ?? 999) - (ordemFam.get(b) ?? 999) || a.localeCompare(b));
   const usadas = new Set<string>();
@@ -107,42 +145,40 @@ export function montarDre(args: {
     const cats = comDados.filter((c) => c.dre_familia === fam);
     if (!cats.length) continue;
     const sinal = sinalDe(cats[0]);
+    // família e grupo digitados sem sinal, como as categorias: a tela põe o sinal da família
+    const comSinal = (v: number) => sinal * Math.abs(v);
     const nomesGrp = [...new Set(cats.map((c) => c.dre_grupo ?? fam))].sort((a, b) => (ordemGrp.get(`${fam}|${a}`) ?? 999) - (ordemGrp.get(`${fam}|${b}`) ?? 999) || a.localeCompare(b));
     const grupos: LinhaGrupo[] = nomesGrp.map((g) => {
       const lista = cats.filter((c) => (c.dre_grupo ?? fam) === g).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")).map((c) => linhaCat(c, sinal));
       lista.forEach((l) => usadas.add(l.id));
-      return {
-        nome: g,
-        porMes: Object.fromEntries(meses.map((m) => [m, r2(lista.reduce((s, l) => s + l.porMes[m].valor, 0))])),
-        total: r2(lista.reduce((s, l) => s + l.total, 0)),
-        categorias: lista,
-      };
+      return { nome: g, categorias: lista, ...serie(chaveGrupo(fam, g), (m) => r2(lista.reduce((s, l) => s + l.porMes[m].valor, 0)), comSinal) };
     });
-    familias.push({
-      nome: fam,
-      sinal,
-      porMes: Object.fromEntries(meses.map((m) => [m, r2(grupos.reduce((s, g) => s + g.porMes[m], 0))])),
-      total: r2(grupos.reduce((s, g) => s + g.total, 0)),
-      grupos,
-    });
+    familias.push({ nome: fam, sinal, grupos, ...serie(chaveFamilia(fam), (m) => r2(grupos.reduce((s, g) => s + g.porMes[m], 0)), comSinal) });
   }
   const naoClassificadas = comDados
     .filter((c) => !usadas.has(c.id))
     .map((c) => linhaCat(c, c.tipo === "receber" ? 1 : -1))
     .sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
 
-  const resultadoMes = (m: string) => r2(familias.reduce((s, f) => s + f.porMes[m], 0) + naoClassificadas.reduce((s, l) => s + l.porMes[m].valor, 0));
   const receitaMes = (m: string) => r2(familias.filter((f) => f.sinal > 0).reduce((s, f) => s + f.porMes[m], 0) + naoClassificadas.filter((l) => porId.get(l.id)?.tipo === "receber").reduce((s, l) => s + l.porMes[m].valor, 0));
-  const saidasMes = (m: string) => r2(-familias.filter((f) => f.sinal < 0).reduce((s, f) => s + f.porMes[m], 0) - naoClassificadas.filter((l) => porId.get(l.id)?.tipo !== "receber").reduce((s, l) => s + l.porMes[m].valor, 0));
+  const saidas = serie(
+    CHAVE_SAIDAS,
+    (m) => r2(-familias.filter((f) => f.sinal < 0).reduce((s, f) => s + f.porMes[m], 0) - naoClassificadas.filter((l) => porId.get(l.id)?.tipo !== "receber").reduce((s, l) => s + l.porMes[m].valor, 0)),
+    (v) => v,
+  );
+  const resultado = serie(CHAVE_RESULTADO, (m) => r2(receitaMes(m) - saidas.porMes[m]), (v) => v);
+  const resultadoMes = (m: string) => resultado.porMes[m];
   const soma = (fn: (m: string) => number) => r2(mesesTotal.reduce((s, m) => s + fn(m), 0));
 
   // cadeia de saldo: começa no 1º mês do período com zero e soma o resultado de cada mês; um saldo inicial digitado
-  // recomeça a conta dali. No total (grupo, todas), o saldo digitado numa filial/grupo de baixo entra como diferença a
-  // partir daquele mês (correcoes). Os meses antes do primeiro saldo digitado (aqui ou embaixo) ficam sem saldo — a
-  // loja/grupo ainda não tinha caixa controlado.
+  // recomeça a conta no começo do mês, um resultado acumulado digitado recomeça no fim. No total (grupo, todas), o que
+  // foi digitado numa filial/grupo de baixo entra como diferença daquele mês em diante (correcoes / correcoesFim). Os
+  // meses antes do primeiro saldo inicial digitado (aqui ou embaixo) ficam sem saldo — ainda não tinha caixa controlado.
   const saldoVal = (campo: string, m: string) => args.saldos.get(`${campo}|${m}`) ?? null;
   const digitado = (m: string) => saldoVal("saldo_inicial", m);
-  const correcaoDeBaixo = (m: string) => args.correcoes?.get(m) ?? 0;
+  const acumDigitado = (m: string) => saldoVal("acumulado", m);
+  const kIni = (m: string) => args.correcoes?.get(m) ?? 0;
+  const kFim = (m: string) => args.correcoesFim?.get(m) ?? kIni(m);
   const eventos = new Set([...(args.eventos ?? []), ...meses.filter((m) => digitado(m) !== null)]);
   const primeiroDigitado = meses.find((m) => digitado(m) !== null);
   // saldo digitado antes do início dos totais: a conta já vem dele
@@ -150,63 +186,73 @@ export function montarDre(args: {
   const mostraDesde = meses.find((m) => eventos.has(m)) ?? mesesTotal[0];
   const saldoInicial: Record<string, number | null> = {};
   const acumulado: Record<string, number | null> = {};
+  const acumuladoAuto: Record<string, number | null> = {};
   const correcao: Record<string, number> = {};
-  let acc: number | null = null;
-  let semSaldo: number | null = null; // a mesma conta sem nenhum saldo digitado
-  let correcaoAnterior = 0;
+  const correcaoFim: Record<string, number> = {};
+  let fimAnterior: number | null = null;
+  let kFimAnterior = 0;
+  let semSaldo: number | null = null; // a mesma conta sem nada digitado (no começo do mês)
   for (const m of meses) {
-    const k = correcaoDeBaixo(m);
     if (m === mesesTotal[0]) semSaldo = 0;
-    if (digitado(m) !== null) acc = digitado(m);
-    else if (m === partida) acc = k;
-    else if (acc !== null) acc = r2(acc + k - correcaoAnterior);
-    correcaoAnterior = k;
-    correcao[m] = acc === null ? 0 : r2(acc - (semSaldo ?? 0));
+    let ini: number | null = null;
+    if (digitado(m) !== null) ini = digitado(m);
+    else if (fimAnterior !== null) ini = r2(fimAnterior + kIni(m) - kFimAnterior);
+    else if (m === partida) ini = kIni(m);
     const res = resultadoMes(m);
-    if (semSaldo !== null) semSaldo = r2(semSaldo + res);
-    if (acc === null || !mesesTotal.includes(m) || (mostraDesde !== undefined && m < mostraDesde)) {
-      saldoInicial[m] = null;
-      acumulado[m] = null;
-      if (acc !== null) acc = r2(acc + res); // fora do que aparece: a conta segue
-      continue;
-    }
-    saldoInicial[m] = r2(acc);
-    acc = r2(acc + res);
-    acumulado[m] = acc;
+    const fimConta = ini === null ? null : r2(ini + res + kFim(m) - kIni(m));
+    const fim = acumDigitado(m) ?? fimConta;
+    const semSaldoFim: number | null = semSaldo === null ? null : r2(semSaldo + res);
+    correcao[m] = ini === null ? 0 : r2(ini - (semSaldo ?? 0));
+    correcaoFim[m] = fim === null ? 0 : r2(fim - (semSaldoFim ?? 0));
+    const mostra = ini !== null && mesesTotal.includes(m) && (mostraDesde === undefined || m >= mostraDesde);
+    saldoInicial[m] = mostra ? ini : null;
+    acumulado[m] = (mostra || acumDigitado(m) !== null) && mesesTotal.includes(m) ? fim : null;
+    acumuladoAuto[m] = mostra ? fimConta : null;
+    semSaldo = semSaldoFim;
+    fimAnterior = fim;
+    kFimAnterior = kFim(m);
   }
   const capacidade: Record<string, number | null> = {};
   const payback: Record<string, number | null> = {};
   mesesTotal.forEach((m, i) => {
+    const capDig = saldoVal("capacidade", m);
+    const payDig = saldoVal("payback", m);
     if (acumulado[m] == null) {
-      capacidade[m] = null;
-      payback[m] = null;
+      capacidade[m] = capDig;
+      payback[m] = payDig;
       return;
     }
     const rec = receitaMes(m);
-    capacidade[m] = rec ? r2(((acumulado[m] ?? 0) / rec) * 100) : null;
+    capacidade[m] = capDig ?? (rec ? r2(((acumulado[m] ?? 0) / rec) * 100) : null);
     const prev = i > 0 ? resultadoMes(mesesTotal[i - 1]) : resultadoMes(m);
     const med = (prev + resultadoMes(m)) / 2;
-    payback[m] = med ? Math.round(((acumulado[m] ?? 0) / med) * 100) / 100 : null;
+    payback[m] = payDig ?? (med ? Math.round(((acumulado[m] ?? 0) / med) * 100) / 100 : null);
   });
 
+  const proprios = args.saldosProprios ?? args.saldos;
   return {
     meses,
     mesesTotal,
     familias,
     naoClassificadas,
-    saidas: { porMes: Object.fromEntries(meses.map((m) => [m, saidasMes(m)])), total: soma(saidasMes) },
-    resultado: { porMes: Object.fromEntries(meses.map((m) => [m, resultadoMes(m)])), total: soma(resultadoMes) },
+    saidas,
+    resultado,
     receitas: { porMes: Object.fromEntries(meses.map((m) => [m, receitaMes(m)])), total: soma(receitaMes) },
     saldoInicial,
     saldoDigitado: Object.fromEntries(meses.map((m) => [m, digitado(m)])),
     acumulado,
+    acumuladoAuto,
     saldos: Object.fromEntries(CAMPOS_SALDO.map((c) => [c.campo, Object.fromEntries(meses.map((m) => [m, saldoVal(c.campo, m)]))])),
-    saldosDigitados: Object.fromEntries(CAMPOS_SALDO.map((c) => [c.campo, Object.fromEntries(meses.map((m) => [m, (args.saldosProprios ?? args.saldos).get(`${c.campo}|${m}`) ?? null]))])),
+    saldosDigitados: Object.fromEntries(
+      [...CAMPOS_SALDO.map((c) => c.campo), ...CAMPOS_DIGITADOS_LOCAIS].map((campo) => [campo, Object.fromEntries(meses.map((m) => [m, proprios.get(`${campo}|${m}`) ?? null]))]),
+    ),
     capacidade,
     payback,
     totalReceitas: soma(receitaMes),
     correcao,
+    correcaoFim,
     eventos: [...eventos].sort(),
+    deltaLinhas,
   };
 }
 

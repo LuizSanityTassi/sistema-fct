@@ -63,13 +63,47 @@ export async function salvarAjusteDre(fd: FormData): Promise<RespostaCelula> {
   return { ok: true };
 }
 
-/** Saldos de caixa da DRE (saldo inicial, caixinha, contas correntes, limites). */
+/**
+ * Valor digitado numa linha de total do mês — família (F|…), grupo (G|…), Total de saídas (S) ou Resultado (R): vale
+ * no lugar da conta, o resto soma a partir dele e sobe para o total do grupo e o de todas; vazio volta à conta.
+ */
+export async function salvarAjusteLinhaDre(fd: FormData): Promise<RespostaCelula> {
+  const sessao = await getSessao();
+  if (!podeLancar(sessao.papel)) return { erro: "Só Administrador, Financeiro e Contador ajustam o caixa contábil." };
+  const { grupo, filial, competencia, valor, formula, bruto } = campos(fd);
+  const linha = String(fd.get("linha") ?? "");
+  if (!grupo || !competencia || !/^(F\|.+|G\|.+|S|R)$/.test(linha) || linha.length > 300) return { erro: "Dados inválidos." };
+  if (bruto !== "" && valor === null) return { erro: "Valor ou conta inválida." };
+  const supabase = await createClient();
+  const tabela = () => supabase.from("fin_dre_ajustes_linhas");
+  if (filial) {
+    const { error } = await tabela().delete().eq("branch_id", filial).eq("linha", linha).eq("competencia", competencia).neq("grupo", grupo);
+    if (error) return { erro: error.message };
+  }
+  if (valor === null) {
+    const { error } = await tabela().delete().eq("grupo", grupo).filter("branch_id", filial ? "eq" : "is", filial).eq("linha", linha).eq("competencia", competencia);
+    if (error) return { erro: error.message };
+  } else {
+    // família e grupo guardam sem sinal (a tela põe o da família); saídas e resultado, como digitado
+    const gravar = /^[FG]\|/.test(linha) ? Math.abs(valor) : valor;
+    const { error } = await tabela().upsert(
+      { grupo, branch_id: filial, linha, competencia, valor: gravar, formula, atualizado_por: sessao.id, atualizado_em: new Date().toISOString() },
+      { onConflict: "chave" },
+    );
+    if (error) return { erro: error.message };
+  }
+  await registrarAuditoria(supabase, { userId: sessao.id, acao: "editar", entidade: "fin_dre_ajustes_linhas", novo: { grupo, filial, linha, competencia, valor, formula } });
+  revalidatePath("/financeiro/caixa-contabil");
+  return { ok: true };
+}
+
+/** Saldos de caixa da DRE (saldo inicial, caixinha, contas correntes, limites) e os resultados digitados (acumulado, capacidade, payback). */
 export async function salvarSaldoDre(fd: FormData): Promise<RespostaCelula> {
   const sessao = await getSessao();
   if (!podeLancar(sessao.papel)) return { erro: "Só Administrador, Financeiro e Contador alteram os saldos." };
   const { grupo, filial, competencia, valor, formula, bruto } = campos(fd);
   const campo = String(fd.get("campo") ?? "");
-  if (!grupo || !competencia || !["saldo_inicial", "caixinha", "contas_correntes", "limites_bancos"].includes(campo)) return { erro: "Dados inválidos." };
+  if (!grupo || !competencia || !["saldo_inicial", "caixinha", "contas_correntes", "limites_bancos", "acumulado", "capacidade", "payback"].includes(campo)) return { erro: "Dados inválidos." };
   if (bruto !== "" && valor === null) return { erro: "Valor ou conta inválida." };
   const supabase = await createClient();
   const base = supabase.from("fin_dre_saldos");

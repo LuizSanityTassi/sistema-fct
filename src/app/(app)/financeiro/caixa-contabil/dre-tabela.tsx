@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
-import { CAMPOS_SALDO, type Dre } from "@/lib/financeiro/dre";
+import { CAMPOS_SALDO, type Dre, type SerieDigitavel } from "@/lib/financeiro/dre";
 import { arred41 } from "@/lib/financeiro/formatos";
 import { CelulaEditavel } from "./celula-editavel";
 import type { RespostaCelula } from "./actions";
@@ -14,6 +14,7 @@ type Props = {
   podeEditar: boolean;
   salvarAjuste: (fd: FormData) => Promise<RespostaCelula>;
   salvarSaldo: (fd: FormData) => Promise<RespostaCelula>;
+  salvarLinha: (fd: FormData) => Promise<RespostaCelula>;
   /** memória de cálculo: `${categoriaId}|${mes}` e `saldo:${campo}|${mes}` → conta digitada */
   contas: Record<string, string>;
   /** mostrando as contas sem valor; link que liga/desliga */
@@ -29,7 +30,7 @@ const pctFmt = (v: number, base: number) => (base > 0 ? `${((v / base) * 100).to
 const tom = (v: number) => (v < 0 ? "text-red-700" : v > 0 ? "text-emerald-700" : "text-muted-foreground");
 const DICA_SALDO_MES = "Digite o valor do mês. No total do grupo (ou de todas), mês sem valor digitado mostra a soma das filiais.";
 
-export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, contas, vazias }: Props) {
+export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, salvarLinha, contas, vazias }: Props) {
   const [nivel, setNivel] = React.useState<1 | 2 | 3>(vazias.ligado ? 3 : 1);
   const [busca, setBusca] = React.useState("");
   const termo = busca.trim().toLowerCase();
@@ -39,21 +40,58 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
   const foraTotal = (m: string) => !dre.mesesTotal.includes(m);
   const base = { grupo: escopo.grupo, filial: escopo.filial };
 
+  // célula de uma linha de total (família, grupo, saídas, resultado): o digitado vale no lugar da conta
+  const celulaLinha = (s: SerieDigitavel, m: string, classe: string) => (
+    <CelulaEditavel
+      key={m}
+      action={salvarLinha}
+      campos={{ ...base, linha: s.chave, competencia: m }}
+      base={s.porMes[m] ?? 0}
+      conta={contas[`linha:${s.chave}|${m}`]}
+      exibicao={moedaDre(s.porMes[m] ?? 0)}
+      automatico={moedaDre(s.auto[m] ?? 0)}
+      ajustado={s.digitado[m] != null}
+      classe={classe}
+      podeEditar={podeEditar}
+    />
+  );
+
   // escura = linha de fundo escuro (família, total de saídas): tudo nela fica branco, inclusive o % (o cinza some no fundo)
-  const linhaTotal = ({ nome, porMes, total, classe, nivelVisual, escura = false }: { nome: string; porMes: Record<string, number>; total: number; classe: string; nivelVisual: number; escura?: boolean }) => (
+  const linhaTotal = ({ nome, serie, classe, nivelVisual, escura = false }: { nome: string; serie: SerieDigitavel; classe: string; nivelVisual: number; escura?: boolean }) => (
     <tr key={`total-${nome}-${nivelVisual}`} className={classe}>
       <td className="px-2 py-1" style={{ paddingLeft: 8 + nivelVisual * 14 }}>
         {nome}
       </td>
-      {dre.meses.map((m) => (
-        <td key={m} className={`px-2 py-1 text-right tabular-nums ${foraTotal(m) ? (escura ? "opacity-70" : "text-muted-foreground/70") : ""}`}>
-          {moedaDre(porMes[m] ?? 0)}
-        </td>
-      ))}
-      <td className="px-2 py-1 text-right font-semibold tabular-nums">{moedaDre(total)}</td>
-      <td className={`px-2 py-1 text-right tabular-nums ${escura ? "" : "text-muted-foreground"}`}>{pctFmt(total, dre.totalReceitas)}</td>
+      {dre.meses.map((m) => celulaLinha(serie, m, foraTotal(m) ? (escura ? "opacity-70" : "text-muted-foreground/70") : ""))}
+      <td className="px-2 py-1 text-right font-semibold tabular-nums">{moedaDre(serie.total)}</td>
+      <td className={`px-2 py-1 text-right tabular-nums ${escura ? "" : "text-muted-foreground"}`}>{pctFmt(serie.total, dre.totalReceitas)}</td>
     </tr>
   );
+
+  // célula de um resultado digitável guardado nos saldos (acumulado, capacidade, payback)
+  const celulaResultado = (campo: string, m: string, v: number | null, exibicao: string, auto: string | undefined, classe: string) => {
+    if (!podeEditar || !dre.mesesTotal.includes(m))
+      return (
+        <td key={m} className={`px-2 py-1 text-right tabular-nums ${classe}`}>
+          {exibicao}
+        </td>
+      );
+    return (
+      <CelulaEditavel
+        key={m}
+        action={salvarSaldo}
+        campos={{ ...base, campo, competencia: m }}
+        base={v}
+        conta={contas[`saldo:${campo}|${m}`]}
+        exibicao={exibicao}
+        automatico={auto}
+        ajustado={dre.saldosDigitados[campo]?.[m] != null}
+        classe={classe}
+        podeEditar
+      />
+    );
+  };
+  const fmt2 = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const linhaCategoria = (c: Dre["familias"][number]["grupos"][number]["categorias"][number], nivelVisual: number) => (
     <tr key={c.id} className="text-sm">
@@ -164,11 +202,13 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
             )}
             {dre.familias.map((f) => (
               <React.Fragment key={f.nome}>
-                {casa(f.nome) || f.grupos.some((g) => casa(g.nome) || g.categorias.some((c) => casa(c.nome))) ? linhaTotal({ nome: f.nome, porMes: f.porMes, total: f.total, classe: "bg-primary text-primary-foreground font-semibold", nivelVisual: 0, escura: true }) : null}
+                {casa(f.nome) || f.grupos.some((g) => casa(g.nome) || g.categorias.some((c) => casa(c.nome)))
+                  ? linhaTotal({ nome: f.nome, serie: f, classe: "bg-primary text-primary-foreground font-semibold", nivelVisual: 0, escura: true })
+                  : null}
                 {mostraGrupos &&
                   f.grupos.map((g) => (
                     <React.Fragment key={g.nome}>
-                      {(casa(g.nome) || g.categorias.some((c) => casa(c.nome))) && g.nome !== f.nome ? linhaTotal({ nome: g.nome, porMes: g.porMes, total: g.total, classe: "bg-muted/50 font-semibold", nivelVisual: 1 }) : null}
+                      {(casa(g.nome) || g.categorias.some((c) => casa(c.nome))) && g.nome !== f.nome ? linhaTotal({ nome: g.nome, serie: g, classe: "bg-muted/50 font-semibold", nivelVisual: 1 }) : null}
                       {mostraCategorias && g.categorias.filter((c) => casa(c.nome)).map((c) => linhaCategoria(c, 2))}
                     </React.Fragment>
                   ))}
@@ -184,14 +224,12 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
                 {dre.naoClassificadas.filter((c) => casa(c.nome)).map((c) => linhaCategoria(c, 1))}
               </>
             )}
-            {linhaTotal({ nome: "Total de saídas", porMes: dre.saidas.porMes, total: dre.saidas.total, classe: "bg-neutral-700 text-white font-semibold", nivelVisual: 0, escura: true })}
+            {linhaTotal({ nome: "Total de saídas", serie: dre.saidas, classe: "bg-neutral-700 text-white font-semibold", nivelVisual: 0, escura: true })}
             <tr className="border-t-2 border-fct-yellow font-bold">
-              <td className="px-2 py-1.5">RESULTADO REALIZADO TOTAL MÊS</td>
-              {dre.meses.map((m) => (
-                <td key={m} className={`px-2 py-1.5 text-right tabular-nums ${tom(dre.resultado.porMes[m])} ${foraTotal(m) ? "opacity-60" : ""}`}>
-                  {moedaDre(dre.resultado.porMes[m])}
-                </td>
-              ))}
+              <td className="px-2 py-1.5" title="Receitas menos saídas do mês. Digite num mês para valer no lugar da conta; o acumulado soma a partir dele.">
+                RESULTADO REALIZADO TOTAL MÊS
+              </td>
+              {dre.meses.map((m) => celulaLinha(dre.resultado, m, `${tom(dre.resultado.porMes[m])} ${foraTotal(m) ? "opacity-60" : ""}`))}
               <td className={`px-2 py-1.5 text-right tabular-nums ${tom(dre.resultado.total)}`}>{moedaDre(dre.resultado.total)}</td>
               <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">{pctFmt(dre.resultado.total, dre.totalReceitas)}</td>
             </tr>
@@ -199,16 +237,16 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
               linhaSaldo(c.rotulo, c.campo, DICA_SALDO_MES, () => true, (m) => dre.saldos[c.campo]?.[m] ?? null, true, (m) => dre.saldosDigitados[c.campo]?.[m] ?? null),
             )}
             <tr className="border-t-2 bg-muted/40 font-semibold">
-              <td className="px-2 py-1" title="Soma do SALDO INICIAL com o resultado de cada mês, encadeado. É o caixa acumulado desde o início do período.">
+              <td
+                className="px-2 py-1"
+                title="Soma do SALDO INICIAL com o resultado de cada mês, encadeado. É o caixa acumulado desde o início do período. Digite num mês para valer no lugar da conta; o mês seguinte começa dele."
+              >
                 RESULTADO ACUMULADO TOTAL
               </td>
               {dre.meses.map((m) => {
                 const v = dre.acumulado[m];
-                return (
-                  <td key={m} className={`px-2 py-1 text-right tabular-nums ${v == null ? "text-muted-foreground" : tom(v)}`}>
-                    {v == null ? "—" : moedaDre(v)}
-                  </td>
-                );
+                const auto = dre.acumuladoAuto[m];
+                return celulaResultado("acumulado", m, v, v == null ? "—" : moedaDre(v), auto == null ? undefined : moedaDre(auto), v == null ? "text-muted-foreground" : tom(v));
               })}
               <td className={`px-2 py-1 text-right tabular-nums ${tom(dre.acumulado[dre.mesesTotal[dre.mesesTotal.length - 1]] ?? 0)}`}>{moedaDre(dre.acumulado[dre.mesesTotal[dre.mesesTotal.length - 1]] ?? 0)}</td>
               <td className="px-2 py-1 text-right text-muted-foreground">—</td>
@@ -228,11 +266,7 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
               </td>
               {dre.meses.map((m) => {
                 const v = dre.capacidade[m];
-                return (
-                  <td key={m} className={`px-2 py-1 text-right tabular-nums ${v == null ? "text-muted-foreground" : tom(v)}`}>
-                    {v == null ? "—" : `${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`}
-                  </td>
-                );
+                return celulaResultado("capacidade", m, v, v == null ? "—" : `${fmt2(v)}%`, undefined, v == null ? "text-muted-foreground" : tom(v));
               })}
               <td className="px-2 py-1 text-right text-muted-foreground">—</td>
               <td className="px-2 py-1 text-right text-muted-foreground">—</td>
@@ -243,11 +277,7 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
               </td>
               {dre.meses.map((m) => {
                 const v = dre.payback[m];
-                return (
-                  <td key={m} className="px-2 py-1 text-right tabular-nums">
-                    {v == null ? "—" : v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </td>
-                );
+                return celulaResultado("payback", m, v, v == null ? "—" : fmt2(v), undefined, "");
               })}
               <td className="px-2 py-1 text-right text-muted-foreground">—</td>
               <td className="px-2 py-1 text-right text-muted-foreground">—</td>
