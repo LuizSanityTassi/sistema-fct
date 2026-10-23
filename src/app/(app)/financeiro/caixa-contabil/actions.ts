@@ -21,7 +21,10 @@ function campos(fd: FormData) {
   return { grupo: grupo === "TODOS" || ehGrupoFinanceiro(grupo) ? grupo : null, filial: ehUuid(filial) ? filial : null, competencia: competenciaValida(competencia) ? competencia : null, valor, bruto };
 }
 
-/** Ajuste manual do contador numa célula categoria × mês (vazio volta ao automático). */
+/**
+ * Ajuste manual do contador numa célula categoria × mês (vazio volta ao automático). Ajuste numa filial também muda o
+ * total do grupo e o de todas (dreDoPeriodo soma as filiais com os ajustes delas).
+ */
 export async function salvarAjusteDre(fd: FormData): Promise<RespostaCelula> {
   const sessao = await getSessao();
   if (!podeLancar(sessao.papel)) return { erro: "Só Administrador, Financeiro e Contador ajustam o caixa contábil." };
@@ -31,6 +34,11 @@ export async function salvarAjusteDre(fd: FormData): Promise<RespostaCelula> {
   if (bruto !== "" && valor === null) return { erro: "Valor inválido." };
   const supabase = await createClient();
   const base = supabase.from("fin_dre_ajustes");
+  if (filial) {
+    // na filial vale um ajuste por célula, de qualquer grupo que se esteja olhando (a filial aparece em "todas" e no grupo dela)
+    const { error } = await supabase.from("fin_dre_ajustes").delete().eq("branch_id", filial).eq("categoria_id", categoriaId).eq("competencia", competencia).neq("grupo", grupo);
+    if (error) return { erro: error.message };
+  }
   if (valor === null) {
     const { error } = await base.delete().eq("grupo", grupo).filter("branch_id", filial ? "eq" : "is", filial).eq("categoria_id", categoriaId).eq("competencia", competencia);
     if (error) return { erro: error.message };
@@ -53,6 +61,10 @@ export async function salvarSaldoDre(fd: FormData): Promise<RespostaCelula> {
   if (bruto !== "" && valor === null) return { erro: "Valor inválido." };
   const supabase = await createClient();
   const base = supabase.from("fin_dre_saldos");
+  if (filial) {
+    const { error } = await supabase.from("fin_dre_saldos").delete().eq("branch_id", filial).eq("campo", campo).eq("competencia", competencia).neq("grupo", grupo);
+    if (error) return { erro: error.message };
+  }
   if (valor === null) {
     const { error } = await base.delete().eq("grupo", grupo).filter("branch_id", filial ? "eq" : "is", filial).eq("competencia", competencia).eq("campo", campo);
     if (error) return { erro: error.message };

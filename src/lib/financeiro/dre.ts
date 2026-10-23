@@ -25,9 +25,15 @@ export type Dre = {
   saldoDigitado: Record<string, number | null>;
   acumulado: Record<string, number | null>;
   saldos: Record<string, Record<string, number | null>>; // campo → mês → valor
+  /** caixinha / contas correntes / limites digitados neste recorte (no total, sem eles vale a soma das filiais) */
+  saldosDigitados: Record<string, Record<string, number | null>>;
   capacidade: Record<string, number | null>;
   payback: Record<string, number | null>;
   totalReceitas: number;
+  /** quanto o saldo deste recorte difere da conta sem nenhum saldo digitado, mês a mês (sobe para o total de cima) */
+  correcao: Record<string, number>;
+  /** meses com saldo inicial digitado aqui ou nas filiais/grupos de baixo */
+  eventos: string[];
 };
 
 export const CAMPOS_SALDO = [
@@ -43,12 +49,15 @@ export function montarDre(args: {
   estrutura: EstruturaDre[];
   valores: Map<string, number>; // `${categoriaId}|${mes}` → soma automática
   ajustes: Map<string, number>; // `${categoriaId}|${mes}` → valor manual
-  saldos: Map<string, number>; // `${campo}|${mes}`
+  saldos: Map<string, number>; // `${campo}|${mes}` — no total, caixinha/contas/limites já com a soma das filiais
+  saldosProprios?: Map<string, number>; // os digitados neste recorte (padrão: saldos)
   mesesComDados: string[];
   de?: string; // competência inicial dos totais
+  correcoes?: Map<string, number>; // mês → soma das correções de saldo das filiais/grupos de baixo
+  eventos?: string[]; // meses com saldo inicial digitado nas filiais/grupos de baixo
 }): Dre {
   const meses = [...new Set([...args.mesesComDados, ...[...args.ajustes.keys()].map((k) => k.split("|")[1])])].sort();
-  const de = args.de && meses.includes(args.de) ? args.de : meses[0];
+  const de = (args.de && meses.find((m) => m >= args.de!)) || meses[0];
   const mesesTotal = meses.filter((m) => !de || m >= de);
   const porId = new Map(args.categorias.map((c) => [c.id, c]));
 
@@ -112,25 +121,42 @@ export function montarDre(args: {
   const saidasMes = (m: string) => r2(-familias.filter((f) => f.sinal < 0).reduce((s, f) => s + f.porMes[m], 0) - naoClassificadas.filter((l) => porId.get(l.id)?.tipo !== "receber").reduce((s, l) => s + l.porMes[m].valor, 0));
   const soma = (fn: (m: string) => number) => r2(mesesTotal.reduce((s, m) => s + fn(m), 0));
 
-  // cadeia de saldo: começa no 1º mês com saldo inicial digitado (sem nenhum, no 1º mês do período, com zero) e soma o
-  // resultado de cada mês; um saldo digitado mais adiante recomeça a conta dali. Os meses antes do primeiro saldo digitado
-  // ficam sem saldo (a loja/grupo ainda não tinha caixa controlado).
+  // cadeia de saldo: começa no 1º mês do período com zero e soma o resultado de cada mês; um saldo inicial digitado
+  // recomeça a conta dali. No total (grupo, todas), o saldo digitado numa filial/grupo de baixo entra como diferença a
+  // partir daquele mês (correcoes). Os meses antes do primeiro saldo digitado (aqui ou embaixo) ficam sem saldo — a
+  // loja/grupo ainda não tinha caixa controlado.
   const saldoVal = (campo: string, m: string) => args.saldos.get(`${campo}|${m}`) ?? null;
   const digitado = (m: string) => saldoVal("saldo_inicial", m);
-  const inicio = meses.find((m) => digitado(m) !== null) ?? mesesTotal[0];
+  const correcaoDeBaixo = (m: string) => args.correcoes?.get(m) ?? 0;
+  const eventos = new Set([...(args.eventos ?? []), ...meses.filter((m) => digitado(m) !== null)]);
+  const primeiroDigitado = meses.find((m) => digitado(m) !== null);
+  // saldo digitado antes do início dos totais: a conta já vem dele
+  const partida = primeiroDigitado && mesesTotal[0] && primeiroDigitado < mesesTotal[0] ? primeiroDigitado : mesesTotal[0];
+  const mostraDesde = meses.find((m) => eventos.has(m)) ?? mesesTotal[0];
   const saldoInicial: Record<string, number | null> = {};
   const acumulado: Record<string, number | null> = {};
+  const correcao: Record<string, number> = {};
   let acc: number | null = null;
+  let semSaldo: number | null = null; // a mesma conta sem nenhum saldo digitado
+  let correcaoAnterior = 0;
   for (const m of meses) {
-    if (m === inicio || digitado(m) !== null) acc = digitado(m) ?? 0;
-    if (acc === null || !mesesTotal.includes(m)) {
+    const k = correcaoDeBaixo(m);
+    if (m === mesesTotal[0]) semSaldo = 0;
+    if (digitado(m) !== null) acc = digitado(m);
+    else if (m === partida) acc = k;
+    else if (acc !== null) acc = r2(acc + k - correcaoAnterior);
+    correcaoAnterior = k;
+    correcao[m] = acc === null ? 0 : r2(acc - (semSaldo ?? 0));
+    const res = resultadoMes(m);
+    if (semSaldo !== null) semSaldo = r2(semSaldo + res);
+    if (acc === null || !mesesTotal.includes(m) || (mostraDesde !== undefined && m < mostraDesde)) {
       saldoInicial[m] = null;
       acumulado[m] = null;
-      if (acc !== null) acc = r2(acc + resultadoMes(m)); // antes do início escolhido: não aparece, mas a conta segue
+      if (acc !== null) acc = r2(acc + res); // fora do que aparece: a conta segue
       continue;
     }
     saldoInicial[m] = r2(acc);
-    acc = r2(acc + resultadoMes(m));
+    acc = r2(acc + res);
     acumulado[m] = acc;
   }
   const capacidade: Record<string, number | null> = {};
@@ -160,9 +186,12 @@ export function montarDre(args: {
     saldoDigitado: Object.fromEntries(meses.map((m) => [m, digitado(m)])),
     acumulado,
     saldos: Object.fromEntries(CAMPOS_SALDO.map((c) => [c.campo, Object.fromEntries(meses.map((m) => [m, saldoVal(c.campo, m)]))])),
+    saldosDigitados: Object.fromEntries(CAMPOS_SALDO.map((c) => [c.campo, Object.fromEntries(meses.map((m) => [m, (args.saldosProprios ?? args.saldos).get(`${c.campo}|${m}`) ?? null]))])),
     capacidade,
     payback,
     totalReceitas: soma(receitaMes),
+    correcao,
+    eventos: [...eventos].sort(),
   };
 }
 

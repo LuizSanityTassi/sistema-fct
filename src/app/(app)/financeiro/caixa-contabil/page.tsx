@@ -9,7 +9,6 @@ import { moedaFin } from "@/lib/financeiro/formatos";
 import { podeLancar } from "@/lib/financeiro/permissoes";
 import { ordemGrupo } from "@/lib/financeiro/rotulos";
 import { rotuloCompetencia } from "@/lib/rh/competencia";
-import { createClient } from "@/lib/supabase/server";
 import { AbasCaixaContabil } from "./abas";
 import { salvarAjusteDre, salvarSaldoDre } from "./actions";
 import { DreTabela } from "./dre-tabela";
@@ -22,20 +21,8 @@ const semRs = (v: number) => moedaFin(v).replace("R$ ", "");
 export default async function DrePage({ searchParams }: PageProps<"/financeiro/caixa-contabil">) {
   const [sessao, sp] = await Promise.all([exigirAcesso("/financeiro/caixa-contabil"), searchParams]);
   const escopo = lerEscopo(sp);
-  const supabase = await createClient();
-  const [anos, unidades, dre, { data: ajustesRows }] = await Promise.all([
-    anosFinanceiro(),
-    listarUnidadesFinanceiro(),
-    dreDoPeriodo(escopo, escopo.ano, escopo.de),
-    supabase
-      .from("fin_dre_ajustes")
-      .select("categoria_id, competencia, valor")
-      .eq("grupo", escopo.grupo)
-      .filter("branch_id", escopo.filial ? "eq" : "is", escopo.filial ?? null)
-      .gte("competencia", `${escopo.ano}-01`)
-      .lte("competencia", `${escopo.ano}-12`),
-  ]);
-  const ajustes = Object.fromEntries((ajustesRows ?? []).map((a) => [`${a.categoria_id}|${a.competencia.trim()}`, Number(a.valor)]));
+  const [anos, unidades, dre] = await Promise.all([anosFinanceiro(), listarUnidadesFinanceiro(), dreDoPeriodo(escopo, escopo.ano, escopo.de)]);
+  const ajustes = dre.ajustesProprios;
   const unidadesDoGrupo = unidades.filter((u) => escopo.grupo === "TODOS" || u.grupo === escopo.grupo);
   const gruposUnid = new Map<string, typeof unidades>();
   for (const u of unidadesDoGrupo) gruposUnid.set(u.grupo, [...(gruposUnid.get(u.grupo) ?? []), u]);

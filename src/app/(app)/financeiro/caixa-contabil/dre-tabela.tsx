@@ -23,6 +23,7 @@ const MESES_CURTO = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "se
 const rotuloMes = (m: string) => `${MESES_CURTO[Number(m.slice(5, 7)) - 1]}/${m.slice(2, 4)}`;
 const pctFmt = (v: number, base: number) => (base > 0 ? `${((v / base) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%` : "—");
 const tom = (v: number) => (v < 0 ? "text-red-700" : v > 0 ? "text-emerald-700" : "text-muted-foreground");
+const DICA_SALDO_MES = "Digite o valor do mês. No total do grupo (ou de todas), mês sem valor digitado mostra a soma das filiais.";
 
 export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, ajustes }: Props) {
   const [nivel, setNivel] = React.useState<1 | 2 | 3>(1);
@@ -132,7 +133,7 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
             {linhaSaldo(
               "SALDO INICIAL",
               "saldo_inicial",
-              "Caixa no começo do mês: vem do resultado acumulado do mês anterior. Digite num mês para a conta começar (ou recomeçar) dali — os meses antes do primeiro saldo digitado ficam sem saldo. Apague para voltar ao cálculo.",
+              "Caixa no começo do mês: vem do resultado acumulado do mês anterior. Digite num mês para a conta começar (ou recomeçar) dali — os meses antes do primeiro saldo digitado ficam sem saldo. Apague para voltar ao cálculo. Saldo digitado numa filial muda o total do grupo (e o de todas) pela mesma diferença, daquele mês em diante.",
               (m) => dre.mesesTotal.includes(m),
               (m) => dre.saldoInicial[m] ?? null,
               false,
@@ -171,7 +172,9 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
               <td className={`px-2 py-1.5 text-right tabular-nums ${tom(dre.resultado.total)}`}>{moedaDre(dre.resultado.total)}</td>
               <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">{pctFmt(dre.resultado.total, dre.totalReceitas)}</td>
             </tr>
-            {CAMPOS_SALDO.slice(0, 2).map((c) => linhaSaldo(c.rotulo, c.campo, "Digite o valor do mês.", () => true, (m) => dre.saldos[c.campo]?.[m] ?? null))}
+            {CAMPOS_SALDO.slice(0, 2).map((c) =>
+              linhaSaldo(c.rotulo, c.campo, DICA_SALDO_MES, () => true, (m) => dre.saldos[c.campo]?.[m] ?? null, true, (m) => dre.saldosDigitados[c.campo]?.[m] ?? null),
+            )}
             <tr className="border-t-2 bg-muted/40 font-semibold">
               <td className="px-2 py-1" title="Soma do SALDO INICIAL com o resultado de cada mês, encadeado. É o caixa acumulado desde o início do período.">
                 RESULTADO ACUMULADO TOTAL
@@ -187,7 +190,15 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
               <td className={`px-2 py-1 text-right tabular-nums ${tom(dre.acumulado[dre.mesesTotal[dre.mesesTotal.length - 1]] ?? 0)}`}>{moedaDre(dre.acumulado[dre.mesesTotal[dre.mesesTotal.length - 1]] ?? 0)}</td>
               <td className="px-2 py-1 text-right text-muted-foreground">—</td>
             </tr>
-            {linhaSaldo(CAMPOS_SALDO[2].rotulo, CAMPOS_SALDO[2].campo, "Limites disponíveis nos bancos.", () => true, (m) => dre.saldos.limites_bancos?.[m] ?? null)}
+            {linhaSaldo(
+              CAMPOS_SALDO[2].rotulo,
+              CAMPOS_SALDO[2].campo,
+              `Limites disponíveis nos bancos. ${DICA_SALDO_MES}`,
+              () => true,
+              (m) => dre.saldos.limites_bancos?.[m] ?? null,
+              true,
+              (m) => dre.saldosDigitados.limites_bancos?.[m] ?? null,
+            )}
             <tr className="bg-muted/40 font-semibold">
               <td className="px-2 py-1" title="Resultado acumulado dividido pela receita do mês: quantos % da receita viram caixa.">
                 Capacidade de geração de caixa
