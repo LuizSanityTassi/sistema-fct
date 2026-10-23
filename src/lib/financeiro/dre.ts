@@ -21,6 +21,8 @@ export type Dre = {
   resultado: { porMes: Record<string, number>; total: number };
   receitas: { porMes: Record<string, number>; total: number };
   saldoInicial: Record<string, number | null>;
+  /** saldo inicial digitado no mês (null = calculado pela cadeia) */
+  saldoDigitado: Record<string, number | null>;
   acumulado: Record<string, number | null>;
   saldos: Record<string, Record<string, number | null>>; // campo → mês → valor
   capacidade: Record<string, number | null>;
@@ -110,15 +112,21 @@ export function montarDre(args: {
   const saidasMes = (m: string) => r2(-familias.filter((f) => f.sinal < 0).reduce((s, f) => s + f.porMes[m], 0) - naoClassificadas.filter((l) => porId.get(l.id)?.tipo !== "receber").reduce((s, l) => s + l.porMes[m].valor, 0));
   const soma = (fn: (m: string) => number) => r2(mesesTotal.reduce((s, m) => s + fn(m), 0));
 
-  // cadeia de saldo: saldo inicial do 1º mês (digitado) + resultado de cada mês
+  // cadeia de saldo: começa no 1º mês com saldo inicial digitado (sem nenhum, no 1º mês do período, com zero) e soma o
+  // resultado de cada mês; um saldo digitado mais adiante recomeça a conta dali. Os meses antes do primeiro saldo digitado
+  // ficam sem saldo (a loja/grupo ainda não tinha caixa controlado).
   const saldoVal = (campo: string, m: string) => args.saldos.get(`${campo}|${m}`) ?? null;
+  const digitado = (m: string) => saldoVal("saldo_inicial", m);
+  const inicio = meses.find((m) => digitado(m) !== null) ?? mesesTotal[0];
   const saldoInicial: Record<string, number | null> = {};
   const acumulado: Record<string, number | null> = {};
-  let acc = mesesTotal.length ? (saldoVal("saldo_inicial", mesesTotal[0]) ?? 0) : 0;
+  let acc: number | null = null;
   for (const m of meses) {
-    if (!mesesTotal.includes(m)) {
+    if (m === inicio || digitado(m) !== null) acc = digitado(m) ?? 0;
+    if (acc === null || !mesesTotal.includes(m)) {
       saldoInicial[m] = null;
       acumulado[m] = null;
+      if (acc !== null) acc = r2(acc + resultadoMes(m)); // antes do início escolhido: não aparece, mas a conta segue
       continue;
     }
     saldoInicial[m] = r2(acc);
@@ -128,6 +136,11 @@ export function montarDre(args: {
   const capacidade: Record<string, number | null> = {};
   const payback: Record<string, number | null> = {};
   mesesTotal.forEach((m, i) => {
+    if (acumulado[m] == null) {
+      capacidade[m] = null;
+      payback[m] = null;
+      return;
+    }
     const rec = receitaMes(m);
     capacidade[m] = rec ? r2(((acumulado[m] ?? 0) / rec) * 100) : null;
     const prev = i > 0 ? resultadoMes(mesesTotal[i - 1]) : resultadoMes(m);
@@ -144,6 +157,7 @@ export function montarDre(args: {
     resultado: { porMes: Object.fromEntries(meses.map((m) => [m, resultadoMes(m)])), total: soma(resultadoMes) },
     receitas: { porMes: Object.fromEntries(meses.map((m) => [m, receitaMes(m)])), total: soma(receitaMes) },
     saldoInicial,
+    saldoDigitado: Object.fromEntries(meses.map((m) => [m, digitado(m)])),
     acumulado,
     saldos: Object.fromEntries(CAMPOS_SALDO.map((c) => [c.campo, Object.fromEntries(meses.map((m) => [m, saldoVal(c.campo, m)]))])),
     capacidade,

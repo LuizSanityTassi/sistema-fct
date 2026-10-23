@@ -77,7 +77,8 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
     </tr>
   );
 
-  const linhaSaldo = (rotulo: string, campo: string, dica: string, editavelEm: (m: string) => boolean, valorDe: (m: string) => number | null, somaTotal = true) => {
+  // digitadoDe: valor gravado no mês (o que se edita); valorDe: o que aparece (no saldo inicial, o da cadeia)
+  const linhaSaldo = (rotulo: string, campo: string, dica: string, editavelEm: (m: string) => boolean, valorDe: (m: string) => number | null, somaTotal = true, digitadoDe = valorDe) => {
     const total = dre.mesesTotal.reduce((s, m) => s + (valorDe(m) ?? 0), 0);
     return (
       <tr className="bg-muted/40 font-semibold">
@@ -93,7 +94,8 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
               </td>
             );
           }
-          return <CelulaEditavel key={m} action={salvarSaldo} campos={{ ...base, campo, competencia: m }} valorAtual={v} exibicao={v == null ? "—" : moedaDre(v)} ajustado={v != null} podeEditar classe="font-semibold" />;
+          const gravado = digitadoDe(m);
+          return <CelulaEditavel key={m} action={salvarSaldo} campos={{ ...base, campo, competencia: m }} valorAtual={gravado} exibicao={v == null ? "—" : moedaDre(v)} ajustado={gravado != null} podeEditar classe="font-semibold" />;
         })}
         <td className="px-2 py-1 text-right tabular-nums">{somaTotal && total ? moedaDre(total) : "—"}</td>
         <td className="px-2 py-1 text-right tabular-nums text-muted-foreground">{somaTotal && total ? pctFmt(total, dre.totalReceitas) : "—"}</td>
@@ -130,10 +132,11 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
             {linhaSaldo(
               "SALDO INICIAL",
               "saldo_inicial",
-              "Caixa no começo do mês. No 1º mês do período você digita; nos seguintes vem do resultado acumulado do mês anterior.",
-              (m) => m === dre.mesesTotal[0],
+              "Caixa no começo do mês: vem do resultado acumulado do mês anterior. Digite num mês para a conta começar (ou recomeçar) dali — os meses antes do primeiro saldo digitado ficam sem saldo. Apague para voltar ao cálculo.",
+              (m) => dre.mesesTotal.includes(m),
               (m) => dre.saldoInicial[m] ?? null,
               false,
+              (m) => dre.saldoDigitado[m] ?? null,
             )}
             {dre.familias.map((f) => (
               <React.Fragment key={f.nome}>
