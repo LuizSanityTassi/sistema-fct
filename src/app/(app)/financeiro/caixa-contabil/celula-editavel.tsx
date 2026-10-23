@@ -57,7 +57,7 @@ export function CelulaEditavel({ action, campos, valorAtual, exibicao, automatic
             if (e.key === "Escape") setEditando(false);
           }}
           placeholder={automatico ?? "—"}
-          className="w-28 rounded border border-input bg-background px-1.5 py-0.5 text-right text-xs"
+          className="w-28 rounded border border-input bg-background px-1.5 py-0.5 text-right text-xs text-foreground"
           inputMode="decimal"
         />
       </td>

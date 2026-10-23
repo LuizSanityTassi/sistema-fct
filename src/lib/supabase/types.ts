@@ -2078,6 +2078,57 @@ export type Database = {
           },
         ]
       }
+      fin_dre_ajustes_linhas: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          branch_id: string | null
+          chave: string | null
+          competencia: string
+          grupo: string
+          id: string
+          linha: string
+          valor: number
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          branch_id?: string | null
+          chave?: string | null
+          competencia: string
+          grupo?: string
+          id?: string
+          linha: string
+          valor: number
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          branch_id?: string | null
+          chave?: string | null
+          competencia?: string
+          grupo?: string
+          id?: string
+          linha?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_dre_ajustes_linhas_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_dre_ajustes_linhas_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fin_dre_estrutura: {
         Row: {
           familia: string

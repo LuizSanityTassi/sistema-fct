@@ -10,7 +10,7 @@ import { podeLancar } from "@/lib/financeiro/permissoes";
 import { ordemGrupo } from "@/lib/financeiro/rotulos";
 import { rotuloCompetencia } from "@/lib/rh/competencia";
 import { AbasCaixaContabil } from "./abas";
-import { salvarAjusteDre, salvarSaldoDre } from "./actions";
+import { salvarAjusteDre, salvarAjusteLinhaDre, salvarSaldoDre } from "./actions";
 import { DreTabela } from "./dre-tabela";
 
 export const metadata = { title: "Caixa contábil" };
@@ -105,7 +105,15 @@ export default async function DrePage({ searchParams }: PageProps<"/financeiro/c
               </div>
             ))}
           </section>
-          <DreTabela dre={dre} escopo={{ grupo: escopo.grupo, filial: escopo.filial ?? "" }} podeEditar={podeEditar} salvarAjuste={salvarAjusteDre} salvarSaldo={salvarSaldoDre} ajustes={ajustes} />
+          <DreTabela
+            dre={dre}
+            escopo={{ grupo: escopo.grupo, filial: escopo.filial ?? "" }}
+            podeEditar={podeEditar}
+            salvarAjuste={salvarAjusteDre}
+            salvarSaldo={salvarSaldoDre}
+            salvarLinha={salvarAjusteLinhaDre}
+            ajustes={ajustes}
+          />
         </>
       )}
     </>
