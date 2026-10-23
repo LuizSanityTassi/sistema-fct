@@ -119,6 +119,7 @@ export default async function DrePage({ searchParams }: PageProps<"/financeiro/c
             salvarSaldo={salvarSaldoDre}
             salvarLinha={salvarAjusteLinhaDre}
             contas={dre.contasProprias}
+            ajustesDeBaixo={dre.ajustesDeBaixo}
             vazias={{ ligado: vazias, href: hrefVazias }}
           />
         </>

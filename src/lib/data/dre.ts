@@ -63,7 +63,16 @@ type LinhaTotalDre = { grupo: string; branch_id: string | null; linha: string; c
 const SOMAM_PARA_CIMA = new Set<string>(CAMPOS_SALDO.map((c) => c.campo));
 /** Nós do caixa contábil: todas → grupos → filiais. */
 type NoDre = { tipo: "filial"; branch: string } | { tipo: "grupo"; grupo: string } | { tipo: "todos"; branches?: string[] };
-type ResultadoNoDre = { dre: Dre; delta: Map<string, number>; saldosMes: Map<string, number> };
+type ResultadoNoDre = {
+  dre: Dre;
+  rotulo: string; // F001, VARELA… (para dizer no total de cima de onde vem o ajuste)
+  delta: Map<string, number>;
+  /** células de categoria que este recorte mudou: valor dos lançamentos → valor que ficou */
+  mudou: Map<string, { de: number; para: number }>;
+  saldosMes: Map<string, number>;
+  deBaixo: ResultadoNoDre[];
+};
+const fmtBr = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const r2 = (v: number) => Math.round(v * 100) / 100;
 
@@ -99,7 +108,7 @@ export async function dreDoPeriodo(
   ano: string,
   de?: string,
   opcoes: { vazias?: boolean } = {},
-): Promise<Dre & { ajustesProprios: Record<string, number>; contasProprias: Record<string, string> }> {
+): Promise<Dre & { ajustesProprios: Record<string, number>; contasProprias: Record<string, string>; ajustesDeBaixo: Record<string, string> }> {
   const supabase = await createClient();
   const periodo = { de: `${ano}-01`, ate: `${ano}-12` };
   const [branchesEscopo, unidades, categorias, estrutura, ajustes, saldos, totais] = await Promise.all([
@@ -118,7 +127,7 @@ export async function dreDoPeriodo(
     ),
   ]);
   const cats: CategoriaDre[] = categorias.map((c) => ({ id: c.id, nome: c.nome, grupo: c.grupo, tipo: c.tipo as FinTipo, dre_familia: c.dre_familia, dre_grupo: c.dre_grupo, dre_sinal: c.dre_sinal }));
-  const vazio = () => ({ ...montarDre({ categorias: [], estrutura, valores: new Map(), ajustes: new Map(), saldos: new Map(), mesesComDados: [] }), ajustesProprios: {}, contasProprias: {} });
+  const vazio = () => ({ ...montarDre({ categorias: [], estrutura, valores: new Map(), ajustes: new Map(), saldos: new Map(), mesesComDados: [] }), ajustesProprios: {}, contasProprias: {}, ajustesDeBaixo: {} });
   if (branchesEscopo && branchesEscopo.length === 0) return vazio();
 
   const comp = (c: string) => c.trim();
@@ -170,9 +179,14 @@ export async function dreDoPeriodo(
     const ajProprios = no.tipo === "filial" ? ajFilial.filter((l) => l.branch_id === no.branch) : ajTotal.filter((l) => l.grupo === grupoTotal);
     const ajustesNo = new Map(ajProprios.map((l) => [`${l.categoria_id}|${comp(l.competencia)}`, Number(l.valor)]));
     const delta = new Map<string, number>();
+    const mudou = new Map<string, { de: number; para: number }>();
     for (const k of new Set([...automatico.keys(), ...ajustesNo.keys()])) {
-      const d = r2((ajustesNo.get(k) ?? automatico.get(k) ?? 0) - (bruto.get(k) ?? 0));
-      if (d) delta.set(k, d);
+      const para = ajustesNo.get(k) ?? automatico.get(k) ?? 0;
+      const d = r2(para - (bruto.get(k) ?? 0));
+      if (d) {
+        delta.set(k, d);
+        mudou.set(k, { de: r2(bruto.get(k) ?? 0), para: r2(para) });
+      }
     }
 
     // saldos: os digitados aqui; caixinha/contas/limites sem valor aqui = soma dos de baixo; saldo inicial de baixo entra como correção
@@ -212,11 +226,20 @@ export async function dreDoPeriodo(
       ajustesLinhas,
       deltasLinhas,
     });
-    return { dre, delta, saldosMes: new Map([...saldosNo].filter(([k]) => SOMAM_PARA_CIMA.has(k.split("|")[0]))) };
+    const rotulo = no.tipo === "filial" ? (unidades.find((u) => u.id === no.branch)?.codigo ?? "filial") : no.tipo === "grupo" ? no.grupo : "TODOS";
+    return { dre, rotulo, delta, mudou, deBaixo, saldosMes: new Map([...saldosNo].filter(([k]) => SOMAM_PARA_CIMA.has(k.split("|")[0]))) };
   };
 
   const topo: NoDre = e.filial ? { tipo: "filial", branch: e.filial } : e.grupo === "TODOS" || e.grupos ? { tipo: "todos", branches: branchesEscopo } : { tipo: "grupo", grupo: e.grupo };
-  const { dre } = await calcular(topo);
+  const resTopo = await calcular(topo);
+  const { dre } = resTopo;
+  // no total: célula que tem ajuste feito numa filial (ou grupo) de baixo — para achar e desfazer lá
+  const ajustesDeBaixo: Record<string, string> = {};
+  const anota = (k: string, texto: string) => (ajustesDeBaixo[k] = ajustesDeBaixo[k] ? `${ajustesDeBaixo[k]}; ${texto}` : texto);
+  for (const f of resTopo.deBaixo) {
+    for (const [k, x] of f.mudou) anota(k, `${f.rotulo}: ${fmtBr(x.de)} → ${fmtBr(x.para)}`);
+    for (const [k, d] of Object.entries(f.dre.deltaLinhas)) anota(`linha:${k}`, `${f.rotulo}: ${d > 0 ? "+" : ""}${fmtBr(d)}`);
+  }
   const grupoTopo = topo.tipo === "grupo" ? topo.grupo : "TODOS";
   const proprios = e.filial ? ajFilial.filter((l) => l.branch_id === e.filial) : ajTotal.filter((l) => l.grupo === grupoTopo);
   const saldosTopo = e.filial ? salFilial.filter((l) => l.branch_id === e.filial) : salTotal.filter((l) => l.grupo === grupoTopo);
@@ -226,7 +249,7 @@ export async function dreDoPeriodo(
   for (const l of proprios) if (l.formula) contasProprias[`${l.categoria_id}|${comp(l.competencia)}`] = l.formula;
   for (const l of saldosTopo) if (l.formula) contasProprias[`saldo:${l.campo}|${comp(l.competencia)}`] = l.formula;
   for (const l of linhasTopo) if (l.formula) contasProprias[`linha:${l.linha}|${comp(l.competencia)}`] = l.formula;
-  return { ...dre, ajustesProprios: Object.fromEntries(proprios.map((l) => [`${l.categoria_id}|${comp(l.competencia)}`, Number(l.valor)])), contasProprias };
+  return { ...dre, ajustesProprios: Object.fromEntries(proprios.map((l) => [`${l.categoria_id}|${comp(l.competencia)}`, Number(l.valor)])), contasProprias, ajustesDeBaixo };
 }
 
 /** Resumo por unidade × mês × grupo de categoria (para ranking, resumo por loja e comparativo). */
