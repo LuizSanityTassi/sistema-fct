@@ -309,7 +309,7 @@ export async function executarConciliacao(supabase: Cliente, userId: string | nu
     porFilial: resumoPorFilial(linhas),
     taxas: res.taxas.map((t) => ({ fornecedor: t.fornecedor, taxas: t.taxas })),
     arquivos: arquivos.map((a) => ({ id: a.id, nome: a.nome, tipo: a.tipo })),
-    cobertura: { ini: isoDia(res.cobIni), fim: isoDia(res.cobFim), bancoVencIni: isoDia(res.bancoVencIni) },
+    cobertura: { ini: isoDia(res.cobIni), fim: isoDia(res.cobFim), bancoVencIni: isoDia(res.bancoVencIni), bancoVencFim: isoDia(res.bancoVencFim) },
     avisos,
   };
 

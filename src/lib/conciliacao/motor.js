@@ -179,6 +179,8 @@ function conciliar(trierTit, ddaArquivos, opt) {
   const geracoes = arqs.map(a => a.geracao).filter(x => x != null);
   // a planilha do portal é uma foto de TODOS os boletos em aberto: com ela, não existe "fora do período" por data de emissão
   const temPlanilha = arqs.some(a => a.geracao == null);
+  // ...mas a foto é do período de vencimento pedido no portal: título que vence depois do último boleto dela está fora
+  const bancoVencFim = temPlanilha && vencsBanco.length ? maxDe(vencsBanco) : null;
   const cobIni = geracoes.length && !temPlanilha ? minDe(geracoes) - 1 : null;
   const cobFim = geracoes.length ? maxDe(geracoes) - 8 : null;
 
@@ -366,7 +368,7 @@ function conciliar(trierTit, ddaArquivos, opt) {
 
   // Classificação final
   for (const t of T) {
-    const foraBanco = bancoVencIni != null && t.venc < bancoVencIni;
+    const foraBanco = (bancoVencIni != null && t.venc < bancoVencIni) || (bancoVencFim != null && t.venc > bancoVencFim);
     t.resultado = t.m ? t.m.tipo : (!foraBanco && (cobIni == null || (t.emis >= cobIni && t.emis <= cobFim)) ? 'SO_TRIER' : 'SEM_ARQUIVO');
     if (t.m) {
       const d = Dd[t.m.i]; t.dda = d; t.diferenca = (t.m.tipo === 'AGRUPADO' || t.m.tipo === 'COMBINACAO') ? null : Math.round((d.valor - t.valor) * 100) / 100;
@@ -397,7 +399,7 @@ function conciliar(trierTit, ddaArquivos, opt) {
     paresAprendidos: (() => { const m = new Map();
       T.filter(t => t.m && ['EXATO', 'TAXA', 'AGRUPADO', 'LIQUIDO'].includes(t.m.tipo)).forEach(t => { const d = Dd[t.m.i], k = norm(t.forn) + '|' + d.raiz; let x = m.get(k); if (!x) m.set(k, x = { forn: t.forn, raiz: d.raiz, benef: d.nome, taxas: new Set(), n: 0 }); x.n++; if (t.m.taxa) x.taxas.add(t.m.taxa); });
       return [...m.values()].filter(x => x.n >= 2).map(x => Object.assign(x, { taxas: [...x.taxas] })); })(),
-    vencIni: vmin, vencFim: vmax, cobIni, cobFim, bancoVencIni,
+    vencIni: vmin, vencFim: vmax, cobIni, cobFim, bancoVencIni, bancoVencFim,
     taxas: [...taxasDe].map(([f, tx]) => ({ fornecedor: (T.find(t => t.fcod === f) || {}).forn, taxas: tx.filter(x => x > 0).map(x => x / 100) })).filter(x => x.fornecedor && x.taxas.length)
   };
 }

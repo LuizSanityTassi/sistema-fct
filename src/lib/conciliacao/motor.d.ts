@@ -124,6 +124,8 @@ export interface ResultadoConciliacao {
   cobIni: number | null;
   cobFim: number | null;
   bancoVencIni: number | null;
+  /** Último vencimento da planilha do portal (null sem planilha): título que vence depois fica "fora do período". */
+  bancoVencFim: number | null;
   taxas: { fornecedor: string; taxas: number[] }[];
 }
 
