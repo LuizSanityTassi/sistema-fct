@@ -22,6 +22,18 @@ export const ENTIDADES_AUDITADAS: Record<string, string> = {
   caixa_diferencas: "Diferença de caixa",
   caixa_operadores: "Operadores do caixa",
   caixa_gestores: "Gestores das quebras",
+  ponto_marcacoes: "Ponto · marcações",
+  ponto_ajustes: "Ponto · ajustes",
+  ponto_fechamentos: "Ponto · fechamentos",
+  ponto_banco_movimentos: "Ponto · banco de horas",
+  ponto_vinculos: "Ponto · jornada do funcionário",
+  ponto_programacao: "Ponto · escalas",
+  ponto_ausencias: "Ponto · ausências",
+  ponto_jornadas: "Ponto · modelos de jornada",
+  ponto_config_filial: "Ponto · configuração da filial",
+  ponto_feriados: "Ponto · feriados",
+  ponto_pins: "Ponto · PIN",
+  ponto_relatorios: "Ponto · exportações",
 };
 
 export const ACOES_AUDITADAS: Record<string, string> = {

@@ -24,6 +24,7 @@ import { alterarStatusFuncionario, marcarItemDesligamento } from "../actions";
 import { AlterarStatusFuncionario } from "../alterar-status";
 import { ChecklistDesligamento, type ItemAutomatico, type ItemManual } from "./checklist-desligamento";
 import { DocumentosEAso } from "./documentos-aso";
+import { PontoDaFicha } from "./ponto-ficha";
 
 export async function generateMetadata({ params }: PageProps<"/rh/funcionarios/[id]">): Promise<Metadata> {
   const { id } = await params;
@@ -43,6 +44,7 @@ function Dado({ rotulo, valor, mono }: { rotulo: string; valor?: string | number
 const ABAS = [
   { chave: "geral", rotulo: "Visão geral", soRh: false },
   { chave: "documentos", rotulo: "Documentos e ASO", soRh: false },
+  { chave: "ponto", rotulo: "Ponto", soRh: false },
   { chave: "folha", rotulo: "Folha", soRh: true },
   { chave: "caixa", rotulo: "Quebras de caixa", soRh: false },
   { chave: "ti", rotulo: "TI e acessos", soRh: false },
@@ -258,6 +260,8 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
       )}
 
       {aba === "documentos" && <DocumentosEAso employeeId={f.id} podeEditar={podeEditar} />}
+
+      {aba === "ponto" && <PontoDaFicha employeeId={f.id} podeEditar={sessao.papel === "admin" || sessao.papel === "rh" || sessao.papel === "gerente"} />}
 
       {aba === "folha" && podeEditar && (
         <div className="grid gap-4 lg:grid-cols-3">

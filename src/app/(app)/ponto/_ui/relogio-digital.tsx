@@ -10,9 +10,12 @@ const fmtData = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo"
 export function RelogioDigital({ className, grande }: { className?: string; grande?: boolean }) {
   const [agora, setAgora] = useState<Date | null>(null);
   useEffect(() => {
-    setAgora(new Date());
+    const primeiro = setTimeout(() => setAgora(new Date()), 0);
     const t = setInterval(() => setAgora(new Date()), 1000);
-    return () => clearInterval(t);
+    return () => {
+      clearTimeout(primeiro);
+      clearInterval(t);
+    };
   }, []);
   return (
     <div className={cn("text-center", className)} aria-live="off">

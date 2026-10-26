@@ -44,15 +44,15 @@ export function LoteJornadaForm({ action, jornadas, hoje }: Props) {
   );
 }
 
-/** Caixa "marcar todos" do cabeçalho da tabela. */
-export function MarcarTodos() {
+/** Caixa "marcar todos" do cabeçalho da tabela (marca as caixas ligadas ao formulário `formId`). */
+export function MarcarTodos({ formId = ID_FORM_LOTE }: { formId?: string }) {
   return (
     <input
       type="checkbox"
       aria-label="Marcar todos"
       className="size-4 accent-fct-tinta"
       onChange={(e) => {
-        document.querySelectorAll<HTMLInputElement>(`input[type=checkbox][name=ids][form=${ID_FORM_LOTE}]`).forEach((c) => (c.checked = e.target.checked));
+        document.querySelectorAll<HTMLInputElement>(`input[type=checkbox][name=ids][form=${formId}]`).forEach((c) => (c.checked = e.target.checked));
       }}
     />
   );

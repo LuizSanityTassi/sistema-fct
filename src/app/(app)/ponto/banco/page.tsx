@@ -29,8 +29,7 @@ function Extrato({ b, podeLancar, hoje }: { b: BancoFunc; podeLancar: boolean; h
     ...b.meses.filter((m) => !m.fechado).map((m) => ({ chave: `m${m.competencia}`, data: `${m.competencia}-31`, titulo: `Saldo de ${rotuloMes(m.competencia)}`, detalhe: "Mês aberto: calculado das marcações", minutos: m.saldo, aberto: true })),
     ...b.movimentos.map((m) => ({ chave: m.id, data: m.data, titulo: MOVIMENTO_LABEL[m.tipo] ?? m.tipo, detalhe: m.descricao ?? undefined, minutos: m.minutos, fechado: m.tipo === "fechamento", id: m.id, manual: m.tipo !== "fechamento" })),
   ].sort((a, c) => a.data.localeCompare(c.data));
-  let acumulado = 0;
-  const linhas = itens.map((i) => ({ ...i, acumulado: (acumulado += i.minutos) }));
+  const linhas = itens.reduce<(Item & { acumulado: number })[]>((acc, i) => [...acc, { ...i, acumulado: (acc[acc.length - 1]?.acumulado ?? 0) + i.minutos }], []);
   return (
     <>
       <section className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
