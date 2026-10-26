@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { gerarTokenAgente, hashToken } from "@/lib/conciliacao/agentes";
+import { rodarConciliacaoAutomatica, type ResultadoAutomatica } from "@/lib/conciliacao/automatica";
 import { podeConciliar, podeConfigurarConciliacao } from "@/lib/conciliacao/permissoes";
 import { guardarArquivo, type ResultadoUpload } from "@/lib/conciliacao/servico";
 import { buscarRelatorioTrier, CONFIG_TRIER_PADRAO, statusTrier, testarLoginTrier, type ConfigTrier } from "@/lib/conciliacao/trier-robo";
@@ -16,6 +17,7 @@ const SEM_CREDENCIAIS = "O robô ainda não tem usuário e senha do Trier: o adm
 
 export type EstadoTrier = { erro?: string; ok?: string; resultado?: ResultadoUpload; periodo?: string };
 export type EstadoAgente = { erro?: string; token?: string; nome?: string };
+export type EstadoAutomatica = { erro?: string; resultado?: ResultadoAutomatica };
 
 function inteiro(fd: FormData, nome: string, padrao: number, min: number, max: number) {
   const n = Number.parseInt(String(fd.get(nome) ?? ""), 10);
@@ -45,6 +47,22 @@ export async function buscarTrier(_prev: EstadoTrier, fd: FormData): Promise<Est
     revalidar();
     if (!resultado.ok) return { erro: `O relatório veio do Trier, mas não deu para guardar: ${resultado.mensagem}`, periodo: r.periodo };
     return { resultado, periodo: r.periodo };
+  } catch (e) {
+    return { erro: mensagem(e) };
+  }
+}
+
+/** Roda já a conciliação automática (relatório do Trier + retornos do banco → uma conciliação por faixa), mesmo sem arquivo novo. */
+export async function rodarAutomaticaAgora(_prev: EstadoAutomatica, _fd: FormData): Promise<EstadoAutomatica> {
+  const sessao = await getSessao();
+  if (!podeConciliar(sessao.papel)) return { erro: "Só Administrador e Financeiro rodam a conciliação." };
+  const supabase = await createClient();
+  try {
+    const resultado = await rodarConciliacaoAutomatica(supabase, await credenciaisTrier(supabase), { userId: sessao.id, forcar: true });
+    revalidar();
+    revalidatePath("/conciliacao");
+    revalidatePath("/conciliacao/pendencias");
+    return { resultado };
   } catch (e) {
     return { erro: mensagem(e) };
   }

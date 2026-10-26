@@ -195,7 +195,10 @@ function resumoPorFilial(linhas: Omit<Inserir<"conc_itens">, "conciliacao_id">[]
     .sort((a, b) => (a.filial === "—" ? 1 : b.filial === "—" ? -1 : Number(a.filial) - Number(b.filial)));
 }
 
-export async function executarConciliacao(supabase: Cliente, userId: string, pedido: PedidoConciliacao): Promise<{ id: string; avisos: string[] }> {
+export type ConciliacaoFeita = { id: string; avisos: string[]; pctBateu: number; pendencias: Awaited<ReturnType<typeof registrarPendencias>> };
+
+/** userId null = rodada automática (cron, service_role): sem auditoria em nome de alguém; filiais vem já carregado. */
+export async function executarConciliacao(supabase: Cliente, userId: string | null, pedido: PedidoConciliacao, opcoes: { filiais?: Filiais } = {}): Promise<ConciliacaoFeita> {
   const inicio = Date.now();
   const avisos: string[] = [];
   const ids = [...new Set([...pedido.ddaIds, ...pedido.trierIds])];
@@ -206,7 +209,7 @@ export async function executarConciliacao(supabase: Cliente, userId: string, ped
   const { data: arquivos, error } = await supabase.from("conc_arquivos").select("*").in("id", ids);
   if (error) throw new Error(error.message);
   if (arquivos.length !== ids.length) throw new Error("Algum arquivo escolhido não foi encontrado.");
-  const filiais = await mapaFiliais();
+  const filiais = opcoes.filiais ?? (await mapaFiliais());
 
   const ddas: ArquivoDDA[] = [];
   const titulos: TituloTrier[] = [];
@@ -243,6 +246,23 @@ export async function executarConciliacao(supabase: Cliente, userId: string, ped
     const d = c.replace(/\D/g, "").slice(-14);
     return filiais.porCnpj.get(d) ?? Omie.departamento(null, d)?.fil ?? null;
   };
+  // boleto de filial fora da faixa (outra empresa no mesmo arquivo, ou arquivo de outra empresa) não entra:
+  // viraria "só no banco" aqui e brigaria com a conciliação da faixa certa
+  let foraDaFaixa = 0;
+  let boletos = 0;
+  for (const d of ddas) {
+    d.titulos = d.titulos.filter((t) => {
+      const doc = String(t.pagadorCnpj || t.pagador || "").replace(/\D/g, "");
+      const fil = t.filialArquivo ?? (doc.length >= 14 ? filialDeCnpj(doc) : null);
+      const fica = fil == null || (fil >= pedido.filMin && fil <= pedido.filMax);
+      if (!fica) foraDaFaixa += 1;
+      return fica;
+    });
+    boletos += d.titulos.length;
+  }
+  if (!boletos) throw new Error(`Nenhum boleto do banco é das filiais ${pedido.filMin} a ${pedido.filMax}${foraDaFaixa ? ` (${foraDaFaixa} boleto(s) dos arquivos são de outras filiais)` : ""}.`);
+  if (foraDaFaixa) avisos.push(`${foraDaFaixa} boleto(s) do banco são de filiais fora da faixa ${pedido.filMin}–${pedido.filMax} e ficaram de fora.`);
+
   const res = Motor.conciliar(titulos, ddas, {
     filMin: pedido.filMin,
     filMax: pedido.filMax,
@@ -322,14 +342,16 @@ export async function executarConciliacao(supabase: Cliente, userId: string, ped
     await supabase.from("conc_conciliacoes").delete().eq("id", conc.id); // nada pela metade
     throw e;
   }
-  await registrarAuditoria(supabase, {
-    userId,
-    acao: "criar",
-    entidade: "conc_conciliacoes",
-    registroId: conc.id,
-    novo: { faixa: `${pedido.filMin}-${pedido.filMax}`, arquivos: ids.length, titulos: res.qtdTrier, boletos: res.qtdDDA, pctBateu: r4(res.pctBateu), pendencias: pend },
-  });
-  return { id: conc.id, avisos };
+  if (userId) {
+    await registrarAuditoria(supabase, {
+      userId,
+      acao: "criar",
+      entidade: "conc_conciliacoes",
+      registroId: conc.id,
+      novo: { faixa: `${pedido.filMin}-${pedido.filMax}`, arquivos: ids.length, titulos: res.qtdTrier, boletos: res.qtdDDA, pctBateu: r4(res.pctBateu), pendencias: pend },
+    });
+  }
+  return { id: conc.id, avisos, pctBateu: r4(res.pctBateu), pendencias: pend };
 }
 
 // ---------- anomalias (comparando cada boleto com o histórico do fornecedor) ----------

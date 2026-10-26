@@ -119,7 +119,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
       <PageHeader
         eyebrow="Conciliação"
         titulo={c.titulo || `Conciliação de ${formatarDataHora(c.criado_em)}`}
-        descricao={`Filiais ${c.fil_min}–${c.fil_max} · ${pluralizar(c.qtd_trier, "título do Trier", "títulos do Trier")} (${formatarMoeda(c.total_trier)}) × ${pluralizar(c.qtd_dda, "boleto", "boletos")} (${formatarMoeda(c.total_dda)}) · vencimentos ${formatarData(c.venc_ini)} a ${formatarData(c.venc_fim)} · por ${c.quem?.nome ?? "—"} em ${formatarDataHora(c.criado_em)}`}
+        descricao={`Filiais ${c.fil_min}–${c.fil_max} · ${pluralizar(c.qtd_trier, "título do Trier", "títulos do Trier")} (${formatarMoeda(c.total_trier)}) × ${pluralizar(c.qtd_dda, "boleto", "boletos")} (${formatarMoeda(c.total_dda)}) · vencimentos ${formatarData(c.venc_ini)} a ${formatarData(c.venc_fim)} · por ${c.quem?.nome ?? "robô"} em ${formatarDataHora(c.criado_em)}`}
         acoes={
           <Button variant="outline" nativeButton={false} render={<Link href="/conciliacao/pendencias" />}>
             Pendências

@@ -1,0 +1,25 @@
+AGENTE FCT (Linux) – retornos do Itaú no servidor -> Sistema FCT (Conciliação)
+=============================================================================
+Para o servidor Linux onde o cliente SFTP do Itaú (ex.: 8vSshSftp) já salva os retornos de DDA
+(ex.: /var/www/html/sistemafct/itau/<CAIXA>/RETORNO/PROD). A cada 15 minutos manda para o Sistema FCT
+os arquivos novos. Só LÊ: nunca apaga, move nem altera nada, e não conversa com o banco.
+NÃO instale outro cliente SFTP na mesma caixa do Itaú: o retorno sai do banco quando é baixado.
+
+INSTALAR
+1. No Sistema FCT: Conciliação > Robôs e agente > "Novo agente" > nome (ex.: Servidor Itaú) > Gerar chave > Copiar.
+2. Copie agente-itau.sh e instalar-linux.sh para uma pasta do servidor (ex.: ~/agente-fct).
+3. Nessa pasta: bash instalar-linux.sh
+   Ele sugere as pastas de RETORNO que encontrar, pergunta o endereço (Enter) e a chave (não aparece na tela).
+4. Pronto: roda agora e depois sozinho a cada 15 min (crontab do seu usuário, linha "# FCT Agente Itau").
+
+ACOMPANHAR
+- agente.log (na pasta): o que foi enviado/ignorado/erro. enviados.tsv: o que já foi mandado (não manda de novo).
+- No Sistema FCT: Conciliação > Robôs e agente (último contato, quantos enviou, última conciliação automática).
+
+SEGURANÇA
+- A chave fica em config.env com permissão 600 (só o seu usuário lê) e não aparece na linha de comando.
+- A chave só serve para ENVIAR arquivos de DDA; não entra no sistema nem lê nada.
+- Trocou de servidor: revogue a chave no Sistema FCT e gere outra.
+
+DESINSTALAR: crontab -e, apague a linha "# FCT Agente Itau", apague a pasta e revogue a chave no sistema.
+Precisa de: bash, curl, flock, sha256sum e find (GNU), que vêm em qualquer Linux comum.

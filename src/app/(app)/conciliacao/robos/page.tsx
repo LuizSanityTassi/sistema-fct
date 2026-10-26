@@ -7,13 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
+import { ultimaAutomatica } from "@/lib/conciliacao/automatica";
 import { podeConciliar, podeConfigurarConciliacao } from "@/lib/conciliacao/permissoes";
 import { CONFIG_TRIER_PADRAO, statusTrier, type ConfigTrier } from "@/lib/conciliacao/trier-robo";
 import { obterConfig } from "@/lib/data/conciliacao";
 import { formatarDataHora } from "@/lib/formatos";
 import { credenciaisTrier } from "@/lib/integracoes/segredos";
 import { createClient } from "@/lib/supabase/server";
-import { buscarTrier, criarAgente, revogarAgente, salvarConfigTrier, testarTrier } from "./actions";
+import { buscarTrier, criarAgente, revogarAgente, rodarAutomaticaAgora, salvarConfigTrier, testarTrier } from "./actions";
+import { AutomaticaPainel } from "./automatica-painel";
 import { BuscarTrierForm } from "./buscar-trier-form";
 import { NovoAgenteForm } from "./novo-agente-form";
 
@@ -22,16 +24,18 @@ export const metadata = { title: "Robôs e agente" };
 export const maxDuration = 300;
 
 const ARQUIVOS_AGENTE = ["agente-itau.ps1", "instalar.ps1", "desinstalar.ps1", "LEIA-ME.txt"];
+const ARQUIVOS_AGENTE_LINUX = ["agente-itau.sh", "instalar-linux.sh", "LEIA-ME-linux.txt"];
 
 export default async function RobosPage() {
   const sessao = await exigirAcesso("/conciliacao/robos");
   const supabase = await createClient();
   const admin = podeConfigurarConciliacao(sessao.papel);
-  const [cfg, { data: buscas }, { data: recebidos }, cred] = await Promise.all([
+  const [cfg, { data: buscas }, { data: recebidos }, cred, ultima] = await Promise.all([
     obterConfig<ConfigTrier>("trier", CONFIG_TRIER_PADRAO),
     supabase.from("conc_arquivos").select("id, nome, enviado_em, meta, quem:profiles!conc_arquivos_enviado_por_fkey(nome)").eq("origem", "robo_trier").order("enviado_em", { ascending: false }).limit(5),
     supabase.from("conc_arquivos").select("id, nome, enviado_em, meta").eq("origem", "agente").order("enviado_em", { ascending: false }).limit(5),
     credenciaisTrier(supabase),
+    ultimaAutomatica(supabase),
   ]);
   const agentes = admin ? ((await supabase.from("conc_agentes").select("id, nome, criado_em, revogado_em, ultimo_uso, uploads, criador:profiles(nome)").order("criado_em", { ascending: false })).data ?? []) : [];
   const trier = statusTrier(cred);
@@ -41,7 +45,17 @@ export default async function RobosPage() {
 
   return (
     <>
-      <PageHeader eyebrow="Automações" titulo="Robôs e agente" descricao="Duas automações que alimentam a conciliação sem ninguém baixar arquivo à mão: o robô que gera o relatório do Trier e o agente que manda os .RET do Itaú Mailbox." />
+      <PageHeader eyebrow="Automações" titulo="Robôs e agente" descricao="A conciliação roda sozinha todo dia: o agente manda os retornos do Itaú, o robô gera o relatório do Trier e o sistema concilia cada faixa de filiais." />
+
+      <section className="mb-4 rounded-xl border bg-card p-5">
+        <h2 className="mb-1 text-sm font-semibold"><Ponto tom={ultima && !ultima.erro && ultima.faixas.some((f) => f.id) ? "sucesso" : "neutro"} rotulo="Conciliação automática" className="mr-1.5" />
+          Conciliação automática</h2>
+        <p className="mb-3 text-xs text-muted-foreground">
+          Toda manhã (9h10, segunda a sábado) e no começo da tarde (13h10, só se chegou retorno novo do banco): gera o relatório do Trier, junta com os retornos de DDA que estão no sistema e faz uma conciliação por faixa de filiais. As pendências novas aparecem em{" "}
+          <Link href="/conciliacao/pendencias" className="underline">Pendências</Link>; as que bateram são resolvidas sozinhas. Sem retorno do banco não tem o que conciliar: instale o agente abaixo.
+        </p>
+        <AutomaticaPainel rodar={rodarAutomaticaAgora} ultima={ultima} podeRodar={trier.configurado && podeConciliar(sessao.papel)} />
+      </section>
 
       <section className="mb-4 rounded-xl border bg-card p-5">
         <h2 className="mb-1 text-sm font-semibold"><Ponto tom={trier.configurado ? "sucesso" : "neutro"} rotulo={trier.configurado ? "Configurado" : "Não configurado"} className="mr-1.5" />
@@ -126,6 +140,16 @@ export default async function RobosPage() {
             </a>
           ))}
           <span className="text-xs text-muted-foreground">Baixe os 4 para uma pasta do PC do Itaú Mailbox e rode instalar.ps1 (botão direito → Executar com o PowerShell).</span>
+        </div>
+        <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
+          <span className="sobrescrito">Servidor Linux:</span>
+          {ARQUIVOS_AGENTE_LINUX.map((a) => (
+            <a key={a} href={`/agente-itau/${a}`} download className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:border-primary/40">
+              <Download className="size-3.5" aria-hidden />
+              {a}
+            </a>
+          ))}
+          <span className="text-xs text-muted-foreground">Para o servidor onde o cliente SFTP do Itaú já salva os retornos (ex.: /var/www/html/sistemafct/itau/…/RETORNO/PROD): rode bash instalar-linux.sh. Só lê os arquivos; não baixa nada do banco.</span>
         </div>
 
         {admin ? (

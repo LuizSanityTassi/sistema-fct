@@ -64,7 +64,7 @@ export default async function ConciliacaoPage() {
       {ultima ? (
         <section className="mb-6">
           <p className="mb-2 text-xs text-muted-foreground">
-            Última conciliação: {formatarDataHora(ultima.criado_em)} · filiais {ultima.fil_min}–{ultima.fil_max} · por {ultima.quem?.nome ?? "—"} ·{" "}
+            Última conciliação: {formatarDataHora(ultima.criado_em)} · filiais {ultima.fil_min}–{ultima.fil_max} · por {ultima.quem?.nome ?? "robô"} ·{" "}
             <Link href={`/conciliacao/${ultima.id}`} className="text-fct-tinta underline">
               abrir
             </Link>
@@ -192,7 +192,7 @@ export default async function ConciliacaoPage() {
                     <TableCell className="text-right font-semibold tabular-nums text-emerald-700">{pct(c.pct_bateu)}</TableCell>
                     <TableCell className="hidden text-right tabular-nums lg:table-cell">{rc.soTrier ?? 0}</TableCell>
                     <TableCell className="hidden text-right tabular-nums lg:table-cell">{rc.soDDA ?? 0}</TableCell>
-                    <TableCell className="hidden text-sm text-muted-foreground xl:table-cell">{c.quem?.nome ?? "—"}</TableCell>
+                    <TableCell className="hidden text-sm text-muted-foreground xl:table-cell">{c.quem?.nome ?? "robô"}</TableCell>
                   </TableRow>
                 );
               })
