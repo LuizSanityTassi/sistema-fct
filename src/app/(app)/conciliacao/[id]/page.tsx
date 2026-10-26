@@ -21,6 +21,7 @@ import { createClient } from "@/lib/supabase/server";
 import { BadgeCategoria, BadgeStatusPendencia, Filial } from "../badges-conc";
 import { enviarPlanilhaOmie, lancarOmieApi, validarEnvioOmie } from "../omie-actions";
 import { EnvioOmie } from "./envio-omie";
+import { BarraMarcarOmie, FORM_MARCAR_OMIE } from "./marcar-omie";
 
 export const metadata = { title: "Conciliação" };
 
@@ -80,6 +81,10 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
     })(),
   ]);
   const base = `/conciliacao/${c.id}`;
+  // marcados na lista (Só no DDA etc.) chegam aqui pela barra "Enviar marcados ao Omie"
+  const marcadas = [sp.marcar].flat().filter((k): k is string => typeof k === "string" && k.length > 0 && k.length <= 80);
+  const grupoOmie = typeof sp.grupo === "string" ? sp.grupo : undefined;
+  const marcavel = podeConciliar(sessao.papel) && ["exato", "aproximado", "so_trier", "so_dda"].includes(filtros.grupo);
   const omie =
     aba === "omie"
       ? await (async () => {
@@ -244,6 +249,8 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
           api={omie.api}
           config={omie.config}
           podeEnviar={podeConciliar(sessao.papel)}
+          grupoInicial={grupoOmie}
+          marcadas={marcadas}
           validar={validarEnvioOmie}
           enviarPlanilha={enviarPlanilhaOmie}
           lancarApi={lancarOmieApi}
@@ -331,6 +338,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
             <Table>
               <TableHeader>
                 <TableRow>
+                  {marcavel && <TableHead className="w-8"><span className="sr-only">Marcar para enviar ao Omie</span></TableHead>}
                   <TableHead className="w-20">Filial</TableHead>
                   <TableHead className="w-28">Vencimento</TableHead>
                   <TableHead>Beneficiário / fornecedor</TableHead>
@@ -342,7 +350,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
               <TableBody>
                 {itens.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="vazio">
+                    <TableCell colSpan={marcavel ? 7 : 6} className="vazio">
                       Nada em “{GRUPO_LABEL[filtros.grupo as GrupoItem] ?? "Descontos"}” com esses filtros.
                     </TableCell>
                   </TableRow>
@@ -355,6 +363,20 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
                     const anomalias = Array.isArray(dados?.anomalias) ? dados!.anomalias! : [];
                     return (
                       <TableRow key={it.id}>
+                        {marcavel && (
+                          <TableCell>
+                            <input
+                              type="checkbox"
+                              name="marcar"
+                              value={it.chave}
+                              form={FORM_MARCAR_OMIE}
+                              disabled={!!env}
+                              title={env ? "Já enviado ao Omie" : "Marcar para enviar ao Omie"}
+                              aria-label={`Marcar ${it.beneficiario ?? it.fornecedor ?? "conta"} para enviar ao Omie`}
+                              className="size-4 accent-fct-tinta"
+                            />
+                          </TableCell>
+                        )}
                         <TableCell>
                           <Filial filial={it.filial} />
                           {dados?.filTrier != null && it.filial != null && dados.filTrier !== it.filial && <p className="text-xs text-amber-700">Trier na {dados.filTrier}</p>}
@@ -421,6 +443,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
               </div>
             )}
           </div>
+          {marcavel && itens.length > 0 && <BarraMarcarOmie grupo={filtros.grupo} />}
         </>
       )}
     </>

@@ -20,6 +20,10 @@ type Props = {
   api: Record<"nazario" | "varela", StatusEmpresa>;
   config: { categoria: string; conta: string };
   podeEnviar: boolean;
+  /** Grupo que abre selecionado (vindo da lista: ?grupo=so_dda). */
+  grupoInicial?: string;
+  /** Contas marcadas na lista; com elas, a seleção começa só com essas. */
+  marcadas?: string[];
   validar: (prev: EstadoValidacao, fd: FormData) => Promise<EstadoValidacao>;
   enviarPlanilha: (prev: EstadoValidacao, fd: FormData) => Promise<EstadoValidacao>;
   lancarApi: (prev: EstadoLancamentoApi, fd: FormData) => Promise<EstadoLancamentoApi>;
@@ -35,12 +39,19 @@ const GRUPOS: { chave: string; rotulo: string; dica: string }[] = [
 const moeda = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const data = (iso: string | null) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : "—");
 
-export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, validar, enviarPlanilha, lancarApi }: Props) {
-  const [grupo, setGrupo] = React.useState("exato");
+export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grupoInicial, marcadas, validar, enviarPlanilha, lancarApi }: Props) {
+  const [grupo, setGrupo] = React.useState(() => (GRUPOS.some((g) => g.chave === grupoInicial) ? grupoInicial! : "exato"));
   const [env, setEnv] = React.useState<"faltam" | "enviados" | "todos">("faltam");
   const [filial, setFilial] = React.useState("");
   const [q, setQ] = React.useState("");
-  const [sel, setSel] = React.useState<Set<string>>(() => new Set(contas.filter((c) => c.grupo === "exato" && !c.enviadoEm).map((c) => c.chave)));
+  // sem marcação vinda da lista, começa com os exatos que faltam (o caso comum); vindo da lista, só o que foi marcado
+  const [sel, setSel] = React.useState<Set<string>>(() => {
+    if (marcadas?.length) {
+      const quer = new Set(marcadas);
+      return new Set(contas.filter((c) => quer.has(c.chave) && !c.enviadoEm).map((c) => c.chave));
+    }
+    return grupoInicial ? new Set() : new Set(contas.filter((c) => c.grupo === "exato" && !c.enviadoEm).map((c) => c.chave));
+  });
   const [cadastrar, setCadastrar] = React.useState(true);
   const [validacao, acaoValidar, validando] = useActionState(validar, {});
   const [planilha, acaoPlanilha, gerando] = useActionState(enviarPlanilha, {});
@@ -57,6 +68,7 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, vali
   );
   const contagem = (g: string) => contas.filter((c) => c.grupo === g && !c.enviadoEm).length;
   const selecionadas = contas.filter((c) => sel.has(c.chave));
+  const marcadasNo = (g: string) => selecionadas.filter((c) => c.grupo === g).length;
   const totalSel = selecionadas.reduce((s, c) => s + c.valor, 0);
   const apiDisponivel = api.nazario.configurado || api.varela.configurado;
 
@@ -120,7 +132,7 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, vali
             title={g.dica}
             className={`rounded-full border px-3 py-1 text-sm ${grupo === g.chave ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary/40"}`}
           >
-            {g.rotulo} <span className={grupo === g.chave ? "opacity-80" : "text-muted-foreground"}>({contagem(g.chave)} a enviar)</span>
+            {g.rotulo} <span className={grupo === g.chave ? "opacity-80" : "text-muted-foreground"}>({contagem(g.chave)} a enviar{marcadasNo(g.chave) ? ` · ${marcadasNo(g.chave)} marcada(s)` : ""})</span>
           </button>
         ))}
       </nav>
@@ -214,6 +226,17 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, vali
           <div className="mt-2 flex flex-wrap items-center gap-3">
             <span className="text-sm font-medium">
               {selecionadas.length} conta(s) · {moeda(totalSel)}
+              {selecionadas.length > 0 && (
+                <span className="block text-xs font-normal text-muted-foreground">
+                  {GRUPOS.filter((g) => marcadasNo(g.chave))
+                    .map((g) => `${marcadasNo(g.chave)} em ${g.rotulo}`)
+                    .join(" · ")}{" "}
+                  ·{" "}
+                  <button type="button" onClick={() => setSel(new Set())} className="text-fct-tinta underline">
+                    limpar seleção
+                  </button>
+                </span>
+              )}
             </span>
             <Button type="button" disabled={ocupado || selecionadas.length === 0} onClick={() => pedirValidacao("planilha")}>
               <FileSpreadsheet data-icon="inline-start" />
