@@ -32,6 +32,8 @@ const hora = (iso: string) => {
 const filial = (f: Func) => `${f.filialCodigo} ${f.filialNome}`.trim();
 const horarioPrevisto = (d: ApuracaoDia) => {
   const p = d.previsto.horarios;
+  if (d.previsto.origem === "sem_jornada") return "Sem jornada";
+  if (d.previsto.origem === "fora_contrato") return "";
   if (!p?.entrada || !p.saida || d.previsto.minutos === 0) return d.previsto.feriado ? `Feriado` : "Folga";
   return p.intervalo_inicio && p.intervalo_fim ? `${p.entrada.slice(0, 5)}-${p.intervalo_inicio.slice(0, 5)} ${p.intervalo_fim.slice(0, 5)}-${p.saida.slice(0, 5)}` : `${p.entrada.slice(0, 5)}-${p.saida.slice(0, 5)}`;
 };

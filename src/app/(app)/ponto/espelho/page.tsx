@@ -147,7 +147,7 @@ export default async function EspelhoPage({ searchParams }: PageProps<"/ponto/es
                       {formatarData(d.data).slice(0, 5)}
                     </td>
                     <td className="px-2 py-2 text-xs whitespace-nowrap text-muted-foreground">
-                      {p.origem === "ausencia" && p.ausencia ? AUSENCIA_LABEL[p.ausencia.tipo] : p.minutos > 0 ? textoHorario(p.horarios) : p.feriado ? "Feriado" : p.origem === "fora_contrato" ? "—" : "Folga"}
+                      {p.origem === "ausencia" && p.ausencia ? AUSENCIA_LABEL[p.ausencia.tipo] : p.minutos > 0 ? textoHorario(p.horarios) : p.feriado ? "Feriado" : p.origem === "fora_contrato" ? "—" : p.origem === "sem_jornada" ? "Sem jornada" : "Folga"}
                       {p.origem === "escala" && <span className="ml-1 rounded bg-sky-100 px-1 text-[10px] text-sky-800">escala</span>}
                     </td>
                     <td className="px-2 py-2">
