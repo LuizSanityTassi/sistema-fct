@@ -14,8 +14,8 @@ const ehPdf = (b: Buffer) => b.subarray(0, 5).toString("latin1") === "%PDF-";
 const ehPlanilha = (b: Buffer) => ehZip(b) || ehXlsAntigo(b);
 const ehRet = (b: Buffer) => b.subarray(0, 3).toString("latin1") === "341";
 
-function planilhaParaMatriz(buf: Buffer, opcoes: XLSX.Sheet2JSONOpts = {}) {
-  const wb = XLSX.read(buf, { type: "buffer", cellDates: true });
+function planilhaParaMatriz(buf: Buffer, opcoes: XLSX.Sheet2JSONOpts = {}, cellDates = true) {
+  const wb = XLSX.read(buf, { type: "buffer", cellDates });
   return wb.SheetNames.map((n) => XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[n], { header: 1, raw: true, ...opcoes }));
 }
 
@@ -42,7 +42,8 @@ export function lerDDA(nome: string, buf: Buffer): ArquivoDDA {
 /** Relatório do Trier (PDF ou planilha) → títulos a pagar. */
 export async function lerTrier(nome: string, buf: Buffer): Promise<ResultadoTrier> {
   if (ehPlanilha(buf)) {
-    const linhas = planilhaParaMatriz(buf, { defval: "" }).flatMap((rows) => Motor.linhasDeTrierPlanilha(rows));
+    // datas como número de série do Excel: é o que o motor converte (com cellDates viriam objetos Date e nenhum título era lido)
+    const linhas = planilhaParaMatriz(buf, { defval: "" }, false).flatMap((rows) => Motor.linhasDeTrierPlanilha(rows));
     const tr = Motor.parseTrier(linhas);
     if (!tr.titulos.length) {
       throw new Error(`${nome}: não encontrei títulos nessa planilha. Use o relatório "Contas a Pagar ou Pagas", Seleção III = Detalhado, Saída = XLS.`);
