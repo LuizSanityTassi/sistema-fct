@@ -19,6 +19,9 @@ type Props = {
   ajustado?: boolean;
   classe?: string;
   podeEditar: boolean;
+  /** dica ao passar o mouse (no lugar da padrão) e texto do campo vazio — ex.: célula que edita um ajuste somado */
+  dicaEditar?: string;
+  placeholder?: string;
 };
 
 /**
@@ -26,7 +29,7 @@ type Props = {
  * clicar a célula mostra o valor (ou a conta) que já tem: dá para continuar a conta como numa planilha — "+200",
  * "-100" — e a conta fica guardada como memória de cálculo.
  */
-export function CelulaEditavel({ action, campos, valorAtual, base, conta, deBaixo, exibicao, automatico, ajustado, classe, podeEditar }: Props) {
+export function CelulaEditavel({ action, campos, valorAtual, base, conta, deBaixo, exibicao, automatico, ajustado, classe, podeEditar, dicaEditar, placeholder }: Props) {
   const router = useRouter();
   const [editando, setEditando] = React.useState(false);
   const [texto, setTexto] = React.useState("");
@@ -71,7 +74,7 @@ export function CelulaEditavel({ action, campos, valorAtual, base, conta, deBaix
             if (e.key === "Enter") salvar();
             if (e.key === "Escape") setEditando(false);
           }}
-          placeholder={automatico ?? "—"}
+          placeholder={placeholder ?? automatico ?? "—"}
           title={comConta ? "Digite o valor ou continue a conta: +200, -100, *2… Apague tudo para voltar ao automático." : undefined}
           className={`${comConta ? "w-40" : "w-28"} rounded border border-input bg-background px-1.5 py-0.5 text-right text-xs text-foreground`}
           inputMode={comConta ? "text" : "decimal"}
@@ -85,7 +88,10 @@ export function CelulaEditavel({ action, campos, valorAtual, base, conta, deBaix
       onClick={abrir}
       title={
         erro ??
-        (podeEditar
+        (podeEditar && dicaEditar
+          ? `${dica ? `${dica}
+` : ""}${dicaEditar}`
+          : podeEditar
           ? ajustado
             ? `${dica ? `${dica}\n` : ""}Ajuste manual — clique para editar; apague para voltar ao automático (${automatico ?? "—"})`
             : `${dica ? `${dica}\n` : ""}${comConta ? "Clique para ajustar: digite o valor ou continue a conta (ex.: +200 ou -100)" : "Clique para ajustar manualmente"}`

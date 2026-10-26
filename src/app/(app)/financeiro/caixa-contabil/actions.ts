@@ -64,15 +64,16 @@ export async function salvarAjusteDre(fd: FormData): Promise<RespostaCelula> {
 }
 
 /**
- * Valor digitado numa linha de total do mês — família (F|…), grupo (G|…) ou Total de saídas (S): vale
- * no lugar da conta, o resto soma a partir dele e sobe para o total do grupo e o de todas; vazio volta à conta.
+ * Valor digitado numa linha de total do mês — família (F|…), grupo (G|…) ou Total de saídas (S): vale no lugar da
+ * conta, o resto soma a partir dele e sobe para o total do grupo e o de todas; vazio volta à conta.
+ * RA = ajuste do resultado do mês: soma em cima de receitas − saídas (não substitui) e também sobe para os totais.
  */
 export async function salvarAjusteLinhaDre(fd: FormData): Promise<RespostaCelula> {
   const sessao = await getSessao();
   if (!podeLancar(sessao.papel)) return { erro: "Só Administrador, Financeiro e Contador ajustam o caixa contábil." };
   const { grupo, filial, competencia, valor, formula, bruto } = campos(fd);
   const linha = String(fd.get("linha") ?? "");
-  if (!grupo || !competencia || !/^(F\|.+|G\|.+|S)$/.test(linha) || linha.length > 300) return { erro: "Dados inválidos." };
+  if (!grupo || !competencia || !/^(F\|.+|G\|.+|S|RA)$/.test(linha) || linha.length > 300) return { erro: "Dados inválidos." };
   if (bruto !== "" && valor === null) return { erro: "Valor ou conta inválida." };
   const supabase = await createClient();
   const tabela = () => supabase.from("fin_dre_ajustes_linhas");

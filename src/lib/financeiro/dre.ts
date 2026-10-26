@@ -19,6 +19,8 @@ export const chaveFamilia = (familia: string) => `F|${familia}`;
 export const chaveGrupo = (familia: string, grupo: string) => `G|${familia}|${grupo}`;
 export const CHAVE_SAIDAS = "S";
 export const CHAVE_RESULTADO = "R";
+/** ajuste do contador em cima do resultado do mês (soma na conta receitas − saídas) */
+export const CHAVE_AJUSTE_RESULTADO = "RA";
 
 export type Dre = {
   meses: string[];
@@ -27,6 +29,8 @@ export type Dre = {
   naoClassificadas: LinhaCategoria[];
   saidas: SerieDigitavel;
   resultado: SerieDigitavel;
+  /** ajuste somado ao resultado: digitado aqui (digitado) ou nas filiais/grupos de baixo (porMes sem digitado) */
+  ajusteResultado: SerieDigitavel;
   receitas: { porMes: Record<string, number>; total: number };
   saldoInicial: Record<string, number | null>;
   /** saldo inicial digitado no mês (null = calculado pela cadeia) */
@@ -166,14 +170,27 @@ export function montarDre(args: {
     (m) => r2(-familias.filter((f) => f.sinal < 0).reduce((s, f) => s + f.porMes[m], 0) - naoClassificadas.filter((l) => porId.get(l.id)?.tipo !== "receber").reduce((s, l) => s + l.porMes[m].valor, 0)),
     (v) => v,
   );
-  // resultado do mês é sempre a conta da tela: total de receitas − total de saídas (não se digita; ajuste vai nas
-  // contas e chega aqui pela soma)
-  const resultadoPorMes = Object.fromEntries(meses.map((m) => [m, r2(receitaMes(m) - saidas.porMes[m])]));
+  // resultado do mês = total de receitas − total de saídas + ajuste do contador. O ajuste é digitado na própria linha
+  // do resultado e soma em cima da conta: se receitas ou saídas mudarem, o resultado acompanha. Ajuste numa filial
+  // (ou grupo) soma no total de cima.
+  // o ajuste daqui SOMA com os de baixo (não substitui): +100 na filial e +50 no grupo = +150 no grupo
+  const ajusteResultado: SerieDigitavel = { chave: CHAVE_AJUSTE_RESULTADO, porMes: {}, total: 0, auto: {}, digitado: {} };
+  for (const m of meses) {
+    const proprio = args.ajustesLinhas?.get(`${CHAVE_AJUSTE_RESULTADO}|${m}`) ?? null;
+    const deBaixo = args.deltasLinhas?.get(`${CHAVE_AJUSTE_RESULTADO}|${m}`) ?? 0;
+    ajusteResultado.digitado[m] = proprio;
+    ajusteResultado.auto[m] = r2(deBaixo);
+    ajusteResultado.porMes[m] = r2((proprio ?? 0) + deBaixo);
+    if (ajusteResultado.porMes[m]) deltaLinhas[`${CHAVE_AJUSTE_RESULTADO}|${m}`] = ajusteResultado.porMes[m];
+  }
+  ajusteResultado.total = r2(mesesTotal.reduce((s, m) => s + ajusteResultado.porMes[m], 0));
+  const contaResultado = Object.fromEntries(meses.map((m) => [m, r2(receitaMes(m) - saidas.porMes[m])]));
+  const resultadoPorMes = Object.fromEntries(meses.map((m) => [m, r2(contaResultado[m] + ajusteResultado.porMes[m])]));
   const resultado: SerieDigitavel = {
     chave: CHAVE_RESULTADO,
     porMes: resultadoPorMes,
     total: r2(mesesTotal.reduce((s, m) => s + resultadoPorMes[m], 0)),
-    auto: resultadoPorMes,
+    auto: contaResultado, // receitas − saídas, sem o ajuste
     digitado: Object.fromEntries(meses.map((m) => [m, null])),
   };
   const resultadoMes = (m: string) => resultado.porMes[m];
@@ -246,6 +263,7 @@ export function montarDre(args: {
     naoClassificadas,
     saidas,
     resultado,
+    ajusteResultado,
     receitas: { porMes: Object.fromEntries(meses.map((m) => [m, receitaMes(m)])), total: soma(receitaMes) },
     saldoInicial,
     saldoDigitado: Object.fromEntries(meses.map((m) => [m, digitado(m)])),

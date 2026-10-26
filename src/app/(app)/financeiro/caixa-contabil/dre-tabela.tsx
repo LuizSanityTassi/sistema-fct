@@ -247,14 +247,32 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
               escura: true,
             })}
             <tr className="border-t-2 border-fct-yellow font-bold">
-              <td className="px-2 py-1.5" title="Total de receitas menos total de saídas do mês. É sempre calculado: para mudar, ajuste as contas e o resultado acompanha.">
+              <td className="px-2 py-1.5" title="Total de receitas menos total de saídas do mês, mais o ajuste do contador. Clique num mês para somar um ajuste (ex.: 2928,45 + 241); se receitas ou saídas mudarem, o resultado continua acompanhando.">
                 RESULTADO REALIZADO TOTAL MÊS
               </td>
-              {dre.meses.map((m) => (
-                <td key={m} className={`px-2 py-1.5 text-right tabular-nums ${tom(dre.resultado.porMes[m])} ${foraTotal(m) ? "opacity-60" : ""}`}>
-                  {moedaDre(dre.resultado.porMes[m] ?? 0)}
-                </td>
-              ))}
+              {dre.meses.map((m) => {
+                const aj = dre.ajusteResultado;
+                const proprio = aj.digitado[m];
+                const conta = moedaDre(dre.resultado.auto[m] ?? 0);
+                return (
+                  <CelulaEditavel
+                    key={m}
+                    action={salvarLinha}
+                    campos={{ ...base, linha: aj.chave, competencia: m }}
+                    base={proprio ?? 0}
+                    conta={contas[`linha:${aj.chave}|${m}`]}
+                    deBaixo={notaDeBaixo(aj.chave, [], m)}
+                    exibicao={moedaDre(dre.resultado.porMes[m] ?? 0)}
+                    automatico={conta}
+                    ajustado={proprio != null}
+                    classe={`${tom(dre.resultado.porMes[m])} ${foraTotal(m) ? "opacity-60" : ""}`}
+                    podeEditar={podeEditar}
+                    placeholder="ajuste: ex. 2928,45"
+                    dicaEditar={`Receitas − saídas = ${conta}${aj.porMes[m] ? ` · ajuste ${aj.porMes[m] > 0 ? "+" : ""}${moedaDre(aj.porMes[m])}` : ""}.
+Clique para somar um ajuste ao resultado (ex.: 2928,45 ou -100); a conta continua valendo por baixo. Apague para tirar o ajuste.`}
+                  />
+                );
+              })}
               <td className={`px-2 py-1.5 text-right tabular-nums ${tom(dre.resultado.total)}`}>{moedaDre(dre.resultado.total)}</td>
               <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">{pctFmt(dre.resultado.total, dre.totalReceitas)}</td>
             </tr>
