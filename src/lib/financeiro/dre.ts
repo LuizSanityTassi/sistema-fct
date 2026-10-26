@@ -166,7 +166,16 @@ export function montarDre(args: {
     (m) => r2(-familias.filter((f) => f.sinal < 0).reduce((s, f) => s + f.porMes[m], 0) - naoClassificadas.filter((l) => porId.get(l.id)?.tipo !== "receber").reduce((s, l) => s + l.porMes[m].valor, 0)),
     (v) => v,
   );
-  const resultado = serie(CHAVE_RESULTADO, (m) => r2(receitaMes(m) - saidas.porMes[m]), (v) => v);
+  // resultado do mês é sempre a conta da tela: total de receitas − total de saídas (não se digita; ajuste vai nas
+  // contas e chega aqui pela soma)
+  const resultadoPorMes = Object.fromEntries(meses.map((m) => [m, r2(receitaMes(m) - saidas.porMes[m])]));
+  const resultado: SerieDigitavel = {
+    chave: CHAVE_RESULTADO,
+    porMes: resultadoPorMes,
+    total: r2(mesesTotal.reduce((s, m) => s + resultadoPorMes[m], 0)),
+    auto: resultadoPorMes,
+    digitado: Object.fromEntries(meses.map((m) => [m, null])),
+  };
   const resultadoMes = (m: string) => resultado.porMes[m];
   const soma = (fn: (m: string) => number) => r2(mesesTotal.reduce((s, m) => s + fn(m), 0));
 

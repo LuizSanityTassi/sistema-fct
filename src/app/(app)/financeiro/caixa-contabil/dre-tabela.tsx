@@ -44,7 +44,6 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
 
   // ajustes feitos nas filiais (ou grupos) de baixo que já estão somados na linha: para achar e desfazer lá
   type Cat = Dre["naoClassificadas"][number];
-  const todasCategorias: Cat[] = [...dre.familias.flatMap((f) => f.grupos.flatMap((g) => g.categorias)), ...dre.naoClassificadas];
   const notaDeBaixo = (chave: string, cats: Cat[], m: string) =>
     [
       ...(ajustesDeBaixo[`linha:${chave}|${m}`] ? [`esta linha — ${ajustesDeBaixo[`linha:${chave}|${m}`]}`] : []),
@@ -248,10 +247,14 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
               escura: true,
             })}
             <tr className="border-t-2 border-fct-yellow font-bold">
-              <td className="px-2 py-1.5" title="Receitas menos saídas do mês. Digite num mês para valer no lugar da conta; o acumulado soma a partir dele.">
+              <td className="px-2 py-1.5" title="Total de receitas menos total de saídas do mês. É sempre calculado: para mudar, ajuste as contas e o resultado acompanha.">
                 RESULTADO REALIZADO TOTAL MÊS
               </td>
-              {dre.meses.map((m) => celulaLinha(dre.resultado, m, `${tom(dre.resultado.porMes[m])} ${foraTotal(m) ? "opacity-60" : ""}`, todasCategorias))}
+              {dre.meses.map((m) => (
+                <td key={m} className={`px-2 py-1.5 text-right tabular-nums ${tom(dre.resultado.porMes[m])} ${foraTotal(m) ? "opacity-60" : ""}`}>
+                  {moedaDre(dre.resultado.porMes[m] ?? 0)}
+                </td>
+              ))}
               <td className={`px-2 py-1.5 text-right tabular-nums ${tom(dre.resultado.total)}`}>{moedaDre(dre.resultado.total)}</td>
               <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">{pctFmt(dre.resultado.total, dre.totalReceitas)}</td>
             </tr>
