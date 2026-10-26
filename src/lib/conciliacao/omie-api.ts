@@ -295,7 +295,11 @@ export async function lancarContas(ch: Chaves, emp: EmpresaOmie, cache: CacheOmi
         distribuicao: [{ cCodDep: dep.codigo, nPerDep: 100, nValDep: valor }],
       };
       if (c.nota) p.numero_documento_fiscal = c.nota.slice(0, 20);
-      if (/^\d{44,48}$/.test(c.barra)) p.codigo_barras_ficha_compensacao = c.barra;
+      if (/^\d{44,48}$/.test(c.barra)) {
+        p.codigo_barras_ficha_compensacao = c.barra; // aba "Diversos"
+        // aba "Integração Bancária e CNAB": forma de pagamento "Pagamento de Boleto" + código de barras (vai na remessa ao banco)
+        p.cnab_integracao_bancaria = { codigo_forma_pagamento: "BOL", codigo_barras_boleto: c.barra };
+      }
       const x = await chamar(ch, emp, "financas/contapagar/", "UpsertContaPagar", p);
       if (x.codigo_status !== undefined && String(x.codigo_status) !== "0") throw new OmieErro(String(x.descricao_status ?? "recusado"));
       r.ok = true;
