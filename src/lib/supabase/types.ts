@@ -1531,6 +1531,714 @@ export type Database = {
           },
         ]
       }
+      ponto_ajustes: {
+        Row: {
+          acao: string
+          branch_id: string
+          data: string
+          decidido_em: string | null
+          decidido_por: string | null
+          employee_id: string
+          horario_original: string | null
+          horario_solicitado: string | null
+          id: string
+          marcacao_id: string | null
+          motivo: string
+          motivo_tipo: string
+          resposta: string | null
+          solicitado_em: string
+          solicitado_por: string | null
+          status: string
+          tipo_marcacao: string | null
+        }
+        Insert: {
+          acao: string
+          branch_id: string
+          data: string
+          decidido_em?: string | null
+          decidido_por?: string | null
+          employee_id: string
+          horario_original?: string | null
+          horario_solicitado?: string | null
+          id?: string
+          marcacao_id?: string | null
+          motivo: string
+          motivo_tipo: string
+          resposta?: string | null
+          solicitado_em?: string
+          solicitado_por?: string | null
+          status?: string
+          tipo_marcacao?: string | null
+        }
+        Update: {
+          acao?: string
+          branch_id?: string
+          data?: string
+          decidido_em?: string | null
+          decidido_por?: string | null
+          employee_id?: string
+          horario_original?: string | null
+          horario_solicitado?: string | null
+          id?: string
+          marcacao_id?: string | null
+          motivo?: string
+          motivo_tipo?: string
+          resposta?: string | null
+          solicitado_em?: string
+          solicitado_por?: string | null
+          status?: string
+          tipo_marcacao?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ponto_ajustes_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ponto_ajustes_decidido_por_fkey"
+            columns: ["decidido_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ponto_ajustes_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ponto_ajustes_marcacao_id_fkey"
+            columns: ["marcacao_id"]
+            isOneToOne: false
+            referencedRelation: "ponto_marcacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ponto_ajustes_solicitado_por_fkey"
+            columns: ["solicitado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ponto_ausencias: {
+        Row: {
+          employee_id: string
+          fim: string
+          id: string
+          inicio: string
+          observacao: string | null
+          registrado_em: string
+          registrado_por: string | null
+          tipo: string
+        }
+        Insert: {
+          employee_id: string
+          fim: string
+          id?: string
+          inicio: string
+          observacao?: string | null
+          registrado_em?: string
+          registrado_por?: string | null
+          tipo: string
+        }
+        Update: {
+          employee_id?: string
+          fim?: string
+          id?: string
+          inicio?: string
+          observacao?: string | null
+          registrado_em?: string
+          registrado_por?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ponto_ausencias_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ponto_ausencias_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ponto_banco_movimentos: {
+        Row: {
+          data: string
+          descricao: string | null
+          employee_id: string
+          fechamento_id: string | null
+          id: string
+          minutos: number
+          registrado_em: string
+          registrado_por: string | null
+          tipo: string
+        }
+        Insert: {
+          data: string
+          descricao?: string | null
+          employee_id: string
+          fechamento_id?: string | null
+          id?: string
+          minutos: number
+          registrado_em?: string
+          registrado_por?: string | null
+          tipo: string
+        }
+        Update: {
+          data?: string
+          descricao?: string | null
+          employee_id?: string
+          fechamento_id?: string | null
+          id?: string
+          minutos?: number
+          registrado_em?: string
+          registrado_por?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ponto_banco_movimentos_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ponto_banco_movimentos_fechamento_id_fkey"
+            columns: ["fechamento_id"]
+            isOneToOne: false
+            referencedRelation: "ponto_fechamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ponto_banco_movimentos_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ponto_config_filial: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          branch_id: string
+          exige_localizacao: boolean
+          inicio_controle: string
+          jornada_padrao_id: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          branch_id: string
+          exige_localizacao?: boolean
+          inicio_controle?: string
+          jornada_padrao_id?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          branch_id?: string
+          exige_localizacao?: boolean
+          inicio_controle?: string
+          jornada_padrao_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ponto_config_filial_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ponto_config_filial_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: true
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ponto_config_filial_jornada_padrao_id_fkey"
+            columns: ["jornada_padrao_id"]
+            isOneToOne: false
+            referencedRelation: "ponto_jornadas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ponto_fechamentos: {
+        Row: {
+          branch_id: string
+          competencia: string
+          fechado_em: string | null
+          fechado_por: string | null
+          id: string
+          motivo_reabertura: string | null
+          reaberto_em: string | null
+          reaberto_por: string | null
+          resumo: Json | null
+          status: string
+        }
+        Insert: {
+          branch_id: string
+          competencia: string
+          fechado_em?: string | null
+          fechado_por?: string | null
+          id?: string
+          motivo_reabertura?: string | null
+          reaberto_em?: string | null
+          reaberto_por?: string | null
+          resumo?: Json | null
+          status: string
+        }
+        Update: {
+          branch_id?: string
+          competencia?: string
+          fechado_em?: string | null
+          fechado_por?: string | null
+          id?: string
+          motivo_reabertura?: string | null
+          reaberto_em?: string | null
+          reaberto_por?: string | null
+          resumo?: Json | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ponto_fechamentos_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ponto_fechamentos_fechado_por_fkey"
+            columns: ["fechado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ponto_fechamentos_reaberto_por_fkey"
+            columns: ["reaberto_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ponto_feriados: {
+        Row: {
+          abrangencia: string
+          branch_id: string | null
+          created_at: string
+          created_by: string | null
+          data: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          abrangencia?: string
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data: string
+          id?: string
+          nome: string
+        }
+        Update: {
+          abrangencia?: string
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          id?: string
+          nome?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ponto_feriados_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ponto_feriados_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ponto_jornada_dias: {
+        Row: {
+          entrada: string | null
+          folga: boolean
+          intervalo_fim: string | null
+          intervalo_inicio: string | null
+          jornada_id: string
+          posicao: number
+          saida: string | null
+        }
+        Insert: {
+          entrada?: string | null
+          folga?: boolean
+          intervalo_fim?: string | null
+          intervalo_inicio?: string | null
+          jornada_id: string
+          posicao: number
+          saida?: string | null
+        }
+        Update: {
+          entrada?: string | null
+          folga?: boolean
+          intervalo_fim?: string | null
+          intervalo_inicio?: string | null
+          jornada_id?: string
+          posicao?: number
+          saida?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ponto_jornada_dias_jornada_id_fkey"
+            columns: ["jornada_id"]
+            isOneToOne: false
+            referencedRelation: "ponto_jornadas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ponto_jornadas: {
+        Row: {
+          ativo: boolean
+          branch_id: string | null
+          ciclo_dias: number | null
+          created_at: string
+          created_by: string | null
+          data_base: string | null
+          descricao: string | null
+          id: string
+          nome: string
+          tipo: string
+          tolerancia_min: number
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          branch_id?: string | null
+          ciclo_dias?: number | null
+          created_at?: string
+          created_by?: string | null
+          data_base?: string | null
+          descricao?: string | null
+          id?: string
+          nome: string
+          tipo: string
+          tolerancia_min?: number
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          branch_id?: string | null
+          ciclo_dias?: number | null
+          created_at?: string
+          created_by?: string | null
+          data_base?: string | null
+          descricao?: string | null
+          id?: string
+          nome?: string
+          tipo?: string
+          tolerancia_min?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ponto_jornadas_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ponto_jornadas_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ponto_marcacoes: {
+        Row: {
+          ajuste_id: string | null
+          anulada: boolean
+          anulada_em: string | null
+          anulada_motivo: string | null
+          anulada_por: string | null
+          branch_id: string
+          created_at: string
+          dispositivo: string | null
+          employee_id: string
+          id: string
+          ip: string | null
+          latitude: number | null
+          longitude: number | null
+          metodo: string
+          momento: string
+          nsr: number
+          origem: string
+          precisao_m: number | null
+          registrado_por: string | null
+          tipo: string
+        }
+        Insert: {
+          ajuste_id?: string | null
+          anulada?: boolean
+          anulada_em?: string | null
+          anulada_motivo?: string | null
+          anulada_por?: string | null
+          branch_id: string
+          created_at?: string
+          dispositivo?: string | null
+          employee_id: string
+          id?: string
+          ip?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          metodo: string
+          momento: string
+          nsr?: never
+          origem?: string
+          precisao_m?: number | null
+          registrado_por?: string | null
+          tipo: string
+        }
+        Update: {
+          ajuste_id?: string | null
+          anulada?: boolean
+          anulada_em?: string | null
+          anulada_motivo?: string | null
+          anulada_por?: string | null
+          branch_id?: string
+          created_at?: string
+          dispositivo?: string | null
+          employee_id?: string
+          id?: string
+          ip?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          metodo?: string
+          momento?: string
+          nsr?: never
+          origem?: string
+          precisao_m?: number | null
+          registrado_por?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ponto_marcacoes_ajuste_fk"
+            columns: ["ajuste_id"]
+            isOneToOne: false
+            referencedRelation: "ponto_ajustes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ponto_marcacoes_anulada_por_fkey"
+            columns: ["anulada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ponto_marcacoes_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ponto_marcacoes_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ponto_marcacoes_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ponto_pins: {
+        Row: {
+          bloqueado_ate: string | null
+          definido_em: string
+          definido_por: string | null
+          employee_id: string
+          pin_hash: string
+          tentativas: number
+        }
+        Insert: {
+          bloqueado_ate?: string | null
+          definido_em?: string
+          definido_por?: string | null
+          employee_id: string
+          pin_hash: string
+          tentativas?: number
+        }
+        Update: {
+          bloqueado_ate?: string | null
+          definido_em?: string
+          definido_por?: string | null
+          employee_id?: string
+          pin_hash?: string
+          tentativas?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ponto_pins_definido_por_fkey"
+            columns: ["definido_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ponto_pins_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ponto_programacao: {
+        Row: {
+          data: string
+          definido_em: string
+          definido_por: string | null
+          employee_id: string
+          entrada: string | null
+          folga: boolean
+          intervalo_fim: string | null
+          intervalo_inicio: string | null
+          motivo: string | null
+          saida: string | null
+        }
+        Insert: {
+          data: string
+          definido_em?: string
+          definido_por?: string | null
+          employee_id: string
+          entrada?: string | null
+          folga?: boolean
+          intervalo_fim?: string | null
+          intervalo_inicio?: string | null
+          motivo?: string | null
+          saida?: string | null
+        }
+        Update: {
+          data?: string
+          definido_em?: string
+          definido_por?: string | null
+          employee_id?: string
+          entrada?: string | null
+          folga?: boolean
+          intervalo_fim?: string | null
+          intervalo_inicio?: string | null
+          motivo?: string | null
+          saida?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ponto_programacao_definido_por_fkey"
+            columns: ["definido_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ponto_programacao_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ponto_vinculos: {
+        Row: {
+          definido_em: string
+          definido_por: string | null
+          employee_id: string
+          fim: string | null
+          id: string
+          inicio: string
+          jornada_id: string
+        }
+        Insert: {
+          definido_em?: string
+          definido_por?: string | null
+          employee_id: string
+          fim?: string | null
+          id?: string
+          inicio: string
+          jornada_id: string
+        }
+        Update: {
+          definido_em?: string
+          definido_por?: string | null
+          employee_id?: string
+          fim?: string | null
+          id?: string
+          inicio?: string
+          jornada_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ponto_vinculos_definido_por_fkey"
+            columns: ["definido_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ponto_vinculos_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ponto_vinculos_jornada_id_fkey"
+            columns: ["jornada_id"]
+            isOneToOne: false
+            referencedRelation: "ponto_jornadas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sangria_anexos: {
         Row: {
           criado_em: string
@@ -4343,6 +5051,102 @@ export type Database = {
           papel: string
         }[]
       }
+      ponto_auditoria: {
+        Args: {
+          p_ate: string | null
+          p_branch: string | null
+          p_de: string | null
+          p_entidade: string | null
+          p_limite: number
+          p_pagina: number
+        }
+        Returns: {
+          acao: string
+          autor: string
+          branch_id: string | null
+          criado_em: string
+          entidade: string
+          funcionario: string | null
+          id: string
+          registro_id: string | null
+          total: number
+          valor_anterior: Json | null
+          valor_novo: Json | null
+        }[]
+      }
+      ponto_cancelar_ajuste: { Args: { p_id: string }; Returns: undefined }
+      ponto_decidir_ajuste: {
+        Args: {
+          p_aprovar: boolean
+          p_id: string
+          p_motivo_fechado: string | null
+          p_resposta: string | null
+        }
+        Returns: undefined
+      }
+      ponto_definir_pin: {
+        Args: { p_employee: string; p_pin: string }
+        Returns: undefined
+      }
+      ponto_equipe: {
+        Args: {
+          p_branch: string | null
+          p_departamento: string | null
+          p_desligados: boolean
+          p_ids: string[] | null
+          p_q: string | null
+        }
+        Returns: {
+          branch_id: string
+          cargo: string | null
+          data_admissao: string | null
+          data_desligamento: string | null
+          department_id: string | null
+          departamento: string | null
+          filial_codigo: string
+          filial_nome: string
+          id: string
+          matricula: string | null
+          nome: string
+          status: string
+        }[]
+      }
+      ponto_fechar_mes: {
+        Args: {
+          p_branch: string
+          p_competencia: string
+          p_resumo: Json
+          p_saldos: Json
+        }
+        Returns: string
+      }
+      ponto_nomes: {
+        Args: { p_ids: string[] }
+        Returns: { id: string; nome: string }[]
+      }
+      ponto_reabrir_mes: {
+        Args: { p_id: string; p_motivo: string }
+        Returns: undefined
+      }
+      ponto_registrar: {
+        Args: {
+          p_dispositivo: string | null
+          p_employee: string
+          p_ip: string | null
+          p_latitude: number | null
+          p_longitude: number | null
+          p_metodo: string
+          p_pin: string | null
+          p_precisao: number | null
+          p_tipo: string | null
+        }
+        Returns: Json
+      }
+      ponto_relogio_identificar: {
+        Args: { p_branch: string; p_matricula: string }
+        Returns: Json
+      }
+      ponto_tem_pin: { Args: { p_employees: string[] }; Returns: string[] }
       rh_historico_funcionario: {
         Args: { p_employee: string }
         Returns: {

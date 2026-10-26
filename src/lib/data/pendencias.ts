@@ -9,7 +9,7 @@ import { competenciaAtual, rotuloCompetencia } from "@/lib/rh/competencia";
 import { createClient } from "@/lib/supabase/server";
 
 export type Severidade = "critico" | "alto" | "atencao" | "info";
-export type AreaPendencia = "Caixa" | "Conciliação" | "DRE" | "Folha" | "RH" | "Chamados" | "Denúncias" | "Acessos";
+export type AreaPendencia = "Caixa" | "Conciliação" | "DRE" | "Folha" | "RH" | "Ponto" | "Chamados" | "Denúncias" | "Acessos";
 
 export type Pendencia = {
   id: string;
@@ -421,6 +421,57 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
       })(),
     );
   }
+
+  // ---------- Ponto: ajustes para decidir, pedidos recusados, mês anterior sem fechamento ----------
+  tarefas.push(
+    (async () => {
+      const decide = ["admin", "rh", "gerente"].includes(sessao.papel);
+      const [paraDecidir, recusados] = await Promise.all([
+        decide ? contar(supabase.from("ponto_ajustes").select("id", { count: "exact", head: true }).eq("status", "pendente").neq("solicitado_por", sessao.id)) : Promise.resolve(0),
+        contar(supabase.from("ponto_ajustes").select("id", { count: "exact", head: true }).eq("status", "recusado").eq("solicitado_por", sessao.id).gte("decidido_em", new Date(agora - 7 * DIA).toISOString())),
+      ]);
+      if (paraDecidir)
+        out.push({
+          id: "ponto-ajustes",
+          severidade: "alto",
+          area: "Ponto",
+          quantidade: paraDecidir,
+          minha: true,
+          href: "/ponto/ajustes?aba=aprovar",
+          titulo: `${paraDecidir} ${plural(paraDecidir, "pedido de ajuste de ponto esperando", "pedidos de ajuste de ponto esperando")} a sua decisão`,
+          detalhe: "Aprovar inclui ou corrige a marcação; recusar pede o motivo.",
+        });
+      if (recusados)
+        out.push({
+          id: "ponto-recusados",
+          severidade: "info",
+          area: "Ponto",
+          quantidade: recusados,
+          minha: true,
+          href: "/ponto/ajustes?aba=meus",
+          titulo: `${recusados} ${plural(recusados, "pedido seu de ajuste de ponto foi recusado", "pedidos seus de ajuste de ponto foram recusados")}`,
+          detalhe: "Veja a resposta do gestor.",
+        });
+      if ((sessao.papel === "admin" || sessao.papel === "rh") && Number(hoje.slice(8, 10)) >= 5) {
+        const ini = new Date(`${compAnterior}-01T00:00:00-03:00`).toISOString();
+        const fim = new Date(`${comp}-01T00:00:00-03:00`).toISOString();
+        const [marcou, fechadas] = await Promise.all([
+          contar(supabase.from("ponto_marcacoes").select("id", { count: "exact", head: true }).gte("momento", ini).lt("momento", fim).limit(1)),
+          contar(supabase.from("ponto_fechamentos").select("id", { count: "exact", head: true }).eq("competencia", `${compAnterior}-01`).eq("status", "fechado")),
+        ]);
+        if (marcou && !fechadas)
+          out.push({
+            id: "ponto-fechamento",
+            severidade: "atencao",
+            area: "Ponto",
+            quantidade: 1,
+            href: `/ponto/fechamento?mes=${compAnterior}`,
+            titulo: `Ponto de ${rotuloCompetencia(compAnterior)} ainda não foi fechado`,
+            detalhe: "Confira as inconsistências e feche para lançar o saldo no banco de horas.",
+          });
+      }
+    })(),
+  );
 
   // ---------- Pedidos de acesso (administrador) ----------
   if (sessao.papel === "admin") {
