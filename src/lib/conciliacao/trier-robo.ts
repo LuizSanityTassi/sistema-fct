@@ -14,7 +14,12 @@ const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 type Cookies = Record<string, string>;
 type Resposta = { cod: number; corpo: Buffer; local: string };
 
-export class TrierErro extends Error {}
+/** Etapas de uma busca no Trier (sem usuário nem senha), para entender por que um relatório não veio. */
+export type PassoTrier0010 = { etapa: string; ms: number; info?: string };
+
+export class TrierErro extends Error {
+  rastro?: PassoTrier0010[];
+}
 
 /** O que a tela pode mostrar: configurado ou não, de onde veio, endereço e começo do usuário (nunca a senha). */
 export function statusTrier(c: CredenciaisTrier) {
@@ -147,18 +152,36 @@ export async function testarLoginTrier(cred: CredenciaisTrier) {
   await trierSair(base, ck);
 }
 
-/** Gera o relatório de contas a pagar (todas as filiais, por vencimento, detalhado, Excel) e devolve o .xlsx. */
-export async function buscarRelatorioTrier(cred: CredenciaisTrier, cfg: ConfigTrier = CONFIG_TRIER_PADRAO) {
+/**
+ * Gera o relatório de contas a pagar (todas as filiais, por vencimento, detalhado, Excel) e devolve o .xlsx.
+ * Manda o formulário inteiro da tela (como o navegador mandaria, igual ao robô do caixa) com as nossas escolhas por cima.
+ * `rastro` anota cada etapa; num erro, vai junto no TrierErro.
+ */
+export async function buscarRelatorioTrier(cred: CredenciaisTrier, cfg: ConfigTrier = CONFIG_TRIER_PADRAO, prazoMs = 260_000) {
+  const comeco = Date.now();
+  const resta = () => prazoMs - (Date.now() - comeco);
+  const rastro: PassoTrier0010[] = [];
+  const anota = (etapa: string, info?: string) => rastro.push({ etapa, ms: Date.now() - comeco, ...(info ? { info: corta(info, 3000) } : {}) });
   const hoje = new Date();
   const ini = dataBr(new Date(hoje.getTime() - cfg.diasAntes * 86_400_000));
   const fim = dataBr(new Date(hoje.getTime() + cfg.diasDepois * 86_400_000));
   const ck: Cookies = {};
-  const base = await trierEntrar(cred, ck);
+  let base = "";
   try {
-    const p = await trierPagina(base, "Rel_0010.pod", ck);
-    if (!p.serial) throw new TrierErro('o usuário do Trier não tem acesso ao relatório "Contas a Pagar ou Pagas".');
-    await trierAcao(base, p.serial, "httpStart", { attributes: trierAtributos(p.html) }, ck, 60_000, "Rel_0010.pod");
+    base = await trierEntrar(cred, ck);
+    anota("login");
+    const pagina = "Rel_0010.pod";
+    const p = await trierPagina(base, pagina, ck);
+    if (!p.serial) {
+      anota("tela sem acesso", p.redir || semTags(p.html).replace(/\s+/g, " ").trim());
+      throw new TrierErro('o usuário do robô no Trier não tem acesso ao relatório "Contas a Pagar ou Pagas" (Rel_0010).');
+    }
+    const telaCampos = camposDaTela(p.html);
+    anota("tela aberta", telaCampos.map((c) => `${c.nome}=${c.valor}`).join(" "));
+    const inicio = await trierAcao(base, p.serial, "httpStart", { attributes: trierAtributos(p.html) }, ck, 30_000, pagina);
+    anota("httpStart", trierMsg(inicio) || undefined);
     const campos: Record<string, string> = {
+      ...camposTentativa(telaCampos, padroesDoInicio(inicio)),
       id_cod_rede: "1",
       cod_grfilialEntrada: "",
       cod_grfilial: "",
@@ -183,27 +206,36 @@ export async function buscarRelatorioTrier(cred: CredenciaisTrier, cfg: ConfigTr
       sel_ccustos: "",
       dat_inicio: ini,
       dat_fim: fim,
-      selecao1: "1",
+      selecao1: "1", // a pagar
       selecao2: "3",
-      selecao3: "1",
+      selecao3: "1", // detalhado
       selecao4: "1",
-      sel_filtroper: "1",
+      sel_filtroper: "1", // por vencimento
       agrup_fil: "1",
       quebra: "1",
       ordenacao: "1",
-      saida: "4",
+      saida: "4", // XLS
     };
-    const r = await trierAcao(base, p.serial, "runReport", campos, ck, 170_000, "Rel_0010.pod");
-    const m = /openReport\('([^']+\.xlsx?)'/i.exec(r);
+    // todas as filiais × 2 meses pode levar minutos no Trier: espera o que der, guardando tempo para baixar
+    const r = await trierAcao(base, p.serial, "runReport", campos, ck, Math.max(30_000, resta() - 40_000), pagina);
+    const m = /openReport\('([^']+)'/i.exec(r);
+    anota("runReport", m ? m[1] : semTags(r).replace(/\s+/g, " ").trim());
     if (!m) {
       const msg = trierMsg(r);
-      throw new TrierErro(`o Trier não gerou o relatório${msg ? `: ${msg}` : "."}`);
+      throw new TrierErro(`o Trier não gerou o relatório${msg ? `: ${msg}` : " (resposta sem arquivo)."}`);
     }
-    const arq = await httpPedido("GET", base + m[1].replace(/^\/+/, ""), null, ck, 120_000);
-    if (arq.cod !== 200 || arq.corpo.length < 200 || arq.corpo.subarray(0, 2).toString("latin1") !== "PK") throw new TrierErro("não consegui baixar o Excel gerado pelo Trier.");
-    return { conteudo: arq.corpo, nome: `Trier contas a pagar ${ini.replaceAll("/", "-")} a ${fim.replaceAll("/", "-")}.xlsx`, periodo: `${ini} a ${fim}` };
+    const arq = await httpPedido("GET", base + m[1].replace(/^\/+/, ""), null, ck, Math.max(15_000, resta() - 10_000));
+    anota("download", `HTTP ${arq.cod}, ${arq.corpo.length} bytes, começa com ${JSON.stringify(arq.corpo.subarray(0, 4).toString("latin1"))}`);
+    if (arq.cod !== 200 || arq.corpo.length < 200) throw new TrierErro(`não consegui baixar o arquivo gerado pelo Trier (HTTP ${arq.cod}).`);
+    if (arq.corpo.subarray(0, 2).toString("latin1") !== "PK") throw new TrierErro("o Trier devolveu um arquivo que não é Excel (.xlsx).");
+    return { conteudo: arq.corpo, nome: `Trier contas a pagar ${ini.replaceAll("/", "-")} a ${fim.replaceAll("/", "-")}.xlsx`, periodo: `${ini} a ${fim}`, rastro };
+  } catch (e) {
+    const erro = e instanceof TrierErro ? e : new TrierErro(e instanceof Error ? e.message : String(e));
+    if (!(e instanceof TrierErro)) anota("erro", erro.message);
+    erro.rastro = rastro;
+    throw erro;
   } finally {
-    await trierSair(base, ck);
+    if (base) await trierSair(base, ck);
   }
 }
 

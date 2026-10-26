@@ -8,7 +8,7 @@ import type { CredenciaisTrier } from "@/lib/integracoes/segredos";
 import type { Database, Json } from "@/lib/supabase/types";
 import { FAIXAS_PADRAO } from "./rotulos";
 import { executarConciliacao, guardarArquivo } from "./servico";
-import { buscarRelatorioTrier, CONFIG_TRIER_PADRAO, statusTrier, type ConfigTrier } from "./trier-robo";
+import { buscarRelatorioTrier, CONFIG_TRIER_PADRAO, statusTrier, TrierErro, type ConfigTrier, type PassoTrier0010 } from "./trier-robo";
 
 type Cliente = SupabaseClient<Database>;
 type Faixa = { nome: string; min: number; max: number };
@@ -45,6 +45,17 @@ export const ultimaAutomatica = (c: Cliente) => lerConfig<ResultadoAutomatica | 
 async function guardarResultado(c: Cliente, r: ResultadoAutomatica, userId: string | null) {
   const { error } = await c.from("conc_config").upsert({ chave: CHAVE_AUTOMATICA, valor: r as unknown as Json, atualizado_em: r.quando, atualizado_por: userId }, { onConflict: "chave" });
   if (error) console.error("[conciliacao automatica] resultado:", error.message);
+}
+
+/** Guarda as etapas de cada busca do relatório de contas a pagar (Rel_0010) em integracao_diagnosticos, para ver por que não veio. */
+export async function guardarRastroTrier(c: Cliente, r: { ok: boolean; erro?: string; periodo?: string; rastro?: PassoTrier0010[] }) {
+  const ultima = r.rastro?.[r.rastro.length - 1];
+  const { error } = await c.from("integracao_diagnosticos").insert({
+    sistema: "trier",
+    resumo: { relatorio: "Rel_0010", ok: r.ok, erro: r.erro ?? null, periodo: r.periodo ?? null, etapa: ultima?.etapa ?? null, ms: ultima?.ms ?? null },
+    dados: { rastro: (r.rastro ?? []) as unknown as Json },
+  });
+  if (error) console.error("[trier rel_0010] rastro:", error.message);
 }
 
 export async function rodarConciliacaoAutomatica(c: Cliente, cred: CredenciaisTrier, opcoes: { userId: string | null; forcar?: boolean }): Promise<ResultadoAutomatica> {
@@ -87,16 +98,35 @@ export async function rodarConciliacaoAutomatica(c: Cliente, cred: CredenciaisTr
   }
 
   const filiais = await montarMapaFiliais(c);
-  let trierId: string;
-  try {
-    const rel = await buscarRelatorioTrier(cred, cfgTrier);
-    const file = new File([new Uint8Array(rel.conteudo).buffer as ArrayBuffer], rel.nome, { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-    const g = await guardarArquivo(c, opcoes.userId, file, "trier", "robo_trier", { filiais, meta: { robo: { periodo: rel.periodo, ...cfgTrier, automatica: true } } });
-    if (!g.ok || !g.id) return fim({ erro: `O relatório veio do Trier, mas não deu para guardar: ${g.mensagem}` });
-    trierId = g.id;
-    r.trier = { id: g.id, nome: g.nome, periodo: rel.periodo, repetido: g.repetido };
-  } catch (e) {
-    return fim({ erro: `Trier: ${mensagem(e)}` });
+  let trierId = "";
+  // relatório do Trier buscado há pouco (à mão ou na rodada anterior) serve: poupa minutos de Trier
+  const { data: recente } = await c
+    .from("conc_arquivos")
+    .select("id, nome, meta")
+    .eq("tipo", "trier")
+    .eq("origem", "robo_trier")
+    .is("arquivado_em", null)
+    .gte("enviado_em", new Date(agora.getTime() - 2 * 3_600_000).toISOString())
+    .order("enviado_em", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (recente) {
+    trierId = recente.id;
+    r.trier = { id: recente.id, nome: recente.nome, periodo: (recente.meta as { robo?: { periodo?: string } } | null)?.robo?.periodo ?? "", repetido: true };
+  } else {
+    try {
+      // até ~2,5 min de Trier: o resto do tempo da função fica para conciliar as faixas
+      const rel = await buscarRelatorioTrier(cred, cfgTrier, 150_000);
+      await guardarRastroTrier(c, { ok: true, periodo: rel.periodo, rastro: rel.rastro });
+      const file = new File([new Uint8Array(rel.conteudo).buffer as ArrayBuffer], rel.nome, { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const g = await guardarArquivo(c, opcoes.userId, file, "trier", "robo_trier", { filiais, meta: { robo: { periodo: rel.periodo, ...cfgTrier, automatica: true } } });
+      if (!g.ok || !g.id) return fim({ erro: `O relatório veio do Trier, mas não deu para guardar: ${g.mensagem}` });
+      trierId = g.id;
+      r.trier = { id: g.id, nome: g.nome, periodo: rel.periodo, repetido: g.repetido };
+    } catch (e) {
+      if (e instanceof TrierErro) await guardarRastroTrier(c, { ok: false, erro: e.message, rastro: e.rastro });
+      return fim({ erro: `Trier: ${mensagem(e)}` });
+    }
   }
 
   const faixas = await lerConfig<Faixa[]>(c, "faixas", FAIXAS_PADRAO);

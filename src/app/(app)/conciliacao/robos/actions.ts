@@ -4,10 +4,10 @@ import { revalidatePath } from "next/cache";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { gerarTokenAgente, hashToken } from "@/lib/conciliacao/agentes";
-import { rodarConciliacaoAutomatica, type ResultadoAutomatica } from "@/lib/conciliacao/automatica";
+import { guardarRastroTrier, rodarConciliacaoAutomatica, type ResultadoAutomatica } from "@/lib/conciliacao/automatica";
 import { podeConciliar, podeConfigurarConciliacao } from "@/lib/conciliacao/permissoes";
 import { guardarArquivo, type ResultadoUpload } from "@/lib/conciliacao/servico";
-import { buscarRelatorioTrier, CONFIG_TRIER_PADRAO, statusTrier, testarLoginTrier, type ConfigTrier } from "@/lib/conciliacao/trier-robo";
+import { buscarRelatorioTrier, CONFIG_TRIER_PADRAO, statusTrier, testarLoginTrier, TrierErro, type ConfigTrier } from "@/lib/conciliacao/trier-robo";
 import { obterConfig } from "@/lib/data/conciliacao";
 import { ehUuid } from "@/lib/data/filiais";
 import { credenciaisTrier } from "@/lib/integracoes/segredos";
@@ -41,6 +41,7 @@ export async function buscarTrier(_prev: EstadoTrier, fd: FormData): Promise<Est
   const cfg: ConfigTrier = { diasAntes: inteiro(fd, "diasAntes", padrao.diasAntes, 0, 90), diasDepois: inteiro(fd, "diasDepois", padrao.diasDepois, 1, 180) };
   try {
     const r = await buscarRelatorioTrier(cred, cfg);
+    await guardarRastroTrier(supabase, { ok: true, periodo: r.periodo, rastro: r.rastro });
     const copia = new Uint8Array(r.conteudo);
     const file = new File([copia.buffer as ArrayBuffer], r.nome, { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     const resultado = await guardarArquivo(supabase, sessao.id, file, "trier", "robo_trier", { meta: { robo: { periodo: r.periodo, ...cfg } } });
@@ -48,6 +49,7 @@ export async function buscarTrier(_prev: EstadoTrier, fd: FormData): Promise<Est
     if (!resultado.ok) return { erro: `O relatório veio do Trier, mas não deu para guardar: ${resultado.mensagem}`, periodo: r.periodo };
     return { resultado, periodo: r.periodo };
   } catch (e) {
+    if (e instanceof TrierErro) await guardarRastroTrier(supabase, { ok: false, erro: e.message, rastro: e.rastro });
     return { erro: mensagem(e) };
   }
 }
