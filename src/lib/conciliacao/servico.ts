@@ -133,7 +133,8 @@ export async function guardarArquivo(
 
 // ---------- conciliação ----------
 
-export type PedidoConciliacao = { ddaIds: string[]; trierIds: string[]; filMin: number; filMax: number; titulo?: string };
+/** filiais: só os títulos do Trier dessas filiais (as que têm retorno do banco); sem a lista, a faixa toda. */
+export type PedidoConciliacao = { ddaIds: string[]; trierIds: string[]; filMin: number; filMax: number; titulo?: string; filiais?: number[] };
 
 const GRUPO: Record<keyof GruposOmie, GrupoItem> = { exatos: "exato", aproximados: "aproximado", soTrier: "so_trier", soDDA: "so_dda" };
 const PROBLEMAS_ITEM = new Set<string>(PROBLEMAS);
@@ -236,6 +237,13 @@ export async function executarConciliacao(supabase: Cliente, userId: string | nu
       if (d.ignoradas) avisos.push(`"${a.nome}": ${d.ignoradas} linha(s) danificada(s) ignorada(s) (arquivo baixado pela metade?).`);
       ddas.push(d);
     }
+  }
+
+  if (pedido.filiais?.length) {
+    const so = new Set(pedido.filiais);
+    const antes = titulos.length;
+    titulos.splice(0, titulos.length, ...titulos.filter((t) => so.has(t.fil)));
+    if (titulos.length < antes) avisos.push(`Só os títulos do Trier das filiais ${[...so].sort((a, b) => a - b).join(", ")} (as que têm retorno do banco).`);
   }
 
   const [{ data: depara }, { data: aprendido }] = await Promise.all([

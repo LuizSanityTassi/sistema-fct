@@ -18,6 +18,10 @@ export const CHAVE_AUTOMATICA = "automatica";
 const MAX_DDA = 400;
 /** Sem tempo para mais uma faixa depois disto (a função da Vercel vai até 300 s). */
 const PRAZO_FAIXAS_MS = 240_000;
+/** Faixa só concilia se chegou retorno do banco dela há no máximo isto (com arquivo velho, todo título viraria "só no Trier"). */
+const DIAS_RETORNO_RECENTE = 3;
+/** Filiais com retorno do banco nestes últimos dias são as conciliadas (título do Trier de filial sem retorno fica de fora). */
+const DIAS_COBERTURA = 7;
 
 export type ResultadoFaixa = { faixa: string; id?: string; pctBateu?: number; novas?: number; resolvidas?: number; erro?: string; semDados?: string };
 export type ResultadoAutomatica = {
@@ -75,7 +79,7 @@ export async function rodarConciliacaoAutomatica(c: Cliente, cred: CredenciaisTr
   // retornos do banco que ainda têm boleto vencendo dentro do período do relatório do Trier
   const { data: arquivos, error } = await c
     .from("conc_arquivos")
-    .select("id, enviado_em, meta")
+    .select("id, enviado_em, meta, filial")
     .is("arquivado_em", null)
     .in("tipo", ["dda_ret", "dda_planilha"])
     .order("enviado_em", { ascending: false })
@@ -129,16 +133,40 @@ export async function rodarConciliacaoAutomatica(c: Cliente, cred: CredenciaisTr
     }
   }
 
+  // filiais de cada retorno: a do arquivo (planilha de uma filial) e as dos CNPJs do .RET (empresa e lotes)
+  const cobertura = new Map(
+    dda.map((a) => {
+      const m = (a.meta ?? {}) as { cnpj?: string | null; lotes?: string[] | null };
+      const fils = new Set<number>();
+      if (a.filial != null) fils.add(a.filial);
+      for (const cnpj of [m.cnpj, ...(m.lotes ?? [])]) {
+        const f = filiais.porCnpj.get(String(cnpj ?? "").replace(/\D/g, "").slice(-14));
+        if (f !== undefined) fils.add(f);
+      }
+      return [a.id, fils];
+    }),
+  );
+  const ha = (dias: number) => new Date(agora.getTime() - dias * 86_400_000).toISOString();
+
   const faixas = await lerConfig<Faixa[]>(c, "faixas", FAIXAS_PADRAO);
-  const ddaIds = dda.map((a) => a.id);
   for (const f of faixas) {
     const nome = `${f.nome} (${f.min}–${f.max})`;
     if (Date.now() - inicio > PRAZO_FAIXAS_MS) {
       r.faixas.push({ faixa: nome, erro: "sem tempo nesta rodada; fica para a próxima" });
       continue;
     }
+    const naFaixa = (id: string) => [...(cobertura.get(id) ?? [])].filter((x) => x >= f.min && x <= f.max);
+    const daFaixa = dda.filter((a) => naFaixa(a.id).length || !cobertura.get(a.id)?.size);
+    const recentes = daFaixa.filter((a) => naFaixa(a.id).length && a.enviado_em >= ha(DIAS_RETORNO_RECENTE));
+    if (!recentes.length) {
+      const ultimo = daFaixa.find((a) => naFaixa(a.id).length);
+      r.faixas.push({ faixa: nome, semDados: ultimo ? `Sem retorno do banco nos últimos ${DIAS_RETORNO_RECENTE} dias (o último chegou em ${horaBrasil(new Date(ultimo.enviado_em))}).` : "Nenhum retorno do banco dessa faixa no sistema." });
+      continue;
+    }
+    const cobertas = [...new Set(daFaixa.filter((a) => a.enviado_em >= ha(DIAS_COBERTURA)).flatMap((a) => naFaixa(a.id)))].sort((a, b) => a - b);
     try {
-      const feita = await executarConciliacao(c, opcoes.userId, { ddaIds, trierIds: [trierId], filMin: f.min, filMax: f.max, titulo: `Automática · ${f.nome} · ${horaBrasil(agora)}` }, { filiais });
+      const pedido = { ddaIds: daFaixa.map((a) => a.id), trierIds: [trierId], filMin: f.min, filMax: f.max, filiais: cobertas, titulo: `Automática · ${f.nome} · ${horaBrasil(agora)}` };
+      const feita = await executarConciliacao(c, opcoes.userId, pedido, { filiais });
       r.faixas.push({ faixa: nome, id: feita.id, pctBateu: feita.pctBateu, novas: feita.pendencias.novas, resolvidas: feita.pendencias.resolvidasAuto });
     } catch (e) {
       const m = mensagem(e);
