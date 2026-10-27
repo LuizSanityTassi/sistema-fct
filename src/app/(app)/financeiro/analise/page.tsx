@@ -6,8 +6,8 @@ import { Ponto } from "@/components/layout/status";
 import { Button } from "@/components/ui/button";
 import { exigirAcesso } from "@/lib/auth/session";
 import { dadosAnalise, inadimplencia, ordenarGrupos } from "@/lib/data/analise";
-import { anosFinanceiro, GRUPOS_ESCOPO, lerEscopo } from "@/lib/data/dre";
-import { abreviarGrupo, GRUPOS_DESPESA_ORD, GRUPOS_RECEITA_ORD } from "@/lib/financeiro/dre";
+import { anosFinanceiro, dreDoPeriodo, GRUPOS_ESCOPO, lerEscopo } from "@/lib/data/dre";
+import { abreviarGrupo, GRUPOS_DESPESA_ORD } from "@/lib/financeiro/dre";
 import { moedaFin } from "@/lib/financeiro/formatos";
 import { podeFecharMes } from "@/lib/financeiro/permissoes";
 import { formatarMoeda } from "@/lib/formatos";
@@ -376,36 +376,35 @@ async function ResumoView({ escopo }: { escopo: Esc }) {
 }
 
 async function ComparativoView({ escopo, mes, link }: { escopo: Esc; mes?: string; link: (extra: Record<string, string | undefined>) => string }) {
-  const { linhas, meses } = await dadosAnalise(escopo, escopo.ano);
+  // os mesmos números do caixa contábil: ajustes do contador, saldo inicial digitado e cadeia do acumulado
+  const dre = await dreDoPeriodo(escopo, escopo.ano);
+  const meses = dre.mesesTotal;
   if (meses.length < 2) return <p className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">Precisa de pelo menos 2 meses para comparar.</p>;
-  const val = new Map<string, number>();
-  for (const l of linhas) val.set(`${l.grupo}|${l.competencia}`, (val.get(`${l.grupo}|${l.competencia}`) ?? 0) + l.total);
-  const gruposRec = ordenarGrupos([...GRUPOS_RECEITA_ORD, ...linhas.filter((l) => l.tipo === "receber").map((l) => l.grupo)]).filter((g) => meses.some((m) => val.has(`${g}|${m}`)) && linhas.some((l) => l.grupo === g && l.tipo === "receber"));
-  const gruposDesp = ordenarGrupos([...GRUPOS_DESPESA_ORD, ...linhas.filter((l) => l.tipo === "pagar").map((l) => l.grupo)]).filter((g) => linhas.some((l) => l.grupo === g && l.tipo === "pagar"));
-  const soma = (grupos: string[], m: string) => grupos.reduce((s, g) => s + (val.get(`${g}|${m}`) ?? 0), 0);
-  const resM = (m: string) => soma(gruposRec, m) - soma(gruposDesp, m);
-  const acumAte = (m: string) => {
-    let s = 0;
-    for (const mm of meses) {
-      s += resM(mm);
-      if (mm === m) break;
-    }
-    return s;
-  };
+  // linhas por grupo do demonstrativo, em valor positivo (despesa sem o sinal)
+  const linhasDe = (receita: boolean) => [
+    ...dre.familias.filter((f) => f.sinal > 0 === receita).flatMap((f) => f.grupos.map((g) => ({ chave: `${f.nome}|${g.nome}`, nome: g.nome, porMes: g.porMes, sinal: f.sinal }))),
+    ...(dre.naoClassificadas.length ? [{ chave: "sem", nome: "Sem classificação", porMes: Object.fromEntries(meses.map((m) => [m, dre.naoClassificadas.filter((l) => l.porMes[m].valor > 0 === receita).reduce((s, l) => s + l.porMes[m].valor, 0)])), sinal: receita ? 1 : -1 }] : []),
+  ];
+  const gruposRec = linhasDe(true);
+  const gruposDesp = linhasDe(false);
+  const v = (g: (typeof gruposRec)[number], m: string) => g.sinal * (g.porMes[m] ?? 0);
+  const recM = (m: string) => dre.receitas.porMes[m] ?? 0;
+  const despM = (m: string) => dre.saidas.porMes[m] ?? 0;
+  const resM = (m: string) => dre.resultado.porMes[m] ?? 0;
   const B = mes && meses.includes(mes) && meses.indexOf(mes) > 0 ? mes : meses[meses.length - 1];
   const A = meses[meses.indexOf(B) - 1];
   const fmtPct = (d: number, base: number) => (Math.abs(d) < 1 ? "—" : `${d > 0 ? "+" : ""}${pct(base !== 0 ? (d / Math.abs(base)) * 100 : d !== 0 ? 100 : 0, 2)}`);
   const fmtVar = (d: number) => (Math.abs(d) < 1 ? "—" : `${d > 0 ? "+" : ""}${formatarMoeda(d)}`);
   const cor = (d: number, rec: boolean) => (Math.abs(d) < 1 ? "text-muted-foreground" : (rec ? d > 0 : d < 0) ? "text-emerald-700" : "text-red-700");
   const status = (d: number, rec: boolean) => (Math.abs(d) < 1 ? <span className="text-muted-foreground">—</span> : (rec ? d > 0 : d < 0) ? <span className="font-semibold text-emerald-700"><Ponto tom="sucesso" className="mr-1.5" />Positivo</span> : <span className="font-semibold text-red-700"><Ponto tom="perigo" className="mr-1.5" />Negativo</span>);
-  const linhaG = (g: string, rec: boolean) => {
-    const a = val.get(`${g}|${A}`) ?? 0;
-    const b = val.get(`${g}|${B}`) ?? 0;
+  const linhaG = (g: (typeof gruposRec)[number], rec: boolean) => {
+    const a = v(g, A);
+    const b = v(g, B);
     if (!a && !b) return null;
     const d = b - a;
     return (
-      <tr key={g} className="border-b last:border-0">
-        <td className="px-2 py-1 pl-6">{g}</td>
+      <tr key={g.chave} className="border-b last:border-0">
+        <td className="px-2 py-1 pl-6">{g.nome}</td>
         <td className={`px-2 py-1 text-right tabular-nums ${cor(d, rec)}`}>{fmtPct(d, a)}</td>
         <td className={`px-2 py-1 text-right font-semibold tabular-nums ${cor(d, rec)}`}>{fmtVar(d)}</td>
         <td className="px-2 py-1 text-right">{status(d, rec)}</td>
@@ -426,8 +425,10 @@ async function ComparativoView({ escopo, mes, link }: { escopo: Esc; mes?: strin
     );
   };
   const dRes = resM(B) - resM(A);
-  const acA = acumAte(A);
-  const acB = acumAte(B);
+  const ini = dre.saldoInicial[B];
+  const acA = dre.acumulado[A] ?? null;
+  const acB = dre.acumulado[B] ?? null;
+  const dAc = acA !== null && acB !== null ? acB - acA : null;
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2 text-xs">
@@ -454,7 +455,7 @@ async function ComparativoView({ escopo, mes, link }: { escopo: Esc; mes?: strin
             <tr className="font-semibold">
               <td className="px-2 py-1">SALDO INICIAL</td>
               <td colSpan={3} />
-              <td className={`px-2 py-1 text-right font-bold tabular-nums ${tom(acA)}`}>{moedaFin(acA)}</td>
+              <td className={`px-2 py-1 text-right font-bold tabular-nums ${ini == null ? "text-muted-foreground" : tom(ini)}`}>{ini == null ? "—" : moedaFin(ini)}</td>
             </tr>
             <tr className="bg-primary text-primary-foreground font-semibold">
               <td className="px-2 py-1" colSpan={5}>
@@ -462,14 +463,14 @@ async function ComparativoView({ escopo, mes, link }: { escopo: Esc; mes?: strin
               </td>
             </tr>
             {gruposRec.map((g) => linhaG(g, true))}
-            {linhaT("Total recebimento", soma(gruposRec, B), soma(gruposRec, A), true)}
+            {linhaT("Total recebimento", recM(B), recM(A), true)}
             <tr className="bg-primary text-primary-foreground font-semibold">
               <td className="px-2 py-1" colSpan={5}>
                 DESPESAS
               </td>
             </tr>
             {gruposDesp.map((g) => linhaG(g, false))}
-            {linhaT("Total despesas", soma(gruposDesp, B), soma(gruposDesp, A), false)}
+            {linhaT("Total despesas", despM(B), despM(A), false)}
             <tr className="border-t-2 border-fct-yellow bg-muted/40 font-bold">
               <td className="px-2 py-1.5">RESULTADO REALIZADO TOTAL MÊS</td>
               <td className={`px-2 py-1.5 text-right tabular-nums ${cor(dRes, true)}`}>{fmtPct(dRes, resM(A))}</td>
@@ -479,14 +480,14 @@ async function ComparativoView({ escopo, mes, link }: { escopo: Esc; mes?: strin
             </tr>
             <tr className="bg-muted/40 font-bold">
               <td className="px-2 py-1">Resultado acumulado total</td>
-              <td className={`px-2 py-1 text-right tabular-nums ${cor(acB - acA, true)}`}>{fmtPct(acB - acA, acA)}</td>
-              <td className={`px-2 py-1 text-right tabular-nums ${cor(acB - acA, true)}`}>{fmtVar(acB - acA)}</td>
-              <td className="px-2 py-1 text-right">{status(acB - acA, true)}</td>
-              <td className={`px-2 py-1 text-right tabular-nums ${tom(acB)}`}>{moedaFin(acB)}</td>
+              <td className={`px-2 py-1 text-right tabular-nums ${cor(dAc ?? 0, true)}`}>{dAc === null ? "—" : fmtPct(dAc, acA ?? 0)}</td>
+              <td className={`px-2 py-1 text-right tabular-nums ${cor(dAc ?? 0, true)}`}>{dAc === null ? "—" : fmtVar(dAc)}</td>
+              <td className="px-2 py-1 text-right">{status(dAc ?? 0, true)}</td>
+              <td className={`px-2 py-1 text-right tabular-nums ${acB == null ? "text-muted-foreground" : tom(acB)}`}>{acB == null ? "—" : moedaFin(acB)}</td>
             </tr>
           </tbody>
         </table>
-        <p className="px-4 py-3 text-xs text-muted-foreground">Compara o mês com o anterior. Status = impacto no resultado: verde = receita subiu ou despesa caiu · vermelho = o contrário. AC = resultado acumulado (saldo inicial = acumulado até o mês anterior).</p>
+        <p className="px-4 py-3 text-xs text-muted-foreground">Compara o mês com o anterior, com os mesmos números do Caixa contábil (ajustes do contador incluídos). Status = impacto no resultado: verde = receita subiu ou despesa caiu · vermelho = o contrário. AC: saldo inicial e resultado acumulado do Caixa contábil (a mesma cadeia, a partir do saldo inicial digitado lá).</p>
       </div>
     </div>
   );
