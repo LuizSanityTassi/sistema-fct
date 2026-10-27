@@ -9,7 +9,7 @@ import { competenciaAtual, rotuloCompetencia } from "@/lib/rh/competencia";
 import { createClient } from "@/lib/supabase/server";
 
 export type Severidade = "critico" | "alto" | "atencao" | "info";
-export type AreaPendencia = "Caixa" | "Conciliação" | "DRE" | "Folha" | "RH" | "Ponto" | "Chamados" | "Denúncias" | "Acessos";
+export type AreaPendencia = "Caixa" | "Conciliação" | "DRE" | "Folha" | "RH" | "Ponto" | "Chamados" | "Denúncias" | "Acessos" | "Coordenação";
 
 export type Pendencia = {
   id: string;
@@ -472,6 +472,39 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
       }
     })(),
   );
+
+  // ---------- Checklist da loja: o gerente confirma; o coordenador vê quando o gerente não concordou ----------
+  if (pode("/coordenacao")) {
+    tarefas.push(
+      (async () => {
+        const [paraConfirmar, contestados] = await Promise.all([
+          contar(supabase.from("coord_checklists").select("id", { count: "exact", head: true }).eq("gerente_id", sessao.id).eq("situacao", "aguardando")),
+          contar(supabase.from("coord_checklists").select("id", { count: "exact", head: true }).eq("coordenador_id", sessao.id).eq("situacao", "contestado").gte("respondido_em", new Date(agora - 7 * DIA).toISOString())),
+        ]);
+        if (paraConfirmar)
+          out.push({
+            id: "checklist-confirmar",
+            severidade: "alto",
+            area: "Coordenação",
+            quantidade: paraConfirmar,
+            minha: true,
+            href: "/coordenacao?situacao=aguardando",
+            titulo: `${paraConfirmar} ${plural(paraConfirmar, "checklist da loja para você confirmar", "checklists da loja para você confirmar")}`,
+            detalhe: "Leia a avaliação do coordenador e confirme que recebeu (ou diga com o que não concorda).",
+          });
+        if (contestados)
+          out.push({
+            id: "checklist-contestados",
+            severidade: "atencao",
+            area: "Coordenação",
+            quantidade: contestados,
+            minha: true,
+            href: "/coordenacao?situacao=contestado",
+            titulo: `${contestados} ${plural(contestados, "gerente não concordou", "gerentes não concordaram")} com o seu checklist (últimos 7 dias)`,
+          });
+      })(),
+    );
+  }
 
   // ---------- Pedidos de acesso (administrador) ----------
   if (sessao.papel === "admin") {

@@ -272,6 +272,18 @@ export const NAV: NavGrupo[] = [
     ],
   },
   {
+    titulo: "Coordenação",
+    itens: [
+      {
+        label: "Checklist da loja",
+        href: "/coordenacao",
+        icon: ClipboardCheck,
+        papeis: ["admin", "coordenador", "gerente"],
+        descricao: "Check-list do coordenador regional na visita: notas de 0 a 5 estrelas, direcionamentos e acordos; o gerente confirma.",
+      },
+    ],
+  },
+  {
     titulo: "Tecnologia",
     itens: [
       {

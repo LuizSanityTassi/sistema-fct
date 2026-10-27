@@ -2516,6 +2516,98 @@ export type Database = {
           },
         ]
       }
+      coord_checklists: {
+        Row: {
+          id: string
+          branch_id: string
+          data: string
+          coordenador_id: string | null
+          coordenador_nome: string | null
+          gerente_id: string
+          gerente_nome: string | null
+          notas: Json
+          media: number | null
+          direcionamentos: string[]
+          acordos: string[]
+          situacao: string
+          criado_em: string
+          respondido_em: string | null
+          resposta_comentario: string | null
+          cancelado_por: string | null
+          cancelado_em: string | null
+          motivo_cancelamento: string | null
+        }
+        Insert: {
+          id?: string
+          branch_id: string
+          data: string
+          coordenador_id?: string | null
+          coordenador_nome?: string | null
+          gerente_id: string
+          gerente_nome?: string | null
+          notas: Json
+          media?: number | null
+          direcionamentos?: string[]
+          acordos?: string[]
+          situacao?: string
+          criado_em?: string
+          respondido_em?: string | null
+          resposta_comentario?: string | null
+          cancelado_por?: string | null
+          cancelado_em?: string | null
+          motivo_cancelamento?: string | null
+        }
+        Update: {
+          id?: string
+          branch_id?: string
+          data?: string
+          coordenador_id?: string | null
+          coordenador_nome?: string | null
+          gerente_id?: string
+          gerente_nome?: string | null
+          notas?: Json
+          media?: number | null
+          direcionamentos?: string[]
+          acordos?: string[]
+          situacao?: string
+          criado_em?: string
+          respondido_em?: string | null
+          resposta_comentario?: string | null
+          cancelado_por?: string | null
+          cancelado_em?: string | null
+          motivo_cancelamento?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coord_checklists_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coord_checklists_coordenador_id_fkey"
+            columns: ["coordenador_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coord_checklists_gerente_id_fkey"
+            columns: ["gerente_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coord_checklists_cancelado_por_fkey"
+            columns: ["cancelado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sangria_anexos: {
         Row: {
           criado_em: string
@@ -5473,6 +5565,22 @@ export type Database = {
           banco: string
           id: string
           tipo: string
+        }[]
+      }
+      coord_gerentes: {
+        Args: never
+        Returns: {
+          id: string
+          lojas: string[]
+          nome: string
+        }[]
+      }
+      coord_lojas: {
+        Args: never
+        Returns: {
+          codigo: string
+          id: string
+          nome: string
         }[]
       }
       lojas_para_sangria: {

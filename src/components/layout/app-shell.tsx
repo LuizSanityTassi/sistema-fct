@@ -308,7 +308,7 @@ export function AppShell({ usuario, onSair, menuRecolhido = false, children }: A
         <aside
           data-recolhido={recolhido || undefined}
           className={cn(
-            "hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-out lg:fixed lg:inset-y-0 lg:z-40 lg:flex lg:flex-col",
+            "hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-out lg:fixed lg:inset-y-0 lg:z-40 lg:flex lg:flex-col print:!hidden",
             recolhido ? "lg:w-[3.75rem]" : "lg:w-60",
           )}
         >
@@ -327,8 +327,8 @@ export function AppShell({ usuario, onSair, menuRecolhido = false, children }: A
           </SheetContent>
         </Sheet>
 
-        <div className={cn("flex min-w-0 flex-1 flex-col transition-[padding] duration-200 ease-out", recolhido ? "lg:pl-[3.75rem]" : "lg:pl-60")}>
-          <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/85 px-3 backdrop-blur-md supports-[backdrop-filter]:bg-background/70 sm:px-5 lg:px-6">
+        <div className={cn("flex min-w-0 flex-1 flex-col transition-[padding] duration-200 ease-out print:!pl-0", recolhido ? "lg:pl-[3.75rem]" : "lg:pl-60")}>
+          <header className="sticky top-0 z-30 flex h-14 print:hidden items-center gap-2 border-b bg-background/85 px-3 backdrop-blur-md supports-[backdrop-filter]:bg-background/70 sm:px-5 lg:px-6">
             <Button variant="ghost" size="icon-sm" className="lg:hidden" aria-label="Abrir menu" aria-expanded={menuAberto} onClick={() => setMenuAberto(true)}>
               <Menu />
             </Button>
