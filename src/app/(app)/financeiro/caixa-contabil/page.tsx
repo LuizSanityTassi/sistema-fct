@@ -3,7 +3,7 @@ import { SelectNativo } from "@/components/form/campo";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { exigirAcesso } from "@/lib/auth/session";
-import { anosFinanceiro, dreDoPeriodo, GRUPOS_ESCOPO, lerEscopo } from "@/lib/data/dre";
+import { anosFinanceiro, dreDoPeriodo, GRUPOS_ESCOPO, GRUPOS_JUNTOS, lerEscopo } from "@/lib/data/dre";
 import { listarUnidadesFinanceiro } from "@/lib/data/financeiro";
 import { moedaFin } from "@/lib/financeiro/formatos";
 import { podeLancar } from "@/lib/financeiro/permissoes";
@@ -28,11 +28,13 @@ export default async function DrePage({ searchParams }: PageProps<"/financeiro/c
   for (const k of ["grupo", "filial", "ano", "de"]) if (typeof sp[k] === "string" && sp[k]) paramsVazias.set(k, sp[k]);
   if (!vazias) paramsVazias.set("vazias", "1");
   const hrefVazias = `/financeiro/caixa-contabil${paramsVazias.size ? `?${paramsVazias}` : ""}`;
-  const unidadesDoGrupo = unidades.filter((u) => escopo.grupo === "TODOS" || u.grupo === escopo.grupo);
+  const unidadesDoGrupo = unidades.filter((u) => escopo.grupo === "TODOS" || (escopo.grupos ?? [escopo.grupo]).includes(u.grupo));
   const gruposUnid = new Map<string, typeof unidades>();
   for (const u of unidadesDoGrupo) gruposUnid.set(u.grupo, [...(gruposUnid.get(u.grupo) ?? []), u]);
   const filialSel = escopo.filial ? unidades.find((u) => u.id === escopo.filial) : undefined;
   const podeEditar = podeLancar(sessao.papel);
+  // visão somada (VARELA + ITAJAÍ…) é só para ver: o ajuste fica no grupo ou na filial
+  const somada = !!escopo.grupos;
   const ultimo = dre.mesesTotal[dre.mesesTotal.length - 1];
 
   return (
@@ -42,7 +44,7 @@ export default async function DrePage({ searchParams }: PageProps<"/financeiro/c
         titulo="Caixa contábil"
         descricao={`Demonstrativo contábil ${escopo.grupo === "TODOS" ? "do grupo" : `· ${escopo.grupo}`}${filialSel ? ` · ${filialSel.codigo} ${filialSel.nome}` : ""} · ${escopo.ano}. Receitas, custo e despesas por mês, com ajustes do contador e cadeia de caixa.`}
         acoes={
-          <Button variant="outline" nativeButton={false} render={<Link href={`/financeiro/analise?grupo=${encodeURIComponent(escopo.grupo)}&ano=${escopo.ano}`} />}>
+          <Button variant="outline" nativeButton={false} render={<Link href={`/financeiro/analise?grupo=${encodeURIComponent(somada ? "TODOS" : escopo.grupo)}&ano=${escopo.ano}`} />}>
             Ranking e comparativo
           </Button>
         }
@@ -51,7 +53,7 @@ export default async function DrePage({ searchParams }: PageProps<"/financeiro/c
 
       <form method="get" className="mb-4 grid gap-2 rounded-xl border bg-card p-3 sm:grid-cols-2 lg:grid-cols-[auto_1fr_auto_auto_auto_auto] lg:items-center">
         <SelectNativo name="grupo" defaultValue={escopo.grupo} aria-label="Grupo" className="lg:w-44">
-          {GRUPOS_ESCOPO.map((g) => (
+          {[...GRUPOS_ESCOPO, ...Object.keys(GRUPOS_JUNTOS)].map((g) => (
             <option key={g} value={g}>
               {g === "TODOS" ? "Todas (grupo)" : g}
             </option>
@@ -111,10 +113,15 @@ export default async function DrePage({ searchParams }: PageProps<"/financeiro/c
               </div>
             ))}
           </section>
+          {somada && (
+            <p className="mb-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              Visão somada de {escopo.grupos!.join(" e ")}: só para ver. Para ajustar um valor, escolha {escopo.grupos!.join(" ou ")} (ou a filial).
+            </p>
+          )}
           <DreTabela
             dre={dre}
             escopo={{ grupo: escopo.grupo, filial: escopo.filial ?? "" }}
-            podeEditar={podeEditar}
+            podeEditar={podeEditar && !somada}
             destacarAjustes={sessao.papel === "admin"}
             salvarAjuste={salvarAjusteDre}
             salvarSaldo={salvarSaldoDre}

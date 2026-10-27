@@ -6,6 +6,8 @@ import { ehGrupoFinanceiro, GRUPOS_FINANCEIROS, type FinTipo } from "@/lib/finan
 import { createClient } from "@/lib/supabase/server";
 
 export const GRUPOS_ESCOPO = ["TODOS", "VARELA", "ITAJAÍ", "NAZÁRIO", "BLUMENAU"] as const;
+/** Visões somadas por empresa (só leitura no caixa contábil: o ajuste é feito no grupo ou na filial). */
+export const GRUPOS_JUNTOS: Record<string, readonly string[]> = { "VARELA + ITAJAÍ": ["VARELA", "ITAJAÍ"], "NAZÁRIO + BLUMENAU": ["NAZÁRIO", "BLUMENAU"] };
 export type Escopo = { grupo: string; filial?: string; grupos?: readonly string[] };
 
 export function lerEscopo(sp: Record<string, string | string[] | undefined>): Escopo & { ano: string; de?: string } {
@@ -13,7 +15,9 @@ export function lerEscopo(sp: Record<string, string | string[] | undefined>): Es
   const grupo = s("grupo");
   const ano = /^\d{4}$/.test(s("ano")) ? s("ano") : String(new Date().getFullYear());
   const de = /^\d{4}-\d{2}$/.test(s("de")) ? s("de") : undefined;
-  return { grupo: ehGrupoFinanceiro(grupo) ? grupo : "TODOS", filial: ehUuid(s("filial")) ? s("filial") : undefined, ano, de };
+  const filial = ehUuid(s("filial")) ? s("filial") : undefined;
+  if (GRUPOS_JUNTOS[grupo]) return { grupo, grupos: GRUPOS_JUNTOS[grupo], filial, ano, de };
+  return { grupo: ehGrupoFinanceiro(grupo) ? grupo : "TODOS", filial, ano, de };
 }
 
 /** Unidades do recorte (undefined = todas). */
@@ -62,7 +66,8 @@ type LinhaTotalDre = { grupo: string; branch_id: string | null; linha: string; c
 /** caixinha / contas correntes / limites: no total, mês sem valor digitado = soma dos de baixo */
 const SOMAM_PARA_CIMA = new Set<string>(CAMPOS_SALDO.map((c) => c.campo));
 /** Nós do caixa contábil: todas → grupos → filiais. */
-type NoDre = { tipo: "filial"; branch: string } | { tipo: "grupo"; grupo: string } | { tipo: "todos"; branches?: string[] };
+/** `chave` = nome da visão somada (VARELA + ITAJAÍ…): ajuste digitado em "todas" não vale nela. */
+type NoDre = { tipo: "filial"; branch: string } | { tipo: "grupo"; grupo: string } | { tipo: "todos"; branches?: string[]; chave?: string };
 type ResultadoNoDre = {
   dre: Dre;
   rotulo: string; // F001, VARELA… (para dizer no total de cima de onde vem o ajuste)
@@ -175,7 +180,7 @@ export async function dreDoPeriodo(
         mesesComDados.add(k.split("|")[1]);
       }
 
-    const grupoTotal = no.tipo === "grupo" ? no.grupo : "TODOS";
+    const grupoTotal = no.tipo === "grupo" ? no.grupo : (no.tipo === "todos" && no.chave) || "TODOS";
     const ajProprios = no.tipo === "filial" ? ajFilial.filter((l) => l.branch_id === no.branch) : ajTotal.filter((l) => l.grupo === grupoTotal);
     const ajustesNo = new Map(ajProprios.map((l) => [`${l.categoria_id}|${comp(l.competencia)}`, Number(l.valor)]));
     const delta = new Map<string, number>();
@@ -230,7 +235,7 @@ export async function dreDoPeriodo(
     return { dre, rotulo, delta, mudou, deBaixo, saldosMes: new Map([...saldosNo].filter(([k]) => SOMAM_PARA_CIMA.has(k.split("|")[0]))) };
   };
 
-  const topo: NoDre = e.filial ? { tipo: "filial", branch: e.filial } : e.grupo === "TODOS" || e.grupos ? { tipo: "todos", branches: branchesEscopo } : { tipo: "grupo", grupo: e.grupo };
+  const topo: NoDre = e.filial ? { tipo: "filial", branch: e.filial } : e.grupo === "TODOS" || e.grupos ? { tipo: "todos", branches: branchesEscopo, chave: e.grupos ? e.grupo : undefined } : { tipo: "grupo", grupo: e.grupo };
   const resTopo = await calcular(topo);
   const { dre } = resTopo;
   // no total: célula que tem ajuste feito numa filial (ou grupo) de baixo — para achar e desfazer lá
@@ -240,7 +245,7 @@ export async function dreDoPeriodo(
     for (const [k, x] of f.mudou) anota(k, `${f.rotulo}: ${fmtBr(x.de)} → ${fmtBr(x.para)}`);
     for (const [k, d] of Object.entries(f.dre.deltaLinhas)) anota(`linha:${k}`, `${f.rotulo}: ${d > 0 ? "+" : ""}${fmtBr(d)}`);
   }
-  const grupoTopo = topo.tipo === "grupo" ? topo.grupo : "TODOS";
+  const grupoTopo = topo.tipo === "grupo" ? topo.grupo : (topo.tipo === "todos" && topo.chave) || "TODOS";
   const proprios = e.filial ? ajFilial.filter((l) => l.branch_id === e.filial) : ajTotal.filter((l) => l.grupo === grupoTopo);
   const saldosTopo = e.filial ? salFilial.filter((l) => l.branch_id === e.filial) : salTotal.filter((l) => l.grupo === grupoTopo);
   const linhasTopo = e.filial ? linFilial.filter((l) => l.branch_id === e.filial) : linTotal.filter((l) => l.grupo === grupoTopo);
