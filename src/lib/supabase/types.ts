@@ -79,6 +79,45 @@ export type Database = {
           },
         ]
       }
+      acesso_telas: {
+        Row: {
+          concedido_por: string | null
+          criado_em: string
+          pode_editar: boolean
+          rota: string
+          user_id: string
+        }
+        Insert: {
+          concedido_por?: string | null
+          criado_em?: string
+          pode_editar?: boolean
+          rota: string
+          user_id: string
+        }
+        Update: {
+          concedido_por?: string | null
+          criado_em?: string
+          pode_editar?: boolean
+          rota?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "acesso_telas_concedido_por_fkey"
+            columns: ["concedido_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acesso_telas_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           acao: string
@@ -829,6 +868,244 @@ export type Database = {
           {
             foreignKeyName: "conc_regras_criado_por_fkey"
             columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_fluxo_classes: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          categoria: string
+          grupo: string
+          lugar: string
+          ordem: number
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          categoria?: string
+          grupo?: string
+          lugar: string
+          ordem?: number
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          categoria?: string
+          grupo?: string
+          lugar?: string
+          ordem?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_fluxo_classes_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_fluxo_motivos: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          data: string
+          empresa: string
+          texto: string
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          data: string
+          empresa: string
+          texto: string
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          data?: string
+          empresa?: string
+          texto?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_fluxo_motivos_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_fluxo_notas: {
+        Row: {
+          autor: string
+          criado_em: string
+          empresa: string | null
+          id: string
+          importante: boolean
+          referencia: string | null
+          resolvida_em: string | null
+          resolvida_por: string | null
+          texto: string
+        }
+        Insert: {
+          autor?: string
+          criado_em?: string
+          empresa?: string | null
+          id?: string
+          importante?: boolean
+          referencia?: string | null
+          resolvida_em?: string | null
+          resolvida_por?: string | null
+          texto: string
+        }
+        Update: {
+          autor?: string
+          criado_em?: string
+          empresa?: string | null
+          id?: string
+          importante?: boolean
+          referencia?: string | null
+          resolvida_em?: string | null
+          resolvida_por?: string | null
+          texto?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_fluxo_notas_autor_fkey"
+            columns: ["autor"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_fluxo_notas_resolvida_por_fkey"
+            columns: ["resolvida_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_fluxo_pagar: {
+        Row: {
+          categoria: string
+          data: string
+          empresa: string
+          grupo: string
+          id: number
+          importacao_id: string
+          valor: number
+        }
+        Insert: {
+          categoria?: string
+          data: string
+          empresa: string
+          grupo?: string
+          id?: never
+          importacao_id: string
+          valor: number
+        }
+        Update: {
+          categoria?: string
+          data?: string
+          empresa?: string
+          grupo?: string
+          id?: never
+          importacao_id?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_fluxo_pagar_importacao_id_fkey"
+            columns: ["importacao_id"]
+            isOneToOne: false
+            referencedRelation: "fin_fluxo_pagar_importacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_fluxo_pagar_importacoes: {
+        Row: {
+          arquivo: string
+          ate: string
+          criado_em: string
+          criado_por: string | null
+          de: string
+          empresa: string
+          gerado: string | null
+          id: string
+          linhas: number
+          total: number
+        }
+        Insert: {
+          arquivo: string
+          ate: string
+          criado_em?: string
+          criado_por?: string | null
+          de: string
+          empresa: string
+          gerado?: string | null
+          id?: string
+          linhas: number
+          total: number
+        }
+        Update: {
+          arquivo?: string
+          ate?: string
+          criado_em?: string
+          criado_por?: string | null
+          de?: string
+          empresa?: string
+          gerado?: string | null
+          id?: string
+          linhas?: number
+          total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_fluxo_pagar_importacoes_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_fluxo_previsoes: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          campo: string
+          data: string
+          empresa: string
+          valor: number
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          campo: string
+          data: string
+          empresa: string
+          valor: number
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          campo?: string
+          data?: string
+          empresa?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_fluxo_previsoes_atualizado_por_fkey"
+            columns: ["atualizado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -4847,6 +5124,25 @@ export type Database = {
       }
     }
     Functions: {
+      fin_fluxo_importar_pagar: {
+        Args: {
+          p_arquivo: string
+          p_empresa: string
+          p_gerado: string
+          p_linhas: Json
+        }
+        Returns: string
+      }
+      fin_fluxo_pagar_somas: {
+        Args: { p_ate: string; p_de: string }
+        Returns: {
+          categoria: string
+          data: string
+          empresa: string
+          grupo: string
+          valor: number
+        }[]
+      }
       folha_codigos_dominio_importar: {
         Args: { p_filiais: Json }
         Returns: number

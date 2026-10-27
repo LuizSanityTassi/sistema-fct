@@ -378,6 +378,13 @@ export const NAV: NavGrupo[] = [
         descricao: "Fluxo diário (foto do dia), mensal (provisão × realizado) e semanal.",
       },
       {
+        label: "Fluxo de caixa",
+        href: "/financeiro/fluxo-caixa",
+        icon: ChartColumn,
+        papeis: ["admin", "financeiro"],
+        descricao: "A receber (previsão) × a pagar (Omie) por dia, semana e mês, previsão de cartão, motivos e anotações. Dá para compartilhar com outras pessoas.",
+      },
+      {
         label: "Diferença de caixa",
         href: "/financeiro/diferenca-caixa",
         icon: Banknote,
@@ -574,8 +581,8 @@ export function podeVerItem(item: NavItem, papel: AppRole) {
 }
 
 /** Menu filtrado pelo papel (sem itens ocultos); grupos que ficam vazios somem. */
-export function navParaPapel(papel: AppRole): NavGrupo[] {
-  return NAV.map((g) => ({ ...g, itens: g.itens.filter((i) => !i.oculto && podeVerItem(i, papel)) })).filter(
+export function navParaPapel(papel: AppRole, extras: readonly string[] = []): NavGrupo[] {
+  return NAV.map((g) => ({ ...g, itens: g.itens.filter((i) => !i.oculto && (podeVerItem(i, papel) || extras.includes(i.href))) })).filter(
     (g) => g.itens.length > 0,
   );
 }
@@ -592,7 +599,8 @@ export function grupoDaRota(pathname: string): NavGrupo | undefined {
 }
 
 /** Autorização de rota derivada do menu. Rotas fora do menu são liberadas (ex.: /dashboard/...). */
-export function podeAcessar(papel: AppRole, pathname: string): boolean {
+/** `extras` = telas liberadas para a pessoa além do papel (acesso_telas, ex.: Fluxo de caixa compartilhado). */
+export function podeAcessar(papel: AppRole, pathname: string, extras: readonly string[] = []): boolean {
   const item = itemDaRota(pathname);
-  return item ? podeVerItem(item, papel) : true;
+  return item ? podeVerItem(item, papel) || extras.includes(item.href) : true;
 }

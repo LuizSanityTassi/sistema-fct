@@ -17,6 +17,8 @@ export type Sessao = {
   branchId: string | null;
   /** Coordenador de vendas: a regional que ele coordena (Sul, Serra, Oeste…). */
   regional: string | null;
+  /** Telas liberadas para a pessoa além do papel (acesso_telas). */
+  telasExtras: string[];
 };
 
 /** Usuário logado + perfil. Memoizado por requisição: layout e página compartilham a mesma leitura. */
@@ -27,11 +29,10 @@ export const getSessao = cache(async (): Promise<Sessao> => {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("nome, papel, branch_id, ativo, ultimo_acesso, regional, admin_sistema")
-    .eq("id", user.id)
-    .maybeSingle();
+  const [{ data: profile }, { data: extras }] = await Promise.all([
+    supabase.from("profiles").select("nome, papel, branch_id, ativo, ultimo_acesso, regional, admin_sistema").eq("id", user.id).maybeSingle(),
+    supabase.from("acesso_telas").select("rota").eq("user_id", user.id),
+  ]);
 
   // Usuário desativado pelo administrador: encerra a sessão.
   if (profile && profile.ativo === false) {
@@ -55,6 +56,7 @@ export const getSessao = cache(async (): Promise<Sessao> => {
     adminSistema,
     branchId: profile?.branch_id ?? null,
     regional: profile?.regional ?? null,
+    telasExtras: (extras ?? []).map((e) => e.rota),
   };
 });
 
@@ -66,6 +68,6 @@ export function semAcesso(rota: string): never {
 /** Bloqueia a página para papéis sem acesso (a mesma regra do menu). Devolve a sessão quando liberado. */
 export async function exigirAcesso(rota: string): Promise<Sessao> {
   const sessao = await getSessao();
-  if (!podeAcessar(sessao.papel, rota)) semAcesso(rota);
+  if (!podeAcessar(sessao.papel, rota, sessao.telasExtras)) semAcesso(rota);
   return sessao;
 }
