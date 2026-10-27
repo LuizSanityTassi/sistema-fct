@@ -4,9 +4,10 @@ import { exigirAcesso } from "@/lib/auth/session";
 import { acessoFluxo, categoriasDespesaOmie, compartilhamentosFluxo, feriadosDoPeriodo, fluxoDoPeriodo, notasFluxo, realizadoPorCategoria, regrasFluxo, ROTA_FLUXO, ultimasImportacoesPagar, type DiaFluxo } from "@/lib/data/fluxo-caixa";
 import { classificador, corBloco, FORA, LUGARES, NAO_CLASSIFICADA, ROTULO_BLOCO, rotuloLugar } from "@/lib/fluxo-caixa/classes";
 import { EMPRESAS_FLUXO, ehEmpresaFluxo, type EmpresaFluxo } from "@/lib/fluxo-caixa/omie-pivot";
-import { ddmm, ddmmaaaa, diasEntre, fimDeSemana, mesesDoAno, nomeDiaSemana, nomeMes, semanasDoMes, somaDias, ultimoDia } from "@/lib/fluxo-caixa/periodos";
+import { ddmm, ddmmaaaa, diasEntre, fimDeSemana, mesesDoAno, nomeDiaSemana, nomeMes, segunda, semanasDoMes, somaDias, ultimoDia } from "@/lib/fluxo-caixa/periodos";
 import { Anotacoes } from "./anotacoes";
 import { CategoriasLugar } from "./categorias-lugar";
+import { GradePrevisoes, type DiaPrevisao } from "./grade-previsoes";
 import { Compartilhar } from "./compartilhar";
 import { ImportarPagar } from "./importar-pagar";
 import { TabelaCategorias, type LinhaCategoria } from "./tabela-categorias";
@@ -20,6 +21,7 @@ const VISOES = [
   { chave: "diario", rotulo: "Diário" },
   { chave: "semanal", rotulo: "Semanal" },
   { chave: "mensal", rotulo: "Mensal" },
+  { chave: "previsoes", rotulo: "Previsões" },
 ] as const;
 
 const moeda = (v: number) => `${v < 0 ? "-" : ""}R$ ${Math.abs(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -51,19 +53,23 @@ function somar(dias: string[], fluxo: Map<string, DiaFluxo>, feriados: Map<strin
 export default async function FluxoCaixaPage({ searchParams }: PageProps<"/financeiro/fluxo-caixa">) {
   const [sessao, sp] = await Promise.all([exigirAcesso(ROTA_FLUXO), searchParams]);
   const s = (k: string) => (typeof sp[k] === "string" ? sp[k] : "");
-  const visao = s("visao") === "semanal" || s("visao") === "mensal" ? s("visao") : "diario";
+  const visao = ["semanal", "mensal", "previsoes"].includes(s("visao")) ? s("visao") : "diario";
   const pedida = s("empresa");
   const empresa: EmpresaFluxo | null = pedida === "TODAS" ? null : ehEmpresaFluxo(pedida) ? pedida : "VARELA";
   const empresas = empresa ? [empresa] : EMPRESAS_FLUXO;
   const hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
-  const mes = /^\d{4}-\d{2}$/.test(s("mes")) ? s("mes") : hoje.slice(0, 7);
+  // semanal: a semana (segunda) escolhida; o mês dela dá o resumo das semanas
+  const semana = segunda(/^\d{4}-\d{2}-\d{2}$/.test(s("semana")) ? s("semana") : hoje);
+  const mes = visao === "semanal" ? semana.slice(0, 7) : /^\d{4}-\d{2}$/.test(s("mes")) ? s("mes") : hoje.slice(0, 7);
   const ano = /^\d{4}$/.test(s("ano")) ? s("ano") : mes.slice(0, 4);
 
   const semanas = semanasDoMes(mes);
-  const [de, ate] = visao === "diario" ? [`${mes}-01`, ultimoDia(mes)] : visao === "semanal" ? [semanas[0].de, semanas[semanas.length - 1].ate] : [`${ano}-01-01`, `${ano}-12-31`];
+  // período em foco (cartões e tabela de categorias) e período carregado (o semanal carrega as semanas do mês)
+  const [de, ate] = visao === "semanal" ? [semana, somaDias(semana, 6)] : visao === "mensal" ? [`${ano}-01-01`, `${ano}-12-31`] : [`${mes}-01`, ultimoDia(mes)];
+  const [deCarga, ateCarga] = visao === "semanal" ? [semanas[0].de, semanas[semanas.length - 1].ate] : [de, ate];
   const [fluxo, feriados, acesso, notas, importacoes, regras, categoriasOmie] = await Promise.all([
-    fluxoDoPeriodo(empresas, de, ate),
-    feriadosDoPeriodo(de, ate),
+    fluxoDoPeriodo(empresas, deCarga, ateCarga),
+    feriadosDoPeriodo(deCarga, ateCarga),
     acessoFluxo(sessao.id, sessao.papel),
     notasFluxo(empresas),
     ultimasImportacoesPagar(),
@@ -72,20 +78,24 @@ export default async function FluxoCaixaPage({ searchParams }: PageProps<"/finan
   ]);
   // mensal: o pago de verdade, para o quadro "realizado" (lançamentos do Omie já importados no sistema)
   const realizado = visao === "mensal" ? await realizadoPorCategoria(empresas, `${ano}-01`, `${ano}-12`) : [];
+  // previsões: as tabelas do financeiro das duas empresas lado a lado
+  const porEmpresa = visao === "previsoes" ? await Promise.all(EMPRESAS_FLUXO.map((e) => fluxoDoPeriodo([e], de, ate))) : [];
   const classifica = classificador(regras);
   const comp = acesso.compartilhar ? await compartilhamentosFluxo() : null;
 
   const total = somar(diasEntre(de, ate), fluxo, feriados);
+  // rodapé da tabela de semanas/meses: tudo o que ela mostra
+  const totalTabela = visao === "semanal" ? somar(diasEntre(deCarga, ateCarga), fluxo, feriados) : total;
   const piorDia = diasEntre(de, ate)
     .map((d) => ({ d, b: (fluxo.get(d)?.receber ?? 0) - (fluxo.get(d)?.pagar ?? 0) }))
     .reduce<{ d: string; b: number } | null>((p, x) => (!p || x.b < p.b ? x : p), null);
   const link = (extra: Record<string, string>) => {
-    const q = new URLSearchParams({ visao, empresa: empresa ?? "TODAS", mes, ano, ...extra });
+    const q = new URLSearchParams({ visao, empresa: empresa ?? "TODAS", mes, ano, semana, ...extra });
     return `${ROTA_FLUXO}?${q}`;
   };
   const chip = (ativo: boolean) => `rounded-full border px-3 py-1 text-sm ${ativo ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary/40"}`;
 
-  const linhasDia: LinhaDia[] = diasEntre(`${mes}-01`, ultimoDia(mes)).map((d) => {
+  const linhasDia: LinhaDia[] = (visao === "semanal" ? diasEntre(semana, somaDias(semana, 6)) : diasEntre(`${mes}-01`, ultimoDia(mes))).map((d) => {
     const x = fluxo.get(d);
     return {
       data: d,
@@ -107,15 +117,15 @@ export default async function FluxoCaixaPage({ searchParams }: PageProps<"/finan
 
   const periodos =
     visao === "semanal"
-      ? semanas.map((w) => ({ chave: w.de, rotulo: `${ddmm(w.de)} a ${ddmm(w.ate)}`, atual: hoje >= w.de && hoje <= w.ate, href: null as string | null, soma: somar(diasEntre(w.de, w.ate), fluxo, feriados) }))
+      ? semanas.map((w) => ({ chave: w.de, rotulo: `${ddmm(w.de)} a ${ddmm(w.ate)}`, atual: w.de === semana, href: link({ semana: w.de }) as string | null, soma: somar(diasEntre(w.de, w.ate), fluxo, feriados) }))
       : mesesDoAno(ano).map((m) => ({ chave: m, rotulo: nomeMes(m), atual: hoje.startsWith(m), href: link({ visao: "diario", mes: m }), soma: somar(diasEntre(`${m}-01`, ultimoDia(m)), fluxo, feriados) }));
   const acumulados = periodos.reduce<number[]>((a, p) => [...a, (a.at(-1) ?? 0) + p.soma.receber - p.soma.pagar], []);
 
   // a pagar por lugar do relatório × coluna (dia, semana ou mês, conforme a visão)
   const colunasCat =
-    visao === "diario"
-      ? diasEntre(`${mes}-01`, ultimoDia(mes)).map((d) => ({ rotulo: ddmm(d), atual: d === hoje, dias: [d] }))
-      : periodos.map((p) => ({ rotulo: visao === "semanal" ? p.rotulo : p.rotulo.replace(/ \d{4}$/, ""), atual: p.atual, dias: visao === "semanal" ? diasEntre(p.chave, somaDias(p.chave, 6)) : diasEntre(`${p.chave}-01`, ultimoDia(p.chave)) }));
+    visao === "mensal"
+      ? periodos.map((p) => ({ rotulo: p.rotulo.replace(/ \d{4}$/, ""), atual: p.atual, dias: diasEntre(`${p.chave}-01`, ultimoDia(p.chave)) }))
+      : diasEntre(de, ate).map((d) => ({ rotulo: visao === "semanal" ? `${nomeDiaSemana(d).slice(0, 3)} ${ddmm(d)}` : ddmm(d), atual: d === hoje, dias: [d] }));
   const previstoCols = colunasCat.map((c) => c.dias.flatMap((d) => fluxo.get(d)?.pagarCats ?? []));
   const linhasCat = montarCategorias(previstoCols, classifica, categoriasOmie);
   const totalCat = previstoCols.map((itens) => itens.reduce((t, x) => t + x.valor, 0));
@@ -124,6 +134,17 @@ export default async function FluxoCaixaPage({ searchParams }: PageProps<"/finan
   const totalReal = realizadoCols.map((itens) => itens.reduce((t, x) => t + x.valor, 0));
   const nomeEmpresa = empresa ?? "VARELA e NAZÁRIO";
   const itensCategoria = categoriasOmie.map((c) => ({ ...c, ...classifica(c.grupo, c.categoria) }));
+  const colunasPrev = EMPRESAS_FLUXO.flatMap((e) => [
+    { chave: `${e}|receber`, empresa: e, campo: "receber" as const, titulo: `A receber ${e}`, sub: "Dinheiro + PIX + Débito" },
+    { chave: `${e}|cartao`, empresa: e, campo: "cartao" as const, titulo: `Cartão ${e}`, sub: "Cartões de crédito" },
+  ]);
+  const diasPrev: DiaPrevisao[] = diasEntre(de, ate).map((d) => ({
+    data: d,
+    rotulo: `${ddmmaaaa(d)} ${nomeDiaSemana(d).slice(0, 3).toLowerCase()}`,
+    especial: feriados.get(d) ? `Feriado · ${feriados.get(d)}` : fimDeSemana(d) ? nomeDiaSemana(d) : null,
+    hoje: d === hoje,
+    valores: Object.fromEntries(EMPRESAS_FLUXO.flatMap((e, i) => [[`${e}|receber`, porEmpresa[i]?.get(d)?.receber ?? null], [`${e}|cartao`, porEmpresa[i]?.get(d)?.cartao ?? null]])),
+  }));
 
   return (
     <>
@@ -136,7 +157,7 @@ export default async function FluxoCaixaPage({ searchParams }: PageProps<"/finan
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {VISOES.map((v) => (
           <Link key={v.chave} href={link({ visao: v.chave })} className={chip(visao === v.chave)} aria-current={visao === v.chave ? "page" : undefined}>
-            Fluxo de caixa {v.rotulo.toLowerCase()}
+            {v.chave === "previsoes" ? "Previsões (a receber e cartão)" : `Fluxo de caixa ${v.rotulo.toLowerCase()}`}
           </Link>
         ))}
         <span className="mx-1 h-6 w-px bg-border" aria-hidden />
@@ -156,6 +177,18 @@ export default async function FluxoCaixaPage({ searchParams }: PageProps<"/finan
                 ›
               </Link>
             </>
+          ) : visao === "semanal" ? (
+            <>
+              <Link href={link({ semana: somaDias(semana, -7) })} className="rounded border px-2 py-1 hover:bg-muted" aria-label="Semana anterior">
+                ‹
+              </Link>
+              <span className="min-w-40 text-center font-semibold">
+                {ddmm(semana)} a {ddmmaaaa(somaDias(semana, 6))}
+              </span>
+              <Link href={link({ semana: somaDias(semana, 7) })} className="rounded border px-2 py-1 hover:bg-muted" aria-label="Próxima semana">
+                ›
+              </Link>
+            </>
           ) : (
             <>
               <Link href={link({ mes: mesVizinho(mes, -1) })} className="rounded border px-2 py-1 hover:bg-muted" aria-label="Mês anterior">
@@ -167,7 +200,7 @@ export default async function FluxoCaixaPage({ searchParams }: PageProps<"/finan
               </Link>
             </>
           )}
-          <Link href={link({ mes: hoje.slice(0, 7), ano: hoje.slice(0, 4) })} className="ml-1 rounded border px-2 py-1 text-xs hover:bg-muted">
+          <Link href={link({ mes: hoje.slice(0, 7), ano: hoje.slice(0, 4), semana: segunda(hoje) })} className="ml-1 rounded border px-2 py-1 text-xs hover:bg-muted">
             hoje
           </Link>
         </span>
@@ -194,7 +227,9 @@ export default async function FluxoCaixaPage({ searchParams }: PageProps<"/finan
           <ImportarPagar importacoes={importacoes} podeEditar={acesso.editar} />
           {comp && <Compartilhar acessos={comp.acessos} disponiveis={comp.disponiveis} />}
 
-          <CategoriasLugar itens={itensCategoria} podeEditar={acesso.editar} />
+          {visao !== "previsoes" && <CategoriasLugar itens={itensCategoria} podeEditar={acesso.editar} />}
+
+          {visao === "previsoes" && <GradePrevisoes dias={diasPrev} colunas={colunasPrev} podeEditar={acesso.editar} tituloMes={nomeMes(mes)} />}
 
           {visao === "mensal" && (
             <>
@@ -221,14 +256,15 @@ export default async function FluxoCaixaPage({ searchParams }: PageProps<"/finan
             </>
           )}
 
-          {visao === "diario" ? (
-            <TabelaDiaria linhas={linhasDia} empresa={empresa} podeEditar={acesso.editar} tituloMes={nomeMes(mes)} diaPesado={DIA_PESADO} />
-          ) : (
+          {(visao === "diario" || visao === "semanal") && (
+            <TabelaDiaria linhas={linhasDia} empresa={empresa} podeEditar={acesso.editar} tituloMes={visao === "semanal" ? `Semana ${ddmm(semana)} a ${ddmm(somaDias(semana, 6))}` : nomeMes(mes)} diaPesado={DIA_PESADO} />
+          )}
+          {(visao === "semanal" || visao === "mensal") && (
             <div className="overflow-x-auto rounded-xl border bg-card">
               <table className="w-full min-w-[900px] text-sm">
                 <thead className="text-xs font-semibold text-white">
                   <tr>
-                    <th className="bg-neutral-800 px-2 py-2 text-left">{visao === "semanal" ? "Semana (seg a dom)" : "Mês"}</th>
+                    <th className="bg-neutral-800 px-2 py-2 text-left">{visao === "semanal" ? `Semanas de ${nomeMes(mes)}` : "Mês"}</th>
                     <th className="bg-red-900 px-2 py-2 text-right">A receber</th>
                     <th className="bg-red-800 px-2 py-2 text-right">A pagar</th>
                     <th className="bg-red-700 px-2 py-2 text-right">Balanço</th>
@@ -280,23 +316,22 @@ export default async function FluxoCaixaPage({ searchParams }: PageProps<"/finan
                 <tfoot>
                   <tr className="border-t-2 bg-rose-50 text-sm font-semibold">
                     <td className="px-2 py-1.5">Total</td>
-                    <td className="px-2 py-1.5 text-right tabular-nums">{moeda(total.receber)}</td>
-                    <td className="px-2 py-1.5 text-right tabular-nums text-red-700">{moeda(total.pagar)}</td>
-                    <td className={`px-2 py-1.5 text-right tabular-nums ${tom(total.receber - total.pagar)}`}>{moeda(total.receber - total.pagar)}</td>
+                    <td className="px-2 py-1.5 text-right tabular-nums">{moeda(totalTabela.receber)}</td>
+                    <td className="px-2 py-1.5 text-right tabular-nums text-red-700">{moeda(totalTabela.pagar)}</td>
+                    <td className={`px-2 py-1.5 text-right tabular-nums ${tom(totalTabela.receber - totalTabela.pagar)}`}>{moeda(totalTabela.receber - totalTabela.pagar)}</td>
                     <td />
-                    <td className="px-2 py-1.5 text-right tabular-nums">{moeda(total.cartao)}</td>
-                    <td className="px-2 py-1.5 text-right tabular-nums">{total.negativos}</td>
+                    <td className="px-2 py-1.5 text-right tabular-nums">{moeda(totalTabela.cartao)}</td>
+                    <td className="px-2 py-1.5 text-right tabular-nums">{totalTabela.negativos}</td>
                     <td />
                   </tr>
                 </tfoot>
               </table>
               <p className="border-t px-3 py-2 text-xs text-muted-foreground">
-                {visao === "semanal" ? `Semanas de segunda a domingo que tocam ${nomeMes(mes)} (de ${ddmm(de)} a ${ddmm(ate)}).` : "Clique no mês para abrir o dia a dia."} Acumulado = balanço somado desde o 1º período da tabela.
-                {visao === "semanal" && ` Hoje: ${ddmm(hoje)}; próxima segunda: ${ddmm(somaDias(hoje, ((8 - new Date(`${hoje}T00:00:00Z`).getUTCDay()) % 7) || 7))}.`}
+                {visao === "semanal" ? `Semanas de segunda a domingo que tocam ${nomeMes(mes)} (de ${ddmm(deCarga)} a ${ddmm(ateCarga)}); clique na semana para abrir o dia a dia.` : "Clique no mês para abrir o dia a dia."} Acumulado = balanço somado desde o 1º período da tabela.
               </p>
             </div>
           )}
-          {visao !== "mensal" && <TabelaCategorias colunas={colunasCat.map(({ rotulo, atual }) => ({ rotulo, atual }))} linhas={linhasCat} totalGeral={totalCat} />}
+          {(visao === "diario" || visao === "semanal") && <TabelaCategorias colunas={colunasCat.map(({ rotulo, atual }) => ({ rotulo, atual }))} linhas={linhasCat} totalGeral={totalCat} />}
         </div>
         <Anotacoes notas={notas} empresa={empresa} meuId={sessao.id} souAdmin={sessao.papel === "admin"} podeEditar={acesso.editar} />
       </div>
