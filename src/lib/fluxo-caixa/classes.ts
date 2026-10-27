@@ -24,7 +24,9 @@ export const LUGARES: Lugar[] = [
 ].map(([bloco, subgrupo]) => ({ chave: subgrupo ? `${bloco}|${subgrupo}` : bloco, bloco, subgrupo: subgrupo ?? null }));
 
 export const NAO_CLASSIFICADA = "NÃO CLASSIFICADAS";
-export const ehLugar = (v: unknown): v is string => LUGARES.some((l) => l.chave === v);
+/** Categoria que não é despesa (ex.: "Outras Receitas" cadastrada como a pagar): some da lista e do relatório. */
+export const FORA = "FORA DO RELATÓRIO";
+export const ehLugar = (v: unknown): v is string => v === FORA || LUGARES.some((l) => l.chave === v);
 export const rotuloLugar = (chave: string) => chave.replace("|", " › ");
 /** Blocos na ordem, sem repetir. */
 export const BLOCOS = [...new Set(LUGARES.map((l) => l.bloco))];

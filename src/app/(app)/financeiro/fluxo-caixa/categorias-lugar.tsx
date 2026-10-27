@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { LUGARES, NAO_CLASSIFICADA, rotuloLugar } from "@/lib/fluxo-caixa/classes";
+import { FORA, LUGARES, NAO_CLASSIFICADA, rotuloLugar } from "@/lib/fluxo-caixa/classes";
 import { salvarLugar } from "./actions";
 
 export type ItemCategoria = { grupo: string; categoria: string; lugar: string; por: "categoria" | "nome" | "grupo" | null; noAPagar: number };
@@ -19,14 +19,15 @@ const COMO: Record<string, { texto: string; cor: string }> = {
 export function CategoriasLugar({ itens, podeEditar }: { itens: ItemCategoria[]; podeEditar: boolean }) {
   const router = useRouter();
   const [busca, setBusca] = React.useState("");
-  const [so, setSo] = React.useState<"todas" | "pendentes">("todas");
+  const [so, setSo] = React.useState<"todas" | "pendentes" | "fora">("todas");
   const [erro, setErro] = React.useState<string | null>(null);
   const [salvando, setSalvando] = React.useState<string | null>(null);
   const semLugar = itens.filter((i) => i.lugar === NAO_CLASSIFICADA);
+  const fora = itens.filter((i) => i.lugar === FORA);
   const peloGrupo = itens.filter((i) => i.por === "grupo");
   const t = busca.trim().toLowerCase();
   const lista = itens
-    .filter((i) => (so === "pendentes" ? i.lugar === NAO_CLASSIFICADA || i.por === "grupo" : true))
+    .filter((i) => (so === "fora" ? i.lugar === FORA : i.lugar !== FORA && (so === "todas" || i.lugar === NAO_CLASSIFICADA || i.por === "grupo")))
     .filter((i) => !t || `${i.grupo} ${i.categoria} ${i.lugar}`.toLowerCase().includes(t));
   const ordem = (l: string) => (l === NAO_CLASSIFICADA ? -1 : LUGARES.findIndex((x) => x.chave === l));
   lista.sort((a, b) => ordem(a.lugar) - ordem(b.lugar) || a.categoria.localeCompare(b.categoria, "pt-BR"));
@@ -47,7 +48,7 @@ export function CategoriasLugar({ itens, podeEditar }: { itens: ItemCategoria[];
       <summary className="cursor-pointer text-sm font-semibold">
         Categorias do Omie no relatório{" "}
         <span className={`font-normal ${semLugar.length ? "text-red-700" : "text-muted-foreground"}`}>
-          · {itens.length} categorias{semLugar.length ? ` · ${semLugar.length} SEM LUGAR` : " · todas com lugar"}
+          · {itens.length - fora.length} categorias{semLugar.length ? ` · ${semLugar.length} SEM LUGAR` : " · todas com lugar"}
           {peloGrupo.length ? ` · ${peloGrupo.length} pelo grupo (fora da planilha)` : ""}
         </span>
       </summary>
@@ -57,9 +58,10 @@ export function CategoriasLugar({ itens, podeEditar }: { itens: ItemCategoria[];
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar categoria ou grupo" className="w-64 rounded-lg border border-input bg-background px-2 py-1 text-sm" aria-label="Buscar categoria" />
-          <select value={so} onChange={(e) => setSo(e.target.value === "pendentes" ? "pendentes" : "todas")} className="rounded-lg border border-input bg-background px-2 py-1 text-sm" aria-label="Filtro">
+          <select value={so} onChange={(e) => setSo(e.target.value === "pendentes" || e.target.value === "fora" ? e.target.value : "todas")} className="rounded-lg border border-input bg-background px-2 py-1 text-sm" aria-label="Filtro">
             <option value="todas">Todas</option>
             <option value="pendentes">Só sem lugar e pelo grupo</option>
+            <option value="fora">Fora do relatório ({fora.length})</option>
           </select>
           {erro && <span className="text-xs text-red-700">{erro}</span>}
         </div>
@@ -99,6 +101,7 @@ export function CategoriasLugar({ itens, podeEditar }: { itens: ItemCategoria[];
                               {rotuloLugar(l.chave)}
                             </option>
                           ))}
+                          <option value={FORA}>Fora do relatório (não é despesa)</option>
                         </select>
                       ) : (
                         rotuloLugar(i.lugar)

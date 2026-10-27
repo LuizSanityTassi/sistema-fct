@@ -2,7 +2,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { exigirAcesso } from "@/lib/auth/session";
 import { acessoFluxo, categoriasDespesaOmie, compartilhamentosFluxo, feriadosDoPeriodo, fluxoDoPeriodo, notasFluxo, regrasFluxo, ROTA_FLUXO, ultimasImportacoesPagar, type DiaFluxo } from "@/lib/data/fluxo-caixa";
-import { classificador, LUGARES, NAO_CLASSIFICADA, rotuloLugar } from "@/lib/fluxo-caixa/classes";
+import { classificador, FORA, LUGARES, NAO_CLASSIFICADA, rotuloLugar } from "@/lib/fluxo-caixa/classes";
 import { EMPRESAS_FLUXO, ehEmpresaFluxo, type EmpresaFluxo } from "@/lib/fluxo-caixa/omie-pivot";
 import { ddmm, ddmmaaaa, diasEntre, fimDeSemana, mesesDoAno, nomeDiaSemana, nomeMes, semanasDoMes, somaDias, ultimoDia } from "@/lib/fluxo-caixa/periodos";
 import { Anotacoes } from "./anotacoes";
@@ -317,6 +317,13 @@ function montarCategorias(
       }
       for (const c of cs) linhas.push({ nivel: 3, rotulo: c.rotulo, dica: c.dica, valores: c.valores, total: total(c.valores) });
     }
+  }
+  // fora do relatório (não é despesa): só aparece se veio valor, para o total continuar batendo
+  const fora = cats(FORA).filter((c) => total(c.valores) !== 0);
+  if (fora.length) {
+    const vf = soma(fora.map((c) => c.valores));
+    linhas.push({ nivel: 1, rotulo: FORA, valores: vf, total: total(vf) });
+    for (const c of fora) linhas.push({ nivel: 3, rotulo: c.rotulo, dica: c.dica, valores: c.valores, total: total(c.valores) });
   }
   const sem = cats(NAO_CLASSIFICADA);
   if (sem.length) {
