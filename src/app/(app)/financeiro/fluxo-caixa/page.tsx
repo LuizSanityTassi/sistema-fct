@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { exigirAcesso } from "@/lib/auth/session";
+import { fluxoDiario } from "@/lib/data/caixa";
 import { acessoFluxo, categoriasDespesaOmie, compartilhamentosFluxo, feriadosDoPeriodo, fluxoDoPeriodo, notasFluxo, realizadoPorCategoria, regrasFluxo, ROTA_FLUXO, ultimasImportacoesPagar, type DiaFluxo } from "@/lib/data/fluxo-caixa";
 import { classificador, corBloco, FORA, LUGARES, NAO_CLASSIFICADA, ROTULO_BLOCO, rotuloLugar } from "@/lib/fluxo-caixa/classes";
 import { EMPRESAS_FLUXO, ehEmpresaFluxo, type EmpresaFluxo } from "@/lib/fluxo-caixa/omie-pivot";
+import { podeFecharMes } from "@/lib/financeiro/permissoes";
 import { ddmm, ddmmaaaa, diasEntre, fimDeSemana, mesesDoAno, nomeDiaSemana, nomeMes, segunda, semanasDoMes, somaDias, ultimoDia } from "@/lib/fluxo-caixa/periodos";
 import { Anotacoes } from "./anotacoes";
+import { CartaoDia } from "./cartao-dia";
 import { CategoriasLugar } from "./categorias-lugar";
 import { GradePrevisoes, type DiaPrevisao } from "./grade-previsoes";
 import { Compartilhar } from "./compartilhar";
@@ -58,6 +61,8 @@ export default async function FluxoCaixaPage({ searchParams }: PageProps<"/finan
   const empresa: EmpresaFluxo | null = pedida === "TODAS" ? null : ehEmpresaFluxo(pedida) ? pedida : "VARELA";
   const empresas = empresa ? [empresa] : EMPRESAS_FLUXO;
   const hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+  // diário: o dia escolhido (foto do dia + os 7 dias seguintes)
+  const dia = /^\d{4}-\d{2}-\d{2}$/.test(s("dia")) ? s("dia") : hoje;
   // semanal: a semana (segunda) escolhida; o mês dela dá o resumo das semanas
   const semana = segunda(/^\d{4}-\d{2}-\d{2}$/.test(s("semana")) ? s("semana") : hoje);
   const mes = visao === "semanal" ? semana.slice(0, 7) : /^\d{4}-\d{2}$/.test(s("mes")) ? s("mes") : hoje.slice(0, 7);
@@ -65,7 +70,7 @@ export default async function FluxoCaixaPage({ searchParams }: PageProps<"/finan
 
   const semanas = semanasDoMes(mes);
   // período em foco (cartões e tabela de categorias) e período carregado (o semanal carrega as semanas do mês)
-  const [de, ate] = visao === "semanal" ? [semana, somaDias(semana, 6)] : visao === "mensal" ? [`${ano}-01-01`, `${ano}-12-31`] : [`${mes}-01`, ultimoDia(mes)];
+  const [de, ate] = visao === "diario" ? [dia, somaDias(dia, 6)] : visao === "semanal" ? [semana, somaDias(semana, 6)] : visao === "mensal" ? [`${ano}-01-01`, `${ano}-12-31`] : [`${mes}-01`, ultimoDia(mes)];
   const [deCarga, ateCarga] = visao === "semanal" ? [semanas[0].de, semanas[semanas.length - 1].ate] : [de, ate];
   const [fluxo, feriados, acesso, notas, importacoes, regras, categoriasOmie] = await Promise.all([
     fluxoDoPeriodo(empresas, deCarga, ateCarga),
@@ -79,7 +84,9 @@ export default async function FluxoCaixaPage({ searchParams }: PageProps<"/finan
   // mensal: o pago de verdade, para o quadro "realizado" (lançamentos do Omie já importados no sistema)
   const realizado = visao === "mensal" ? await realizadoPorCategoria(empresas, `${ano}-01`, `${ano}-12`) : [];
   // previsões: as tabelas do financeiro das duas empresas lado a lado
-  const porEmpresa = visao === "previsoes" ? await Promise.all(EMPRESAS_FLUXO.map((e) => fluxoDoPeriodo([e], de, ate))) : [];
+  const porEmpresa = visao === "previsoes" || visao === "diario" ? await Promise.all(EMPRESAS_FLUXO.map((e) => fluxoDoPeriodo([e], de, visao === "diario" ? de : ate))) : [];
+  // diário: conferência, o que entrou e saldos das contas (os mesmos da tela Caixa)
+  const caixaDia = visao === "diario" ? await fluxoDiario(dia) : [];
   const classifica = classificador(regras);
   const comp = acesso.compartilhar ? await compartilhamentosFluxo() : null;
 
@@ -90,12 +97,12 @@ export default async function FluxoCaixaPage({ searchParams }: PageProps<"/finan
     .map((d) => ({ d, b: (fluxo.get(d)?.receber ?? 0) - (fluxo.get(d)?.pagar ?? 0) }))
     .reduce<{ d: string; b: number } | null>((p, x) => (!p || x.b < p.b ? x : p), null);
   const link = (extra: Record<string, string>) => {
-    const q = new URLSearchParams({ visao, empresa: empresa ?? "TODAS", mes, ano, semana, ...extra });
+    const q = new URLSearchParams({ visao, empresa: empresa ?? "TODAS", mes, ano, semana, dia, ...extra });
     return `${ROTA_FLUXO}?${q}`;
   };
   const chip = (ativo: boolean) => `rounded-full border px-3 py-1 text-sm ${ativo ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary/40"}`;
 
-  const linhasDia: LinhaDia[] = (visao === "semanal" ? diasEntre(semana, somaDias(semana, 6)) : diasEntre(`${mes}-01`, ultimoDia(mes))).map((d) => {
+  const linhasDia: LinhaDia[] = diasEntre(de, ate).map((d) => {
     const x = fluxo.get(d);
     return {
       data: d,
@@ -177,6 +184,18 @@ export default async function FluxoCaixaPage({ searchParams }: PageProps<"/finan
                 ›
               </Link>
             </>
+          ) : visao === "diario" ? (
+            <>
+              <Link href={link({ dia: somaDias(dia, -1) })} className="rounded border px-2 py-1 hover:bg-muted" aria-label="Dia anterior">
+                ‹
+              </Link>
+              <span className="min-w-44 text-center font-semibold">
+                {nomeDiaSemana(dia)}, {ddmmaaaa(dia)}
+              </span>
+              <Link href={link({ dia: somaDias(dia, 1) })} className="rounded border px-2 py-1 hover:bg-muted" aria-label="Próximo dia">
+                ›
+              </Link>
+            </>
           ) : visao === "semanal" ? (
             <>
               <Link href={link({ semana: somaDias(semana, -7) })} className="rounded border px-2 py-1 hover:bg-muted" aria-label="Semana anterior">
@@ -200,13 +219,13 @@ export default async function FluxoCaixaPage({ searchParams }: PageProps<"/finan
               </Link>
             </>
           )}
-          <Link href={link({ mes: hoje.slice(0, 7), ano: hoje.slice(0, 4), semana: segunda(hoje) })} className="ml-1 rounded border px-2 py-1 text-xs hover:bg-muted">
+          <Link href={link({ mes: hoje.slice(0, 7), ano: hoje.slice(0, 4), semana: segunda(hoje), dia: hoje })} className="ml-1 rounded border px-2 py-1 text-xs hover:bg-muted">
             hoje
           </Link>
         </span>
       </div>
 
-      <section className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <section className={`mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5 ${visao === "diario" ? "hidden" : ""}`}>
         {[
           ["A receber", moeda(total.receber), "text-emerald-700", total.semPrevisao ? `${total.semPrevisao} dia(s) útil(eis) sem previsão` : "previsão completa"],
           ["A pagar", moeda(total.pagar), "text-red-700", total.maior ? `maior: ${ddmm(total.maior.data)} · ${moeda(total.maior.valor)}` : "—"],
@@ -256,8 +275,33 @@ export default async function FluxoCaixaPage({ searchParams }: PageProps<"/finan
             </>
           )}
 
+          {visao === "diario" && (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {EMPRESAS_FLUXO.map((e, i) => {
+                const x = porEmpresa[i]?.get(dia);
+                const lugares = Object.entries(
+                  (x?.pagarCats ?? []).reduce<Record<string, number>>((t, c) => {
+                    const l = rotuloLugar(classifica(c.grupo, c.categoria).lugar);
+                    t[l] = (t[l] ?? 0) + c.valor;
+                    return t;
+                  }, {}),
+                ).sort((a, b) => b[1] - a[1]);
+                return (
+                  <CartaoDia
+                    key={e}
+                    data={dia}
+                    empresa={e}
+                    fluxo={{ receber: x?.receber ?? null, cartao: x?.cartao ?? null, pagar: x?.pagar ?? 0, motivo: x?.motivo ?? null, lugares }}
+                    caixa={caixaDia.find((c) => c.empresa === e)}
+                    podeEditar={acesso.editar}
+                    podeCaixa={podeFecharMes(sessao.papel)}
+                  />
+                );
+              })}
+            </div>
+          )}
           {(visao === "diario" || visao === "semanal") && (
-            <TabelaDiaria linhas={linhasDia} empresa={empresa} podeEditar={acesso.editar} tituloMes={visao === "semanal" ? `Semana ${ddmm(semana)} a ${ddmm(somaDias(semana, 6))}` : nomeMes(mes)} diaPesado={DIA_PESADO} />
+            <TabelaDiaria linhas={linhasDia} empresa={empresa} podeEditar={acesso.editar} tituloMes={visao === "semanal" ? `Semana ${ddmm(semana)} a ${ddmm(somaDias(semana, 6))}` : `Próximos 7 dias · ${empresa ?? "as duas"}`} diaPesado={DIA_PESADO} />
           )}
           {(visao === "semanal" || visao === "mensal") && (
             <div className="overflow-x-auto rounded-xl border bg-card">

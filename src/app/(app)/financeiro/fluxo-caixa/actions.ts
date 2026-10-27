@@ -9,6 +9,7 @@ import { ehEmpresaFluxo, type LinhaPagar } from "@/lib/fluxo-caixa/omie-pivot";
 import { somaDias } from "@/lib/fluxo-caixa/periodos";
 import { lerDecimal } from "@/lib/formatos";
 import { createClient } from "@/lib/supabase/server";
+import type { RespostaCelula } from "../caixa-contabil/actions";
 
 export type Resposta = { ok?: boolean; erro?: string; mensagem?: string };
 
@@ -175,4 +176,16 @@ export async function removerAcessoFluxo(p: { userId: string }): Promise<Respost
   await registrarAuditoria(supabase, { userId: sessao.id, acao: "excluir", entidade: "acesso_telas", anterior: { user_id: p.userId, rota: ROTA_FLUXO } });
   revalidatePath(ROTA_FLUXO);
   return { ok: true };
+}
+
+/** Para a célula editável do diário (manda FormData): a receber ou cartão do dia. */
+export async function salvarPrevisaoCelula(fd: FormData): Promise<RespostaCelula> {
+  const r = await salvarPrevisao({ empresa: String(fd.get("empresa") ?? ""), data: String(fd.get("data") ?? ""), campo: String(fd.get("campo") ?? ""), valor: String(fd.get("valor") ?? "") });
+  return r.erro ? { erro: r.erro } : { ok: true };
+}
+
+/** Para o campo de texto do diário: motivo do dia. */
+export async function salvarMotivoCelula(fd: FormData): Promise<RespostaCelula> {
+  const r = await salvarMotivo({ empresa: String(fd.get("empresa") ?? ""), data: String(fd.get("data") ?? ""), texto: String(fd.get("valor") ?? "") });
+  return r.erro ? { erro: r.erro } : { ok: true };
 }
