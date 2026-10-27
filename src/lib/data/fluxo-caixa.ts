@@ -1,4 +1,6 @@
 import { rpcPaginado } from "@/lib/data/dre";
+import { listarCategorias, listarUnidadesFinanceiro } from "@/lib/data/financeiro";
+import { EMPRESAS_CAIXA } from "@/lib/financeiro/rotulos";
 import type { Regra } from "@/lib/fluxo-caixa/classes";
 import type { EmpresaFluxo } from "@/lib/fluxo-caixa/omie-pivot";
 import { createClient } from "@/lib/supabase/server";
@@ -158,4 +160,21 @@ export async function categoriasDespesaOmie() {
     vistas.set(k, v);
   }
   return [...vistas.values()];
+}
+
+/**
+ * Realizado (pago) por mês e categoria: os lançamentos a pagar que já estão no sistema (importados do Omie), das
+ * unidades da empresa (VARELA inclui Itajaí; NAZÁRIO inclui Blumenau). `de`/`ate` = aaaa-mm.
+ */
+export async function realizadoPorCategoria(empresas: readonly EmpresaFluxo[], de: string, ate: string) {
+  const supabase = await createClient();
+  const grupos = EMPRESAS_CAIXA.filter((e) => empresas.includes(e.nome as EmpresaFluxo)).flatMap((e) => [...e.grupos] as string[]);
+  const [unidades, categorias] = await Promise.all([listarUnidadesFinanceiro(), listarCategorias()]);
+  const branches = unidades.filter((u) => grupos.includes(u.grupo)).map((u) => u.id);
+  if (!branches.length) return [];
+  const cat = new Map(categorias.map((c) => [c.id, c]));
+  const linhas = await rpcPaginado((a, b) => supabase.rpc("fin_dre", { p_de: de, p_ate: ate, p_branches: branches }).range(a, b));
+  return linhas
+    .filter((l) => l.tipo === "pagar")
+    .map((l) => ({ competencia: l.competencia.trim(), grupo: cat.get(l.categoria_id)?.grupo ?? "", categoria: cat.get(l.categoria_id)?.nome ?? "", valor: Number(l.total) }));
 }

@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { exigirAcesso } from "@/lib/auth/session";
-import { acessoFluxo, categoriasDespesaOmie, compartilhamentosFluxo, feriadosDoPeriodo, fluxoDoPeriodo, notasFluxo, regrasFluxo, ROTA_FLUXO, ultimasImportacoesPagar, type DiaFluxo } from "@/lib/data/fluxo-caixa";
-import { classificador, FORA, LUGARES, NAO_CLASSIFICADA, rotuloLugar } from "@/lib/fluxo-caixa/classes";
+import { acessoFluxo, categoriasDespesaOmie, compartilhamentosFluxo, feriadosDoPeriodo, fluxoDoPeriodo, notasFluxo, realizadoPorCategoria, regrasFluxo, ROTA_FLUXO, ultimasImportacoesPagar, type DiaFluxo } from "@/lib/data/fluxo-caixa";
+import { classificador, corBloco, FORA, LUGARES, NAO_CLASSIFICADA, ROTULO_BLOCO, rotuloLugar } from "@/lib/fluxo-caixa/classes";
 import { EMPRESAS_FLUXO, ehEmpresaFluxo, type EmpresaFluxo } from "@/lib/fluxo-caixa/omie-pivot";
 import { ddmm, ddmmaaaa, diasEntre, fimDeSemana, mesesDoAno, nomeDiaSemana, nomeMes, semanasDoMes, somaDias, ultimoDia } from "@/lib/fluxo-caixa/periodos";
 import { Anotacoes } from "./anotacoes";
@@ -70,6 +70,8 @@ export default async function FluxoCaixaPage({ searchParams }: PageProps<"/finan
     regrasFluxo(),
     categoriasDespesaOmie(),
   ]);
+  // mensal: o pago de verdade, para o quadro "realizado" (lançamentos do Omie já importados no sistema)
+  const realizado = visao === "mensal" ? await realizadoPorCategoria(empresas, `${ano}-01`, `${ano}-12`) : [];
   const classifica = classificador(regras);
   const comp = acesso.compartilhar ? await compartilhamentosFluxo() : null;
 
@@ -113,9 +115,14 @@ export default async function FluxoCaixaPage({ searchParams }: PageProps<"/finan
   const colunasCat =
     visao === "diario"
       ? diasEntre(`${mes}-01`, ultimoDia(mes)).map((d) => ({ rotulo: ddmm(d), atual: d === hoje, dias: [d] }))
-      : periodos.map((p) => ({ rotulo: visao === "semanal" ? p.rotulo : p.rotulo.slice(0, 3) + p.rotulo.slice(-5), atual: p.atual, dias: visao === "semanal" ? diasEntre(p.chave, somaDias(p.chave, 6)) : diasEntre(`${p.chave}-01`, ultimoDia(p.chave)) }));
-  const linhasCat = montarCategorias(colunasCat.map((c) => c.dias), fluxo, classifica, categoriasOmie);
-  const totalCat = colunasCat.map((c) => c.dias.reduce((t, d) => t + (fluxo.get(d)?.pagar ?? 0), 0));
+      : periodos.map((p) => ({ rotulo: visao === "semanal" ? p.rotulo : p.rotulo.replace(/ \d{4}$/, ""), atual: p.atual, dias: visao === "semanal" ? diasEntre(p.chave, somaDias(p.chave, 6)) : diasEntre(`${p.chave}-01`, ultimoDia(p.chave)) }));
+  const previstoCols = colunasCat.map((c) => c.dias.flatMap((d) => fluxo.get(d)?.pagarCats ?? []));
+  const linhasCat = montarCategorias(previstoCols, classifica, categoriasOmie);
+  const totalCat = previstoCols.map((itens) => itens.reduce((t, x) => t + x.valor, 0));
+  const realizadoCols = mesesDoAno(ano).map((m) => realizado.filter((r) => r.competencia === m));
+  const linhasReal = montarCategorias(realizadoCols, classifica, categoriasOmie);
+  const totalReal = realizadoCols.map((itens) => itens.reduce((t, x) => t + x.valor, 0));
+  const nomeEmpresa = empresa ?? "VARELA e NAZÁRIO";
   const itensCategoria = categoriasOmie.map((c) => ({ ...c, ...classifica(c.grupo, c.categoria) }));
 
   return (
@@ -188,6 +195,31 @@ export default async function FluxoCaixaPage({ searchParams }: PageProps<"/finan
           {comp && <Compartilhar acessos={comp.acessos} disponiveis={comp.disponiveis} />}
 
           <CategoriasLugar itens={itensCategoria} podeEditar={acesso.editar} />
+
+          {visao === "mensal" && (
+            <>
+              <TabelaCategorias
+                faixa={{ texto: `PREVISÃO · ${nomeEmpresa} · ${ano}`, tom: "previsao" }}
+                colunas={colunasCat.map(({ rotulo, atual }) => ({ rotulo, atual }))}
+                linhas={linhasCat}
+                totalGeral={totalCat}
+                rotuloTotal="TOTAL DO MÊS"
+                centavos
+                nivelInicial={1}
+                rodape="Previsão = contas a pagar do Omie (relatório Contas por Período) pela data de previsão."
+              />
+              <TabelaCategorias
+                faixa={{ texto: `REALIZADO · ${nomeEmpresa} · ${ano}`, tom: "realizado" }}
+                colunas={colunasCat.map(({ rotulo, atual }) => ({ rotulo, atual }))}
+                linhas={linhasReal}
+                totalGeral={totalReal}
+                rotuloTotal="TOTAL DO MÊS"
+                centavos
+                nivelInicial={1}
+                rodape={`Realizado = pagamentos do Omie já importados no sistema (Caixa contábil → Importar novo mês), por mês de competência${empresa === "VARELA" ? "; VARELA inclui Itajaí" : empresa === "NAZÁRIO" ? "; NAZÁRIO inclui Blumenau" : ""}.`}
+              />
+            </>
+          )}
 
           {visao === "diario" ? (
             <TabelaDiaria linhas={linhasDia} empresa={empresa} podeEditar={acesso.editar} tituloMes={nomeMes(mes)} diaPesado={DIA_PESADO} />
@@ -264,7 +296,7 @@ export default async function FluxoCaixaPage({ searchParams }: PageProps<"/finan
               </p>
             </div>
           )}
-          <TabelaCategorias colunas={colunasCat.map(({ rotulo, atual }) => ({ rotulo, atual }))} linhas={linhasCat} totalGeral={totalCat} />
+          {visao !== "mensal" && <TabelaCategorias colunas={colunasCat.map(({ rotulo, atual }) => ({ rotulo, atual }))} linhas={linhasCat} totalGeral={totalCat} />}
         </div>
         <Anotacoes notas={notas} empresa={empresa} meuId={sessao.id} souAdmin={sessao.papel === "admin"} podeEditar={acesso.editar} />
       </div>
@@ -277,8 +309,7 @@ export default async function FluxoCaixaPage({ searchParams }: PageProps<"/finan
  * as categorias do Omie sem valor também entram (a tabela esconde ou mostra). Sem lugar = "NÃO CLASSIFICADAS".
  */
 function montarCategorias(
-  colunas: string[][],
-  fluxo: Map<string, DiaFluxo>,
+  colunas: { grupo: string; categoria: string; valor: number }[][],
   classifica: ReturnType<typeof classificador>,
   conhecidas: { grupo: string; categoria: string }[],
 ): LinhaCategoria[] {
@@ -295,8 +326,8 @@ function montarCategorias(
     return x;
   };
   for (const c of conhecidas) cat(c.grupo, c.categoria);
-  colunas.forEach((dias, i) => {
-    for (const d of dias) for (const pc of fluxo.get(d)?.pagarCats ?? []) cat(pc.grupo, pc.categoria).valores[i] += pc.valor;
+  colunas.forEach((itens, i) => {
+    for (const pc of itens) cat(pc.grupo, pc.categoria).valores[i] += pc.valor;
   });
   const soma = (vs: number[][]) => colunas.map((_, i) => vs.reduce((t, v) => t + v[i], 0));
   const total = (v: number[]) => v.reduce((t, x) => t + x, 0);
@@ -308,7 +339,7 @@ function montarCategorias(
     const lugares = LUGARES.filter((l) => l.bloco === bloco);
     const doBloco = lugares.flatMap((l) => cats(l.chave));
     const vb = soma(doBloco.map((c) => c.valores));
-    linhas.push({ nivel: 1, rotulo: bloco, valores: vb, total: total(vb) });
+    linhas.push({ nivel: 1, rotulo: ROTULO_BLOCO[bloco] ?? bloco, valores: vb, total: total(vb), cor: corBloco(bloco) });
     for (const l of lugares) {
       const cs = cats(l.chave);
       if (l.subgrupo) {
@@ -322,7 +353,7 @@ function montarCategorias(
   const fora = cats(FORA).filter((c) => total(c.valores) !== 0);
   if (fora.length) {
     const vf = soma(fora.map((c) => c.valores));
-    linhas.push({ nivel: 1, rotulo: FORA, valores: vf, total: total(vf) });
+    linhas.push({ nivel: 1, rotulo: FORA, valores: vf, total: total(vf), cor: "amarelo" });
     for (const c of fora) linhas.push({ nivel: 3, rotulo: c.rotulo, dica: c.dica, valores: c.valores, total: total(c.valores) });
   }
   const sem = cats(NAO_CLASSIFICADA);

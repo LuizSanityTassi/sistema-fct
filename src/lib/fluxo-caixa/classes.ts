@@ -30,6 +30,16 @@ export const ehLugar = (v: unknown): v is string => v === FORA || LUGARES.some((
 export const rotuloLugar = (chave: string) => chave.replace("|", " › ");
 /** Blocos na ordem, sem repetir. */
 export const BLOCOS = [...new Set(LUGARES.map((l) => l.bloco))];
+/** Como cada bloco aparece no relatório (igual à planilha da coordenação) e a cor da linha. */
+export const ROTULO_BLOCO: Record<string, string> = {
+  "DESPESAS FIXAS": "TOTAL DESPESAS FIXAS",
+  "DESPESAS VARIÁVEIS": "TOTAL DESPESAS VARIÁVEIS",
+  "DESPESAS FINANCEIRAS": "Despesas Financeiras",
+  "OUTRAS DESPESAS": "Outras Despesas",
+  "PAGAMENTO DE EMPRÉSTIMOS": "Pagamento de empréstimos",
+  INVESTIMENTO: "Investimento",
+};
+export const corBloco = (bloco: string): "vermelho" | "amarelo" => (["CUSTO DA MERCADORIA", "DESPESAS FIXAS", "DESPESAS VARIÁVEIS"].includes(bloco) ? "vermelho" : "amarelo");
 
 export type Regra = { grupo: string; categoria: string; lugar: string; ordem: number };
 export type Classificacao = { lugar: string; ordem: number; por: "categoria" | "nome" | "grupo" | null };
