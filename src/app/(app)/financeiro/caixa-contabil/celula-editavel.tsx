@@ -17,6 +17,8 @@ type Props = {
   exibicao: string; // texto mostrado quando não está editando
   automatico?: string; // dica do valor automático
   ajustado?: boolean;
+  /** pinta de amarelo a célula ajustada (no caixa contábil só o administrador vê; pedido do usuário) */
+  destacar?: boolean;
   classe?: string;
   podeEditar: boolean;
   /** dica ao passar o mouse (no lugar da padrão) e texto do campo vazio — ex.: célula que edita um ajuste somado */
@@ -29,8 +31,9 @@ type Props = {
  * clicar a célula mostra o valor (ou a conta) que já tem: dá para continuar a conta como numa planilha — "+200",
  * "-100" — e a conta fica guardada como memória de cálculo.
  */
-export function CelulaEditavel({ action, campos, valorAtual, base, conta, deBaixo, exibicao, automatico, ajustado, classe, podeEditar, dicaEditar, placeholder }: Props) {
+export function CelulaEditavel({ action, campos, valorAtual, base, conta, deBaixo, exibicao, automatico, ajustado: ajustadoGravado, destacar = true, classe, podeEditar, dicaEditar, placeholder }: Props) {
   const router = useRouter();
+  const ajustado = ajustadoGravado && destacar;
   const [editando, setEditando] = React.useState(false);
   const [texto, setTexto] = React.useState("");
   const [salvando, setSalvando] = React.useState(false);

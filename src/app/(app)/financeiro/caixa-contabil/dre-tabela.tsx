@@ -12,6 +12,8 @@ type Props = {
   dre: Dre;
   escopo: { grupo: string; filial: string };
   podeEditar: boolean;
+  /** célula ajustada fica amarela: só para o administrador (o contador não vê o destaque; as bolinhas azuis ficam para todos) */
+  destacarAjustes: boolean;
   salvarAjuste: (fd: FormData) => Promise<RespostaCelula>;
   salvarSaldo: (fd: FormData) => Promise<RespostaCelula>;
   salvarLinha: (fd: FormData) => Promise<RespostaCelula>;
@@ -32,7 +34,7 @@ const pctFmt = (v: number, base: number) => (base > 0 ? `${((v / base) * 100).to
 const tom = (v: number) => (v < 0 ? "text-red-700" : v > 0 ? "text-emerald-700" : "text-muted-foreground");
 const DICA_SALDO_MES = "Digite o valor do mês. No total do grupo (ou de todas), mês sem valor digitado mostra a soma das filiais.";
 
-export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, salvarLinha, contas, ajustesDeBaixo, vazias }: Props) {
+export function DreTabela({ dre, escopo, podeEditar, destacarAjustes, salvarAjuste, salvarSaldo, salvarLinha, contas, ajustesDeBaixo, vazias }: Props) {
   const [nivel, setNivel] = React.useState<1 | 2 | 3>(vazias.ligado ? 3 : 1);
   const [busca, setBusca] = React.useState("");
   const termo = busca.trim().toLowerCase();
@@ -62,6 +64,7 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
       exibicao={moedaDre(s.porMes[m] ?? 0)}
       automatico={moedaDre(s.auto[m] ?? 0)}
       ajustado={s.digitado[m] != null}
+      destacar={destacarAjustes}
       classe={classe}
       podeEditar={podeEditar}
     />
@@ -97,6 +100,7 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
         exibicao={exibicao}
         automatico={auto}
         ajustado={dre.saldosDigitados[campo]?.[m] != null}
+        destacar={destacarAjustes}
         classe={classe}
         podeEditar
       />
@@ -122,6 +126,7 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
             exibicao={moedaDre(cel.valor)}
             automatico={moedaDre(cel.auto)}
             ajustado={cel.ajustado}
+            destacar={destacarAjustes}
             classe={`text-sm ${foraTotal(m) ? "text-muted-foreground/70" : tom(cel.valor)}`}
             podeEditar={podeEditar}
           />
@@ -159,6 +164,7 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
               conta={contas[`saldo:${campo}|${m}`]}
               exibicao={v == null ? "—" : moedaDre(v)}
               ajustado={gravado != null}
+              destacar={destacarAjustes}
               podeEditar
               classe="font-semibold"
             />
@@ -265,6 +271,7 @@ export function DreTabela({ dre, escopo, podeEditar, salvarAjuste, salvarSaldo, 
                     exibicao={moedaDre(dre.resultado.porMes[m] ?? 0)}
                     automatico={conta}
                     ajustado={proprio != null}
+                    destacar={destacarAjustes}
                     classe={`${tom(dre.resultado.porMes[m])} ${foraTotal(m) ? "opacity-60" : ""}`}
                     podeEditar={podeEditar}
                     placeholder="ajuste: ex. 2928,45"
@@ -329,7 +336,7 @@ Clique para somar um ajuste ao resultado (ex.: 2928,45 ou -100); a conta continu
         </table>
       </div>
       <p className="text-xs text-muted-foreground">
-        Receitas (+) · custo e despesas (−). Valores sem centavos. {podeEditar ? "Clique numa célula de categoria para ajustar o número manualmente (o contador pode sobrescrever o automático; apague para voltar). Células amarelas = ajuste manual. Totais recalculam sozinhos." : "Somente leitura."}
+        Receitas (+) · custo e despesas (−). Valores sem centavos. {podeEditar ? `Clique numa célula de categoria para ajustar o número manualmente (o contador pode sobrescrever o automático; apague para voltar). ${destacarAjustes ? "Células amarelas = ajuste manual. " : ""}Totais recalculam sozinhos.` : "Somente leitura."}
       </p>
     </div>
   );

@@ -115,6 +115,7 @@ export default async function DrePage({ searchParams }: PageProps<"/financeiro/c
             dre={dre}
             escopo={{ grupo: escopo.grupo, filial: escopo.filial ?? "" }}
             podeEditar={podeEditar}
+            destacarAjustes={sessao.papel === "admin"}
             salvarAjuste={salvarAjusteDre}
             salvarSaldo={salvarSaldoDre}
             salvarLinha={salvarAjusteLinhaDre}
