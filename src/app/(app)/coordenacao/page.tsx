@@ -11,6 +11,7 @@ import { exigirAcesso } from "@/lib/auth/session";
 import { SITUACOES_CHECKLIST, TOM_CHECKLIST, type SituacaoChecklist } from "@/lib/coordenacao/checklist";
 import { checklistsParaConfirmar, lerFiltrosChecklist, listarChecklists, opcoesChecklist, TAMANHO_PAGINA_CHECKLISTS } from "@/lib/data/coordenacao";
 import { formatarData } from "@/lib/formatos";
+import { AbasCoordenacao } from "./abas";
 import { MostrarEstrelas } from "./estrelas";
 
 export const metadata = { title: "Checklist da loja" };
@@ -39,6 +40,8 @@ export default async function CoordenacaoPage({ searchParams }: PageProps<"/coor
           ) : undefined
         }
       />
+
+      <AbasCoordenacao ativa="/coordenacao" papel={sessao.papel} />
 
       {paraMim > 0 && (
         <div className="mb-4">

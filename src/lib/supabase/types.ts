@@ -5583,6 +5583,22 @@ export type Database = {
           nome: string
         }[]
       }
+      coord_ranking: {
+        Args: { p_ate: string; p_de: string }
+        Returns: {
+          anterior_media: number | null
+          branch_id: string
+          codigo: string
+          media: number | null
+          nome: string
+          pior_item: string | null
+          pior_nota: number | null
+          qtd: number
+          regional: string | null
+          ultima_data: string | null
+          ultima_media: number | null
+        }[]
+      }
       lojas_para_sangria: {
         Args: never
         Returns: {

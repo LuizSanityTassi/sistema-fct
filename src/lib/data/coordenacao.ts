@@ -50,6 +50,20 @@ export async function opcoesChecklist() {
   return { lojas: lojas ?? [], gerentes: gerentes ?? [] };
 }
 
+/** Ranking das lojas: média dos checklists (sem os cancelados) no período, por loja, com a regional. */
+export async function rankingLojas(de: string, ate: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("coord_ranking", { p_de: de, p_ate: ate });
+  if (error) throw error;
+  return (data ?? []).map((l) => ({
+    ...l,
+    media: l.media === null ? null : Number(l.media),
+    ultima_media: l.ultima_media === null ? null : Number(l.ultima_media),
+    anterior_media: l.anterior_media === null ? null : Number(l.anterior_media),
+    pior_nota: l.pior_nota === null ? null : Number(l.pior_nota),
+  }));
+}
+
 /** Checklists esperando a resposta deste gerente (para a central de pendências). */
 export async function checklistsParaConfirmar(userId: string) {
   const supabase = await createClient();
