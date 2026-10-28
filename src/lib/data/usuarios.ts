@@ -59,3 +59,43 @@ export async function contarPorPapel() {
   for (const p of data) if (p.ativo) r[p.papel] = (r[p.papel] ?? 0) + 1;
   return r;
 }
+
+export type SituacaoAcesso = { confirmado: boolean; convidadoEm: string | null; ultimoLogin: string | null };
+
+/** Por usuário: já criou a senha (confirmado), quando recebeu o convite e o último login. Só admin enxerga. */
+export async function situacaoAcesso() {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("usuarios_acesso");
+  if (error) throw error;
+  return new Map<string, SituacaoAcesso>((data ?? []).map((r) => [r.id, { confirmado: r.confirmado, convidadoEm: r.convidado_em, ultimoLogin: r.ultimo_login }]));
+}
+
+export type ConvitePendente = { id: string; nome: string; email: string; branchId: string | null; codigo: string | null; filial: string | null };
+
+/** Logins ativos que ainda não receberam o convite (conta criada sem e-mail, sem senha). */
+export async function convitesPendentes(): Promise<ConvitePendente[]> {
+  const supabase = await createClient();
+  const [acesso, { data, error }] = await Promise.all([
+    situacaoAcesso(),
+    supabase.from("profiles").select("id, nome, email, ativo, branch_id, unidade:branches!profiles_branch_id_fkey(codigo, nome)").eq("ativo", true).not("email", "is", null).order("nome").range(0, 4999),
+  ]);
+  if (error) throw error;
+  return data.flatMap((p) => {
+    const s = acesso.get(p.id);
+    if (!p.email || !s || s.confirmado || s.convidadoEm) return [];
+    return [{ id: p.id, nome: p.nome, email: p.email, branchId: p.branch_id, codigo: p.unidade?.codigo ?? null, filial: p.unidade?.nome ?? null }];
+  });
+}
+
+/** Funcionários ativos com e-mail na ficha e sem login ligado (ex.: e-mail digitado errado na planilha do RH). */
+export async function funcionariosSemLogin() {
+  const supabase = await createClient();
+  const [{ data: func, error }, { data: ligados, error: erroLigados }] = await Promise.all([
+    supabase.from("employees").select("id, nome, email").neq("status", "desligado").not("email", "is", null).order("nome").range(0, 4999),
+    supabase.from("profiles").select("employee_id").not("employee_id", "is", null).range(0, 4999),
+  ]);
+  if (error) throw error;
+  if (erroLigados) throw erroLigados;
+  const comLogin = new Set((ligados ?? []).map((l) => l.employee_id));
+  return (func ?? []).filter((f) => !comLogin.has(f.id));
+}

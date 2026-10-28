@@ -7,6 +7,7 @@ import { z } from "zod";
 import { diferencas, registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { ehUuid } from "@/lib/data/filiais";
+import { convitesPendentes } from "@/lib/data/usuarios";
 import { PAPEIS } from "@/lib/roles";
 import { randomBytes } from "node:crypto";
 import { createClient as createClientPublico } from "@supabase/supabase-js";
@@ -207,6 +208,83 @@ export async function salvarUsuario(id: string, _prev: EstadoUsuario, fd: FormDa
   });
   revalidatePath("/configuracoes/usuarios");
   redirect("/configuracoes/usuarios?salvo=1");
+}
+
+// ---------- convites dos logins criados sem e-mail ----------
+
+export type EstadoConvites = { erro?: string; ok?: string; falhas?: string[] };
+
+/** Para no meio se o tempo da função for acabar (Vercel corta em 300 s) — o resto fica pendente para o próximo clique. */
+const PRAZO_CONVITES_MS = 240_000;
+
+/**
+ * Manda o e-mail "Boas-vindas ao Sistema FCT" (modelo de convite do Supabase) para quem tem login criado e ainda não
+ * recebeu: todos, uma filial ou uma pessoa, até a quantidade escolhida. O Supabase limita e-mails por hora: no limite,
+ * para e avisa (o resto continua pendente). Grava convite_enviado_em de quem recebeu.
+ */
+export async function enviarConvites(_prev: EstadoConvites, fd: FormData): Promise<EstadoConvites> {
+  const sessao = await exigirAdmin();
+  if (!sessao) return { erro: "Só administradores enviam convites." };
+  const admin = createAdminClient();
+  if (!admin) return { erro: "Falta a variável SUPABASE_SERVICE_ROLE_KEY no servidor para mandar convites." };
+
+  const filial = texto(fd, "filial");
+  const id = texto(fd, "id");
+  const quantidade = Number.parseInt(texto(fd, "quantidade") ?? "", 10);
+  const pendentes = await convitesPendentes();
+  const alvo = pendentes
+    .filter((p) => (id ? p.id === id : !filial || filial === "todos" || (filial === "sem" ? !p.branchId : p.branchId === filial)))
+    .slice(0, Number.isFinite(quantidade) && quantidade > 0 ? quantidade : undefined);
+  if (!alvo.length) return { erro: "Ninguém pendente nessa escolha." };
+
+  const destino = `${await origem()}/auth/confirm?next=/auth/atualizar-senha`;
+  const inicio = Date.now();
+  const enviados: string[] = [];
+  const falhas: string[] = [];
+  let parou: "limite" | "tempo" | null = null;
+  for (const p of alvo) {
+    if (Date.now() - inicio > PRAZO_CONVITES_MS) {
+      parou = "tempo";
+      break;
+    }
+    const { error } = await admin.auth.admin.inviteUserByEmail(p.email, { redirectTo: destino });
+    if (error) {
+      if (error.status === 429 || /rate limit|too many/i.test(error.message)) {
+        parou = "limite";
+        break;
+      }
+      falhas.push(`${p.nome} (${p.email}): ${error.message}`);
+      continue;
+    }
+    enviados.push(p.id);
+  }
+
+  const supabase = await createClient();
+  const agora = new Date().toISOString();
+  for (let i = 0; i < enviados.length; i += 100) await supabase.from("profiles").update({ convite_enviado_em: agora }).in("id", enviados.slice(i, i + 100));
+  if (enviados.length || falhas.length)
+    await registrarAuditoria(supabase, {
+      userId: sessao.id,
+      acao: "convidar",
+      entidade: "profiles",
+      registroId: id ?? null,
+      novo: { convites_enviados: enviados.length, falhas: falhas.length, filial: filial ?? null, parou },
+    });
+  revalidatePath("/configuracoes/usuarios");
+
+  const faltam = pendentes.length - enviados.length;
+  const motivo =
+    parou === "limite"
+      ? " Parei no limite de e-mails por hora do Supabase: espere um pouco e clique de novo (ou aumente o limite em Supabase → Authentication → Rate Limits)."
+      : parou === "tempo"
+        ? " Parei para não estourar o tempo da página: clique de novo para continuar."
+        : "";
+  const resumo = enviados.length === 1 ? "1 convite enviado." : `${enviados.length} convites enviados.`;
+  return {
+    ok: enviados.length ? `${resumo} Ainda sem convite: ${faltam}.${motivo}` : undefined,
+    erro: enviados.length ? undefined : `Nenhum convite saiu.${motivo}`,
+    falhas: falhas.length ? falhas : undefined,
+  };
 }
 
 // ---------- redefinição de senha ----------

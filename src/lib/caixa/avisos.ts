@@ -43,6 +43,8 @@ export type PreviaAvisos = {
   semResponsavel: LojaSemResponsavel[];
   /** colaboradores com quebra pendente sem e-mail (nem usuário no sistema, nem na ficha do RH) */
   colaboradoresSemEmail: number;
+  /** colaboradores com quebra pendente cujo login foi criado mas ainda não recebeu o convite (não recebem o aviso) */
+  colaboradoresSemConvite: number;
 };
 
 type LinhaQuebra = {
@@ -91,7 +93,7 @@ export async function montarAvisos(admin: Admin): Promise<PreviaAvisos> {
   const hoje = hojeBrasil();
   const [quebras, { data: perfis, error: e1 }, { data: acessos, error: e2 }] = await Promise.all([
     quebrasPendentes(admin),
-    admin.from("profiles").select("id, nome, email, papel, branch_id, ativo, employee_id").eq("ativo", true),
+    admin.from("profiles").select("id, nome, email, papel, branch_id, ativo, employee_id, convite_enviado_em, ultimo_acesso").eq("ativo", true),
     admin.from("user_branch_access").select("user_id, branch_id"),
   ]);
   if (e1 || e2) throw new Error((e1 ?? e2)!.message);
@@ -128,6 +130,7 @@ export async function montarAvisos(admin: Admin): Promise<PreviaAvisos> {
 
   const sem = new Map<string, LojaSemResponsavel>();
   const semEmail = new Set<string>();
+  const semConvite = new Set<string>();
   for (const q of quebras) {
     const valor = r2(Number(q.valor_quebra ?? Math.abs(Number(q.diferenca))));
     const base: QuebraAviso = {
@@ -163,6 +166,11 @@ export async function montarAvisos(admin: Admin): Promise<PreviaAvisos> {
     const ficha = fichas.get(q.employee_id);
     if (!ficha || ficha.status === "desligado") continue;
     const usuario = usuarioDoFuncionario.get(q.employee_id);
+    // login criado sem convite (o admin escolhe quando mandar, em Usuários): ainda não recebe o aviso
+    if (usuario && !usuario.convite_enviado_em && !usuario.ultimo_acesso) {
+      semConvite.add(q.employee_id);
+      continue;
+    }
     const email = usuario ? emailOk(usuario.email) : emailOk(ficha.email);
     if (!email) {
       semEmail.add(q.employee_id);
@@ -182,6 +190,7 @@ export async function montarAvisos(admin: Admin): Promise<PreviaAvisos> {
     destinatarios: [...porEmail.values()].sort((a, b) => b.total + b.totalMinhas - (a.total + a.totalMinhas)),
     semResponsavel: [...sem.values()].sort((a, b) => b.valor - a.valor),
     colaboradoresSemEmail: semEmail.size,
+    colaboradoresSemConvite: semConvite.size,
   };
 }
 

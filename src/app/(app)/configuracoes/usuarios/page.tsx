@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, Search, TriangleAlert } from "lucide-react";
+import { MailWarning, Plus, Search, TriangleAlert } from "lucide-react";
 import { AvisoSucesso, SelectNativo } from "@/components/form/campo";
 import { ConfirmarAcao } from "@/components/layout/confirmar-acao";
 import { PageHeader } from "@/components/layout/page-header";
@@ -9,17 +9,31 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
-import { contarPorPapel, lerFiltrosUsuarios, listarUsuarios, TAMANHO_PAGINA } from "@/lib/data/usuarios";
-import { formatarDataHora } from "@/lib/formatos";
+import { contarPorPapel, convitesPendentes, funcionariosSemLogin, lerFiltrosUsuarios, listarUsuarios, situacaoAcesso, TAMANHO_PAGINA } from "@/lib/data/usuarios";
+import { formatarData, formatarDataHora } from "@/lib/formatos";
 import { PAPEIS, PAPEL_LABEL } from "@/lib/roles";
-import { enviarRedefinicaoSenha } from "./actions";
+import { enviarConvites, enviarRedefinicaoSenha } from "./actions";
+import { EnviarConviteLinha, EnviarConvitesForm } from "./convites";
 
 export const metadata = { title: "Usuários" };
+// enviar convites em lote leva ~1 s por e-mail
+export const maxDuration = 300;
 
 export default async function UsuariosPage({ searchParams }: PageProps<"/configuracoes/usuarios">) {
   const [sessao, sp] = await Promise.all([exigirAcesso("/configuracoes/usuarios"), searchParams]);
   const filtros = lerFiltrosUsuarios(sp);
-  const [resultado, porPapel] = await Promise.all([listarUsuarios(filtros), contarPorPapel()]);
+  const [resultado, porPapel, acesso, pendentes, semLogin] = await Promise.all([listarUsuarios(filtros), contarPorPapel(), situacaoAcesso(), convitesPendentes(), funcionariosSemLogin()]);
+  // escolha de quem recebe: todos ou uma filial (com a contagem de pendentes)
+  const porFilial = new Map<string, { rotulo: string; qtd: number }>();
+  for (const p of pendentes) {
+    const chave = p.branchId ?? "sem";
+    const atual = porFilial.get(chave) ?? { rotulo: p.codigo ? `${p.codigo} ${p.filial ?? ""}`.trim() : "Sem unidade", qtd: 0 };
+    porFilial.set(chave, { ...atual, qtd: atual.qtd + 1 });
+  }
+  const opcoesConvite = [
+    { valor: "todos", rotulo: `Todos os pendentes (${pendentes.length})`, qtd: pendentes.length },
+    ...[...porFilial].map(([valor, f]) => ({ valor, rotulo: `${f.rotulo} (${f.qtd})`, qtd: f.qtd })).sort((a, b) => a.rotulo.localeCompare(b.rotulo)),
+  ];
   const params = { q: filtros.q, papel: filtros.papel, situacao: filtros.situacao };
   const temFiltro = Boolean(filtros.q || filtros.papel || filtros.situacao !== "ativos");
   const temConvite = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -37,6 +51,30 @@ export default async function UsuariosPage({ searchParams }: PageProps<"/configu
           </Button>
         }
       />
+
+      {(pendentes.length > 0 || semLogin.length > 0) && (
+        <section aria-labelledby="titulo-convites" className="mb-4 space-y-3 rounded-xl border border-sky-200 bg-sky-50/60 p-4">
+          <div className="flex items-start gap-3">
+            <MailWarning className="mt-0.5 size-5 shrink-0 text-sky-700" aria-hidden />
+            <div>
+              <h2 id="titulo-convites" className="font-heading font-semibold">
+                Convites de acesso
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {pendentes.length === 1 ? "1 pessoa já tem login" : `${pendentes.length} pessoas já têm login`}, mas ainda não {pendentes.length === 1 ? "recebeu" : "receberam"} o e-mail para criar a senha.
+                Nada é enviado até você clicar em <strong>Enviar convites</strong>.
+              </p>
+            </div>
+          </div>
+          {pendentes.length > 0 && <EnviarConvitesForm action={enviarConvites} total={pendentes.length} opcoes={opcoesConvite} />}
+          {semLogin.length > 0 && (
+            <p className="text-sm text-amber-900">
+              {semLogin.length === 1 ? "1 funcionário com e-mail na ficha ficou sem login" : `${semLogin.length} funcionários com e-mail na ficha ficaram sem login`} (e-mail com erro de digitação?):{" "}
+              {semLogin.map((f) => `${f.nome} (${f.email})`).join(", ")}. Corrija o e-mail na ficha e use <strong>Convidar usuário</strong>.
+            </p>
+          )}
+        </section>
+      )}
 
       {sp.convidado === "1" && (
         <div className="mb-4">
@@ -158,10 +196,23 @@ export default async function UsuariosPage({ searchParams }: PageProps<"/configu
                     <Badge variant="outline" className={u.ativo ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-border bg-muted text-muted-foreground"}>
                       {u.ativo ? "Ativo" : "Inativo"}
                     </Badge>
+                    {(() => {
+                      const s = acesso.get(u.id);
+                      if (!s || s.confirmado) return null;
+                      return s.convidadoEm ? (
+                        <p className="mt-1 text-xs whitespace-nowrap text-sky-700" title="Recebeu o convite e ainda não criou a senha">
+                          convite {formatarData(s.convidadoEm)}
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-xs whitespace-nowrap text-amber-700">sem convite</p>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
-                      {u.email && (
+                      {u.email && u.ativo && acesso.get(u.id) && !acesso.get(u.id)!.confirmado && !acesso.get(u.id)!.convidadoEm ? (
+                        <EnviarConviteLinha action={enviarConvites} id={u.id} email={u.email} />
+                      ) : u.email && (
                         <ConfirmarAcao
                           titulo="Enviar redefinição de senha?"
                           descricao={`${u.email} recebe um link para criar uma nova senha.`}

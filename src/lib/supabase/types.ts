@@ -5062,6 +5062,7 @@ export type Database = {
           admin_sistema: boolean
           ativo: boolean
           branch_id: string | null
+          convite_enviado_em: string | null
           created_at: string
           email: string | null
           employee_id: string | null
@@ -5076,6 +5077,7 @@ export type Database = {
           admin_sistema?: boolean
           ativo?: boolean
           branch_id?: string | null
+          convite_enviado_em?: string | null
           created_at?: string
           email?: string | null
           employee_id?: string | null
@@ -5090,6 +5092,7 @@ export type Database = {
           admin_sistema?: boolean
           ativo?: boolean
           branch_id?: string | null
+          convite_enviado_em?: string | null
           created_at?: string
           email?: string | null
           employee_id?: string | null
@@ -5920,6 +5923,15 @@ export type Database = {
           regional: string | null
           ultima_data: string | null
           ultima_media: number | null
+        }[]
+      }
+      usuarios_acesso: {
+        Args: never
+        Returns: {
+          confirmado: boolean
+          convidado_em: string | null
+          id: string
+          ultimo_login: string | null
         }[]
       }
       vendas_dias: {
