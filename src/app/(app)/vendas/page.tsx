@@ -5,9 +5,9 @@ import { BarrasDuplas } from "@/components/graficos";
 import { PageHeader } from "@/components/layout/page-header";
 import { EstadoVazio, LinkPainel } from "@/components/layout/painel";
 import { exigirAcesso } from "@/lib/auth/session";
-import { DIAS_SEMANA, diaDaSemana, ehRegionalVendas, hojeNoBrasil, MESES, mesmoDia, porPeriodo, REGIONAIS_VENDAS, serieVendas, somar, somarDias, ultimoDia, vendasPorFilial, type LinhaFilialVendas, type RegionalVendas } from "@/lib/data/vendas";
+import { DIAS_SEMANA, diaDaSemana, diasSemVendas, ehRegionalVendas, faixasDeDias, hojeNoBrasil, MESES, mesmoDia, porPeriodo, REGIONAIS_VENDAS, serieVendas, somar, somarDias, ultimoDia, vendasPorFilial, type LinhaFilialVendas, type RegionalVendas } from "@/lib/data/vendas";
 import { formatarData } from "@/lib/formatos";
-import { AbasVendas, decimal, inteiro, moeda, moedaCurta, pct } from "./comum";
+import { AbasVendas, AvisoDiasFaltando, decimal, inteiro, moeda, moedaCurta, pct } from "./comum";
 import { BarraProgresso, ColunasSemana, Comparacao, delta, EvolucaoMes, MiniKpi, Rosca, Secao, type FatiaComposicao } from "./painel-visual";
 
 export const metadata = { title: "Painel de vendas" };
@@ -27,7 +27,7 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
   const [anoAnt, mesAntNum] = inicioMesAnt.split("-").map(Number);
   const fimMesAnt = `${inicioMesAnt.slice(0, 7)}-${String(ultimoDia(anoAnt, mesAntNum)).padStart(2, "0")}`;
 
-  const [listaMes, listaMesAnt, listaAnoAnt, meses, diasDoMes, diasDoMesAnt, quinzena] = await Promise.all([
+  const [listaMes, listaMesAnt, listaAnoAnt, meses, diasDoMes, diasDoMesAnt, quinzena, faltamMes, faltamMesAnt] = await Promise.all([
     vendasPorFilial(inicioMes, ontem),
     vendasPorFilial(inicioMesAnt, mesmoDia(ontem, 1)),
     vendasPorFilial(`${ano - 1}-01-01`, mesmoDia(ontem, 12)),
@@ -35,6 +35,8 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
     serieVendas(inicioMes, ontem, "dia"),
     serieVendas(inicioMesAnt, fimMesAnt, "dia"),
     serieVendas(somarDias(ontem, -13), ontem, "dia"),
+    diasSemVendas(inicioMes, ontem),
+    diasSemVendas(inicioMesAnt, fimMesAnt),
   ]);
 
   const r = regional || undefined;
@@ -209,6 +211,11 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
         }
       />
       <AbasVendas ativa="/vendas" papel={sessao.papel} />
+      <AvisoDiasFaltando
+        faltam={faltamMes.length}
+        texto={`em ${nomeMes.toLowerCase()} (${faixasDeDias(faltamMes)})${faltamMesAnt.length ? ` e ${faltamMesAnt.length} em ${nomeMesAnt} (base das comparações)` : ""}`}
+        admin={sessao.papel === "admin"}
+      />
 
       {/* BLOCO 1 — resultado principal */}
       <section className="mb-4 overflow-hidden rounded-2xl border bg-card">

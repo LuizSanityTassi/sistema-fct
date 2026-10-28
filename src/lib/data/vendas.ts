@@ -86,6 +86,30 @@ export function porPeriodo(pontos: PontoSerie[], regional?: RegionalVendas) {
   return new Map([...mapa].sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => [k, somar(v)]));
 }
 
+/** Dias do período sem vendas guardadas (o robô ainda não buscou): os totais ficam menores até completar. */
+export async function diasSemVendas(de: string, ate: string): Promise<string[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("vendas_dias", { p_de: de, p_ate: ate });
+  if (error) throw new Error(error.message);
+  const tem = new Set((data ?? []).map(String));
+  const faltam: string[] = [];
+  for (let dia = de; dia <= ate; dia = somarDias(dia, 1)) if (!tem.has(dia)) faltam.push(dia);
+  return faltam;
+}
+
+/** "01/10 a 05/10 e 12/10": junta os dias seguidos. */
+export function faixasDeDias(dias: string[]) {
+  const faixas: [string, string][] = [];
+  for (const d of dias) {
+    const ult = faixas[faixas.length - 1];
+    if (ult && somarDias(ult[1], 1) === d) ult[1] = d;
+    else faixas.push([d, d]);
+  }
+  const br = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
+  const partes = faixas.map(([a, b]) => (a === b ? br(a) : `${br(a)} a ${br(b)}`));
+  return partes.length > 1 ? `${partes.slice(0, -1).join(", ")} e ${partes[partes.length - 1]}` : (partes[0] ?? "");
+}
+
 // ---------- datas (horário de Brasília) ----------
 
 export const hojeNoBrasil = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());

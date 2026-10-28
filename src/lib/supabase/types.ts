@@ -5922,6 +5922,13 @@ export type Database = {
           ultima_media: number | null
         }[]
       }
+      vendas_dias: {
+        Args: {
+          p_ate: string
+          p_de: string
+        }
+        Returns: string[]
+      }
       vendas_filiais: {
         Args: {
           p_ate: string

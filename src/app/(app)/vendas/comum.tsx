@@ -40,6 +40,31 @@ export function variacaoPp(atual: number | null, anterior: number | null, compar
   return { texto: `${subiu ? "+" : "−"}${decimal(Math.abs(d), 1)} p.p.`, direcao: subiu ? "sobe" : "desce", tom: subiu !== inverso ? "sucesso" : "perigo", dica: `${pct(anterior, 1)} em ${comparadoCom}` };
 }
 
+/** Aviso de período incompleto: dias que o robô ainda não trouxe do Trier (os totais ficam menores). */
+export function AvisoDiasFaltando({ faltam, texto, admin }: { faltam: number; texto: string; admin: boolean }) {
+  if (!faltam) return null;
+  return (
+    <div role="status" className="mb-4 flex flex-wrap items-start gap-x-2 gap-y-1 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      <strong className="font-semibold">Período incompleto:</strong>
+      <span>
+        {faltam === 1 ? "falta o dia" : `faltam ${faltam} dias`} {texto} — os números ficam menores até o robô buscar.
+        {admin ? (
+          <>
+            {" "}
+            Busque em{" "}
+            <Link href="/vendas/robo" className="font-medium underline">
+              Automações → Robô de vendas
+            </Link>{" "}
+            ou espere a rodada da madrugada.
+          </>
+        ) : (
+          " O robô completa de madrugada."
+        )}
+      </span>
+    </div>
+  );
+}
+
 const ABAS = [
   { href: "/vendas", rotulo: "Painel" },
   { href: "/vendas/filiais", rotulo: "Venda por filial" },

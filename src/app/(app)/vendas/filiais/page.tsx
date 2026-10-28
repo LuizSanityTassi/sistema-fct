@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
-import { ehRegionalVendas, MESES, REGIONAIS_VENDAS, somar, somarDias, hojeNoBrasil, ultimoDia, vendasPorFilial, type LinhaFilialVendas } from "@/lib/data/vendas";
+import { diasSemVendas, ehRegionalVendas, faixasDeDias, hojeNoBrasil, MESES, REGIONAIS_VENDAS, somar, somarDias, ultimoDia, vendasPorFilial, type LinhaFilialVendas } from "@/lib/data/vendas";
 import { formatarData } from "@/lib/formatos";
 import { INICIO_HISTORICO } from "@/lib/vendas/coleta";
-import { AbasVendas, decimal, inteiro, moeda, pct } from "../comum";
+import { AbasVendas, AvisoDiasFaltando, decimal, inteiro, moeda, pct } from "../comum";
 
 export const metadata = { title: "Venda por filial" };
 
@@ -64,7 +64,7 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
   const regional = ehRegionalVendas(s("regional")) ? s("regional") : "";
   const ordem: Ordem = s("ordem") in ORDENS ? (s("ordem") as Ordem) : "venda";
 
-  const todas = await vendasPorFilial(de, ate);
+  const [todas, faltam] = await Promise.all([vendasPorFilial(de, ate), diasSemVendas(de, ate)]);
   const linhas = todas.filter((l) => !regional || l.regional === regional).sort((a, b) => ORDENS[ordem].valor(b) - ORDENS[ordem].valor(a) || b.venda - a.venda);
   const total = somar(linhas);
   const [am, mm] = mes.split("-").map(Number);
@@ -74,6 +74,7 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
     <>
       <PageHeader eyebrow="Vendas" titulo="Venda por filial" descricao="Ranking das lojas no período: venda, atendimentos, ticket médio, unidades, Fortvigor, premium, genérico + similar e CMV. Números do Trier (vendas menos devoluções), atualizados toda madrugada com o dia anterior." />
       <AbasVendas ativa="/vendas/filiais" papel={sessao.papel} />
+      <AvisoDiasFaltando faltam={faltam.length} texto={`(${faixasDeDias(faltam)})`} admin={sessao.papel === "admin"} />
 
       <form method="get" className="mb-4 flex flex-wrap items-end gap-2 rounded-xl border bg-card p-3">
         <div className="flex rounded-lg border p-0.5 text-sm" role="group" aria-label="Período">

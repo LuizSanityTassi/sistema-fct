@@ -90,13 +90,22 @@ export const DIAS_CONFERIDOS = 7;
 
 /**
  * Pedidos do robô diário, em ordem de prioridade: os relatórios diários dos últimos dias que ainda não têm leitura,
- * o mês dos vendedores por grupo até ontem e, no tempo que sobrar, o histórico (venda e grupos) desde
- * INICIO_HISTORICO, do mais recente para o mais antigo.
+ * o mês dos vendedores por grupo até ontem, o resto deste mês e do mês anterior (todos os relatórios: é a base das
+ * telas e das comparações) e, no tempo que sobrar, o histórico (venda e grupos) desde INICIO_HISTORICO, do mais
+ * recente para o mais antigo.
  */
 export async function pedidosDoRoboVendas(admin: Cliente, agora = new Date()): Promise<PedidoVendasTrier[]> {
   const ontem = ontemNoBrasil(agora);
-  const recentes = await pedidosPendentes(admin, pedidosDoPeriodo(diaBrasil(agora, DIAS_CONFERIDOS), ontem, RELATORIOS_COLETA).filter((p) => p.relatorio !== "vendedores"));
+  const corte = diaBrasil(agora, DIAS_CONFERIDOS);
+  const inicioMesAnt = (() => {
+    const [a, m] = ontem.split("-").map(Number);
+    return m === 1 ? `${a - 1}-12-01` : `${a}-${String(m - 1).padStart(2, "0")}-01`;
+  })();
+  const recentes = await pedidosPendentes(admin, pedidosDoPeriodo(corte, ontem, RELATORIOS_DIARIOS));
   const mes = await pedidosPendentes(admin, [{ relatorio: "vendedores", de: `${ontem.slice(0, 7)}-01`, ate: ontem }]);
+  // (o mês corrente dos vendedores já vai acima, até ontem)
+  const doisMeses = corte > inicioMesAnt ? await pedidosPendentes(admin, pedidosDoPeriodo(inicioMesAnt, diaBrasil(agora, DIAS_CONFERIDOS + 1), RELATORIOS_COLETA).filter((p) => !(p.relatorio === "vendedores" && p.de === `${ontem.slice(0, 7)}-01`))) : [];
   const historico = await pedidosPendentes(admin, pedidosDoPeriodo(INICIO_HISTORICO, diaBrasil(agora, DIAS_CONFERIDOS + 1), RELATORIOS_HISTORICO));
-  return [...recentes, ...mes, ...historico];
+  const vistos = new Set([...recentes, ...mes, ...doisMeses].map((p) => `${p.relatorio}|${p.de}|${p.ate}`));
+  return [...recentes, ...mes, ...doisMeses, ...historico.filter((p) => !vistos.has(`${p.relatorio}|${p.de}|${p.ate}`))];
 }
