@@ -2664,6 +2664,273 @@ export type Database = {
           },
         ]
       }
+      vendas_filial_dia: {
+        Row: {
+          atendimentos: number
+          atualizado_em: string
+          branch_id: string
+          coleta_id: string | null
+          data: string
+          desconto: number
+          itens: number
+          unidades: number
+          valor_bruto: number
+          venda: number
+        }
+        Insert: {
+          atendimentos?: number
+          atualizado_em?: string
+          branch_id: string
+          coleta_id?: string | null
+          data: string
+          desconto?: number
+          itens?: number
+          unidades?: number
+          valor_bruto?: number
+          venda?: number
+        }
+        Update: {
+          atendimentos?: number
+          atualizado_em?: string
+          branch_id?: string
+          coleta_id?: string | null
+          data?: string
+          desconto?: number
+          itens?: number
+          unidades?: number
+          valor_bruto?: number
+          venda?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendas_filial_dia_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendas_filial_dia_coleta_id_fkey"
+            columns: ["coleta_id"]
+            isOneToOne: false
+            referencedRelation: "vendas_coletas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendas_grupo_dia: {
+        Row: {
+          branch_id: string
+          coleta_id: string | null
+          custo: number
+          data: string
+          grupo_codigo: number
+          grupo_nome: string
+          quantidade: number
+          venda: number
+        }
+        Insert: {
+          branch_id: string
+          coleta_id?: string | null
+          custo?: number
+          data: string
+          grupo_codigo: number
+          grupo_nome: string
+          quantidade?: number
+          venda?: number
+        }
+        Update: {
+          branch_id?: string
+          coleta_id?: string | null
+          custo?: number
+          data?: string
+          grupo_codigo?: number
+          grupo_nome?: string
+          quantidade?: number
+          venda?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendas_grupo_dia_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendas_grupo_dia_coleta_id_fkey"
+            columns: ["coleta_id"]
+            isOneToOne: false
+            referencedRelation: "vendas_coletas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendas_laboratorio_dia: {
+        Row: {
+          branch_id: string
+          coleta_id: string | null
+          custo: number
+          data: string
+          laboratorio_codigo: number
+          laboratorio_nome: string
+          quantidade: number
+          venda: number
+        }
+        Insert: {
+          branch_id: string
+          coleta_id?: string | null
+          custo?: number
+          data: string
+          laboratorio_codigo: number
+          laboratorio_nome: string
+          quantidade?: number
+          venda?: number
+        }
+        Update: {
+          branch_id?: string
+          coleta_id?: string | null
+          custo?: number
+          data?: string
+          laboratorio_codigo?: number
+          laboratorio_nome?: string
+          quantidade?: number
+          venda?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendas_laboratorio_dia_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendas_laboratorio_dia_coleta_id_fkey"
+            columns: ["coleta_id"]
+            isOneToOne: false
+            referencedRelation: "vendas_coletas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendas_vendedor_dia: {
+        Row: {
+          atendimentos: number
+          branch_id: string
+          coleta_id: string | null
+          custo: number
+          data: string
+          tele_atendimentos: number
+          tele_custo: number
+          tele_venda: number
+          venda: number
+          vendedor_codigo: number
+          vendedor_nome: string
+        }
+        Insert: {
+          atendimentos?: number
+          branch_id: string
+          coleta_id?: string | null
+          custo?: number
+          data: string
+          tele_atendimentos?: number
+          tele_custo?: number
+          tele_venda?: number
+          venda?: number
+          vendedor_codigo: number
+          vendedor_nome: string
+        }
+        Update: {
+          atendimentos?: number
+          branch_id?: string
+          coleta_id?: string | null
+          custo?: number
+          data?: string
+          tele_atendimentos?: number
+          tele_custo?: number
+          tele_venda?: number
+          venda?: number
+          vendedor_codigo?: number
+          vendedor_nome?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendas_vendedor_dia_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendas_vendedor_dia_coleta_id_fkey"
+            columns: ["coleta_id"]
+            isOneToOne: false
+            referencedRelation: "vendas_coletas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendas_vendedor_grupo_mes: {
+        Row: {
+          branch_id: string
+          coleta_id: string | null
+          custo: number
+          desconto: number
+          grupo_codigo: number
+          grupo_nome: string
+          lido_ate: string
+          mes: string
+          quantidade: number
+          venda: number
+          vendedor_codigo: number
+          vendedor_nome: string
+        }
+        Insert: {
+          branch_id: string
+          coleta_id?: string | null
+          custo?: number
+          desconto?: number
+          grupo_codigo: number
+          grupo_nome: string
+          lido_ate: string
+          mes: string
+          quantidade?: number
+          venda?: number
+          vendedor_codigo: number
+          vendedor_nome: string
+        }
+        Update: {
+          branch_id?: string
+          coleta_id?: string | null
+          custo?: number
+          desconto?: number
+          grupo_codigo?: number
+          grupo_nome?: string
+          lido_ate?: string
+          mes?: string
+          quantidade?: number
+          venda?: number
+          vendedor_codigo?: number
+          vendedor_nome?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendas_vendedor_grupo_mes_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendas_vendedor_grupo_mes_coleta_id_fkey"
+            columns: ["coleta_id"]
+            isOneToOne: false
+            referencedRelation: "vendas_coletas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sangria_anexos: {
         Row: {
           criado_em: string

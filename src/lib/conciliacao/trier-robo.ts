@@ -689,7 +689,8 @@ export const RELATORIOS_VENDAS = {
   filiais: { pagina: "Rel_0056.pod", rotulo: "Vendas por data, por filial", ajustes: { agrup_fil: "2", selv: "2", chk_som_total: "S" } },
   grupos: { pagina: "Rel_0080.pod", rotulo: "CMV por filial e grupo de produtos", ajustes: { agrupFilial: "2", agrupProd: "1", soTotal: "S", selecaoVend: "2" } },
   laboratorios: { pagina: "Rel_0080.pod", rotulo: "CMV por filial e laboratório", ajustes: { agrupFilial: "2", agrupProd: "4", soTotal: "S", selecaoVend: "2" } },
-  vendedores: { pagina: "Rel_0028.pod", rotulo: "Vendas por vendedor e grupo, por filial", ajustes: { agrup_fil: "2", sel_relatorio: "3", sel_vendas: "2", chk_vendastel: "N" } },
+  atendimentos: { pagina: "Rel_0028.pod", rotulo: "Vendas por vendedor, por filial", ajustes: { agrup_fil: "2", sel_relatorio: "0", sel_vendas: "2", chk_vendastel: "N" } },
+  vendedores: { pagina: "Rel_0028.pod", rotulo: "Vendedor por grupo de produtos (mês)", ajustes: { agrup_fil: "2", sel_relatorio: "3", sel_vendas: "2", chk_vendastel: "N" } },
   tele_entrega: { pagina: "Rel_0028.pod", rotulo: "Tele-entrega por vendedor, por filial", ajustes: { agrup_fil: "2", sel_relatorio: "0", sel_vendas: "2", chk_vendastel: "S" } },
 } as const;
 export type RelatorioVendas = keyof typeof RELATORIOS_VENDAS;
