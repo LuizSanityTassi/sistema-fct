@@ -8,6 +8,14 @@ export const moeda = (v: number | null | undefined) => (v === null || v === unde
 export const inteiro = (v: number | null | undefined) => (v === null || v === undefined ? "—" : Math.round(v).toLocaleString("pt-BR"));
 export const decimal = (v: number | null | undefined, casas = 2) => (v === null || v === undefined ? "—" : v.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas }));
 export const pct = (v: number | null | undefined, casas = 2) => (v === null || v === undefined ? "—" : `${decimal(v, casas)}%`);
+/** R$ 3,43 mi · R$ 512,3 mil · R$ 812,40 */
+export const moedaCurta = (v: number | null | undefined) => {
+  if (v === null || v === undefined) return "—";
+  const a = Math.abs(v);
+  if (a >= 1e6) return `R$ ${decimal(v / 1e6, 2)} mi`;
+  if (a >= 1e4) return `R$ ${decimal(v / 1e3, 1)} mil`;
+  return moeda(v);
+};
 
 /** Chip de variação em % (verde subiu, vermelho caiu); `inverso` para o que é melhor quando cai (CMV). */
 export function variacao(atual: number | null, anterior: number | null, comparadoCom: string, inverso = false): VariacaoIndicador | null {
