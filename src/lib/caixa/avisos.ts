@@ -2,7 +2,7 @@
 //   - quem justifica (mesma regra de private.pode_justificar_quebra): o gestor definido na quebra ou, sem gestor, os
 //     gerentes ativos da loja (loja principal ou "outras filiais que ele gerencia");
 //   - o colaborador da quebra (caixa_diferencas.employee_id), para explicar ao gestor: e-mail do usuário dele no
-//     sistema (profiles.employee_id) ou, se não tiver acesso, o e-mail da ficha do RH (employees.email).
+//     sistema (profiles.employee_id), só depois de o admin mandar o convite de acesso (ou de ele já ter entrado).
 // Usa o cliente service_role porque roda também sem usuário logado (rotina da manhã); quem chama pela tela
 // confere o papel antes. A senha do e-mail fica no Vault (Administração → Integrações) e nunca vai para a tela.
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -43,7 +43,7 @@ export type PreviaAvisos = {
   semResponsavel: LojaSemResponsavel[];
   /** colaboradores com quebra pendente sem e-mail (nem usuário no sistema, nem na ficha do RH) */
   colaboradoresSemEmail: number;
-  /** colaboradores com quebra pendente cujo login foi criado mas ainda não recebeu o convite (não recebem o aviso) */
+  /** colaboradores com quebra pendente e e-mail, mas sem login com convite enviado (não recebem o aviso) */
   colaboradoresSemConvite: number;
 };
 
@@ -161,17 +161,21 @@ export async function montarAvisos(admin: Admin): Promise<PreviaAvisos> {
       d.total = r2(d.total + valor);
     }
 
-    // o colaborador da quebra: usuário dele no sistema ou, sem acesso, o e-mail da ficha do RH
+    // o colaborador da quebra: só pelo usuário dele no sistema, depois do convite (o admin escolhe quando mandar, em
+    // Usuários). Sem login ou sem convite ainda não recebe — o e-mail da ficha pode estar digitado errado.
     if (!q.employee_id) continue;
     const ficha = fichas.get(q.employee_id);
     if (!ficha || ficha.status === "desligado") continue;
     const usuario = usuarioDoFuncionario.get(q.employee_id);
-    // login criado sem convite (o admin escolhe quando mandar, em Usuários): ainda não recebe o aviso
-    if (usuario && !usuario.convite_enviado_em && !usuario.ultimo_acesso) {
+    if (!usuario) {
+      (emailOk(ficha.email) ? semConvite : semEmail).add(q.employee_id);
+      continue;
+    }
+    if (!usuario.convite_enviado_em && !usuario.ultimo_acesso) {
       semConvite.add(q.employee_id);
       continue;
     }
-    const email = usuario ? emailOk(usuario.email) : emailOk(ficha.email);
+    const email = emailOk(usuario.email);
     if (!email) {
       semEmail.add(q.employee_id);
       continue;

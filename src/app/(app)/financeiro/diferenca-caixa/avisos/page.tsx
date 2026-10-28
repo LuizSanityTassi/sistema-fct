@@ -139,7 +139,7 @@ export default async function AvisosCaixaPage() {
         )}
         {previa && previa.colaboradoresSemConvite > 0 && (
           <p className="mx-5 mb-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
-            {pluralizar(previa.colaboradoresSemConvite, "colaborador com quebra em aberto já tem login, mas ainda não recebeu", "colaboradores com quebra em aberto já têm login, mas ainda não receberam")} o convite para criar a senha: só passam a receber este aviso depois do convite (Administração → Usuários → Enviar convites).
+            {pluralizar(previa.colaboradoresSemConvite, "colaborador com quebra em aberto ainda não recebeu", "colaboradores com quebra em aberto ainda não receberam")} o convite de acesso ao sistema: só passam a receber este aviso depois do convite (Administração → Usuários → Enviar convites).
           </p>
         )}
         <div className="border-t px-5 py-4">
