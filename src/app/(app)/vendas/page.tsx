@@ -19,7 +19,9 @@ type Destaque = { tipo: "bom" | "ruim" | "info"; texto: React.ReactNode; peso: n
 
 export default async function PainelVendasPage({ searchParams }: PageProps<"/vendas">) {
   const [sessao, sp] = await Promise.all([exigirAcesso("/vendas"), searchParams]);
-  const regional: RegionalVendas | "" = typeof sp.regional === "string" && ehRegionalVendas(sp.regional) ? sp.regional : "";
+  // gerente: só a(s) loja(s) dele (a RLS já filtra); sem regionais nem ranking de lojas
+  const soLoja = sessao.papel === "gerente";
+  const regional: RegionalVendas | "" = !soLoja && typeof sp.regional === "string" && ehRegionalVendas(sp.regional) ? sp.regional : "";
   const ontem = somarDias(hojeNoBrasil(), -1);
   const [ano, mes, dia] = ontem.split("-").map(Number);
   const inicioMes = `${ontem.slice(0, 7)}-01`;
@@ -53,7 +55,7 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
   const porDia14 = porPeriodo(quinzena, r);
   const nomeMes = MESES[mes - 1];
   const nomeMesAnt = MESES[mesAntNum - 1].toLowerCase();
-  const escopo = regional || "Rede";
+  const escopo = soLoja ? (lojasMes.length === 1 ? `${lojasMes[0].codigo} ${lojasMes[0].nome}` : "suas lojas") : regional || "Rede";
 
   if (!listaMes.length && !porMes.size) {
     return (
@@ -154,9 +156,10 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
   const temAnoAnterior = barrasAno.some((b) => b.a > 0);
 
   // ---------- destaques ----------
-  const melhorLoja = [...lojasMes].sort((a, b) => b.venda - a.venda)[0] as LinhaFilialVendas | undefined;
+  const ranking = soLoja ? [] : lojasMes;
+  const melhorLoja = [...ranking].sort((a, b) => b.venda - a.venda)[0] as LinhaFilialVendas | undefined;
   const anteriorDaLoja = new Map(lojasMesAnt.map((l) => [l.branchId, l.venda]));
-  const variacoesLojas = lojasMes
+  const variacoesLojas = ranking
     .map((l) => ({ l, v: delta(l.venda, anteriorDaLoja.get(l.branchId) ?? null) }))
     .filter((x): x is { l: LinhaFilialVendas; v: number } => x.v !== null && (anteriorDaLoja.get(x.l.branchId) ?? 0) > 10_000);
   const maiorAlta = [...variacoesLojas].sort((a, b) => b.v - a.v)[0];
@@ -174,7 +177,7 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
   );
   const destaques: Destaque[] = [];
   if (vMes !== null) destaques.push({ tipo: vMes >= 0 ? "bom" : "ruim", peso: 10, texto: <>Venda do mês {vMes >= 0 ? "acima" : "abaixo"} de {nomeMesAnt} em {decimal(Math.abs(vMes), 1)}% no mesmo período ({moedaCurta(tMes.venda - tMesAnt.venda).replace("-", "−")}).</> });
-  if (!regional && regioes.length) {
+  if (!soLoja && !regional && regioes.length) {
     const lider = regioes[0];
     destaques.push({ tipo: "info", peso: 9, texto: <><strong className="font-semibold">{lider.reg}</strong> lidera com {moedaCurta(lider.atual.venda)} ({pct((lider.atual.venda / totalRede) * 100, 1)} da rede).</> });
     const comVar = regioes.filter((x) => x.var !== null);
@@ -201,13 +204,15 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
         titulo="Painel de vendas"
         descricao={`${nomeMes} de ${ano}, até ontem (${formatarData(ontem)}). Números do Trier, atualizados toda madrugada.`}
         acoes={
-          <nav aria-label="Escopo" className="flex rounded-lg border bg-card p-0.5 text-sm">
-            {(["", ...REGIONAIS_VENDAS] as const).map((x) => (
-              <Link key={x || "rede"} href={x ? `/vendas?regional=${encodeURIComponent(x)}` : "/vendas"} aria-current={regional === x ? "page" : undefined} className={cn("rounded-md px-3 py-1", regional === x ? "bg-primary text-primary-foreground" : "hover:bg-muted")}>
-                {x || "Rede"}
-              </Link>
-            ))}
-          </nav>
+          soLoja ? undefined : (
+            <nav aria-label="Escopo" className="flex rounded-lg border bg-card p-0.5 text-sm">
+              {(["", ...REGIONAIS_VENDAS] as const).map((x) => (
+                <Link key={x || "rede"} href={x ? `/vendas?regional=${encodeURIComponent(x)}` : "/vendas"} aria-current={regional === x ? "page" : undefined} className={cn("rounded-md px-3 py-1", regional === x ? "bg-primary text-primary-foreground" : "hover:bg-muted")}>
+                  {x || "Rede"}
+                </Link>
+              ))}
+            </nav>
+          )
         }
       />
       <AbasVendas ativa="/vendas" papel={sessao.papel} />
@@ -237,11 +242,21 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
                   <Comparacao atual={mediaDia} anterior={mediaDiaAnt} rotulo="" />
                 </dd>
               </div>
-              <div>
-                <dt className="rotulo">Lojas vendendo</dt>
-                <dd className="mt-0.5 font-semibold tabular-nums">{lojasMes.length}</dd>
-                <dd className="mt-1 text-xs text-muted-foreground">{regional ? `regional ${regional}` : "Sul, Serra e Oeste"}</dd>
-              </div>
+              {soLoja ? (
+                <div>
+                  <dt className="rotulo">Atendimentos</dt>
+                  <dd className="mt-0.5 font-semibold tabular-nums">{inteiro(tMes.atendimentos)}</dd>
+                  <dd className="mt-1">
+                    <Comparacao atual={tMes.atendimentos} anterior={tMesAnt.atendimentos || null} rotulo="" />
+                  </dd>
+                </div>
+              ) : (
+                <div>
+                  <dt className="rotulo">Lojas vendendo</dt>
+                  <dd className="mt-0.5 font-semibold tabular-nums">{lojasMes.length}</dd>
+                  <dd className="mt-1 text-xs text-muted-foreground">{regional ? `regional ${regional}` : "Sul, Serra e Oeste"}</dd>
+                </div>
+              )}
               <div>
                 <dt className="rotulo">Dias com venda</dt>
                 <dd className="mt-0.5 font-semibold tabular-nums">
@@ -290,6 +305,9 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
         <MiniKpi rotulo={`Venda de ${ano}`} valor={moedaCurta(vendaAno)} comparacao={<Comparacao atual={vendaAno} anterior={vendaAnoAnt || null} rotulo={`vs ${ano - 1}`} />} detalhe={`1º/jan até ${formatarData(ontem).slice(0, 5)}`} />
         <MiniKpi rotulo={`Ontem (${DIAS_SEMANA[diaDaSemana(ontem)].toLowerCase()})`} valor={moedaCurta(vendaOntem)} comparacao={<Comparacao atual={vendaOntem} anterior={vendaSemanaPassada || null} rotulo="vs semana passada" />} />
         <MiniKpi rotulo="CMV do mês" valor={pct(tMes.cmv, 1)} comparacao={<Comparacao atual={tMes.cmv} anterior={tMesAnt.cmv} formato="pp" inverso rotulo={`vs ${nomeMesAnt}`} />} detalhe={`rentabilidade ${pct(tMes.rentab, 1)}`} />
+        {soLoja ? (
+          <MiniKpi rotulo="Ticket médio" valor={moeda(tMes.ticket)} comparacao={<Comparacao atual={tMes.ticket} anterior={tMesAnt.ticket || null} rotulo={`vs ${nomeMesAnt}`} />} detalhe={`${decimal(tMes.sacola, 2)} unidades por atendimento`} />
+        ) : (
         <MiniKpi
           rotulo="Loja que mais vendeu"
           valor={melhorLoja ? moedaCurta(melhorLoja.venda) : "—"}
@@ -301,6 +319,7 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
             ) : undefined
           }
         />
+        )}
       </div>
 
       {/* destaques */}
@@ -334,7 +353,8 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
       )}
 
       {/* regiões + composição */}
-      <div className="mb-4 grid gap-4 xl:grid-cols-2">
+      <div className={cn("mb-4 grid gap-4", !soLoja && "xl:grid-cols-2")}>
+        {!soLoja && (
         <Secao titulo="Performance por região" icone={MapPinned} subtitulo={`Venda de ${nomeMes.toLowerCase()} até o dia ${dia} e participação na rede`} acao={<LinkPainel href="/vendas/filiais">lojas</LinkPainel>}>
           <ol className="space-y-4">
             {regioes.map((x, i) => (
@@ -363,6 +383,7 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
             ))}
           </ol>
         </Secao>
+        )}
 
         <Secao titulo="Composição das vendas" icone={PieChart} subtitulo={`Participação de cada grupo na venda de ${nomeMes.toLowerCase()} · ${escopo}`}>
           <div className="grid items-center gap-6 sm:grid-cols-[180px_1fr]">
@@ -435,7 +456,7 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
 
       {/* gráficos */}
       <div className="mb-4 grid gap-4 xl:grid-cols-2">
-        <Secao titulo="Venda diária — últimos 7 dias" icone={CalendarDays} subtitulo="Cada dia comparado com o mesmo dia da semana anterior" acao={<LinkPainel href={`/vendas/filiais?ver=dia&de=${somarDias(ontem, -6)}&ate=${ontem}`}>por filial</LinkPainel>}>
+        <Secao titulo="Venda diária — últimos 7 dias" icone={CalendarDays} subtitulo="Cada dia comparado com o mesmo dia da semana anterior" acao={soLoja ? undefined : <LinkPainel href={`/vendas/filiais?ver=dia&de=${somarDias(ontem, -6)}&ate=${ontem}`}>por filial</LinkPainel>}>
           <ColunasSemana dias={semana} />
         </Secao>
         <Secao titulo="Evolução do mês" icone={ChartLine} subtitulo={`Venda acumulada dia a dia, ${nomeMesAnt} no mesmo dia e a projeção até o dia ${diasNoMes}`}>

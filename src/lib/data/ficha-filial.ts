@@ -16,7 +16,7 @@ export async function carregarFicha360Filial(branchId: string, papel: AppRole) {
   const supabase = await createClient();
   const ve = {
     pessoas: ["admin", "rh", "gerente"].includes(papel),
-    financeiro: ["admin", "financeiro", "contador", "coordenador", "gerente"].includes(papel),
+    financeiro: ["admin", "financeiro", "contador", "coordenador"].includes(papel),
     conciliacao: ["admin", "financeiro", "contador"].includes(papel),
     caixa: ["admin", "financeiro", "rh", "coordenador", "gerente"].includes(papel),
     caixaTudo: papel === "admin" || papel === "financeiro",
