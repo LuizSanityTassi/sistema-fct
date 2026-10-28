@@ -116,28 +116,44 @@ export function SmtpForm({ action, status }: { action: Acao; status: { host: boo
 
 type AcaoDiagnostico =(prev: EstadoDiagnostico, fd: FormData) => Promise<EstadoDiagnostico>;
 
-/** Procura no menu do Trier os relatórios de caixa (para montar a busca da diferença de caixa). */
-export function DiagnosticoTrierForm({ action, ontem, ultimo }: { action: AcaoDiagnostico; ontem: string; ultimo: string | null }) {
+const TEXTOS_DIAGNOSTICO = {
+  caixa: {
+    titulo: "Relatórios de caixa (diferença de caixa)",
+    descricao: "Teste da leitura: o robô gera no Trier o “Relatório de Diferenças de Caixa” do dia (todos os caixas da filial informada, em Excel) e baixa os scripts das telas de caixa. Na versão final ele percorre todas as filiais sozinho. Só lê: não muda nada no Trier. Pode levar até 4 minutos.",
+    dia: "Dia dos caixas",
+    botao: "Procurar relatórios de caixa",
+  },
+  vendas: {
+    titulo: "Relatórios de vendas (painel, metas, vendedores, tele-entrega)",
+    descricao: "O robô procura no menu do Trier todos os relatórios de vendas, anota os filtros de cada um e gera uma amostra do dia da filial informada, em Excel. Com isso eu escolho de onde tirar faturamento, nº de vendas, vendedores e tele-entrega. Só lê: não muda nada no Trier. Pode levar até 5 minutos.",
+    dia: "Dia das vendas",
+    botao: "Procurar relatórios de vendas",
+  },
+} as const;
+
+/** Procura no menu do Trier os relatórios de caixa ou de vendas (para montar a busca automática de cada um). */
+export function DiagnosticoTrierForm({ action, ontem, ultimo, tema = "caixa" }: { action: AcaoDiagnostico; ontem: string; ultimo: string | null; tema?: keyof typeof TEXTOS_DIAGNOSTICO }) {
   const [estado, formAction, pendente] = useActionState(action, {});
+  const t = TEXTOS_DIAGNOSTICO[tema];
   return (
     <form action={formAction} className="space-y-3 border-t pt-4">
       <div>
-        <h3 className="text-sm font-semibold">Relatórios de caixa (diferença de caixa)</h3>
+        <h3 className="text-sm font-semibold">{t.titulo}</h3>
         <p className="text-xs text-muted-foreground">
-          Teste da leitura: o robô gera no Trier o “Relatório de Diferenças de Caixa” do dia (todos os caixas da filial informada, em Excel) e baixa os scripts das telas de caixa. Na versão final ele percorre todas as filiais sozinho. Só lê: não muda nada no Trier. Pode levar até 4 minutos.
+          {t.descricao}
           {ultimo && ` Último diagnóstico: ${ultimo}.`}
         </p>
       </div>
       <div className="flex flex-wrap items-end gap-2">
-        <Campo id="diag-dia" label="Dia dos caixas">
-          <Input id="diag-dia" name="dia" type="date" defaultValue={ontem} className="w-44" />
+        <Campo id={`diag-${tema}-dia`} label={t.dia}>
+          <Input id={`diag-${tema}-dia`} name="dia" type="date" defaultValue={ontem} className="w-44" />
         </Campo>
-        <Campo id="diag-filial" label="Filial do teste (nº no Trier)">
-          <Input id="diag-filial" name="filial" inputMode="numeric" defaultValue="2" className="w-28" />
+        <Campo id={`diag-${tema}-filial`} label="Filial do teste (nº no Trier)">
+          <Input id={`diag-${tema}-filial`} name="filial" inputMode="numeric" defaultValue="2" className="w-28" />
         </Campo>
         <Button type="submit" variant="outline" disabled={pendente}>
           <Search data-icon="inline-start" />
-          {pendente ? "Procurando no Trier…" : "Procurar relatórios de caixa"}
+          {pendente ? "Procurando no Trier…" : t.botao}
         </Button>
       </div>
       <ErroFormulario mensagem={estado.erro} />

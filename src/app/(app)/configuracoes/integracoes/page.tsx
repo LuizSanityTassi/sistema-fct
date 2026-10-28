@@ -7,7 +7,7 @@ import { EMPRESAS_OMIE, statusChaves, type EmpresaOmie } from "@/lib/conciliacao
 import { credenciaisTrier, SEGREDOS, statusSegredos } from "@/lib/integracoes/segredos";
 import { formatarDataHora } from "@/lib/formatos";
 import { createClient } from "@/lib/supabase/server";
-import { diagnosticarRelatoriosTrier, salvarOmie, salvarSmtp, salvarTrier } from "./actions";
+import { diagnosticarRelatoriosTrier, diagnosticarRelatoriosVendasTrier, salvarOmie, salvarSmtp, salvarTrier } from "./actions";
 import { DiagnosticoTrierForm, OmieForm, SmtpForm, TrierForm } from "./formularios";
 
 export const metadata = { title: "Integrações" };
@@ -23,12 +23,13 @@ export default async function IntegracoesPage() {
   const sessao = await exigirAcesso("/configuracoes/integracoes");
   if (sessao.papel !== "admin") semAcesso("/configuracoes/integracoes");
   const supabase = await createClient();
-  const [segredos, cred, omie, { count: agentes }, { data: ultimoDiag }] = await Promise.all([
+  const [segredos, cred, omie, { count: agentes }, { data: ultimoDiag }, { data: ultimoVendas }] = await Promise.all([
     statusSegredos(supabase),
     credenciaisTrier(supabase),
     statusChaves(supabase),
     supabase.from("conc_agentes").select("id", { count: "exact", head: true }).is("revogado_em", null),
     supabase.from("integracao_diagnosticos").select("criado_em").eq("sistema", "trier").order("criado_em", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("integracao_diagnosticos").select("criado_em").eq("sistema", "trier").eq("resumo->>tema", "vendas").order("criado_em", { ascending: false }).limit(1).maybeSingle(),
   ]);
   const ontem = ontemNoBrasil();
   const temServiceRole = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -54,7 +55,12 @@ export default async function IntegracoesPage() {
           .
         </p>
         <TrierForm action={salvarTrier} status={{ url: cred.url, usuario: segredos[SEGREDOS.trier_usuario].configurado, senha: segredos[SEGREDOS.trier_senha].configurado, origemAmbiente: cred.origem === "ambiente" }} />
-        {trierOk && <div className="mt-4"><DiagnosticoTrierForm action={diagnosticarRelatoriosTrier} ontem={ontem} ultimo={ultimoDiag ? formatarDataHora(ultimoDiag.criado_em) : null} /></div>}
+        {trierOk && (
+          <div className="mt-4 space-y-4">
+            <DiagnosticoTrierForm action={diagnosticarRelatoriosVendasTrier} tema="vendas" ontem={ontem} ultimo={ultimoVendas ? formatarDataHora(ultimoVendas.criado_em) : null} />
+            <DiagnosticoTrierForm action={diagnosticarRelatoriosTrier} ontem={ontem} ultimo={ultimoDiag ? formatarDataHora(ultimoDiag.criado_em) : null} />
+          </div>
+        )}
       </section>
 
       {(["nazario", "varela"] as EmpresaOmie[]).map((e) => {

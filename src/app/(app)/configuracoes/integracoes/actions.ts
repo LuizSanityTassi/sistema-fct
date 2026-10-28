@@ -5,7 +5,7 @@ import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { ehEmpresaOmie, EMPRESAS_OMIE, OmieErro } from "@/lib/conciliacao/omie-api";
 import { atualizarCadastrosOmie } from "@/lib/conciliacao/omie-envio";
-import { diagnosticarTrier, testarLoginTrier } from "@/lib/conciliacao/trier-robo";
+import { diagnosticarTrier, diagnosticarVendasTrier, testarLoginTrier } from "@/lib/conciliacao/trier-robo";
 import { SMTP_PADRAO, testarSmtp } from "@/lib/email";
 import { chavesOmieDe, credenciaisTrier, lerSegredos, salvarSegredo, SEGREDOS } from "@/lib/integracoes/segredos";
 import { createClient } from "@/lib/supabase/server";
@@ -186,4 +186,40 @@ export async function diagnosticarRelatoriosTrier(_prev: EstadoDiagnostico, fd: 
   if (!relatorios.length) return { erro: `Entrei no Trier e li o menu (${diag.links.length} telas), mas não consegui abrir os relatórios de caixa.` };
   const gerados = diag.relatorios.flatMap((r) => r.tentativas).filter((t) => t.base64).length;
   return { ok: `Pronto: abri ${relatorios.length} relatório(s) de caixa no Trier e ${gerados} arquivo(s) foram gerados. O resultado ficou guardado para montar a busca automática.`, relatorios };
+}
+
+/**
+ * Mesmo diagnóstico, para os relatórios de VENDAS: acha no menu do Trier as telas de vendas, anota os campos e gera
+ * uma amostra do dia (filial do teste, Excel). Guardado em integracao_diagnosticos (resumo.tema = "vendas").
+ */
+export async function diagnosticarRelatoriosVendasTrier(_prev: EstadoDiagnostico, fd: FormData): Promise<EstadoDiagnostico> {
+  const sessao = await exigirAdmin();
+  if (!sessao) return { erro: "Só o administrador roda o diagnóstico." };
+  const iso = texto(fd, "dia");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return { erro: "Escolha o dia." };
+  const dia = iso.split("-").reverse().join("/");
+  const filial = texto(fd, "filial").replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+  const supabase = await createClient();
+  const cred = await credenciaisTrier(supabase);
+  if (!cred.usuario || !cred.senha) return { erro: "Cadastre antes o usuário e a senha do robô do Trier." };
+  let diag;
+  try {
+    diag = await diagnosticarVendasTrier(cred, dia, filial);
+  } catch (e) {
+    return { erro: `O robô não conseguiu ler o Trier: ${mensagem(e)}` };
+  }
+  const passo = (t: (typeof diag.relatorios)[number]["tentativas"][number]) =>
+    t.base64 ? `gerou ${t.arquivo?.split(".").pop()?.toUpperCase() ?? "arquivo"} (${Math.round((t.tamanho ?? 0) / 1024)} KB)` : t.mensagem || (t.arquivo ? "arquivo grande demais para guardar" : "sem arquivo");
+  const relatorios: RelatorioEncontrado[] = diag.relatorios.map((r) => ({ pagina: r.pagina, rotulo: r.rotulo || r.contexto.slice(0, 60), acessivel: r.acessivel, campos: r.campos.length, gerado: r.tentativas.map(passo).join(" · ") }));
+  const resumo = { tema: "vendas", dia, filial, telas_no_menu: diag.links.length, relatorios };
+  const { error } = await supabase.from("integracao_diagnosticos").insert({ sistema: "trier", resumo, dados: diag as unknown as Json });
+  if (error) return { erro: `O diagnóstico rodou, mas não consegui guardar o resultado: ${error.message}` };
+  await registrarAuditoria(supabase, { userId: sessao.id, acao: "criar", entidade: "integracoes", novo: { diagnostico_trier_vendas: { dia, relatorios: relatorios.length } } });
+  if (!relatorios.length) return { erro: `Entrei no Trier e li o menu (${diag.links.length} telas), mas não achei relatórios de vendas.` };
+  const semAcesso = relatorios.filter((r) => !r.acessivel).length;
+  const gerados = diag.relatorios.flatMap((r) => r.tentativas).filter((t) => t.base64).length;
+  return {
+    ok: `Pronto: achei ${relatorios.length} relatório(s) de vendas no Trier, ${gerados} geraram arquivo${semAcesso ? ` e ${semAcesso} o usuário do robô não abre (precisa liberar no Trier)` : ""}. O resultado ficou guardado para eu montar o robô de vendas.`,
+    relatorios,
+  };
 }

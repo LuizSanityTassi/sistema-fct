@@ -480,7 +480,125 @@ export async function diagnosticarTrier(cred: CredenciaisTrier, dia: string, fil
   }
 }
 
-export const _testeDiagnostico = { linksDoMenu, camposDaTela, padroesDoInicio, camposTentativa, telasCaixaTrier };
+// ---------- diagnóstico de vendas: achar no menu os relatórios de vendas e gerar uma amostra de cada ----------
+
+/** Relatórios de vendas vistos no menu em 19/10/2026 (desempenho por modalidade, relação de vendas, comissão): sempre abertos. */
+const VENDAS_CONHECIDAS = ["Rel_0270.pod", "Rel_0027.pod", "Rel_0038.pod"];
+// painel de vendas (modelo do usuário, 28/10): venda, atendimentos, ticket, unidades, premium (G47), genéricos+similares, Fortvigor, CMV
+const EH_VENDA = /vend|comiss|tele|entreg|fatur|meta|ticket|curva|abc|desempenho|modalidade|balc|margem|lucr|cmv|gen[eé]ric|similar|premium/i;
+
+export type RelatorioVendasDiagnosticado = RelatorioDiagnosticado & { contexto: string };
+export type DiagnosticoVendasTrier = { links: LinkMenuTrier[]; scripts: Record<string, string>; relatorios: RelatorioVendasDiagnosticado[] };
+
+/** Campos de data do formulário (o nome muda de tela para tela): os de "fim/até" ganham o fim do período, os outros o início. */
+function camposDeData(campos: CampoTrier[], padroes: Record<string, string>) {
+  const ini: string[] = [];
+  const fim: string[] = [];
+  for (const c of campos) {
+    if (c.tipo !== "text" && c.tipo !== "hidden" && c.tipo !== "date") continue;
+    const v = padroes[c.nome] ?? c.valor;
+    if (!(/^(dat|dt)_|_(dat|dt)$|data/i.test(c.nome) || /^\d{2}\/\d{2}\/\d{4}$/.test(v))) continue;
+    (/fim|final|ate|termino|fecha/i.test(c.nome) ? fim : ini).push(c.nome);
+  }
+  return [...ini, ...fim];
+}
+
+/** O formulário da tela com o dia nas datas, a filial do teste e a saída em Excel (4 = XLS em todas as telas vistas). */
+function pedidoAmostra(campos: CampoTrier[], padroes: Record<string, string>, dia: string, filial: string) {
+  const form = camposTentativa(campos, padroes);
+  for (const n of camposDeData(campos, padroes)) form[n] = dia;
+  if (filial)
+    for (const n of ["id_cod_filial", "cod_filial"])
+      if (n in form) {
+        form[n] = filial;
+        if (`${n}Entrada` in form) form[`${n}Entrada`] = filial;
+      }
+  const saida = campos.find((c) => c.tipo === "select" && /saida|formato/i.test(c.nome));
+  if (saida) form[saida.nome] = saida.opcoes?.find((o) => /xls|excel|planilha/i.test(o.texto))?.valor ?? "4";
+  else if ("saida" in form) form.saida = "4";
+  return form;
+}
+
+/**
+ * Entra no Trier, lê o menu e abre cada relatório de vendas (nome com venda, comissão, tele-entrega, faturamento…):
+ * anota os campos e o script da tela e tenta gerar o relatório do dia, da filial do teste, em Excel.
+ * Só leitura: não altera nada no Trier. O resultado serve para escolher de onde o robô de vendas tira os números.
+ */
+export async function diagnosticarVendasTrier(cred: CredenciaisTrier, dia: string, filial = ""): Promise<DiagnosticoVendasTrier> {
+  const comeco = Date.now();
+  const resta = () => 285_000 - (Date.now() - comeco); // a função tem 300 s na Vercel
+  const ck: Cookies = {};
+  const base = await trierEntrar(cred, ck);
+  try {
+    const menu = await trierPagina(base, "Menu.pod", ck);
+    let menuInicio = "";
+    try {
+      if (menu.serial) menuInicio = await trierAcao(base, menu.serial, "httpStart", { attributes: trierAtributos(menu.html) }, ck, 60_000, "Menu.pod");
+    } catch {
+      /* sem o httpStart fica só o que veio no HTML do menu */
+    }
+    const links = linksDoMenu(menu.html, menuInicio);
+    const telas = links.filter((l) => /^Rel_/i.test(l.pagina) && (VENDAS_CONHECIDAS.includes(l.pagina) || EH_VENDA.test(`${l.rotulo} ${l.contexto}`)));
+    for (const pagina of VENDAS_CONHECIDAS) if (!telas.some((t) => t.pagina === pagina)) telas.push({ pagina, rotulo: "", contexto: "" });
+    // as conhecidas primeiro, depois as que têm "venda" no nome: ganham a amostra antes de o tempo acabar
+    const peso = (l: LinkMenuTrier) => (VENDAS_CONHECIDAS.includes(l.pagina) ? 2 : /vend/i.test(l.rotulo) ? 1 : 0);
+    telas.sort((a, b) => peso(b) - peso(a));
+    const scripts: Record<string, string> = {};
+    const relatorios: RelatorioVendasDiagnosticado[] = [];
+    let guardado = 0; // bytes de arquivo guardados (a linha do diagnóstico não pode ficar enorme)
+    for (const tela of telas.slice(0, 30)) {
+      if (resta() < 20_000) break;
+      const p = await trierPagina(base, tela.pagina, ck);
+      if (!p.serial) {
+        relatorios.push({ ...tela, acessivel: false, campos: [], padroes: {}, html: corta(p.html || p.redir, 2000), inicio: "", tentativas: [] });
+        continue;
+      }
+      let inicio = "";
+      try {
+        inicio = await trierAcao(base, p.serial, "httpStart", { attributes: trierAtributos(p.html) }, ck, 30_000, tela.pagina);
+      } catch (e) {
+        inicio = `[erro: ${e instanceof Error ? e.message : String(e)}]`;
+      }
+      const campos = camposDaTela(p.html);
+      const padroes = padroesDoInicio(inicio);
+      const rel: RelatorioVendasDiagnosticado = { ...tela, acessivel: true, campos, padroes, html: corta(p.html, 80_000), inicio: corta(inicio, 30_000), tentativas: [] };
+      const js = `js/${tela.pagina.replace(/\.pod$/i, ".js")}`;
+      try {
+        const r = await httpPedido("GET", base + js, null, ck, 15_000);
+        if (r.cod === 200) scripts[js] = corta(r.corpo.toString("latin1"), 120_000);
+      } catch {
+        /* o script é só para entender os botões da tela */
+      }
+      if (resta() > 40_000) {
+        const pedido = pedidoAmostra(campos, padroes, dia, filial);
+        const t: TentativaTrier = { acao: "runReport", campos: pedido };
+        try {
+          const r = await trierAcao(base, p.serial, "runReport", pedido, ck, Math.min(90_000, resta() - 25_000), tela.pagina);
+          t.resposta = corta(r, 20_000);
+          const m = /openReport\('([^']+)'/i.exec(r);
+          if (m) {
+            const arq = await httpPedido("GET", base + m[1].replace(/^\/+/, ""), null, ck, Math.max(10_000, Math.min(60_000, resta() - 15_000)));
+            t.arquivo = m[1];
+            t.tamanho = arq.corpo.length;
+            if (arq.cod === 200 && arq.corpo.length <= 2_500_000 && guardado + arq.corpo.length <= 8_000_000) {
+              t.base64 = arq.corpo.toString("base64");
+              guardado += arq.corpo.length;
+            }
+          } else t.mensagem = trierMsg(r) || "o Trier não devolveu arquivo";
+        } catch (e) {
+          t.mensagem = e instanceof Error ? e.message : String(e);
+        }
+        rel.tentativas.push(t);
+      }
+      relatorios.push(rel);
+    }
+    return { links, scripts, relatorios };
+  } finally {
+    await trierSair(base, ck);
+  }
+}
+
+export const _testeDiagnostico = { linksDoMenu, camposDaTela, padroesDoInicio, camposTentativa, telasCaixaTrier, camposDeData, pedidoAmostra };
 
 // ---------- diferença de caixa: "Relatório de Diferenças de Caixa" (Rel_0122) de cada filial, em Excel ----------
 
