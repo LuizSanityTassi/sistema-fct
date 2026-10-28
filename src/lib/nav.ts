@@ -292,6 +292,25 @@ export const NAV: NavGrupo[] = [
     ],
   },
   {
+    titulo: "Vendas",
+    itens: [
+      {
+        label: "Painel de vendas",
+        href: "/vendas",
+        icon: ChartColumn,
+        papeis: ["admin", "financeiro", "coordenador", "gerente"],
+        descricao: "Venda do ano, do mês e de ontem, por regional, genéricos + similares, premium, CMV e projeção do mês.",
+      },
+      {
+        label: "Venda por filial",
+        href: "/vendas/filiais",
+        icon: Trophy,
+        papeis: ["admin", "financeiro", "coordenador", "gerente"],
+        descricao: "Ranking das lojas no mês ou nos dias escolhidos: venda, atendimentos, ticket, unidades, Fortvigor, premium, gen+sim e CMV.",
+      },
+    ],
+  },
+  {
     titulo: "Tecnologia",
     itens: [
       {

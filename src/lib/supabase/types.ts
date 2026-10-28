@@ -5922,6 +5922,50 @@ export type Database = {
           ultima_media: number | null
         }[]
       }
+      vendas_filiais: {
+        Args: {
+          p_ate: string
+          p_de: string
+        }
+        Returns: {
+            atendimentos: number
+            branch_id: string
+            codigo: string
+            custo: number
+            dias: number
+            fortvigor: number
+            generico: number
+            itens: number
+            nome: string
+            premium: number
+            referencia: number
+            regional: string | null
+            similares: number
+            unidades: number
+            venda: number
+            venda_grupos: number
+        }[]
+      }
+      vendas_serie: {
+        Args: {
+          p_ate: string
+          p_de: string
+          p_por?: string
+        }
+        Returns: {
+            atendimentos: number
+            custo: number
+            generico: number
+            periodo: string
+            premium: number
+            referencia: number
+            regional: string
+            similares: number
+            unidades: number
+            venda: number
+            venda_grupos: number
+        }[]
+      }
       lojas_para_sangria: {
         Args: never
         Returns: {

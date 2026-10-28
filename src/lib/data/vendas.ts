@@ -1,0 +1,105 @@
+// Vendas (telas): somas por filial e por período das tabelas vendas_* (preenchidas pelo robô do Trier) e as contas
+// das colunas (ticket, unidades por atendimento, % premium, % genérico + similar, CMV). Quem vê cada loja é a regra
+// das tabelas (admin, financeiro e coordenador todas; gerente as dele).
+import { createClient } from "@/lib/supabase/server";
+
+/** Regionais das vendas (decisão de 28/10/2026): Sul F001–F099, Serra F101–F199, Oeste F301–F422. */
+export const REGIONAIS_VENDAS = ["Sul", "Serra", "Oeste"] as const;
+export type RegionalVendas = (typeof REGIONAIS_VENDAS)[number];
+export const ehRegionalVendas = (r: string | null | undefined): r is RegionalVendas => REGIONAIS_VENDAS.includes(r as RegionalVendas);
+
+export const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+export const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+
+/** Somas de um conjunto de vendas (uma filial, uma regional, a rede). */
+export type BaseVendas = { venda: number; atendimentos: number; itens: number; unidades: number; vendaGrupos: number; custo: number; premium: number; generico: number; similares: number; referencia: number; fortvigor: number };
+export type MetricasVendas = BaseVendas & { ticket: number | null; sacola: number | null; genSim: number; pctPremium: number | null; pctGenSim: number | null; cmv: number | null; rentab: number | null };
+
+const div = (a: number, b: number) => (b ? a / b : null);
+const n = (v: unknown) => Number(v ?? 0) || 0;
+
+export function metricas(b: BaseVendas): MetricasVendas {
+  const genSim = b.generico + b.similares;
+  const cmv = div(b.custo, b.vendaGrupos);
+  return {
+    ...b,
+    ticket: div(b.venda, b.atendimentos),
+    sacola: div(b.unidades, b.atendimentos),
+    genSim,
+    pctPremium: b.vendaGrupos ? (b.premium / b.vendaGrupos) * 100 : null,
+    pctGenSim: b.vendaGrupos ? (genSim / b.vendaGrupos) * 100 : null,
+    cmv: cmv === null ? null : cmv * 100,
+    rentab: cmv === null ? null : (1 - cmv) * 100,
+  };
+}
+
+const VAZIO: BaseVendas = { venda: 0, atendimentos: 0, itens: 0, unidades: 0, vendaGrupos: 0, custo: 0, premium: 0, generico: 0, similares: 0, referencia: 0, fortvigor: 0 };
+const CAMPOS = Object.keys(VAZIO) as (keyof BaseVendas)[];
+
+export function somar(linhas: BaseVendas[]): MetricasVendas {
+  const t = { ...VAZIO };
+  for (const l of linhas) for (const c of CAMPOS) t[c] += l[c];
+  return metricas(t);
+}
+
+export type LinhaFilialVendas = MetricasVendas & { branchId: string; codigo: string; nome: string; regional: RegionalVendas; dias: number };
+
+/** Vendas de cada filial no período (só as das regionais de venda). */
+export async function vendasPorFilial(de: string, ate: string): Promise<LinhaFilialVendas[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("vendas_filiais", { p_de: de, p_ate: ate });
+  if (error) throw new Error(error.message);
+  return (data ?? []).flatMap((r) =>
+    ehRegionalVendas(r.regional)
+      ? [
+          {
+            ...metricas({ venda: n(r.venda), atendimentos: n(r.atendimentos), itens: n(r.itens), unidades: n(r.unidades), vendaGrupos: n(r.venda_grupos), custo: n(r.custo), premium: n(r.premium), generico: n(r.generico), similares: n(r.similares), referencia: n(r.referencia), fortvigor: n(r.fortvigor) }),
+            branchId: r.branch_id,
+            codigo: r.codigo,
+            nome: r.nome,
+            regional: r.regional,
+            dias: n(r.dias),
+          },
+        ]
+      : [],
+  );
+}
+
+export type PontoSerie = MetricasVendas & { periodo: string; regional: RegionalVendas };
+
+/** Vendas por dia ou por mês (periodo = 1º dia do mês) e regional. */
+export async function serieVendas(de: string, ate: string, por: "dia" | "mes"): Promise<PontoSerie[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("vendas_serie", { p_de: de, p_ate: ate, p_por: por });
+  if (error) throw new Error(error.message);
+  return (data ?? []).flatMap((r) =>
+    ehRegionalVendas(r.regional)
+      ? [{ ...metricas({ venda: n(r.venda), atendimentos: n(r.atendimentos), itens: 0, unidades: n(r.unidades), vendaGrupos: n(r.venda_grupos), custo: n(r.custo), premium: n(r.premium), generico: n(r.generico), similares: n(r.similares), referencia: n(r.referencia), fortvigor: 0 }), periodo: r.periodo, regional: r.regional }]
+      : [],
+  );
+}
+
+/** Junta os pontos do mesmo período (todas as regionais ou só uma). */
+export function porPeriodo(pontos: PontoSerie[], regional?: RegionalVendas) {
+  const mapa = new Map<string, PontoSerie[]>();
+  for (const p of pontos) if (!regional || p.regional === regional) mapa.set(p.periodo, [...(mapa.get(p.periodo) ?? []), p]);
+  return new Map([...mapa].sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => [k, somar(v)]));
+}
+
+// ---------- datas (horário de Brasília) ----------
+
+export const hojeNoBrasil = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+export const somarDias = (dia: string, dias: number) => new Date(Date.parse(`${dia}T12:00:00Z`) + dias * 86_400_000).toISOString().slice(0, 10);
+export const ultimoDia = (ano: number, mes: number) => new Date(Date.UTC(ano, mes, 0)).getUTCDate();
+export const diaDaSemana = (dia: string) => new Date(`${dia}T12:00:00Z`).getUTCDay();
+const dois = (v: number) => String(v).padStart(2, "0");
+export const dataIso = (ano: number, mes: number, dia: number) => `${ano}-${dois(mes)}-${dois(Math.min(dia, ultimoDia(ano, mes)))}`;
+/** O mesmo dia em outro mês/ano (31 → último dia quando o mês é menor). */
+export function mesmoDia(dia: string, mesesAntes: number) {
+  const [a, m, d] = dia.split("-").map(Number);
+  const t = a * 12 + (m - 1) - mesesAntes;
+  return dataIso(Math.floor(t / 12), (t % 12) + 1, d);
+}
+
+/** Variação em % (null quando não há base para comparar). */
+export const variacaoPct = (atual: number, anterior: number) => (anterior > 0 ? ((atual - anterior) / anterior) * 100 : null);
