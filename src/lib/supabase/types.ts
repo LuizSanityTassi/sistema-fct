@@ -2608,6 +2608,62 @@ export type Database = {
           },
         ]
       }
+      vendas_coletas: {
+        Row: {
+          arquivo_b64: string | null
+          ate: string
+          coletado_em: string
+          criado_por: string | null
+          de: string
+          erro: string | null
+          id: string
+          lido_em: string | null
+          linhas: number | null
+          ms: number | null
+          relatorio: string
+          status: string
+          tamanho: number | null
+        }
+        Insert: {
+          arquivo_b64?: string | null
+          ate: string
+          coletado_em?: string
+          criado_por?: string | null
+          de: string
+          erro?: string | null
+          id?: string
+          lido_em?: string | null
+          linhas?: number | null
+          ms?: number | null
+          relatorio: string
+          status: string
+          tamanho?: number | null
+        }
+        Update: {
+          arquivo_b64?: string | null
+          ate?: string
+          coletado_em?: string
+          criado_por?: string | null
+          de?: string
+          erro?: string | null
+          id?: string
+          lido_em?: string | null
+          linhas?: number | null
+          ms?: number | null
+          relatorio?: string
+          status?: string
+          tamanho?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendas_coletas_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sangria_anexos: {
         Row: {
           criado_em: string

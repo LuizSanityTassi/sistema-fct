@@ -11,6 +11,8 @@
       "schedule": "30 10 * * 1-6"
     },
     { "path": "/api/cron/conciliacao", "schedule": "10 12 * * 1-6" },
-    { "path": "/api/cron/conciliacao", "schedule": "10 16 * * 1-5" }
+    { "path": "/api/cron/conciliacao", "schedule": "10 16 * * 1-5" },
+    { "path": "/api/cron/vendas-trier", "schedule": "30 6 * * *" },
+    { "path": "/api/cron/vendas-trier", "schedule": "30 9 * * *" }
   ]
 }

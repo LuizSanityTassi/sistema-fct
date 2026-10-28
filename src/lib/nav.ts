@@ -546,6 +546,13 @@ export const NAV: NavGrupo[] = [
         papeis: ["admin", "financeiro"],
         descricao: "Busca automática do relatório do Trier e agente que envia os .RET do Itaú Mailbox.",
       },
+      {
+        label: "Robô de vendas",
+        href: "/vendas/robo",
+        icon: Bot,
+        papeis: ["admin"],
+        descricao: "Busca no Trier os relatórios de vendas de todas as filiais (toda madrugada ou na hora).",
+      },
     ],
   },
   {

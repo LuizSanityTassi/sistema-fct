@@ -490,6 +490,8 @@ const EH_VENDA = /vend|comiss|tele|entreg|fatur|meta|ticket|curva|abc|desempenho
 export type RelatorioVendasDiagnosticado = RelatorioDiagnosticado & { contexto: string };
 export type DiagnosticoVendasTrier = { links: LinkMenuTrier[]; scripts: Record<string, string>; relatorios: RelatorioVendasDiagnosticado[] };
 
+const EH_DATA_FIM = /fim|final|ate|termino|fecha/i;
+
 /** Campos de data do formulário (o nome muda de tela para tela): os de "fim/até" ganham o fim do período, os outros o início. */
 function camposDeData(campos: CampoTrier[], padroes: Record<string, string>) {
   const ini: string[] = [];
@@ -498,7 +500,7 @@ function camposDeData(campos: CampoTrier[], padroes: Record<string, string>) {
     if (c.tipo !== "text" && c.tipo !== "hidden" && c.tipo !== "date") continue;
     const v = padroes[c.nome] ?? c.valor;
     if (!(/^(dat|dt)_|_(dat|dt)$|data/i.test(c.nome) || /^\d{2}\/\d{2}\/\d{4}$/.test(v))) continue;
-    (/fim|final|ate|termino|fecha/i.test(c.nome) ? fim : ini).push(c.nome);
+    (EH_DATA_FIM.test(c.nome) ? fim : ini).push(c.nome);
   }
   return [...ini, ...fim];
 }
@@ -665,6 +667,91 @@ export async function buscarDiferencasCaixaTrier(
       restantes.shift();
       await aoReceber(resposta);
       // sem conexão / tempo esgotado: o Trier está lento ou fora; não adianta seguir martelando nesta rodada
+      if (resposta.erro && /sem conex[aã]o|tempo esgotado/i.test(resposta.erro)) break;
+    }
+  } finally {
+    await trierSair(base, ck);
+  }
+  return { restantes, ms: Date.now() - comeco };
+}
+
+// ---------- vendas: os relatórios do Trier de onde sai o painel de vendas (todas as filiais, um período, Excel) ----------
+
+/**
+ * O que pedir em cada relatório. Opções conferidas no HTML das telas (diagnóstico de vendas de 28/10/2026):
+ * Rel_0056 Vendas por Data — agrup_fil 2 = Filiais; selv 2 = vendas menos devoluções; chk_som_total S = só o total.
+ * Rel_0080 Custo da Mercadoria Vendida — agrupFilial 2 = Filiais; agrupProd 1 = Grupo de produtos, 4 = Laboratório;
+ *   soTotal S = só os totais do agrupamento; selecaoVend 2 = vendas menos devoluções.
+ * Rel_0028 Vendas por Vendedor — agrup_fil 2 = Filiais; sel_relatorio 0 = totais por vendedor, 3 = vendedor e grupo de
+ *   produtos; sel_vendas 2 = vendas menos devoluções; chk_vendastel S = só as vendas por tele-entrega.
+ */
+export const RELATORIOS_VENDAS = {
+  filiais: { pagina: "Rel_0056.pod", rotulo: "Vendas por data, por filial", ajustes: { agrup_fil: "2", selv: "2", chk_som_total: "S" } },
+  grupos: { pagina: "Rel_0080.pod", rotulo: "CMV por filial e grupo de produtos", ajustes: { agrupFilial: "2", agrupProd: "1", soTotal: "S", selecaoVend: "2" } },
+  laboratorios: { pagina: "Rel_0080.pod", rotulo: "CMV por filial e laboratório", ajustes: { agrupFilial: "2", agrupProd: "4", soTotal: "S", selecaoVend: "2" } },
+  vendedores: { pagina: "Rel_0028.pod", rotulo: "Vendas por vendedor e grupo, por filial", ajustes: { agrup_fil: "2", sel_relatorio: "3", sel_vendas: "2", chk_vendastel: "N" } },
+  tele_entrega: { pagina: "Rel_0028.pod", rotulo: "Tele-entrega por vendedor, por filial", ajustes: { agrup_fil: "2", sel_relatorio: "0", sel_vendas: "2", chk_vendastel: "S" } },
+} as const;
+export type RelatorioVendas = keyof typeof RELATORIOS_VENDAS;
+
+// campos de filial das telas de venda: vazios = todas as filiais
+const FILIAL_TODAS = ["cod_filial", "cod_filialEntrada", "id_cod_filial", "id_cod_filialEntrada", "sel_filial", "listFilial", "filial_sql_in"];
+
+export type PedidoVendasTrier = { relatorio: RelatorioVendas; de: string; ate: string }; // aaaa-mm-dd
+export type RespostaVendasTrier = PedidoVendasTrier & { xlsx?: Buffer; semMovimento?: boolean; erro?: string; ms: number };
+
+/**
+ * Gera no Trier cada relatório de vendas pedido (todas as filiais, agrupado por filial, Excel), um por vez, enquanto
+ * couber no prazo. Cada resposta vai para `aoReceber` assim que chega. Devolve os pedidos que ficaram para a próxima
+ * rodada. Só leitura: não altera nada no Trier.
+ */
+export async function buscarVendasTrier(cred: CredenciaisTrier, pedidos: PedidoVendasTrier[], aoReceber: (r: RespostaVendasTrier) => Promise<void>, prazoMs = 270_000) {
+  const comeco = Date.now();
+  const resta = () => prazoMs - (Date.now() - comeco);
+  const ck: Cookies = {};
+  const base = await trierEntrar(cred, ck);
+  const restantes = [...pedidos];
+  // cada tela é aberta uma vez por rodada: o formulário como o navegador mandaria + os campos de data
+  const telas = new Map<string, { serial: string; formulario: Record<string, string>; datas: string[] } | null>();
+  try {
+    while (restantes.length && resta() > 45_000) {
+      const pedido = restantes[0];
+      const cfg = RELATORIOS_VENDAS[pedido.relatorio];
+      const t0 = Date.now();
+      let resposta: RespostaVendasTrier;
+      try {
+        let tela = telas.get(cfg.pagina);
+        if (tela === undefined) {
+          const p = await trierPagina(base, cfg.pagina, ck);
+          tela = null;
+          if (p.serial) {
+            const inicio = await trierAcao(base, p.serial, "httpStart", { attributes: trierAtributos(p.html) }, ck, 30_000, cfg.pagina);
+            const campos = camposDaTela(p.html);
+            const padroes = padroesDoInicio(inicio);
+            tela = { serial: p.serial, formulario: camposTentativa(campos, padroes), datas: camposDeData(campos, padroes) };
+          }
+          telas.set(cfg.pagina, tela);
+        }
+        if (!tela) throw new TrierErro(`o usuário do robô no Trier não abre "${cfg.rotulo}" (${cfg.pagina}).`);
+        const campos: Record<string, string> = { ...tela.formulario };
+        for (const n of tela.datas) campos[n] = isoParaBr(EH_DATA_FIM.test(n) ? pedido.ate : pedido.de);
+        for (const n of FILIAL_TODAS) if (n in campos) campos[n] = "";
+        Object.assign(campos, cfg.ajustes, { saida: "4" }); // 4 = XLS
+        const r = await trierAcao(base, tela.serial, "runReport", campos, ck, Math.min(150_000, resta() - 15_000), cfg.pagina);
+        const m = /openReport\('([^']+\.xlsx?)'/i.exec(r);
+        if (m) {
+          const arq = await httpPedido("GET", base + m[1].replace(/^\/+/, ""), null, ck, Math.max(10_000, Math.min(60_000, resta() - 10_000)));
+          if (arq.cod !== 200 || arq.corpo.subarray(0, 2).toString("latin1") !== "PK") throw new TrierErro("não consegui baixar o Excel gerado pelo Trier.");
+          resposta = { ...pedido, xlsx: arq.corpo, ms: Date.now() - t0 };
+        } else {
+          const msg = trierMsg(r);
+          resposta = /nenhum|n[aã]o (h[aá]|foram|existe)|sem (registro|movimento)/i.test(msg) ? { ...pedido, semMovimento: true, ms: Date.now() - t0 } : { ...pedido, erro: msg || "o Trier não gerou o relatório", ms: Date.now() - t0 };
+        }
+      } catch (e) {
+        resposta = { ...pedido, erro: e instanceof Error ? e.message : String(e), ms: Date.now() - t0 };
+      }
+      restantes.shift();
+      await aoReceber(resposta);
       if (resposta.erro && /sem conex[aã]o|tempo esgotado/i.test(resposta.erro)) break;
     }
   } finally {
