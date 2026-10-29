@@ -22,7 +22,7 @@ export function TelaAcesso({ titulo, descricao, children, rodape }: { titulo: st
           </span>
           <span className="leading-tight">
             <span className="block text-[11px] font-semibold tracking-[0.18em] text-white/90 uppercase">Farmácia do Trabalhador</span>
-            <span className="block font-heading text-2xl">Sistema FCT</span>
+            <span className="block font-heading text-2xl">Portal de Gestão FCT</span>
           </span>
         </div>
         <div className="relative max-w-md">

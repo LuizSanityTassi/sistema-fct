@@ -15,7 +15,7 @@ export function LoginForm({ aviso, voltar }: { aviso?: string; voltar?: string }
   return (
     <TelaAcesso
       titulo="Entrar"
-      descricao="Use o e-mail e a senha do seu acesso ao Sistema FCT."
+      descricao="Use o e-mail e a senha do seu acesso ao Portal de Gestão FCT."
       rodape={
         <Link href="/recuperar-senha" className="font-medium text-fct-tinta underline-offset-4 hover:underline">
           Esqueci minha senha

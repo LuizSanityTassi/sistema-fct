@@ -40,6 +40,8 @@ import {
   ShieldCheck,
   Stethoscope,
   Store,
+  Target,
+  TrendingUp,
   UserCog,
   Users,
   Wallet,
@@ -59,6 +61,9 @@ export type NavItem = {
 
 export type NavGrupo = {
   titulo?: string;
+  /** Como o módulo aparece na tela de entrada (Portal de Gestão). */
+  descricao?: string;
+  icone?: LucideIcon;
   itens: NavItem[];
 };
 
@@ -66,9 +71,12 @@ export type NavGrupo = {
 // O que cada papel enxerga nos dados continua sendo decidido pelo RLS no banco.
 export const NAV: NavGrupo[] = [
   {
+    titulo: "Diretoria Estratégica",
+    descricao: "Painel geral da rede, pendências de todos os setores e respostas prontas sobre lojas, pessoas e resultado.",
+    icone: Target,
     itens: [
       {
-        label: "Início",
+        label: "Painel geral",
         href: "/dashboard",
         icon: LayoutDashboard,
         descricao: "Visão geral e acesso rápido aos módulos.",
@@ -88,7 +96,9 @@ export const NAV: NavGrupo[] = [
     ],
   },
   {
-    titulo: "Pessoas",
+    titulo: "RH",
+    descricao: "Funcionários, documentos, ASO, folha de pagamento e canal de denúncias.",
+    icone: Users,
     itens: [
       {
         label: "Funcionários",
@@ -134,7 +144,9 @@ export const NAV: NavGrupo[] = [
     ],
   },
   {
-    titulo: "Ponto",
+    titulo: "Ponto Eletrônico",
+    descricao: "Registro de ponto, espelho, banco de horas, escalas, ausências e fechamento do mês.",
+    icone: Fingerprint,
     itens: [
       {
         label: "Meu ponto",
@@ -226,7 +238,9 @@ export const NAV: NavGrupo[] = [
     ],
   },
   {
-    titulo: "Operação",
+    titulo: "Operações",
+    descricao: "Chamados, quebras de caixa, sangrias, filiais e relatórios das lojas.",
+    icone: Store,
     itens: [
       {
         label: "Chamados",
@@ -273,7 +287,9 @@ export const NAV: NavGrupo[] = [
     ],
   },
   {
-    titulo: "Coordenação",
+    titulo: "Coordenação Regional",
+    descricao: "Checklist das visitas às lojas e ranking das mais bem avaliadas.",
+    icone: ClipboardCheck,
     itens: [
       {
         label: "Checklist da loja",
@@ -292,7 +308,9 @@ export const NAV: NavGrupo[] = [
     ],
   },
   {
-    titulo: "Vendas",
+    titulo: "Comercial",
+    descricao: "Painel de vendas, projeção do mês e venda de cada loja.",
+    icone: TrendingUp,
     itens: [
       {
         label: "Painel de vendas",
@@ -311,7 +329,9 @@ export const NAV: NavGrupo[] = [
     ],
   },
   {
-    titulo: "Tecnologia",
+    titulo: "TI",
+    descricao: "Fila de TI, equipamentos das lojas e pedidos de acesso.",
+    icone: MonitorCog,
     itens: [
       {
         label: "Painel de TI",
@@ -338,6 +358,8 @@ export const NAV: NavGrupo[] = [
   },
   {
     titulo: "Financeiro",
+    descricao: "Lançamentos, caixa contábil, DRE, orçamento, fluxo de caixa e diferença de caixa.",
+    icone: Wallet,
     itens: [
       {
         label: "Visão geral",
@@ -448,7 +470,9 @@ export const NAV: NavGrupo[] = [
     ],
   },
   {
-    titulo: "Conciliação",
+    titulo: "Conciliação Bancária",
+    descricao: "DDA do Itaú × contas a pagar do Trier, pendências, de-para e envios ao Omie.",
+    icone: Scale,
     itens: [
       {
         label: "Painel",
@@ -503,6 +527,8 @@ export const NAV: NavGrupo[] = [
   },
   {
     titulo: "Conciliação GI",
+    descricao: "A conciliação da GI (outra empresa), separada da nossa.",
+    icone: Building2,
     itens: [
       {
         label: "Painel GI",
@@ -557,6 +583,8 @@ export const NAV: NavGrupo[] = [
   },
   {
     titulo: "Automações",
+    descricao: "Robôs que buscam os relatórios do Trier e o agente do Itaú.",
+    icone: Bot,
     itens: [
       {
         label: "Robôs e agente",
@@ -576,6 +604,8 @@ export const NAV: NavGrupo[] = [
   },
   {
     titulo: "Administração",
+    descricao: "Usuários, permissões, pedidos de acesso, auditoria e integrações.",
+    icone: ShieldCheck,
     itens: [
       {
         label: "Usuários",

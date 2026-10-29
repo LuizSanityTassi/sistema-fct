@@ -61,9 +61,9 @@ function iniciais(nome: string) {
 function Marca({ recolhido, onNavigate }: { recolhido?: boolean; onNavigate?: () => void }) {
   return (
     <Link
-      href="/dashboard"
+      href="/portal"
       onClick={onNavigate}
-      aria-label="Sistema FCT, ir para o início"
+      aria-label="Portal de Gestão FCT, ir para o início"
       className={cn("flex h-14 shrink-0 items-center gap-2.5 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-inset", recolhido ? "justify-center px-0" : "px-4")}
     >
       <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-white shadow-xs ring-1 ring-black/5">
@@ -71,7 +71,7 @@ function Marca({ recolhido, onNavigate }: { recolhido?: boolean; onNavigate?: ()
       </span>
       {!recolhido && (
         <span className="min-w-0 leading-none">
-          <span className="block truncate font-heading text-[15px] text-foreground">Sistema FCT</span>
+          <span className="block truncate font-heading text-[15px] text-foreground">Portal de Gestão</span>
           <span className="mt-1 block text-[11px] text-muted-foreground">Farmácias FCT</span>
         </span>
       )}
@@ -292,7 +292,7 @@ export function AppShell({ usuario, onSair, menuRecolhido = false, children }: A
 
   const item = itemDaRota(pathname);
   const grupo = grupoDaRota(pathname);
-  const naInicial = item?.href === "/dashboard";
+  const naInicial = pathname === "/portal";
 
   return (
     <DicaProvider>
@@ -332,7 +332,7 @@ export function AppShell({ usuario, onSair, menuRecolhido = false, children }: A
             <Button variant="ghost" size="icon-sm" className="lg:hidden" aria-label="Abrir menu" aria-expanded={menuAberto} onClick={() => setMenuAberto(true)}>
               <Menu />
             </Button>
-            <Link href="/dashboard" aria-label="Início" className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-white shadow-xs ring-1 ring-black/5 lg:hidden">
+            <Link href="/portal" aria-label="Início" className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-white shadow-xs ring-1 ring-black/5 lg:hidden">
               <Emblema largura={26} />
             </Link>
             <Dica texto={recolhido ? "Abrir menu" : "Recolher menu"} atalho="[" lado="bottom">
@@ -345,7 +345,7 @@ export function AppShell({ usuario, onSair, menuRecolhido = false, children }: A
             <nav aria-label="Você está em" className="flex min-w-0 flex-1 items-center gap-1 text-sm">
               {!naInicial && (
                 <>
-                  <Link href="/dashboard" className="hidden rounded px-1 text-muted-foreground transition-colors hover:text-foreground sm:inline">
+                  <Link href="/portal" className="hidden rounded px-1 text-muted-foreground transition-colors hover:text-foreground sm:inline">
                     Início
                   </Link>
                   <ChevronRight className="hidden size-3.5 shrink-0 text-muted-foreground/60 sm:inline" aria-hidden />
@@ -358,7 +358,7 @@ export function AppShell({ usuario, onSair, menuRecolhido = false, children }: A
                 </>
               )}
               <span className="truncate px-1 font-medium" aria-current="page">
-                {item?.label ?? "Sistema FCT"}
+                {naInicial ? "Portal de Gestão" : (item?.label ?? "Portal de Gestão")}
               </span>
             </nav>
 

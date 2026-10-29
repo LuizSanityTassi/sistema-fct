@@ -5,11 +5,11 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "Sistema FCT",
-    short_name: "Sistema FCT",
+    name: "Portal de Gestão FCT",
+    short_name: "Portal de Gestão FCT",
     description: "Sistema interno de gestão das Farmácias FCT.",
     lang: "pt-BR",
-    start_url: "/dashboard",
+    start_url: "/portal",
     scope: "/",
     display: "standalone",
     background_color: "#fbf9f7",

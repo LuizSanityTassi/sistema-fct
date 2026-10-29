@@ -82,7 +82,7 @@ export default async function SemAcessoPage({ searchParams }: PageProps<"/sem-ac
         </>
       )}
 
-      <Button variant="ghost" className="mt-6" nativeButton={false} render={<Link href="/dashboard" />}>
+      <Button variant="ghost" className="mt-6" nativeButton={false} render={<Link href="/portal" />}>
         <ArrowLeft data-icon="inline-start" />
         Voltar ao início
       </Button>

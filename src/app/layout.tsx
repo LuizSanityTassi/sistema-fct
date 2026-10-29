@@ -22,12 +22,12 @@ const archivoBlack = Archivo_Black({
 });
 
 export const metadata: Metadata = {
-  title: { default: "Sistema FCT", template: "%s · Sistema FCT" },
+  title: { default: "Portal de Gestão FCT", template: "%s · Portal FCT" },
   description: "Sistema interno de gestão — Farmácias FCT",
   // sistema todo em português: o tradutor automático do navegador troca nomes do menu ("Funcionários" vira "/")
   other: { google: "notranslate" },
   // instalado no iPhone ("Adicionar à Tela de Início"): abre em tela cheia, com este nome embaixo do ícone
-  appleWebApp: { capable: true, title: "Sistema FCT", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Portal FCT", statusBarStyle: "default" },
 };
 
 // cor da barra do celular quando instalado (faixa vermelha da marca)

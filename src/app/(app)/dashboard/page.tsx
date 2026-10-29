@@ -38,7 +38,7 @@ import { ASO_TIPO_LABEL } from "@/lib/rh/rotulos";
 import type { Tom } from "@/lib/tons";
 import { BadgeAso } from "../rh/funcionarios/[id]/documentos-aso";
 
-export const metadata = { title: "Início" };
+export const metadata = { title: "Painel geral" };
 
 /** Atalhos para o que cada perfil faz todo dia (só aparecem os que o papel abre). */
 const ACOES: { rotulo: string; href: string; icone: LucideIcon; papeis?: AppRole[] }[] = [

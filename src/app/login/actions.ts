@@ -27,7 +27,7 @@ export async function signIn(_prev: AuthState, formData: FormData): Promise<Auth
 /** Para onde voltar depois do login: só caminho interno do sistema (nada de outro site nem //host). */
 function destinoSeguro(v: FormDataEntryValue | null) {
   const s = typeof v === "string" ? v.trim() : "";
-  return /^\/(?![/\\])\S*$/.test(s) && !s.startsWith("/login") && !s.startsWith("/auth") ? s : "/dashboard";
+  return /^\/(?![/\\])\S*$/.test(s) && !s.startsWith("/login") && !s.startsWith("/auth") ? s : "/portal";
 }
 
 export async function signOut() {
@@ -55,5 +55,5 @@ export async function updatePassword(_prev: AuthState, formData: FormData): Prom
   const supabase = await createClient();
   const { error } = await supabase.auth.updateUser({ password: senha });
   if (error) return { erro: "Não foi possível alterar a senha. O link pode ter expirado." };
-  redirect("/dashboard");
+  redirect("/portal");
 }

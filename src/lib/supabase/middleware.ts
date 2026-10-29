@@ -48,10 +48,10 @@ export async function updateSession(request: NextRequest) {
     if (path !== "/" && !path.startsWith("/api/")) url.searchParams.set("voltar", destino);
     return NextResponse.redirect(url);
   }
-  // Já logado tentando ver o login → manda para o dashboard
+  // Já logado tentando ver o login → manda para o portal (tela de entrada)
   if (user && (path === "/login" || path === "/")) {
     const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
+    url.pathname = "/portal";
     return NextResponse.redirect(url);
   }
 
