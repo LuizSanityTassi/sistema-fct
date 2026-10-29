@@ -2,61 +2,24 @@
 
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { configFiliais, lerUuid, meuFuncionario } from "@/lib/data/ponto";
+import { lerUuid } from "@/lib/data/ponto";
 import { local, TIPO_MARCACAO_LABEL, TIPOS_MARCACAO, type TipoMarcacao } from "@/lib/ponto/calculo";
 import { mensagemBanco } from "@/lib/ponto/form";
 import { createClient } from "@/lib/supabase/server";
 
 export type ResultadoRegistro = { ok: true; texto: string; nsr: number; nome: string; tipo: TipoMarcacao } | { ok: false; erro: string };
 
-type Coordenadas = { latitude: number; longitude: number; precisao: number } | null;
-
 /** IP e aparelho de quem registra (vão junto com a marcação, para auditoria). */
 async function origem() {
   const h = await headers();
   const ip = (h.get("x-forwarded-for") ?? "").split(",")[0].trim() || h.get("x-real-ip") || null;
   const ua = h.get("user-agent") ?? "";
-  const celular = /Mobi|Android|iPhone|iPad/i.test(ua);
-  return { ip, dispositivo: ua.slice(0, 300) || null, celular };
+  return { ip, dispositivo: ua.slice(0, 300) || null };
 }
 
 function textoConfirmacao(tipo: TipoMarcacao, momento: string) {
   const l = local(momento);
   return `${TIPO_MARCACAO_LABEL[tipo]} registrada às ${String(Math.floor(l.min / 60)).padStart(2, "0")}:${String(l.min % 60).padStart(2, "0")}`;
-}
-
-function coordenadasValidas(c: Coordenadas): Coordenadas {
-  if (!c) return null;
-  const ok = Number.isFinite(c.latitude) && Number.isFinite(c.longitude) && Math.abs(c.latitude) <= 90 && Math.abs(c.longitude) <= 180;
-  return ok ? { latitude: Number(c.latitude.toFixed(6)), longitude: Number(c.longitude.toFixed(6)), precisao: Math.min(999999, Math.max(0, Math.round(c.precisao * 10) / 10)) } : null;
-}
-
-/** "Meu ponto": o funcionário registra o próprio ponto (computador ou celular). */
-export async function registrarMeuPonto(tipo: string | null, coords: Coordenadas): Promise<ResultadoRegistro> {
-  const func = await meuFuncionario();
-  if (!func) return { ok: false, erro: "Seu usuário não está ligado a um funcionário. Fale com o RH." };
-  const t = tipo && (TIPOS_MARCACAO as readonly string[]).includes(tipo) ? tipo : null;
-  const c = coordenadasValidas(coords);
-  const cfg = (await configFiliais()).get(func.branch_id);
-  const o = await origem();
-  if (cfg?.exige_localizacao && o.celular && !c) return { ok: false, erro: "Sua filial exige a localização para registrar pelo celular. Permita o acesso à localização e tente de novo." };
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("ponto_registrar", {
-    p_employee: func.id,
-    p_tipo: t,
-    p_metodo: o.celular ? "celular" : "web",
-    p_pin: null,
-    p_dispositivo: o.dispositivo,
-    p_ip: o.ip,
-    p_latitude: c?.latitude ?? null,
-    p_longitude: c?.longitude ?? null,
-    p_precisao: c?.precisao ?? null,
-  });
-  if (error) return { ok: false, erro: mensagemBanco(error, "Não foi possível registrar.") };
-  const r = data as { erro?: string; nsr: number; momento: string; tipo: TipoMarcacao; funcionario: string };
-  if (r.erro) return { ok: false, erro: r.erro };
-  revalidatePath("/ponto", "layout");
-  return { ok: true, texto: textoConfirmacao(r.tipo, r.momento), nsr: r.nsr, nome: r.funcionario, tipo: r.tipo };
 }
 
 export type Identificado = { ok: true; id: string; nome: string; temPin: boolean; sugestao: TipoMarcacao; ultima: string | null } | { ok: false; erro: string };

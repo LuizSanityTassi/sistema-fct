@@ -34,10 +34,6 @@ export function ConfigFilialForm({ action, filial, jornadas, atual, hoje }: Prop
         ))}
       </SelectNativo>
       <Input type="date" name="inicio_controle" defaultValue={atual?.inicio_controle ?? hoje} aria-label="Controle a partir de" title="O ponto passa a contar a partir desta data" className="h-9" />
-      <label className="flex items-center gap-1.5 text-xs text-muted-foreground" title="No celular, pede a localização para registrar">
-        <input type="checkbox" name="exige_localizacao" defaultChecked={atual?.exige_localizacao ?? false} className="size-4 accent-fct-tinta" />
-        Localização
-      </label>
       <BotaoSalvar size="sm" variant="outline" rotuloPendente="…">
         Salvar
       </BotaoSalvar>

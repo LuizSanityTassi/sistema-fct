@@ -5,17 +5,15 @@ import { EstadoVazio, Indicador, LinkPainel, Painel } from "@/components/layout/
 import { Status } from "@/components/layout/status";
 import { Button } from "@/components/ui/button";
 import { exigirAcesso } from "@/lib/auth/session";
-import { apurar, bancoDeHoras, configFiliais, listarAjustes, meuFuncionario } from "@/lib/data/ponto";
+import { apurar, bancoDeHoras, listarAjustes, meuFuncionario } from "@/lib/data/ponto";
 import { formatarData } from "@/lib/formatos";
-import { DIAS_SEMANA_CURTO, diaSemana, duracao, hojeLocal, METODO_LABEL, proximoTipo, saldoTexto, somarDias, TIPO_MARCACAO_LABEL } from "@/lib/ponto/calculo";
+import { DIAS_SEMANA_CURTO, diaSemana, duracao, hojeLocal, METODO_LABEL, saldoTexto, somarDias, TIPO_MARCACAO_LABEL } from "@/lib/ponto/calculo";
 import { rotuloSituacao, situacaoAgora, TOM_SITUACAO } from "@/lib/ponto/situacao";
 import { createClient } from "@/lib/supabase/server";
 import { definirPin } from "../equipe/actions";
 import { horaLocal, ICONE_TIPO, PilulasMarcacoes } from "../_ui/marcacoes";
 import { PinForm } from "../_ui/pin-form";
 import { textoHorario } from "../_ui/resumo-jornada";
-import { registrarMeuPonto } from "./actions";
-import { RegistroPessoal } from "./registro-pessoal";
 
 export const metadata = { title: "Meu ponto" };
 
@@ -30,7 +28,7 @@ export default async function MeuPontoPage() {
           <EstadoVazio
             icone={UserX}
             titulo="Seu usuário não está ligado a um funcionário"
-            descricao="Para registrar o ponto, o administrador precisa ligar o seu usuário ao seu cadastro no RH (Administração → Usuários → editar → Funcionário)."
+            descricao="Para ver o seu ponto e cadastrar o PIN do relógio, o administrador precisa ligar o seu usuário ao seu cadastro no RH (Administração → Usuários → editar → Funcionário)."
           />
         </Painel>
       </>
@@ -42,10 +40,9 @@ export default async function MeuPontoPage() {
   const inicioMes = `${hoje.slice(0, 7)}-01`;
   const deSemana = somarDias(hoje, -6) < inicioMes ? somarDias(hoje, -6) : inicioMes;
   const supabase = await createClient();
-  const [[ap], [banco], configs, ajustes, { data: comPin }] = await Promise.all([
+  const [[ap], [banco], ajustes, { data: comPin }] = await Promise.all([
     apurar([func], deSemana, hoje, { agora }),
     bancoDeHoras([func], { agora }),
-    configFiliais(),
     listarAjustes({ funcionario: func.id, status: "pendente", limite: 20 }),
     supabase.rpc("ponto_tem_pin", { p_employees: [func.id] }),
   ]);
@@ -54,12 +51,6 @@ export default async function MeuPontoPage() {
   const saldoMes = doMes.reduce((s, d) => s + d.saldo, 0);
   const faltasMes = doMes.filter((d) => d.falta).length;
   const atrasosMes = doMes.filter((d) => d.atraso > 0).length;
-  // próxima marcação pela sequência do turno (entrada → intervalo → retorno → saída); turno da noite que começou
-  // ontem e ainda não fechou continua valendo depois da meia-noite
-  const ontem = ap.dias[ap.dias.length - 2];
-  const turnoAberto =
-    !diaHoje.marcacoes.length && ontem?.marcacoes.length && ontem.marcacoes[ontem.marcacoes.length - 1].tipo !== "saida" && agora.getTime() - Date.parse(ontem.marcacoes[0].momento) <= 16 * 3_600_000;
-  const sugestao = proximoTipo(turnoAberto ? ontem.marcacoes.length : diaHoje.marcacoes.length);
   const s = situacaoAgora(diaHoje, agora);
   const p = diaHoje.previsto;
   const temPin = (comPin ?? []).includes(func.id);
@@ -84,7 +75,28 @@ export default async function MeuPontoPage() {
       />
 
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <RegistroPessoal sugestao={sugestao} exigeLocalizacao={configs.get(func.branch_id)?.exige_localizacao ?? false} registrar={registrarMeuPonto} />
+        {/* o ponto é batido só no relógio da loja (matrícula + PIN); aqui a pessoa acompanha e cadastra o PIN */}
+        <Painel titulo="Registrar o ponto" icone={Fingerprint}>
+          <div className="space-y-4 border-t px-5 py-5 text-sm">
+            <p className="text-base">
+              O ponto é batido <strong>só no relógio da loja</strong>: digite a sua matrícula
+              {func.matricula && (
+                <>
+                  {" "}
+                  (<span className="font-mono font-semibold">{func.matricula}</span>)
+                </>
+              )}{" "}
+              e o seu PIN.
+            </p>
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/40 px-4 py-3">
+              <span className="flex items-center gap-2">
+                PIN do relógio: {temPin ? <Status tom="sucesso">cadastrado</Status> : <Status tom="atencao">sem PIN</Status>}
+              </span>
+              <PinForm action={definirPin.bind(null, func.id)} nome={func.nome} temPin={temPin} />
+            </div>
+            <p className="text-muted-foreground">Esqueceu de bater ou bateu errado? Use “Pedir ajuste” e o gestor corrige.</p>
+          </div>
+        </Painel>
 
         <Painel titulo="Hoje" icone={CalendarClock} acao={<Status tom={s.tom}>{s.texto}</Status>}>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3 border-t px-5 py-4 text-sm">
@@ -166,12 +178,6 @@ export default async function MeuPontoPage() {
           </ul>
         </Painel>
         <div className="space-y-4">
-          <Painel titulo="PIN do relógio da filial" icone={Fingerprint} descricao="Na loja, você registra com a matrícula e este PIN.">
-            <div className="flex items-center justify-between gap-2 border-t px-5 py-3">
-              {temPin ? <Status tom="sucesso">PIN cadastrado</Status> : <Status tom="atencao">Sem PIN</Status>}
-              <PinForm action={definirPin.bind(null, func.id)} nome={func.nome} temPin={temPin} />
-            </div>
-          </Painel>
           <Painel titulo="Meus pedidos de ajuste" icone={TimerReset} acao={<LinkPainel href="/ponto/ajustes">Ver todos</LinkPainel>}>
             {ajustes.length === 0 ? (
               <p className="border-t px-5 py-3 text-sm text-muted-foreground">Nenhum pedido aguardando o gestor.</p>

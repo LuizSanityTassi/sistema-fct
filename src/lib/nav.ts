@@ -152,7 +152,7 @@ export const NAV: NavGrupo[] = [
         label: "Meu ponto",
         href: "/ponto/registrar",
         icon: Fingerprint,
-        descricao: "Registrar entrada, intervalo, retorno e saída; ver a jornada e o saldo do dia.",
+        descricao: "Suas marcações, jornada e saldo do dia e o PIN do relógio (o ponto é batido só no relógio da loja).",
       },
       {
         label: "Espelho de ponto",
