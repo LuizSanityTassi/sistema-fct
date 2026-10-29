@@ -184,7 +184,7 @@ export const NAV: NavGrupo[] = [
         href: "/ponto/relogio",
         icon: Clock,
         papeis: ["admin", "rh", "gerente", "coordenador"],
-        descricao: "Tela de registro da loja: o funcionário digita a matrícula e o PIN.",
+        descricao: "Relógio da loja em tela cheia, sem menu (o funcionário só digita matrícula e PIN), e o login de relógio de cada filial.",
       },
       {
         label: "Equipe e jornadas",
@@ -653,6 +653,8 @@ function casaRota(item: NavItem, pathname: string) {
 }
 
 export function podeVerItem(item: NavItem, papel: AppRole) {
+  // login do relógio da filial: nenhum item do menu (só a tela /relogio)
+  if (papel === "relogio") return false;
   return !item.papeis || item.papeis.includes(papel);
 }
 
@@ -677,6 +679,7 @@ export function grupoDaRota(pathname: string): NavGrupo | undefined {
 /** Autorização de rota derivada do menu. Rotas fora do menu são liberadas (ex.: /dashboard/...). */
 /** `extras` = telas liberadas para a pessoa além do papel (acesso_telas, ex.: Fluxo de caixa compartilhado). */
 export function podeAcessar(papel: AppRole, pathname: string, extras: readonly string[] = []): boolean {
+  if (papel === "relogio") return pathname === "/relogio";
   const item = itemDaRota(pathname);
   return item ? podeVerItem(item, papel) || extras.includes(item.href) : true;
 }

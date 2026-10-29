@@ -47,6 +47,7 @@ const DESCRICAO_PAPEL: Record<AppRole, string> = {
   compras: "Atende os chamados de compras e estoque (avarias, notas, inventário, vencidos) de todas as lojas.",
   marketing: "Atende as Solicitações de Marketing de todas as lojas.",
   usuario: "Abre e acompanha os próprios chamados.",
+  relogio: "Só o relógio de ponto da filial (matrícula e PIN). Crie em Ponto Eletrônico → Relógio da filial.",
 };
 
 export function UsuarioForm({ action, unidades, regionais = [], modo, valores, ehProprioUsuario, funcionarios }: Props) {

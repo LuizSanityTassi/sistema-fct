@@ -6033,6 +6033,7 @@ export type Database = {
         | "manutencao"
         | "compras"
         | "marketing"
+        | "relogio"
       aso_type:
         | "admissional"
         | "periodico"
@@ -6217,6 +6218,7 @@ export const Constants = {
         "manutencao",
         "compras",
         "marketing",
+        "relogio",
       ],
       aso_type: [
         "admissional",

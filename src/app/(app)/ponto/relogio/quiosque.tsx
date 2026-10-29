@@ -125,9 +125,10 @@ export function Quiosque({ filial, identificar, registrar }: Props) {
     [confirmarMatricula, confirmarPin, digitos, etapa, pendente, pin],
   );
 
-  // teclado físico
+  // teclado físico (fora de campos de texto: a senha de "Sair do relógio" não vira matrícula)
   useEffect(() => {
     const f = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLElement && e.target.closest("input, textarea, select, [role=dialog]")) return;
       if (e.key >= "0" && e.key <= "9") tecla(e.key);
       else if (e.key === "Backspace") tecla("apagar");
       else if (e.key === "Enter") tecla("ok");

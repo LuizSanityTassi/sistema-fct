@@ -69,20 +69,11 @@ export async function identificarNoRelogio(filial: string, matricula: string): P
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("ponto_relogio_identificar", { p_branch: b, p_matricula: m });
   if (error) return { ok: false, erro: mensagemBanco(error, "Não foi possível consultar.") };
-  const f = data as { id: string; nome: string; tem_pin: boolean } | null;
+  const f = data as { id: string; nome: string; tem_pin: boolean; qtd_hoje?: number; ultima?: { tipo: TipoMarcacao; momento: string } | null } | null;
   if (!f) return { ok: false, erro: "Matrícula não encontrada nesta filial." };
-  // sugestão do próximo tipo pelas marcações de hoje (o relógio de gestor enxerga as da filial)
-  const hoje = local(new Date().toISOString()).data;
-  const { data: ms } = await supabase
-    .from("ponto_marcacoes")
-    .select("tipo, momento")
-    .eq("employee_id", f.id)
-    .eq("anulada", false)
-    .gte("momento", new Date(`${hoje}T00:00:00-03:00`).toISOString())
-    .order("momento");
-  const qtd = ms?.length ?? 0;
-  const ultima = ms?.length ? ms[ms.length - 1] : null;
-  return { ok: true, id: f.id, nome: f.nome, temPin: f.tem_pin, sugestao: TIPOS_MARCACAO[qtd % 4], ultima: ultima ? textoConfirmacao(ultima.tipo as TipoMarcacao, ultima.momento) : null };
+  // sugestão do próximo tipo pelas marcações de hoje (vêm do próprio banco: o login do relógio não lê as marcações)
+  const qtd = f.qtd_hoje ?? 0;
+  return { ok: true, id: f.id, nome: f.nome, temPin: f.tem_pin, sugestao: TIPOS_MARCACAO[qtd % 4], ultima: f.ultima ? textoConfirmacao(f.ultima.tipo, f.ultima.momento) : null };
 }
 
 /** Relógio da filial, passo 2: PIN + tipo. PIN errado conta tentativa (5 erros = 15 minutos bloqueado). */
