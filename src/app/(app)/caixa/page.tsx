@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { exigirAcesso } from "@/lib/auth/session";
+import { podeAcessar } from "@/lib/nav";
 import { TOLERANCIA_CAIXA } from "@/lib/caixa/diferencas";
 import { COR_SITUACAO, ROTULO_SITUACAO, situacaoDoCaixa, textoDiferenca } from "@/lib/caixa/rotulos";
 import { anexosDasQuebras, minhasQuebras, quebraNaFolha } from "@/lib/data/diferenca-caixa";
@@ -14,10 +15,13 @@ export const metadata = { title: "Quebras de caixa" };
 
 export default async function QuebrasCaixaPage({ searchParams }: PageProps<"/caixa">) {
   const [sessao, sp] = await Promise.all([exigirAcesso("/caixa"), searchParams]);
-  const financeiro = sessao.papel === "admin" || sessao.papel === "financeiro";
+  // visão do financeiro só para quem abre o Financeiro; administrador com o Financeiro bloqueado (ex.: responsável do
+  // televendas) justifica como gestor, vendo só as quebras em que ele é o gestor
+  const temFinanceiro = podeAcessar(sessao.papel, "/financeiro/diferenca-caixa", sessao.telasExtras, sessao.bloqueios);
+  const financeiro = (sessao.papel === "admin" || sessao.papel === "financeiro") && temFinanceiro;
   const coordenador = sessao.papel === "coordenador";
   const todas = sp.ver === "todas";
-  const quebras = financeiro || coordenador ? [] : await minhasQuebras(!todas);
+  const quebras = financeiro || coordenador ? [] : await minhasQuebras(!todas, sessao.papel === "admin" ? sessao.id : undefined);
   const [anexos, naFolha] = await Promise.all([anexosDasQuebras(quebras.map((q) => q.id)), quebraNaFolha()]);
 
   return (

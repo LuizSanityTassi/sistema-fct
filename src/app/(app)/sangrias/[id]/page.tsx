@@ -24,11 +24,12 @@ export default async function SangriaPage({ params, searchParams }: PageProps<"/
   if (!s) notFound();
   const filial = s.filial as { codigo: string; nome: string } | null;
   const situacao = s.situacao as SituacaoSangria;
-  const financeiro = sessao.papel === "admin" || sessao.papel === "financeiro";
+  const veConferencia = podeAcessar(sessao.papel, "/financeiro/sangrias", sessao.telasExtras, sessao.bloqueios);
+  // poderes do financeiro só para quem abre o Financeiro (administrador com o Financeiro bloqueado age como a loja)
+  const financeiro = (sessao.papel === "admin" || sessao.papel === "financeiro") && veConferencia;
   const minha = s.criada_por === sessao.id;
   const podeCancelar = situacao === "pendente" && (minha || financeiro);
   const podeAnexar = situacao === "pendente" && (financeiro || minha || sessao.papel === "gerente" || sessao.papel === "usuario");
-  const veConferencia = podeAcessar(sessao.papel, "/financeiro/sangrias", sessao.telasExtras, sessao.bloqueios);
 
   return (
     <>

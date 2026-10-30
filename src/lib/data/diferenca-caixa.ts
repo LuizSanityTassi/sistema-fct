@@ -126,10 +126,12 @@ export async function listarOperadores() {
 }
 
 /** Quebras que a pessoa logada vê: as que ela justifica como gestor e, se for colaborador de caixa, as dela (só ver). */
-export async function minhasQuebras(abertas: boolean) {
+export async function minhasQuebras(abertas: boolean, soDoGestor?: string) {
   const supabase = await createClient();
   let q = supabase.from("caixa_diferencas").select(`${COLUNAS}, justificativa, decisao_obs`).eq("classe", "quebra");
   if (abertas) q = q.in("andamento", ["pendente", "justificada"]);
+  // quem enxerga tudo pelo banco (administrador sem o Financeiro): só as quebras em que ele é o gestor
+  if (soDoGestor) q = q.eq("gestor_id", soDoGestor);
   const { data, error } = await q.order("dia", { ascending: false }).limit(200);
   if (error) throw new Error(error.message);
   return data ?? [];
