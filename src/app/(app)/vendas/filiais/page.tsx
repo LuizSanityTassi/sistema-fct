@@ -101,7 +101,8 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
             }
           />
         ) : (
-          <Table>
+          // compacta (fonte 13px, menos espaço entre colunas, títulos em 2 linhas) para caber sem rolar para o lado
+          <Table className="text-[13px] [&_td]:px-2 [&_td:first-child]:pl-4 [&_td:last-child]:pr-4 [&_th]:h-auto [&_th]:px-2 [&_th]:py-2 [&_th]:leading-tight [&_th]:whitespace-normal [&_th:first-child]:pl-4 [&_th:last-child]:pr-4">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-10">#</TableHead>
