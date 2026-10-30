@@ -156,6 +156,44 @@ export function lerVendasPorVendedor(m: Matriz): LinhaVendedor[] {
   return out;
 }
 
+// ---------- Rel_0027 Relação de Vendas, só vendas e-commerce, agrupado por filial ----------
+
+export type VendaEcommerce = { filial: number; vendedor: number; venda: number; atendimentos: number };
+
+/**
+ * Uma linha por venda (Núm. Venda | Fil. | … | Vend. | … | Total Líquido) e, embaixo, as formas de pagamento dela
+ * (CARTAO … ECOMMERCE). Soma por filial e vendedor; devolução (líquido negativo) desconta um atendimento.
+ * Layout conferido nos Excel de 15 a 29/10/2026.
+ */
+export function lerVendasEcommerce(m: Matriz): VendaEcommerce[] {
+  const ih = m.findIndex((l) => indice(l, (t) => t === "Vend.") >= 0 && indice(l, (t) => /L[ií]quido/i.test(t)) >= 0);
+  if (ih < 0) {
+    // dia sem venda e-commerce: o Trier manda só o cabeçalho do filtro
+    if (m.some((l) => l.some((c) => /^Forma de Pagamento:/i.test(txt(c))))) return [];
+    throw new LeituraErro('não achei o cabeçalho "Núm. Venda | Fil. | … | Vend. | … | Total Líquido" (o relatório mudou?)');
+  }
+  const h = m[ih];
+  const cNum = indice(h, (t) => /^N[uú]m/i.test(t));
+  const cFil = indice(h, (t) => t === "Fil.");
+  const cVend = indice(h, (t) => t === "Vend.");
+  const cLiq = indice(h, (t) => /L[ií]quido/i.test(t));
+  if ([cNum, cFil, cVend, cLiq].some((c) => c < 0)) throw new LeituraErro("não achei as colunas de venda, filial, vendedor e líquido");
+  const soma = new Map<string, VendaEcommerce>();
+  for (let i = ih + 1; i < m.length; i++) {
+    const l = m[i];
+    if (!inteiro(l[cNum]) || !inteiro(l[cFil]) || !inteiro(l[cVend]) || typeof l[cLiq] !== "number") continue;
+    const filial = Number(l[cFil]);
+    const vendedor = Number(l[cVend]);
+    const liquido = num(l[cLiq]);
+    const k = `${filial}|${vendedor}`;
+    const atual = soma.get(k) ?? { filial, vendedor, venda: 0, atendimentos: 0 };
+    atual.venda = cent(atual.venda + liquido);
+    atual.atendimentos += liquido < 0 ? -1 : 1;
+    soma.set(k, atual);
+  }
+  return [...soma.values()];
+}
+
 /** "Total Geral:" do relatório (coluna de venda), para conferir a soma do que foi lido. */
 export function totalGeral(m: Matriz, coluna: (cabecalho: unknown[]) => number): number | null {
   const ih = m.findIndex((l) => txt(l[0]) === "Código");

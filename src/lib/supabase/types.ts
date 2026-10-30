@@ -2848,6 +2848,8 @@ export type Database = {
           coleta_id: string | null
           custo: number
           data: string
+          ecom_atendimentos: number
+          ecom_venda: number
           tele_atendimentos: number
           tele_custo: number
           tele_venda: number
@@ -2861,6 +2863,8 @@ export type Database = {
           coleta_id?: string | null
           custo?: number
           data: string
+          ecom_atendimentos?: number
+          ecom_venda?: number
           tele_atendimentos?: number
           tele_custo?: number
           tele_venda?: number
@@ -2874,6 +2878,8 @@ export type Database = {
           coleta_id?: string | null
           custo?: number
           data?: string
+          ecom_atendimentos?: number
+          ecom_venda?: number
           tele_atendimentos?: number
           tele_custo?: number
           tele_venda?: number
@@ -6051,6 +6057,7 @@ export type Database = {
           codigo: string
           custo: number
           dias: number
+          ecom_venda: number
           equipe: string
           funcao: string | null
           loja: string

@@ -110,6 +110,8 @@ export type LinhaTelevendas = {
   /** parte marcada como tele-entrega no Trier */
   teleVenda: number;
   teleAtendimentos: number;
+  /** venda e-commerce do vendedor: fica fora do televendas (volta para a filial) */
+  ecomVenda: number;
 };
 
 export async function televendasNoPeriodo(de: string, ate: string): Promise<LinhaTelevendas[]> {
@@ -130,19 +132,21 @@ export async function televendasNoPeriodo(de: string, ate: string): Promise<Linh
     custo: n(r.custo),
     teleVenda: n(r.tele_venda),
     teleAtendimentos: n(r.tele_atendimentos),
+    ecomVenda: n(r.ecom_venda),
   }));
 }
 
-export type ResumoTelevendas = { venda: number; atendimentos: number; custo: number; teleVenda: number; teleAtendimentos: number; ticket: number | null; cmv: number | null; vendedores: number; lojas: number };
+export type ResumoTelevendas = { venda: number; atendimentos: number; custo: number; teleVenda: number; teleAtendimentos: number; ecomVenda: number; ticket: number | null; cmv: number | null; vendedores: number; lojas: number };
 
 export function resumirTelevendas(linhas: LinhaTelevendas[]): ResumoTelevendas {
-  const t = { venda: 0, atendimentos: 0, custo: 0, teleVenda: 0, teleAtendimentos: 0 };
+  const t = { venda: 0, atendimentos: 0, custo: 0, teleVenda: 0, teleAtendimentos: 0, ecomVenda: 0 };
   for (const l of linhas) {
     t.venda += l.venda;
     t.atendimentos += l.atendimentos;
     t.custo += l.custo;
     t.teleVenda += l.teleVenda;
     t.teleAtendimentos += l.teleAtendimentos;
+    t.ecomVenda += l.ecomVenda;
   }
   const cmv = div(t.custo, t.venda);
   return { ...t, ticket: div(t.venda, t.atendimentos), cmv: cmv === null ? null : cmv * 100, vendedores: new Set(linhas.map((l) => l.vendedorCodigo)).size, lojas: new Set(linhas.map((l) => l.branchId)).size };

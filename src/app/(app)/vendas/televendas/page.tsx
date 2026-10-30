@@ -101,7 +101,7 @@ export default async function TelevendasPage({ searchParams }: PageProps<"/venda
       <PageHeader
         eyebrow="Vendas"
         titulo="Televendas"
-        descricao="O que a equipe de tele-vendas vendeu, por vendedor e por equipe. Essa venda sai da filial onde o Trier lançou e conta só aqui, como uma loja à parte (vale de setembro/2026 em diante, desde quando há relatório por vendedor)."
+        descricao="O que a equipe de tele-vendas vendeu, por vendedor e por equipe, sem as vendas de e-commerce. Essa venda sai da filial onde o Trier lançou e conta só aqui, como uma loja à parte; o e-commerce da equipe continua na filial (vale de setembro/2026 em diante, desde quando há relatório por vendedor)."
       />
       <AbasVendas ativa="/vendas/televendas" papel={sessao.papel} />
       <AvisoDiasFaltando faltam={faltam.length} texto={`(${faixasDeDias(faltam)})`} admin={admin} />
@@ -121,7 +121,7 @@ export default async function TelevendasPage({ searchParams }: PageProps<"/venda
       ) : (
         <>
           <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <MiniKpi rotulo="Venda televendas" valor={moeda(t.venda)} comparacao={<Comparacao atual={t.venda} anterior={tAnt.venda} rotulo={rotuloAnt} />} />
+            <MiniKpi rotulo="Venda televendas" valor={moeda(t.venda)} comparacao={<Comparacao atual={t.venda} anterior={tAnt.venda} rotulo={rotuloAnt} />} detalhe={t.ecomVenda ? `sem ${moeda(t.ecomVenda)} de e-commerce (ficou na filial)` : undefined} />
             <MiniKpi rotulo="Atendimentos" valor={inteiro(t.atendimentos)} comparacao={<Comparacao atual={t.atendimentos} anterior={tAnt.atendimentos} rotulo={rotuloAnt} />} />
             <MiniKpi rotulo="Ticket médio" valor={moeda(t.ticket)} comparacao={<Comparacao atual={t.ticket} anterior={tAnt.ticket} rotulo={rotuloAnt} />} />
             <MiniKpi rotulo="CMV" valor={pct(t.cmv, 1)} comparacao={<Comparacao atual={t.cmv} anterior={tAnt.cmv} rotulo={rotuloAnt} formato="pp" inverso />} />
@@ -145,6 +145,7 @@ export default async function TelevendasPage({ searchParams }: PageProps<"/venda
                     <TableHead className="text-right">Ticket médio</TableHead>
                     <TableHead className="text-right">CMV</TableHead>
                     <TableHead className="hidden text-right lg:table-cell">Tele-entrega</TableHead>
+                    <TableHead className="hidden text-right xl:table-cell">E-commerce (fora)</TableHead>
                     <TableHead className="hidden pr-5 lg:table-cell sm:pr-6">Filiais</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -174,6 +175,7 @@ export default async function TelevendasPage({ searchParams }: PageProps<"/venda
                         <TableCell className="text-right tabular-nums">{moeda(v.ticket)}</TableCell>
                         <TableCell className="text-right tabular-nums">{pct(v.cmv, 1)}</TableCell>
                         <TableCell className="hidden text-right tabular-nums lg:table-cell">{v.teleVenda ? moeda(v.teleVenda) : "—"}</TableCell>
+                        <TableCell className="hidden text-right tabular-nums text-muted-foreground xl:table-cell">{v.ecomVenda ? moeda(v.ecomVenda) : "—"}</TableCell>
                         <TableCell className="hidden pr-5 text-xs text-muted-foreground lg:table-cell sm:pr-6">
                           {filiais.length ? filiais.map((f) => `${f.chave} ${moedaCurta(f.venda)}`).join(" · ") : "sem venda no período"}
                         </TableCell>
@@ -191,6 +193,7 @@ export default async function TelevendasPage({ searchParams }: PageProps<"/venda
                     <TableCell className="text-right tabular-nums">{moeda(t.ticket)}</TableCell>
                     <TableCell className="text-right tabular-nums">{pct(t.cmv, 1)}</TableCell>
                     <TableCell className="hidden text-right tabular-nums lg:table-cell">{moeda(t.teleVenda)}</TableCell>
+                    <TableCell className="hidden text-right tabular-nums text-muted-foreground xl:table-cell">{moeda(t.ecomVenda)}</TableCell>
                     <TableCell className="hidden pr-5 lg:table-cell sm:pr-6" />
                   </TableRow>
                 </TableFooter>

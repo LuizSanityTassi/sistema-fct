@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import * as XLSX from "xlsx";
 import type { RelatorioVendas } from "@/lib/conciliacao/trier-robo";
 import type { Database } from "@/lib/supabase/types";
-import { lerCmvAgrupado, lerVendasPorData, lerVendasPorVendedor, lerVendedorGrupo, LeituraErro, type Matriz } from "./leitores";
+import { lerCmvAgrupado, lerVendasEcommerce, lerVendasPorData, lerVendasPorVendedor, lerVendedorGrupo, LeituraErro, type Matriz } from "./leitores";
 
 type Cliente = SupabaseClient<Database>;
 
@@ -118,7 +118,7 @@ export async function lerColeta(client: Cliente, coleta: ColetaParaLer, filiais:
         { onConflict: "branch_id,data,vendedor_codigo" },
       ),
     );
-    checar(await client.from("vendas_vendedor_dia").delete().eq("data", data).eq("atendimentos", 0).eq("venda", 0).eq("tele_atendimentos", 0).eq("tele_venda", 0));
+    checar(await client.from("vendas_vendedor_dia").delete().eq("data", data).eq("atendimentos", 0).eq("venda", 0).eq("tele_atendimentos", 0).eq("tele_venda", 0).eq("ecom_venda", 0));
     linhas = rows.length;
   } else if (rel === "vendedores") {
     if (!coleta.de.endsWith("-01") || coleta.ate.slice(0, 7) !== coleta.de.slice(0, 7)) throw new LeituraErro("o relatório de vendedores por grupo precisa ir do dia 1 até um dia do mesmo mês");
@@ -138,8 +138,29 @@ export async function lerColeta(client: Cliente, coleta: ColetaParaLer, filiais:
     );
     linhas = rows.length;
   } else if (rel === "ecommerce") {
-    // o Excel fica guardado; a leitura (venda e-commerce por vendedor) entra quando o formato for conferido
-    throw new LeituraErro("e-commerce: Excel guardado, leitura ainda não liberada");
+    // venda e-commerce de cada vendedor no dia (sai do televendas): zera a parte e-commerce do dia e grava por cima
+    const rows = somar(
+      lerVendasEcommerce(m).flatMap((v) => {
+        const branch_id = branch(v.filial);
+        return branch_id ? [{ branch_id, vendedor: v.vendedor, venda: v.venda, atendimentos: v.atendimentos }] : [];
+      }),
+      (l) => `${l.branch_id}|${l.vendedor}`,
+      ["venda", "atendimentos"],
+    );
+    checar(await client.from("vendas_vendedor_dia").update({ ecom_venda: 0, ecom_atendimentos: 0 }).eq("data", data).neq("ecom_venda", 0));
+    for (const r of rows) {
+      // a linha do vendedor no dia vem do relatório por vendedor (que traz o nome); só completa a parte e-commerce
+      const { data: feitas, error } = await client
+        .from("vendas_vendedor_dia")
+        .update({ ecom_venda: r.venda, ecom_atendimentos: r.atendimentos })
+        .eq("branch_id", r.branch_id)
+        .eq("data", data)
+        .eq("vendedor_codigo", r.vendedor)
+        .select("vendedor_codigo");
+      if (error) throw new Error(error.message);
+      if (!feitas?.length) checar(await client.from("vendas_vendedor_dia").insert({ branch_id: r.branch_id, data, vendedor_codigo: r.vendedor, vendedor_nome: `VENDEDOR ${r.vendedor}`, ecom_venda: r.venda, ecom_atendimentos: r.atendimentos, coleta_id: coleta.id }));
+    }
+    linhas = rows.length;
   } else throw new LeituraErro(`relatório desconhecido: ${coleta.relatorio}`);
 
   checar(await client.from("vendas_coletas").update({ lido_em: new Date().toISOString(), linhas, erro: null }).eq("id", coleta.id));
