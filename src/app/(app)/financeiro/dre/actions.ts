@@ -101,6 +101,21 @@ export async function lancarManual(_prev: EstadoManual, fd: FormData): Promise<E
   return { ok: `Setembro da ${empresa} salvo: ${mudou.length === 1 ? "1 valor alterado" : `${mudou.length} valores alterados`}.` };
 }
 
+/**
+ * Refaz as contas do plano (devoluções, outras receitas, receita financeira, despesas de pessoal, administrativas,
+ * comerciais, outras e financeiras) do mês liberado a partir dos lançamentos do Omie, filial por filial. Comissões e
+ * depreciação ficam como estão.
+ */
+export async function preencherOmie(_fd: FormData) {
+  const sessao = await getSessao();
+  if (!podeEditar(sessao.papel)) return;
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("dre_contabil_preencher_omie", { p_competencia: `${MES_MANUAL}-01` });
+  if (error) throw new Error(error.message);
+  await registrarAuditoria(supabase, { userId: sessao.id, acao: "editar", entidade: "dre_contabil", novo: { competencia: MES_MANUAL, preenchido_pelo_omie: data } });
+  revalidatePath("/financeiro/dre");
+}
+
 export type EstadoLembrete = { erro?: string; ok?: string };
 
 /** Liga/desliga o lembrete no sino e escolhe o dia do mês a partir do qual a DRE do mês anterior conta como atrasada. */

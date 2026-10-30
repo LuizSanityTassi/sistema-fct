@@ -5880,6 +5880,10 @@ export type Database = {
         Args: { p_competencia: string; p_empresa: string; p_valores: Json }
         Returns: number
       }
+      dre_contabil_preencher_omie: {
+        Args: { p_competencia: string }
+        Returns: number
+      }
       caixa_quebra_folha_definir: {
         Args: { p_ligado: boolean }
         Returns: number

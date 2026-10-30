@@ -14,7 +14,8 @@ import { moedaFin } from "@/lib/financeiro/formatos";
 import { formatarDataHora } from "@/lib/formatos";
 import { rotuloCompetencia } from "@/lib/rh/competencia";
 import { createClient } from "@/lib/supabase/server";
-import { excluirRateio, lancarManual, salvarRateio } from "./actions";
+import { ConfirmarAcao } from "@/components/layout/confirmar-acao";
+import { excluirRateio, lancarManual, preencherOmie, salvarRateio } from "./actions";
 import { AbasDre, AvisoCobertura, cabecalhosOrdenaveis, Cartao, empresasSemDre, Filtros, mostraPct, OpcoesFiliais, query, TODAS, tom, VISOES_DRE, type Direcao, type Props, type VisaoDre } from "./comum";
 import { Comparativo } from "./comparativo";
 import { Demonstrativo } from "./demonstrativo";
@@ -190,9 +191,19 @@ async function Lancar({ base, empresas, todas, mapa, filiais }: Props) {
             {e}
           </Button>
         ))}
-        <p className="text-sm text-muted-foreground">
-          {rotuloCompetencia(MES_MANUAL)}: as contas em amarelo são digitadas aqui, filial por filial; a importação da planilha não mexe nelas. Digite sem sinal, como na
-          planilha (despesas e deduções entram negativas, receitas positivas); um “-” na frente inverte (estorno).
+        <div className="ml-auto">
+          <ConfirmarAcao
+            titulo="Preencher pelo Omie"
+            descricao="Refaz Devolução OFX, Outras receitas, Receita financeira e as despesas (pessoal, administrativa, comerciais, outras e financeira) de setembro, nas duas empresas, a partir dos lançamentos do Omie e do plano de contas. O que foi digitado nessas contas é substituído; Comissões e Depreciação ficam como estão."
+            rotuloBotao="Preencher pelo Omie"
+            rotuloConfirmar="Preencher"
+            action={preencherOmie}
+          />
+        </div>
+        <p className="w-full text-sm text-muted-foreground">
+          {rotuloCompetencia(MES_MANUAL)}: as contas em amarelo vêm do Omie pelo plano de contas (categoria → conta da DRE), filial por filial, e podem ser corrigidas aqui; a
+          importação da planilha não mexe nelas. Comissões e Depreciação são digitadas. Digite sem sinal, como na planilha (despesas e deduções entram negativas, receitas
+          positivas); um “-” na frente inverte (estorno). Itajaí está na Varela, Blumenau na Nazário e as terceirizadas em TERC.
         </p>
       </div>
       {lista.length ? (
