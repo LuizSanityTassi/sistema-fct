@@ -207,10 +207,12 @@ const quantidade = (d: Destinatario) => d.quebras.length + d.minhas.length;
 const valorTotal = (d: Destinatario) => r2(d.total + d.totalMinhas);
 
 /** Manda o aviso para cada e-mail com quebra em aberto. Quem já recebeu hoje (automático ou manual) não recebe de novo. */
-export async function enviarAvisos(admin: Admin, origem: "automatico" | "manual"): Promise<ResultadoEnvio> {
+export async function enviarAvisos(admin: Admin, origem: "automatico" | "manual", soPerfil?: string): Promise<ResultadoEnvio> {
   const smtp = await configSmtp(admin);
   if (!smtp.configurado) throw new Error("Falta cadastrar a senha do e-mail de envio em Administração → Integrações.");
   const previa = await montarAvisos(admin);
+  // envio pontual para uma pessoa só (ex.: o responsável novo do televendas)
+  if (soPerfil) previa.destinatarios = previa.destinatarios.filter((d) => d.profileId === soPerfil);
   const { data: jaHoje, error } = await admin.from("caixa_avisos").select("email").eq("dia", previa.hoje).is("erro", null).in("origem", ["automatico", "manual"]);
   if (error) throw new Error(error.message);
   const avisados = new Set((jaHoje ?? []).map((r) => r.email.toLowerCase()));
