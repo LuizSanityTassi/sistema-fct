@@ -32,11 +32,22 @@ function mesesDoSeletor(atual: string) {
   return out;
 }
 
-/** Linha da tabela de metas: referência (mês anterior), campo da meta, realizado e % atingido. */
-type LinhaMeta = { chave: string; titulo: React.ReactNode; detalhe?: string; referencia: number | null; meta: number | null; realizado: number | null; foraDoTotal?: boolean };
+/** Linha da tabela de metas: referência (mês anterior), campo da meta, realizado e % atingido.
+ * subtotal = soma das linhas de baixo (central do tele), sem campo para digitar; recuo = linha dentro de um subtotal. */
+type LinhaMeta = { chave: string; titulo: React.ReactNode; detalhe?: string; referencia: number | null; meta: number | null; realizado: number | null; foraDoTotal?: boolean; subtotal?: boolean; recuo?: boolean };
+
+/** Soma ignorando os vazios; tudo vazio → null. */
+const somaDe = (xs: LinhaMeta[], f: (l: LinhaMeta) => number | null) => {
+  const v = xs.map(f).filter((x): x is number => x !== null);
+  return v.length ? v.reduce((a, b) => a + b, 0) : null;
+};
+
+// centrais do tele na ordem da planilha deles; equipe nova vem depois, em ordem alfabética
+const ORDEM_CENTRAIS = ["Criciúma", "Concórdia", "Lages"];
+const posicaoCentral = (e: string) => ORDEM_CENTRAIS.indexOf(e) + 1 || ORDEM_CENTRAIS.length + 1;
 
 function TabelaMetas({ linhas, rotulo, rotuloTotal = "Total", mesAnterior, temRealizado, decorrido }: { linhas: LinhaMeta[]; rotulo: string; rotuloTotal?: string; mesAnterior: string; temRealizado: boolean; decorrido: number | null }) {
-  // linha que já é a soma das outras (ex.: Televendas, a loja) não entra de novo no total
+  // linha que já é a soma das outras (ex.: Tele - Vendas REDE e as centrais) não entra de novo no total
   const soma = (f: (l: LinhaMeta) => number | null) => linhas.reduce((s, l) => s + (l.foraDoTotal ? 0 : (f(l) ?? 0)), 0);
   const totalMeta = soma((l) => l.meta);
   const totalReal = soma((l) => l.realizado);
@@ -57,23 +68,27 @@ function TabelaMetas({ linhas, rotulo, rotuloTotal = "Total", mesAnterior, temRe
             const p = l.meta && l.realizado !== null ? (l.realizado / l.meta) * 100 : null;
             const tom = p === null ? "" : p >= 100 ? "bg-emerald-500" : decorrido !== null && p >= decorrido ? "bg-sky-500" : "bg-amber-500";
             return (
-              <TableRow key={l.chave}>
-                <TableCell className="pl-5 sm:pl-6">
+              <TableRow key={l.chave} className={cn(l.subtotal && "bg-muted/40")}>
+                <TableCell className={l.recuo ? "pl-9 sm:pl-10" : "pl-5 sm:pl-6"}>
                   {l.titulo}
                   {l.detalhe && <span className="block text-[11px] text-muted-foreground">{l.detalhe}</span>}
                 </TableCell>
                 <TableCell className="hidden text-right tabular-nums text-muted-foreground md:table-cell">{l.referencia ? moeda(l.referencia) : "—"}</TableCell>
                 <TableCell className="text-right">
-                  <input
-                    name={`m|${l.chave}`}
-                    defaultValue={l.meta ? decimal(l.meta, 2) : ""}
-                    inputMode="decimal"
-                    placeholder="sem meta"
-                    aria-label={`Meta ${typeof l.titulo === "string" ? l.titulo : l.chave}`}
-                    className="h-8 w-40 rounded-md border bg-background px-2 text-right text-sm tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:bg-muted/40"
-                  />
+                  {l.subtotal ? (
+                    <span className="inline-block w-40 px-2 text-sm font-semibold tabular-nums">{l.meta ? decimal(l.meta, 2) : "—"}</span>
+                  ) : (
+                    <input
+                      name={`m|${l.chave}`}
+                      defaultValue={l.meta ? decimal(l.meta, 2) : ""}
+                      inputMode="decimal"
+                      placeholder="sem meta"
+                      aria-label={`Meta ${typeof l.titulo === "string" ? l.titulo : l.chave}`}
+                      className="h-8 w-40 rounded-md border bg-background px-2 text-right text-sm tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:bg-muted/40"
+                    />
+                  )}
                 </TableCell>
-                {temRealizado && <TableCell className="text-right tabular-nums">{l.realizado !== null ? moeda(l.realizado) : "—"}</TableCell>}
+                {temRealizado && <TableCell className={cn("text-right tabular-nums", l.subtotal && "font-semibold")}>{l.realizado !== null ? moeda(l.realizado) : "—"}</TableCell>}
                 {temRealizado && (
                   <TableCell className="pr-5 sm:pr-6">
                     {p === null ? (
@@ -151,16 +166,33 @@ export default async function MetasPage({ searchParams }: PageProps<"/vendas/met
       equipeTelevendas(),
     ]);
     const tele = (xs: typeof real) => xs.find((l) => l.regional === TELEVENDAS)?.venda ?? 0;
+    const linhaVendedor = (v: (typeof equipe)[number]): LinhaMeta => ({
+      chave: chaveMetaVendedor(v.vendedor_codigo),
+      titulo: <span className="text-sm">{v.nome}</span>,
+      detalhe: `${v.vendedor_codigo} · ${v.equipe}`,
+      referencia: refV.find((x) => x.vendedorCodigo === v.vendedor_codigo)?.venda ?? null,
+      meta: meta(chaveMetaVendedor(v.vendedor_codigo)),
+      realizado: temRealizado ? (realV.find((x) => x.vendedorCodigo === v.vendedor_codigo)?.venda ?? 0) : null,
+      recuo: true,
+    });
+    // cada central (Criciúma, Concórdia, Lages) = total da equipe dela, com os vendedores logo abaixo
+    const centrais = [...new Set(equipe.map((v) => v.equipe))].sort((a, b) => posicaoCentral(a) - posicaoCentral(b) || a.localeCompare(b));
     linhas = [
-      { chave: "televendas", titulo: <span className="text-sm font-semibold">Televendas (a loja)</span>, detalhe: "meta da loja · venda da equipe sem e-commerce", referencia: tele(ref), meta: meta("televendas"), realizado: temRealizado ? tele(real) : null, foraDoTotal: true },
-      ...equipe.map((v) => ({
-        chave: chaveMetaVendedor(v.vendedor_codigo),
-        titulo: <span className="text-sm">{v.nome}</span>,
-        detalhe: `${v.vendedor_codigo} · ${v.equipe}`,
-        referencia: refV.find((x) => x.vendedorCodigo === v.vendedor_codigo)?.venda ?? null,
-        meta: meta(chaveMetaVendedor(v.vendedor_codigo)),
-        realizado: temRealizado ? (realV.find((x) => x.vendedorCodigo === v.vendedor_codigo)?.venda ?? 0) : null,
-      })),
+      { chave: "televendas", titulo: <span className="text-sm font-semibold">Tele - Vendas (REDE)</span>, detalhe: "meta da rede · venda da equipe sem e-commerce", referencia: tele(ref), meta: meta("televendas"), realizado: temRealizado ? tele(real) : null, foraDoTotal: true },
+      ...centrais.flatMap((c) => {
+        const time = equipe.filter((v) => v.equipe === c).map(linhaVendedor);
+        const central: LinhaMeta = {
+          chave: `central:${c}`,
+          titulo: <span className="text-sm font-semibold">Central de Tele - Vendas {c}</span>,
+          detalhe: `soma da equipe abaixo (${time.length})`,
+          referencia: somaDe(time, (l) => l.referencia),
+          meta: somaDe(time, (l) => l.meta),
+          realizado: temRealizado ? somaDe(time, (l) => l.realizado) : null,
+          foraDoTotal: true,
+          subtotal: true,
+        };
+        return [central, ...time];
+      }),
     ];
   } else {
     rotulo = "Vendedor";
