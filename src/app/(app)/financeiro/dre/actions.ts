@@ -102,11 +102,11 @@ export async function lancarManual(_prev: EstadoManual, fd: FormData): Promise<E
 }
 
 /**
- * Refaz as contas do plano (devoluções, outras receitas, receita financeira, despesas de pessoal, administrativas,
- * comerciais, outras e financeiras) do mês liberado a partir dos lançamentos do Omie, filial por filial. Comissões e
- * depreciação ficam como estão.
+ * Refaz as contas do plano (devoluções, comissões = Premiação, outras receitas, receita financeira, despesas de pessoal,
+ * administrativas, comerciais, outras e financeiras) do mês liberado a partir dos lançamentos do Omie, filial por
+ * filial. A depreciação fica como está.
  */
-export async function preencherOmie(_fd: FormData) {
+export async function preencherOmie() {
   const sessao = await getSessao();
   if (!podeEditar(sessao.papel)) return;
   const supabase = await createClient();
