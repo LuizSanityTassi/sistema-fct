@@ -162,6 +162,19 @@ export async function televendasGrupos(de: string, ate: string): Promise<GrupoTe
   return (data ?? []).map((r) => ({ vendedorCodigo: r.vendedor_codigo, grupoCodigo: r.grupo_codigo, grupoNome: r.grupo_nome, venda: n(r.venda), unidades: n(r.unidades), custo: n(r.custo) }));
 }
 
+/** Responsável do televendas (recebe as quebras de caixa e as sangrias da equipe) e quem pode ser escolhido. */
+export async function responsavelTelevendas() {
+  const supabase = await createClient();
+  const [{ data: cfg }, { data: usuarios, error }] = await Promise.all([
+    supabase.from("sistema_config").select("valor").eq("chave", "televendas").maybeSingle(),
+    supabase.from("profiles").select("id, nome, papel").eq("ativo", true).not("papel", "in", "(usuario,relogio)").order("nome").range(0, 999),
+  ]);
+  if (error) throw new Error(error.message);
+  const valor = cfg?.valor as { responsavel?: string } | null;
+  const id = typeof valor?.responsavel === "string" ? valor.responsavel : null;
+  return { id, nome: (usuarios ?? []).find((u) => u.id === id)?.nome ?? null, usuarios: usuarios ?? [] };
+}
+
 /** Equipe cadastrada (quem conta como televendas). */
 export async function equipeTelevendas() {
   const supabase = await createClient();

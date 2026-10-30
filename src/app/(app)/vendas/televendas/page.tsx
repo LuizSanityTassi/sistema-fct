@@ -7,12 +7,12 @@ import { ConfirmarAcao } from "@/components/layout/confirmar-acao";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
-import { chaveMetaVendedor, diasSemVendas, equipeTelevendas, faixasDeDias, MESES, mesmoDia, metasDoMes, resumirTelevendas, somar, televendasGrupos, televendasNoPeriodo, vendasPorFilial, type GrupoTelevendas, type LinhaTelevendas } from "@/lib/data/vendas";
+import { chaveMetaVendedor, diasSemVendas, equipeTelevendas, responsavelTelevendas, faixasDeDias, MESES, mesmoDia, metasDoMes, resumirTelevendas, somar, televendasGrupos, televendasNoPeriodo, vendasPorFilial, type GrupoTelevendas, type LinhaTelevendas } from "@/lib/data/vendas";
 import { AbasVendas, AvisoDiasFaltando, inteiro, moeda, moedaCurta, pct } from "../comum";
 import { Comparacao, MiniKpi, Secao } from "../painel-visual";
 import { CamposPeriodo, lerPeriodoVendas } from "../periodo";
-import { salvarVendedorTele, tirarVendedorTele } from "./actions";
-import { EquipeTeleForm } from "./equipe-form";
+import { salvarResponsavelTele, salvarVendedorTele, tirarVendedorTele } from "./actions";
+import { EquipeTeleForm, ResponsavelTeleForm } from "./equipe-form";
 
 export const metadata = { title: "Televendas" };
 
@@ -66,6 +66,7 @@ export default async function TelevendasPage({ searchParams }: PageProps<"/venda
     televendasGrupos(de, ate),
     televendasGrupos(deAnt, ateAnt),
   ]);
+  const responsavel = await responsavelTelevendas();
   // metas do mês (só na visão mensal)
   const metas = periodo.ver === "mes" ? await metasDoMes(`${periodo.mes}-01`) : new Map<string, number>();
   const metaVend = (codigo: string) => metas.get(chaveMetaVendedor(Number(codigo))) ?? null;
@@ -357,6 +358,13 @@ export default async function TelevendasPage({ searchParams }: PageProps<"/venda
           </ul>
         )}
         {admin ? <EquipeTeleForm action={salvarVendedorTele} equipes={equipes} /> : <p className="text-xs text-muted-foreground">Só o administrador inclui ou tira vendedores da equipe.</p>}
+        <div className="mt-5 border-t pt-4">
+          <p className="mb-2 text-sm">
+            <strong>Responsável:</strong> {responsavel.nome ?? "ninguém"}
+            <span className="block text-xs text-muted-foreground">Recebe as quebras de caixa da equipe para justificar (com o aviso por e-mail da manhã) e as sangrias lançadas por ela nas pendências.</span>
+          </p>
+          {admin && <ResponsavelTeleForm action={salvarResponsavelTele} atual={responsavel.id} usuarios={responsavel.usuarios} />}
+        </div>
       </Secao>
     </>
   );

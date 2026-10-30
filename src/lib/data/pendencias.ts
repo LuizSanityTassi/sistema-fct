@@ -422,6 +422,27 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
     );
   }
 
+  // ---------- Televendas: sangrias lançadas pela equipe (só o responsável do televendas recebe) ----------
+  if (pode("/sangrias")) {
+    tarefas.push(
+      (async () => {
+        const { data, error } = await supabase.rpc("televendas_sangrias_abertas");
+        const n = error ? 0 : Number(data ?? 0);
+        if (n)
+          out.push({
+            id: "televendas-sangrias",
+            severidade: "atencao",
+            area: "Caixa",
+            quantidade: n,
+            minha: true,
+            href: "/sangrias?situacao=pendente",
+            titulo: `${n} ${plural(n, "sangria do televendas", "sangrias do televendas")} a conferir`,
+            detalhe: "Lançadas pela equipe do tele: acompanhe até o financeiro conferir com o extrato.",
+          });
+      })(),
+    );
+  }
+
   // ---------- Ponto: ajustes para decidir, pedidos recusados, mês anterior sem fechamento ----------
   tarefas.push(
     (async () => {

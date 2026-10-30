@@ -1,8 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { UserPlus } from "lucide-react";
-import { AvisoSucesso, ErroFormulario } from "@/components/form/campo";
+import { UserCheck, UserPlus } from "lucide-react";
+import { AvisoSucesso, ErroFormulario, SelectNativo } from "@/components/form/campo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { EstadoEquipeTele } from "./actions";
@@ -37,6 +37,38 @@ export function EquipeTeleForm({ action, equipes }: { action: (prev: EstadoEquip
         <Button type="submit" disabled={pendente}>
           <UserPlus data-icon="inline-start" />
           {pendente ? "Salvando…" : "Incluir na equipe"}
+        </Button>
+      </div>
+      <ErroFormulario mensagem={estado.erro} />
+      <AvisoSucesso mensagem={estado.ok} />
+    </form>
+  );
+}
+
+/** Escolhe o responsável do televendas (quebras de caixa e sangrias da equipe). */
+export function ResponsavelTeleForm({ action, atual, usuarios }: { action: (prev: EstadoEquipeTele, fd: FormData) => Promise<EstadoEquipeTele>; atual: string | null; usuarios: { id: string; nome: string }[] }) {
+  const [estado, formAction, pendente] = useActionState(action, {});
+  return (
+    <form action={formAction} className="space-y-3">
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="grid min-w-64 flex-1 gap-1 text-sm">
+          <span className="font-medium">Responsável do televendas</span>
+          <SelectNativo name="responsavel" defaultValue={atual ?? ""}>
+            <option value="">Ninguém (fica com o gestor de cada loja)</option>
+            {usuarios.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.nome || "(sem nome)"}
+              </option>
+            ))}
+          </SelectNativo>
+        </label>
+        <label className="flex items-center gap-2 pb-2 text-sm">
+          <input type="checkbox" name="mover" defaultChecked className="size-4 accent-fct-tinta" />
+          levar as quebras em aberto da equipe
+        </label>
+        <Button type="submit" variant="outline" disabled={pendente}>
+          <UserCheck data-icon="inline-start" />
+          {pendente ? "Salvando…" : "Salvar responsável"}
         </Button>
       </div>
       <ErroFormulario mensagem={estado.erro} />

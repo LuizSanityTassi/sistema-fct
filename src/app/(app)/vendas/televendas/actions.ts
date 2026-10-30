@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
+import { ehUuid } from "@/lib/data/filiais";
 import { createClient } from "@/lib/supabase/server";
 
 export type EstadoEquipeTele = { erro?: string; ok?: string };
@@ -42,4 +43,21 @@ export async function tirarVendedorTele(fd: FormData) {
   if (error || !antes) return;
   await registrarAuditoria(supabase, { userId: sessao.id, acao: "excluir", entidade: "vendas_televendas_vendedores", anterior: antes });
   revalidatePath("/vendas", "layout");
+}
+
+/** Responsável do televendas: as quebras de caixa da equipe nascem com ele como gestor e as sangrias dela aparecem nas
+ * pendências dele. Opcionalmente leva junto as quebras em aberto. Só admin. */
+export async function salvarResponsavelTele(_prev: EstadoEquipeTele, fd: FormData): Promise<EstadoEquipeTele> {
+  const sessao = await getSessao();
+  if (sessao.papel !== "admin") return { erro: "Só o administrador define o responsável do televendas." };
+  const id = String(fd.get("responsavel") ?? "");
+  if (id && !ehUuid(id)) return { erro: "Usuário inválido." };
+  const mover = fd.get("mover") === "on";
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("televendas_definir_responsavel", { p_profile: id || null, p_mover: mover });
+  if (error) return { erro: `Não consegui salvar: ${error.message}` };
+  await registrarAuditoria(supabase, { userId: sessao.id, acao: "editar", entidade: "sistema_config", novo: { televendas_responsavel: id || null, quebras_movidas: data ?? 0 } });
+  revalidatePath("/vendas", "layout");
+  revalidatePath("/caixa");
+  return { ok: `${id ? "Responsável salvo" : "Sem responsável: as quebras do tele voltam para o gestor da loja"}${mover ? ` · ${data ?? 0} quebra(s) em aberto da equipe passaram ${id ? "para ele" : "para o gestor da loja"}` : ""}.` };
 }

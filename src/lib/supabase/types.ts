@@ -6096,6 +6096,17 @@ export type Database = {
           vendedor_nome: string
         }[]
       }
+      televendas_definir_responsavel: {
+        Args: {
+          p_mover?: boolean
+          p_profile: string | null
+        }
+        Returns: number
+      }
+      televendas_sangrias_abertas: {
+        Args: never
+        Returns: number
+      }
       vendas_televendas_grupos: {
         Args: {
           p_ate: string
