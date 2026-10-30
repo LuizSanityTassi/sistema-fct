@@ -33,10 +33,11 @@ function mesesDoSeletor(atual: string) {
 }
 
 /** Linha da tabela de metas: referência (mês anterior), campo da meta, realizado e % atingido. */
-type LinhaMeta = { chave: string; titulo: React.ReactNode; detalhe?: string; referencia: number | null; meta: number | null; realizado: number | null };
+type LinhaMeta = { chave: string; titulo: React.ReactNode; detalhe?: string; referencia: number | null; meta: number | null; realizado: number | null; foraDoTotal?: boolean };
 
-function TabelaMetas({ linhas, rotulo, mesAnterior, temRealizado, decorrido }: { linhas: LinhaMeta[]; rotulo: string; mesAnterior: string; temRealizado: boolean; decorrido: number | null }) {
-  const soma = (f: (l: LinhaMeta) => number | null) => linhas.reduce((s, l) => s + (f(l) ?? 0), 0);
+function TabelaMetas({ linhas, rotulo, rotuloTotal = "Total", mesAnterior, temRealizado, decorrido }: { linhas: LinhaMeta[]; rotulo: string; rotuloTotal?: string; mesAnterior: string; temRealizado: boolean; decorrido: number | null }) {
+  // linha que já é a soma das outras (ex.: Televendas, a loja) não entra de novo no total
+  const soma = (f: (l: LinhaMeta) => number | null) => linhas.reduce((s, l) => s + (l.foraDoTotal ? 0 : (f(l) ?? 0)), 0);
   const totalMeta = soma((l) => l.meta);
   const totalReal = soma((l) => l.realizado);
   return (
@@ -93,7 +94,7 @@ function TabelaMetas({ linhas, rotulo, mesAnterior, temRealizado, decorrido }: {
         </TableBody>
         <TableFooter>
           <TableRow className="font-semibold">
-            <TableCell className="pl-5 sm:pl-6">Total</TableCell>
+            <TableCell className="pl-5 sm:pl-6">{rotuloTotal}</TableCell>
             <TableCell className="hidden text-right tabular-nums md:table-cell">{moeda(soma((l) => l.referencia))}</TableCell>
             <TableCell className="text-right tabular-nums">{totalMeta ? moeda(totalMeta) : "—"}</TableCell>
             {temRealizado && <TableCell className="text-right tabular-nums">{moeda(totalReal)}</TableCell>}
@@ -127,6 +128,7 @@ export default async function MetasPage({ searchParams }: PageProps<"/vendas/met
   const meta = (chave: string) => metas.get(chave) ?? null;
   let linhas: LinhaMeta[] = [];
   let rotulo = "Filial";
+  let rotuloTotal = "Total";
   let filialEscolhida = "";
   let filiaisDoSeletor: { id: string; texto: string }[] = [];
 
@@ -139,6 +141,7 @@ export default async function MetasPage({ searchParams }: PageProps<"/vendas/met
       .map((l) => ({ chave: chaveMetaFilial(l), titulo: <><span className="font-mono text-xs">{l.codigo}</span> <span className="text-sm">{l.nome}</span></>, detalhe: l.regional, referencia: ref.find((r) => r.branchId === l.branchId)?.venda ?? null, meta: meta(chaveMetaFilial(l)), realizado: temRealizado ? (realPor.get(l.branchId) ?? 0) : null }));
   } else if (secao === "televendas") {
     rotulo = "Televendas e vendedores do tele";
+    rotuloTotal = "Total dos vendedores";
     const [real, ref, realV, refV, equipe] = await Promise.all([
       temRealizado ? vendasPorFilial(mes, ateReal) : Promise.resolve([]),
       vendasPorFilial(ant, antFim),
@@ -148,7 +151,7 @@ export default async function MetasPage({ searchParams }: PageProps<"/vendas/met
     ]);
     const tele = (xs: typeof real) => xs.find((l) => l.regional === TELEVENDAS)?.venda ?? 0;
     linhas = [
-      { chave: "televendas", titulo: <span className="text-sm font-semibold">Televendas (a loja)</span>, detalhe: "venda da equipe sem e-commerce", referencia: tele(ref), meta: meta("televendas"), realizado: temRealizado ? tele(real) : null },
+      { chave: "televendas", titulo: <span className="text-sm font-semibold">Televendas (a loja)</span>, detalhe: "meta da loja · venda da equipe sem e-commerce", referencia: tele(ref), meta: meta("televendas"), realizado: temRealizado ? tele(real) : null, foraDoTotal: true },
       ...equipe.map((v) => ({
         chave: chaveMetaVendedor(v.vendedor_codigo),
         titulo: <span className="text-sm">{v.nome}</span>,
@@ -235,7 +238,7 @@ export default async function MetasPage({ searchParams }: PageProps<"/vendas/met
           <EstadoVazio icone={Target} titulo="Nada para cadastrar aqui" descricao={secao === "televendas" ? "Cadastre a equipe de televendas na aba Televendas." : "Sem vendas guardadas no mês nem no anterior."} />
         ) : (
           <FormMetas key={`${mes}|${secao}|${filialEscolhida}`} action={salvarMetas} mes={mes} podeEditar={podeEditar}>
-            <TabelaMetas linhas={linhas} rotulo={rotulo} mesAnterior={mesAnteriorTxt} temRealizado={temRealizado} decorrido={decorrido} />
+            <TabelaMetas linhas={linhas} rotulo={rotulo} rotuloTotal={rotuloTotal} mesAnterior={mesAnteriorTxt} temRealizado={temRealizado} decorrido={decorrido} />
           </FormMetas>
         )}
       </section>
