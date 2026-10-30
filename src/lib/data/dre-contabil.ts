@@ -1,5 +1,5 @@
 // Leitura da DRE contábil (servidor). O RLS deixa ver só Administrador, Financeiro e Contador.
-import { baseDoRateio, calcularDre, ehLinhaDre, ehLinhaRateio, LINHAS_MANUAIS, MES_MANUAL, ratear, somarLancamentos, type Lancamentos, type LinhaRateio } from "@/lib/financeiro/dre-contabil";
+import { baseDoRateio, calcularDre, ehLinhaDre, ehLinhaRateio, ratear, somarLancamentos, type Lancamentos, type LinhaRateio } from "@/lib/financeiro/dre-contabil";
 import { createClient } from "@/lib/supabase/server";
 
 /** Empresas com DRE importada e os meses de cada uma ("aaaa-mm"), do mais recente. */
@@ -36,30 +36,12 @@ export async function rateiosDre(empresa: string, de: string, ate: string): Prom
   return (data ?? []).flatMap((r) => (ehLinhaRateio(r.linha) ? [{ ...r, competencia: r.competencia.slice(0, 7), linha: r.linha, valor: Number(r.valor) }] : []));
 }
 
-/** Valores das contas lançadas à mão no mês liberado (sem rateio): chave "filial|conta" ("" = valor da empresa). */
-export async function valoresManuais(empresa: string) {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("dre_contabil")
-    .select("branch_id, linha, valor")
-    .eq("empresa", empresa)
-    .eq("competencia", `${MES_MANUAL}-01`)
-    .in("linha", [...LINHAS_MANUAIS]);
-  if (error) throw new Error(error.message);
-  const out = new Map<string, number>();
-  for (const r of data ?? []) {
-    const k = `${r.branch_id ?? ""}|${r.linha}`;
-    out.set(k, (out.get(k) ?? 0) + Number(r.valor));
-  }
-  return out;
-}
-
-/** Valores gravados (sem rateio) da empresa nos meses pedidos ("aaaa-mm"): chave "filial|mês|conta" ("" = da empresa). */
+/** Valores gravados (sem rateio) da empresa nos meses pedidos ("aaaa-mm"), com a conta digitada: chave "filial|mês|conta" ("" = da empresa). */
 export async function valoresGravados(empresa: string, meses: string[], filial?: string) {
   const supabase = await createClient();
   let q = supabase
     .from("dre_contabil")
-    .select("branch_id, competencia, linha, valor")
+    .select("branch_id, competencia, linha, valor, formula")
     .eq("empresa", empresa)
     .in(
       "competencia",
@@ -68,10 +50,11 @@ export async function valoresGravados(empresa: string, meses: string[], filial?:
   if (filial) q = q.eq("branch_id", filial);
   const { data, error } = await q.range(0, 9999);
   if (error) throw new Error(error.message);
-  const out = new Map<string, number>();
+  const out = new Map<string, { valor: number; formula: string | null }>();
   for (const r of data ?? []) {
     const k = `${r.branch_id ?? ""}|${r.competencia.slice(0, 7)}|${r.linha}`;
-    out.set(k, (out.get(k) ?? 0) + Number(r.valor));
+    const antes = out.get(k);
+    out.set(k, { valor: (antes?.valor ?? 0) + Number(r.valor), formula: r.formula ?? antes?.formula ?? null });
   }
   return out;
 }

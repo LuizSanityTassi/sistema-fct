@@ -5,6 +5,7 @@ import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { valoresGravados } from "@/lib/data/dre-contabil";
 import { comSinalDaConta, ehLinhaDre, ehLinhaRateio, MES_MANUAL, ROTULO_LINHA, sinalManual, type LinhaDre } from "@/lib/financeiro/dre-contabil";
+import { lerConta } from "@/lib/financeiro/conta";
 import { CHAVE_LEMBRETE_DRE } from "@/lib/financeiro/dre-lembrete";
 import { lerValor } from "@/lib/sangrias/rotulos";
 import { createClient } from "@/lib/supabase/server";
@@ -56,15 +57,6 @@ export async function excluirRateio(fd: FormData) {
 
 export type EstadoManual = { erro?: string; ok?: string };
 
-/** Valor digitado no lançamento à mão: vazio = 0; "-" na frente = sinal invertido (estorno). */
-function lerManual(bruto: string): number | null {
-  const t = bruto.replace(/[R$\s]/g, "");
-  if (!t || /^-?0+([.,]0+)?$/.test(t)) return 0;
-  const negativo = t.startsWith("-");
-  const v = lerValor(negativo ? t.slice(1) : t);
-  return v === null ? null : negativo ? -v : v;
-}
-
 /**
  * O contador digita valores da DRE: campos "v:<filial ou empresa>:<conta>" (setembro, aba Lançar setembro) ou
  * "v:<filial ou empresa>:<conta>:<aaaa-mm>" (qualquer mês, no demonstrativo). Grava só o que mudou, marcado como
@@ -75,27 +67,31 @@ export async function lancarManual(_prev: EstadoManual, fd: FormData): Promise<E
   if (!podeEditar(sessao.papel)) return { erro: "Só Administrador, Financeiro e Contador lançam a DRE." };
   const empresa = texto(fd, "empresa");
   if (!empresa) return { erro: "Escolha a empresa." };
-  const pedidos: { branch: string | null; linha: LinhaDre; mes: string; valor: number }[] = [];
+  const pedidos: { branch: string | null; linha: LinhaDre; mes: string; valor: number; formula: string | null }[] = [];
   for (const [nome, bruto] of fd.entries()) {
     const m = /^v:([0-9a-f-]{36}|empresa):([a-z_]+)(?::(\d{4}-\d{2}))?$/i.exec(nome);
     if (!m || typeof bruto !== "string") continue;
     const [, filial, linha, mesCampo] = m;
     const mes = mesCampo ?? MES_MANUAL;
     if (!ehLinhaDre(linha) || !MES.test(mes) || (filial !== "empresa" && !UUID.test(filial))) return { erro: "Campo inválido." };
-    const n = lerManual(bruto);
-    if (n === null) return { erro: `Valor inválido em ${ROTULO_LINHA[linha]} (${mes}): "${bruto}". Use o formato 12.345,67.` };
-    pedidos.push({ branch: filial === "empresa" ? null : filial, linha, mes, valor: Math.round(sinalManual(linha) * n * 100) / 100 });
+    // número ou conta ("1.200+350-80"), sem sinal como na planilha; a conta fica guardada (memória de cálculo)
+    const lido = bruto.trim() ? lerConta(bruto.slice(0, 500)) : { valor: 0, conta: null };
+    if (!lido) return { erro: `Valor inválido em ${ROTULO_LINHA[linha]} (${mes}): "${bruto}". Use 12.345,67 ou uma conta como 1.200+350-80.` };
+    pedidos.push({ branch: filial === "empresa" ? null : filial, linha, mes, valor: Math.round(sinalManual(linha) * lido.valor * 100) / 100, formula: lido.conta });
   }
   const meses = [...new Set(pedidos.map((p) => p.mes))];
   const atuais = await valoresGravados(empresa, meses);
-  const mudou = pedidos.filter((p) => Math.abs(p.valor - (atuais.get(`${p.branch ?? ""}|${p.mes}|${p.linha}`) ?? 0)) >= 0.005);
+  const mudou = pedidos.filter((p) => {
+    const antes = atuais.get(`${p.branch ?? ""}|${p.mes}|${p.linha}`);
+    return Math.abs(p.valor - (antes?.valor ?? 0)) >= 0.005 || (p.formula ?? null) !== (antes?.formula ?? null);
+  });
   if (!mudou.length) return { ok: "Nada mudou." };
   const supabase = await createClient();
   for (const mes of new Set(mudou.map((p) => p.mes))) {
     const { error } = await supabase.rpc("dre_contabil_lancar_manual", {
       p_empresa: empresa,
       p_competencia: `${mes}-01`,
-      p_valores: mudou.filter((p) => p.mes === mes).map((p) => ({ branch_id: p.branch, linha: p.linha, valor: p.valor })),
+      p_valores: mudou.filter((p) => p.mes === mes).map((p) => ({ branch_id: p.branch, linha: p.linha, valor: p.valor, formula: p.formula })),
     });
     if (error) return { erro: `Não foi possível salvar ${mes}: ${error.message}` };
   }
@@ -103,7 +99,7 @@ export async function lancarManual(_prev: EstadoManual, fd: FormData): Promise<E
     userId: sessao.id,
     acao: "editar",
     entidade: "dre_contabil",
-    novo: { empresa, lancamento_manual: mudou.map((p) => ({ ...p, antes: atuais.get(`${p.branch ?? ""}|${p.mes}|${p.linha}`) ?? 0 })) },
+    novo: { empresa, lancamento_manual: mudou.map((p) => ({ ...p, antes: atuais.get(`${p.branch ?? ""}|${p.mes}|${p.linha}`)?.valor ?? 0 })) },
   });
   revalidatePath("/financeiro/dre");
   return { ok: `${empresa}: ${mudou.length === 1 ? "1 valor alterado" : `${mudou.length} valores alterados`}.` };

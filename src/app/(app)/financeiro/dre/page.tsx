@@ -8,8 +8,8 @@ import { Status } from "@/components/layout/status";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
-import { contas, distribuirRateios, empresasDre, juntarMapas, lancamentosDre, somar, temLancamento, valoresGravados, valoresManuais, type MapaDre } from "@/lib/data/dre-contabil";
-import { baseDoRateio, calcularDre, ehLinhaManual, LINHAS_DRE, LINHAS_MANUAIS, MES_MANUAL, ROTULO_LINHA, sinalManual, situacaoDoLucro, type Lancamentos, type LinhaManual } from "@/lib/financeiro/dre-contabil";
+import { contas, distribuirRateios, empresasDre, juntarMapas, lancamentosDre, somar, temLancamento, valoresGravados, type MapaDre } from "@/lib/data/dre-contabil";
+import { baseDoRateio, calcularDre, ehLinhaManual, LINHAS_DRE, LINHAS_MANUAIS, MES_MANUAL, ROTULO_LINHA, sinalManual, situacaoDoLucro, type Lancamentos, type LinhaDre, type LinhaManual } from "@/lib/financeiro/dre-contabil";
 import { moedaFin } from "@/lib/financeiro/formatos";
 import { formatarDataHora } from "@/lib/formatos";
 import { rotuloCompetencia } from "@/lib/rh/competencia";
@@ -151,6 +151,14 @@ export default async function DrePage({ searchParams }: PageProps<"/financeiro/d
   );
 }
 
+/** O que aparece no campo: a conta digitada (para continuar) ou o valor sem sinal, como na planilha. */
+function textoDigitado(g: { valor: number; formula: string | null } | undefined, linha: LinhaDre) {
+  if (!g) return "";
+  if (g.formula) return g.formula;
+  const v = g.valor * sinalManual(linha);
+  return Math.abs(v) >= 0.005 ? v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
+}
+
 /** As contas "amarelas" com o nome da planilha do contador. */
 const ROTULO_MANUAL: Record<LinhaManual, string> = {
   devolucoes: "(−) Devolução OFX",
@@ -188,7 +196,8 @@ async function Lancar({ base, empresas, todas, mapa, filiais }: Props) {
     );
   }
   const empresa = base.empresa;
-  const atuais = await valoresManuais(empresa);
+  const gravados = await valoresGravados(empresa, [MES_MANUAL]);
+  const atuais = new Map([...gravados].filter(([k]) => ehLinhaManual(k.split("|")[2])).map(([k, v]) => [`${k.split("|")[0]}|${k.split("|")[2]}`, v]));
   const comValor = new Set([...atuais.keys()].map((k) => k.split("|")[0]));
   const lista = filiais
     .filter((f) => temLancamento(mapa, f.id, MES_MANUAL) || comValor.has(f.id))
@@ -198,8 +207,8 @@ async function Lancar({ base, empresas, todas, mapa, filiais }: Props) {
   for (const [k, v] of atuais) {
     const [filial, linha] = k.split("|");
     if (!ehLinhaManual(linha)) continue;
-    const digitado = v * sinalManual(linha);
-    if (Math.abs(digitado) >= 0.005) iniciais[`${filial || "empresa"}:${linha}`] = digitado.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const texto = textoDigitado(v, linha);
+    if (texto) iniciais[`${filial || "empresa"}:${linha}`] = texto;
   }
   return (
     <>
@@ -445,8 +454,7 @@ async function VerDemonstrativo({ s, base, empresas, todas, anos, mesesDoAno, ma
     const campos: EdicaoDemonstrativo["campos"] = {};
     for (const mes of mesesDoAno) {
       for (const linha of LINHAS_DRE) {
-        const digitado = (gravados.get(`${filial.id}|${mes}|${linha}`) ?? 0) * sinalManual(linha);
-        campos[`${mes}|${linha}`] = { nome: `v:${filial.id}:${linha}:${mes}`, valor: Math.abs(digitado) >= 0.005 ? digitado.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "" };
+        campos[`${mes}|${linha}`] = { nome: `v:${filial.id}:${linha}:${mes}`, valor: textoDigitado(gravados.get(`${filial.id}|${mes}|${linha}`), linha) };
       }
     }
     editar = { form: "form-demonstrativo", campos };

@@ -2987,6 +2987,7 @@ export type Database = {
           branch_id: string | null
           competencia: string
           empresa: string
+          formula: string | null
           id: string
           importacao_id: string
           linha: string
@@ -2997,6 +2998,7 @@ export type Database = {
           branch_id?: string | null
           competencia: string
           empresa: string
+          formula?: string | null
           id?: string
           importacao_id: string
           linha: string
@@ -3007,6 +3009,7 @@ export type Database = {
           branch_id?: string | null
           competencia?: string
           empresa?: string
+          formula?: string | null
           id?: string
           importacao_id?: string
           linha?: string

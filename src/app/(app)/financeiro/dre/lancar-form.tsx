@@ -4,6 +4,7 @@ import * as React from "react";
 import { useActionState } from "react";
 import { BotaoSalvar } from "@/components/form/botao-salvar";
 import { AvisoSucesso, ErroFormulario } from "@/components/form/campo";
+import { lerConta } from "@/lib/financeiro/conta";
 import type { EstadoManual } from "./actions";
 
 const reais = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -18,13 +19,8 @@ type Props = {
   iniciais: Record<string, string>;
 };
 
-const numero = (t: string) => {
-  const s = t.replace(/[R$\s]/g, "");
-  if (!s) return 0;
-  const neg = s.startsWith("-");
-  const n = Number((neg ? s.slice(1) : s).replace(/\./g, "").replace(",", "."));
-  return Number.isFinite(n) ? (neg ? -n : n) : 0;
-};
+/** Número ou conta digitada ("1.200+350-80"), para o total ao vivo. */
+const numero = (t: string) => (t.trim() ? (lerConta(t)?.valor ?? 0) : 0);
 
 /** Grade do lançamento à mão: filiais nas linhas, contas amarelas nas colunas, total de cada conta no rodapé. */
 export function LancarForm({ action, empresa, filiais, contas, iniciais }: Props) {
@@ -64,6 +60,7 @@ export function LancarForm({ action, empresa, filiais, contas, iniciais }: Props
                         onChange={(e) => setValores((v) => ({ ...v, [nome]: e.target.value }))}
                         inputMode="decimal"
                         placeholder="0,00"
+                        title="Valor ou conta: 1.200+350-80"
                         aria-label={`${c.rotulo} · ${f.codigo}`}
                         className="h-8 w-28 rounded-md border bg-background px-2 text-right tabular-nums outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
                       />

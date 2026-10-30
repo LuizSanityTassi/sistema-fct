@@ -113,6 +113,7 @@ export function Demonstrativo({ meses, porMes, editar }: { meses: string[]; porM
                           defaultValue={campo.valor}
                           inputMode="decimal"
                           placeholder="0,00"
+                          title="Valor ou conta: 1.200+350-80 (a conta fica guardada)"
                           aria-label={`${d.rotulo} · ${c.rotulo}`}
                           className="h-7 w-24 rounded-md border bg-background px-2 text-right text-xs tabular-nums outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
                         />
