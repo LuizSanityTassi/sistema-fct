@@ -1,4 +1,3 @@
-import { Fragment } from "react";
 import Link from "next/link";
 import { Headset, Store } from "lucide-react";
 import { SelectNativo } from "@/components/form/campo";
@@ -7,7 +6,8 @@ import { EstadoVazio } from "@/components/layout/painel";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
-import { diasSemVendas, ehRegionalVendas, faixasDeDias, REGIONAIS_VENDAS, resumirTelevendas, somar, televendasNoPeriodo, vendasPorFilial, type LinhaFilialVendas, type ResumoTelevendas } from "@/lib/data/vendas";
+import { cn } from "cn";
+import { diasSemVendas, ehRegionalVendas, faixasDeDias, REGIONAIS_VENDAS, somar, TELEVENDAS, vendasPorFilial, type LinhaFilialVendas } from "@/lib/data/vendas";
 import { AbasVendas, AvisoDiasFaltando, decimal, inteiro, moeda, pct } from "../comum";
 import { CamposPeriodo, lerPeriodoVendas } from "../periodo";
 
@@ -25,18 +25,6 @@ const ORDENS = {
 } as const;
 type Ordem = keyof typeof ORDENS;
 
-/** Valor da linha Televendas na ordem escolhida (null = a ordem não se aplica a ela, vai para o fim). */
-const valorTele: Record<Ordem, (t: ResumoTelevendas) => number | null> = {
-  venda: (t) => t.venda,
-  atendimentos: (t) => t.atendimentos,
-  ticket: (t) => t.ticket ?? 0,
-  sacola: () => null,
-  fortvigor: () => null,
-  premium: () => null,
-  gensim: () => null,
-  cmv: (t) => -(t.cmv ?? 999),
-};
-
 export default async function VendaFiliaisPage({ searchParams }: PageProps<"/vendas/filiais">) {
   const [sessao, sp] = await Promise.all([exigirAcesso("/vendas/filiais"), searchParams]);
   const s = (k: string) => (typeof sp[k] === "string" ? sp[k] : "");
@@ -45,13 +33,11 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
   const regional = ehRegionalVendas(s("regional")) ? s("regional") : "";
   const ordem: Ordem = s("ordem") in ORDENS ? (s("ordem") as Ordem) : "venda";
 
-  const [todas, faltam, televendas] = await Promise.all([vendasPorFilial(de, ate), diasSemVendas(de, ate), televendasNoPeriodo(de, ate)]);
+  const [todas, faltam] = await Promise.all([vendasPorFilial(de, ate), diasSemVendas(de, ate)]);
+  // a linha Televendas (venda da equipe de tele-vendas, que sai das filiais) entra no ranking como uma loja
   const linhas = todas.filter((l) => !regional || l.regional === regional).sort((a, b) => ORDENS[ordem].valor(b) - ORDENS[ordem].valor(a) || b.venda - a.venda);
   const total = somar(linhas);
-  // televendas: uma linha à parte, no lugar dela no ranking; a venda já está dentro das filiais (não soma no total)
-  const tele = resumirTelevendas(televendas.filter((t) => !regional || t.regional === regional));
-  const vTele = tele.venda > 0 ? valorTele[ordem](tele) : null;
-  const posTele = tele.venda <= 0 ? -1 : vTele === null ? linhas.length : linhas.filter((l) => ORDENS[ordem].valor(l) > vTele).length;
+  const temTele = linhas.some((l) => l.regional === TELEVENDAS);
 
   return (
     <>
@@ -128,21 +114,30 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
               </TableRow>
             </TableHeader>
             <TableBody>
-              {linhas.map((l, i) => (
-                <Fragment key={l.branchId}>
-                {i === posTele && <LinhaTele tele={tele} />}
-                <TableRow>
+              {linhas.map((l, i) => {
+                const tele = l.regional === TELEVENDAS;
+                return (
+                <TableRow key={l.branchId} className={cn(tele && "bg-sky-50/70 dark:bg-sky-950/30")}>
                   <TableCell className="text-xs font-semibold text-muted-foreground tabular-nums">{i + 1}º</TableCell>
                   <TableCell>
-                    <span className="font-mono text-xs">{l.codigo}</span> <span className="text-sm">{l.nome}</span>
-                    {!regional && <span className="block text-[11px] text-muted-foreground">{l.regional}</span>}
+                    {tele ? (
+                      <Link href={`/vendas/televendas?ver=${periodo.ver}&mes=${periodo.mes}&de=${de}&ate=${ate}`} className="inline-flex items-center gap-1.5 text-sm font-semibold hover:underline">
+                        <Headset className="size-4 text-sky-600" aria-hidden />
+                        Televendas
+                      </Link>
+                    ) : (
+                      <>
+                        <span className="font-mono text-xs">{l.codigo}</span> <span className="text-sm">{l.nome}</span>
+                      </>
+                    )}
+                    {!regional && <span className="block text-[11px] text-muted-foreground">{tele ? "equipe de tele-vendas" : l.regional}</span>}
                   </TableCell>
                   <TableCell className="text-right font-semibold tabular-nums">{moeda(l.venda)}</TableCell>
                   <TableCell className="text-right tabular-nums">{inteiro(l.atendimentos)}</TableCell>
                   <TableCell className="text-right tabular-nums">{moeda(l.ticket)}</TableCell>
                   <TableCell className="hidden text-right tabular-nums md:table-cell">{inteiro(l.unidades)}</TableCell>
                   <TableCell className="hidden text-right tabular-nums md:table-cell">{decimal(l.sacola)}</TableCell>
-                  <TableCell className="hidden text-right tabular-nums lg:table-cell">{inteiro(l.fortvigor)}</TableCell>
+                  <TableCell className="hidden text-right tabular-nums lg:table-cell">{tele ? "—" : inteiro(l.fortvigor)}</TableCell>
                   <TableCell className="hidden text-right tabular-nums lg:table-cell">{moeda(l.premium)}</TableCell>
                   <TableCell className="text-right tabular-nums">{pct(l.pctPremium)}</TableCell>
                   <TableCell className="hidden text-right tabular-nums lg:table-cell">{moeda(l.genSim)}</TableCell>
@@ -150,9 +145,8 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
                   <TableCell className="text-right tabular-nums">{pct(l.cmv)}</TableCell>
                   <TableCell className="hidden text-right tabular-nums xl:table-cell">{pct(l.rentab)}</TableCell>
                 </TableRow>
-                </Fragment>
-              ))}
-              {posTele === linhas.length && <LinhaTele tele={tele} />}
+                );
+              })}
             </TableBody>
             <TableFooter>
               <TableRow className="font-semibold">
@@ -177,10 +171,10 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
       </section>
       <p className="mt-2 text-xs text-muted-foreground">
         Unid. sacola = unidades por atendimento. CMV = custo do cadastro do produto ÷ venda. % rentab. = 100% − CMV. Fortvigor = laboratórios Fortvigor/FCT e Agape/Fortvigor.
-        {tele.venda > 0 && (
+        {temTele && (
           <>
             {" "}
-            Televendas = o que a equipe de tele-vendas vendeu (já está dentro da filial onde a venda foi lançada, por isso não soma de novo no total);{" "}
+            Televendas = o que a equipe de tele-vendas vendeu: essa venda sai da filial onde o Trier lançou e fica só nesta linha (premium, gen+sim e unidades na proporção do mês de cada vendedor);{" "}
             <Link href={`/vendas/televendas?ver=${periodo.ver}&mes=${periodo.mes}&de=${de}&ate=${ate}`} className="underline">
               ver por vendedor
             </Link>
@@ -189,35 +183,5 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
         )}
       </p>
     </>
-  );
-}
-
-/** Linha "Televendas" no ranking: só venda, atendimentos, ticket e CMV (o resto o relatório por vendedor não traz). */
-function LinhaTele({ tele }: { tele: ResumoTelevendas }) {
-  const vazio = <span className="text-muted-foreground">—</span>;
-  return (
-    <TableRow className="bg-sky-50/70 dark:bg-sky-950/30">
-      <TableCell>
-        <Headset className="size-4 text-sky-600" aria-label="Televendas" />
-      </TableCell>
-      <TableCell>
-        <Link href="/vendas/televendas" className="text-sm font-semibold hover:underline">
-          Televendas
-        </Link>
-        <span className="block text-[11px] text-muted-foreground">{tele.vendedores} vendedores · já somada nas filiais</span>
-      </TableCell>
-      <TableCell className="text-right font-semibold tabular-nums">{moeda(tele.venda)}</TableCell>
-      <TableCell className="text-right tabular-nums">{inteiro(tele.atendimentos)}</TableCell>
-      <TableCell className="text-right tabular-nums">{moeda(tele.ticket)}</TableCell>
-      <TableCell className="hidden text-right md:table-cell">{vazio}</TableCell>
-      <TableCell className="hidden text-right md:table-cell">{vazio}</TableCell>
-      <TableCell className="hidden text-right lg:table-cell">{vazio}</TableCell>
-      <TableCell className="hidden text-right lg:table-cell">{vazio}</TableCell>
-      <TableCell className="text-right">{vazio}</TableCell>
-      <TableCell className="hidden text-right lg:table-cell">{vazio}</TableCell>
-      <TableCell className="text-right">{vazio}</TableCell>
-      <TableCell className="text-right tabular-nums">{pct(tele.cmv)}</TableCell>
-      <TableCell className="hidden text-right tabular-nums xl:table-cell">{tele.cmv === null ? vazio : pct(100 - tele.cmv)}</TableCell>
-    </TableRow>
   );
 }

@@ -5,7 +5,7 @@ import { BarrasDuplas } from "@/components/graficos";
 import { PageHeader } from "@/components/layout/page-header";
 import { EstadoVazio, LinkPainel } from "@/components/layout/painel";
 import { exigirAcesso } from "@/lib/auth/session";
-import { DIAS_SEMANA, diaDaSemana, diasSemVendas, ehRegionalVendas, faixasDeDias, hojeNoBrasil, MESES, mesmoDia, porPeriodo, REGIONAIS_VENDAS, resumirTelevendas, serieVendas, somar, somarDias, televendasNoPeriodo, ultimoDia, vendasPorFilial, type LinhaFilialVendas, type RegionalVendas } from "@/lib/data/vendas";
+import { DIAS_SEMANA, diaDaSemana, diasSemVendas, ehRegionalVendas, faixasDeDias, hojeNoBrasil, MESES, mesmoDia, porPeriodo, REGIONAIS_VENDAS, resumirTelevendas, serieVendas, somar, somarDias, TELEVENDAS, televendasNoPeriodo, ultimoDia, vendasPorFilial, type LinhaFilialVendas, type RegionalVendas } from "@/lib/data/vendas";
 import { formatarData } from "@/lib/formatos";
 import { AbasVendas, AvisoDiasFaltando, decimal, inteiro, moeda, moedaCurta, pct } from "./comum";
 import { BarraProgresso, ColunasSemana, Comparacao, delta, EvolucaoMes, MiniKpi, Rosca, Secao, type FatiaComposicao } from "./painel-visual";
@@ -124,7 +124,8 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
   })
     .filter((x) => x.lojas > 0)
     .sort((a, b) => b.atual.venda - a.atual.venda);
-  const totalRede = regioes.reduce((s, x) => s + x.atual.venda, 0) || 1;
+  // a rede = as três regiões + o televendas (a venda da equipe saiu das lojas)
+  const totalRede = regioes.reduce((s, x) => s + x.atual.venda, 0) + tele.venda || 1;
   const maxRegiao = Math.max(1, ...regioes.map((x) => x.atual.venda));
 
   // ---------- composição ----------
@@ -175,11 +176,7 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
   const vPremium = delta(tMes.pctPremium, tMesAnt.pctPremium, "pp");
   const vGenSim = delta(tMes.pctGenSim, tMesAnt.pctGenSim, "pp");
   const vOntem = delta(vendaOntem, vendaSemanaPassada);
-  const loja = (l: LinhaFilialVendas) => (
-    <strong className="font-semibold">
-      {l.codigo} {l.nome}
-    </strong>
-  );
+  const loja = (l: LinhaFilialVendas) => <strong className="font-semibold">{l.regional === TELEVENDAS ? "Televendas" : `${l.codigo} ${l.nome}`}</strong>;
   const destaques: Destaque[] = [];
   if (vMes !== null) destaques.push({ tipo: vMes >= 0 ? "bom" : "ruim", peso: 10, texto: <>Venda do mês {vMes >= 0 ? "acima" : "abaixo"} de {nomeMesAnt} em {decimal(Math.abs(vMes), 1)}% no mesmo período ({moedaCurta(tMes.venda - tMesAnt.venda).replace("-", "−")}).</> });
   if (!soLoja && !regional && regioes.length) {
@@ -394,7 +391,7 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
                   <Headset className="size-4" aria-hidden />
                 </span>
                 <span className="font-heading text-sm font-semibold">Televendas</span>
-                <span className="text-xs text-muted-foreground">{tele.vendedores} vendedores · já dentro das regiões acima</span>
+                <span className="text-xs text-muted-foreground">{tele.vendedores} vendedores · fora das regiões: a venda saiu das lojas</span>
                 <span className="ml-auto font-semibold tabular-nums">{moedaCurta(tele.venda)}</span>
               </div>
               <div className="mt-2.5 h-2.5 overflow-hidden rounded-full bg-muted">

@@ -5989,7 +5989,7 @@ export type Database = {
         }
         Returns: {
             atendimentos: number
-            branch_id: string
+            branch_id: string | null
             codigo: string
             custo: number
             dias: number

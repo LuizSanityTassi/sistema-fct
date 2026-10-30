@@ -61,7 +61,7 @@ export default async function TelevendasPage({ searchParams }: PageProps<"/venda
       <PageHeader
         eyebrow="Vendas"
         titulo="Televendas"
-        descricao="O que a equipe de tele-vendas vendeu, por vendedor e por equipe. A venda continua dentro da filial onde o Trier lançou; aqui ela aparece junta, como uma loja à parte."
+        descricao="O que a equipe de tele-vendas vendeu, por vendedor e por equipe. Essa venda sai da filial onde o Trier lançou e conta só aqui, como uma loja à parte (vale de setembro/2026 em diante, desde quando há relatório por vendedor)."
       />
       <AbasVendas ativa="/vendas/televendas" papel={sessao.papel} />
       <AvisoDiasFaltando faltam={faltam.length} texto={`(${faixasDeDias(faltam)})`} admin={admin} />
@@ -188,7 +188,7 @@ export default async function TelevendasPage({ searchParams }: PageProps<"/venda
               )}
             </Secao>
 
-            <Secao titulo="Onde a venda foi lançada" icone={Store} subtitulo="Filial do Trier em que cada venda da equipe caiu (é onde ela conta no ranking das lojas)" acao={<Link href={`/vendas/filiais?${linkPeriodo}`} className="text-xs font-medium underline">ranking das lojas</Link>}>
+            <Secao titulo="Onde a venda foi lançada" icone={Store} subtitulo="Filial do Trier em que cada venda da equipe foi lançada (o sistema tira essa venda da filial e põe no Televendas)" acao={<Link href={`/vendas/filiais?${linkPeriodo}`} className="text-xs font-medium underline">ranking das lojas</Link>}>
               {!porLoja.length ? (
                 <p className="text-sm text-muted-foreground">Sem venda da equipe nesse período.</p>
               ) : (
@@ -220,7 +220,7 @@ export default async function TelevendasPage({ searchParams }: PageProps<"/venda
         </>
       )}
 
-      <Secao titulo="Equipe de televendas" icone={Headset} subtitulo="Quem conta como televendas, pelo código do vendedor no Trier. A venda dessas pessoas em qualquer filial entra aqui.">
+      <Secao titulo="Equipe de televendas" icone={Headset} subtitulo="Quem conta como televendas, pelo código do vendedor no Trier. A venda dessas pessoas em qualquer filial sai da filial e entra aqui.">
         {equipe.length > 0 && (
           <ul className="mb-4 divide-y rounded-xl border">
             {equipe.map((v) => (
@@ -235,7 +235,7 @@ export default async function TelevendasPage({ searchParams }: PageProps<"/venda
                   <span className="ml-auto">
                     <ConfirmarAcao
                       titulo="Tirar da equipe de televendas?"
-                      descricao={`${v.nome} sai do televendas. As vendas continuam na filial; só deixam de aparecer nesta tela e na linha Televendas.`}
+                      descricao={`${v.nome} sai do televendas e as vendas dele voltam a contar na filial onde foram lançadas.`}
                       rotuloBotao="Tirar"
                       rotuloConfirmar="Tirar da equipe"
                       action={tirarVendedorTele}

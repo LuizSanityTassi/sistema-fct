@@ -8,6 +8,11 @@ export const REGIONAIS_VENDAS = ["Sul", "Serra", "Oeste"] as const;
 export type RegionalVendas = (typeof REGIONAIS_VENDAS)[number];
 export const ehRegionalVendas = (r: string | null | undefined): r is RegionalVendas => REGIONAIS_VENDAS.includes(r as RegionalVendas);
 
+/** A equipe de televendas vem das funções como uma "regional" à parte (a venda dela sai das filiais). */
+export const TELEVENDAS = "Televendas" as const;
+export type RegionalOuTele = RegionalVendas | typeof TELEVENDAS;
+const ehRegionalOuTele = (r: string | null | undefined): r is RegionalOuTele => r === TELEVENDAS || ehRegionalVendas(r);
+
 export const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 export const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
@@ -42,19 +47,20 @@ export function somar(linhas: BaseVendas[]): MetricasVendas {
   return metricas(t);
 }
 
-export type LinhaFilialVendas = MetricasVendas & { branchId: string; codigo: string; nome: string; regional: RegionalVendas; dias: number };
+export type LinhaFilialVendas = MetricasVendas & { branchId: string; codigo: string; nome: string; regional: RegionalOuTele; dias: number };
 
-/** Vendas de cada filial no período (só as das regionais de venda). */
+/** Vendas de cada filial no período (só as das regionais de venda), sem a venda da equipe de televendas, mais a linha
+ * Televendas (só para quem vê a rede). */
 export async function vendasPorFilial(de: string, ate: string): Promise<LinhaFilialVendas[]> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("vendas_filiais", { p_de: de, p_ate: ate });
   if (error) throw new Error(error.message);
   return (data ?? []).flatMap((r) =>
-    ehRegionalVendas(r.regional)
+    ehRegionalOuTele(r.regional)
       ? [
           {
             ...metricas({ venda: n(r.venda), atendimentos: n(r.atendimentos), itens: n(r.itens), unidades: n(r.unidades), vendaGrupos: n(r.venda_grupos), custo: n(r.custo), premium: n(r.premium), generico: n(r.generico), similares: n(r.similares), referencia: n(r.referencia), fortvigor: n(r.fortvigor) }),
-            branchId: r.branch_id,
+            branchId: r.branch_id ?? "televendas",
             codigo: r.codigo,
             nome: r.nome,
             regional: r.regional,
@@ -65,7 +71,7 @@ export async function vendasPorFilial(de: string, ate: string): Promise<LinhaFil
   );
 }
 
-export type PontoSerie = MetricasVendas & { periodo: string; regional: RegionalVendas };
+export type PontoSerie = MetricasVendas & { periodo: string; regional: RegionalOuTele };
 
 /** Vendas por dia ou por mês (periodo = 1º dia do mês) e regional. */
 export async function serieVendas(de: string, ate: string, por: "dia" | "mes"): Promise<PontoSerie[]> {
@@ -73,7 +79,7 @@ export async function serieVendas(de: string, ate: string, por: "dia" | "mes"): 
   const { data, error } = await supabase.rpc("vendas_serie", { p_de: de, p_ate: ate, p_por: por });
   if (error) throw new Error(error.message);
   return (data ?? []).flatMap((r) =>
-    ehRegionalVendas(r.regional)
+    ehRegionalOuTele(r.regional)
       ? [{ ...metricas({ venda: n(r.venda), atendimentos: n(r.atendimentos), itens: 0, unidades: n(r.unidades), vendaGrupos: n(r.venda_grupos), custo: n(r.custo), premium: n(r.premium), generico: n(r.generico), similares: n(r.similares), referencia: n(r.referencia), fortvigor: 0 }), periodo: r.periodo, regional: r.regional }]
       : [],
   );
@@ -87,8 +93,6 @@ export function porPeriodo(pontos: PontoSerie[], regional?: RegionalVendas) {
 }
 
 // ---------- televendas (equipe de tele-vendas = uma "loja" à parte) ----------
-
-export const TELEVENDAS = "Televendas";
 
 /** Venda de um vendedor da equipe de televendas numa filial (onde o Trier lançou a venda). */
 export type LinhaTelevendas = {
