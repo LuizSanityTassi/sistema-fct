@@ -113,7 +113,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const veRh = sessao.papel === "admin" || sessao.papel === "rh" || sessao.papel === "gerente";
   const veFolha = sessao.papel === "admin" || sessao.papel === "rh";
   const [d, pendencias, comparativos] = await Promise.all([carregarDashboard({ incluirFolha: veFolha }), carregarPendencias(sessao), carregarComparativos(sessao)]);
-  const acoes = ACOES.filter((a) => (!a.papeis || a.papeis.includes(sessao.papel)) && podeAcessar(sessao.papel, a.href)).slice(0, 6);
+  const acoes = ACOES.filter((a) => (!a.papeis || a.papeis.includes(sessao.papel)) && podeAcessar(sessao.papel, a.href, sessao.telasExtras, sessao.bloqueios)).slice(0, 6);
   const emAtividade = d.funcionarios.ativo + d.funcionarios.afastado + d.funcionarios.ferias;
   const hojeTexto = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Sao_Paulo" }).format(new Date());
   const hoje = hojeTexto.charAt(0).toUpperCase() + hojeTexto.slice(1);

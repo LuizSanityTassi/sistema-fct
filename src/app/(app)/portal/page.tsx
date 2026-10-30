@@ -12,7 +12,7 @@ export const metadata = { title: "Portal de Gestão" };
 /** Tela de entrada: os grupos do menu viram módulos (só os que o perfil abre), cada um com as telas dele. */
 export default async function PortalPage() {
   const sessao = await getSessao();
-  const [modulos, pendencias] = await Promise.all([navParaPapel(sessao.papel, sessao.telasExtras), carregarPendencias(sessao)]);
+  const [modulos, pendencias] = await Promise.all([navParaPapel(sessao.papel, sessao.telasExtras, sessao.bloqueios), carregarPendencias(sessao)]);
   const primeiroNome = sessao.nome.split(" ")[0];
   const hojeTexto = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Sao_Paulo" }).format(new Date());
   const hoje = hojeTexto.charAt(0).toUpperCase() + hojeTexto.slice(1);

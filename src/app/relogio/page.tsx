@@ -27,7 +27,7 @@ export default async function RelogioQuiosquePage({
   const doRelogio = sessao.papel === "relogio";
   if (
     !doRelogio &&
-    !podeAcessar(sessao.papel, "/ponto/relogio", sessao.telasExtras)
+    !podeAcessar(sessao.papel, "/ponto/relogio", sessao.telasExtras, sessao.bloqueios)
   )
     semAcesso("/ponto/relogio");
 

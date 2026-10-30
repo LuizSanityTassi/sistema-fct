@@ -573,7 +573,7 @@ export async function responderPergunta(sessao: Sessao, id: string, filtros: Fil
       relatorio = await quebrasPorOperador(supabase, mes!, filial);
       break;
     case "quebras-sem-justificativa":
-      relatorio = await quebrasSemJustificativa(supabase, podeAcessar(sessao.papel, "/financeiro/diferenca-caixa"), filial);
+      relatorio = await quebrasSemJustificativa(supabase, podeAcessar(sessao.papel, "/financeiro/diferenca-caixa", sessao.telasExtras, sessao.bloqueios), filial);
       break;
     case "pendencias-por-fornecedor":
       relatorio = await pendenciasPorFornecedor(supabase);

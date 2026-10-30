@@ -19,6 +19,8 @@ export type Sessao = {
   regional: string | null;
   /** Telas liberadas para a pessoa além do papel (acesso_telas). */
   telasExtras: string[];
+  /** Grupos do menu tirados da pessoa (profiles.modulos_bloqueados), mesmo sendo administrador. */
+  bloqueios: string[];
 };
 
 /** Usuário logado + perfil. Memoizado por requisição: layout e página compartilham a mesma leitura. */
@@ -30,7 +32,7 @@ export const getSessao = cache(async (): Promise<Sessao> => {
   if (!user) redirect("/login");
 
   const [{ data: profile }, { data: extras }] = await Promise.all([
-    supabase.from("profiles").select("nome, papel, branch_id, ativo, ultimo_acesso, regional, admin_sistema").eq("id", user.id).maybeSingle(),
+    supabase.from("profiles").select("nome, papel, branch_id, ativo, ultimo_acesso, regional, admin_sistema, modulos_bloqueados").eq("id", user.id).maybeSingle(),
     supabase.from("acesso_telas").select("rota").eq("user_id", user.id),
   ]);
 
@@ -57,6 +59,7 @@ export const getSessao = cache(async (): Promise<Sessao> => {
     branchId: profile?.branch_id ?? null,
     regional: profile?.regional ?? null,
     telasExtras: (extras ?? []).map((e) => e.rota),
+    bloqueios: profile?.modulos_bloqueados ?? [],
   };
 });
 
@@ -68,6 +71,6 @@ export function semAcesso(rota: string): never {
 /** Bloqueia a página para papéis sem acesso (a mesma regra do menu). Devolve a sessão quando liberado. */
 export async function exigirAcesso(rota: string): Promise<Sessao> {
   const sessao = await getSessao();
-  if (!podeAcessar(sessao.papel, rota, sessao.telasExtras)) semAcesso(rota);
+  if (!podeAcessar(sessao.papel, rota, sessao.telasExtras, sessao.bloqueios)) semAcesso(rota);
   return sessao;
 }

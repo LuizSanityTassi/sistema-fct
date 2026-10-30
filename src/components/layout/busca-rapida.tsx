@@ -31,7 +31,7 @@ type Secao = { rotulo: string | null; opcoes: Opcao[] };
  * filiais, chamados, equipamentos, pendências, fornecedores, caixas e usuários (só o que ele pode ver).
  * Padrão combobox + listbox (setas, Enter, Esc) para teclado e leitor de tela.
  */
-export function BuscaRapida({ papel, extras }: { papel: AppRole; extras?: string[] }) {
+export function BuscaRapida({ papel, extras, bloqueios }: { papel: AppRole; extras?: string[]; bloqueios?: string[] }) {
   const router = useRouter();
   const [aberta, setAberta] = React.useState(false);
   const [termo, setTermo] = React.useState("");
@@ -43,7 +43,7 @@ export function BuscaRapida({ papel, extras }: { papel: AppRole; extras?: string
   const espera = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const pedido = React.useRef<AbortController | null>(null);
 
-  const itens = React.useMemo(() => navParaPapel(papel, extras).flatMap((g) => g.itens.map((i) => ({ ...i, grupo: g.titulo ?? "Início" }))), [papel, extras]);
+  const itens = React.useMemo(() => navParaPapel(papel, extras, bloqueios).flatMap((g) => g.itens.map((i) => ({ ...i, grupo: g.titulo ?? "Início" }))), [papel, extras, bloqueios]);
   const telas = React.useMemo(() => {
     const t = normalizar(termo.trim());
     if (!t) return itens;
@@ -57,7 +57,7 @@ export function BuscaRapida({ papel, extras }: { papel: AppRole; extras?: string
       .slice(0, 6);
   }, [termo, itens]);
   // perguntas prontas entram quando há termo (sem termo, a lista de telas já mostra "Perguntas prontas")
-  const todasPerguntas = React.useMemo(() => perguntasDoPapel(papel), [papel]);
+  const todasPerguntas = React.useMemo(() => perguntasDoPapel(papel, bloqueios), [papel, bloqueios]);
   const perguntas = React.useMemo(() => {
     const t = normalizar(termo.trim());
     if (!t) return [];

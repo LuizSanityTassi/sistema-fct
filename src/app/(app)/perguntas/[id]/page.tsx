@@ -41,7 +41,7 @@ const LIMITE_TELA = 500;
 export default async function PerguntaPage({ params, searchParams }: PageProps<"/perguntas/[id]">) {
   const [sessao, { id }, sp] = await Promise.all([exigirAcesso("/perguntas"), params, searchParams]);
   const pergunta = perguntaPorId(id);
-  if (!pergunta || !podeFazerPergunta(sessao.papel, pergunta)) notFound();
+  if (!pergunta || !podeFazerPergunta(sessao.papel, pergunta, sessao.bloqueios)) notFound();
   const filtros = { mes: typeof sp.mes === "string" ? sp.mes : undefined, filial: typeof sp.filial === "string" ? sp.filial : undefined };
   const [resposta, unidades] = await Promise.all([responderPergunta(sessao, id, filtros), pergunta.parametros.includes("filial") ? listarUnidadesParaSelecao() : Promise.resolve([])]);
   if (!resposta) notFound();
@@ -49,9 +49,9 @@ export default async function PerguntaPage({ params, searchParams }: PageProps<"
   const query = new URLSearchParams();
   if (mes && filtros.mes) query.set("mes", mes);
   if (filtros.filial) query.set("filial", filtros.filial);
-  const outras = perguntasDoPapel(sessao.papel).filter((p) => p.area === pergunta.area && p.id !== pergunta.id);
+  const outras = perguntasDoPapel(sessao.papel, sessao.bloqueios).filter((p) => p.area === pergunta.area && p.id !== pergunta.id);
   const linhas = r.linhas.slice(0, LIMITE_TELA);
-  const link = (href: unknown) => (typeof href === "string" && podeAcessar(sessao.papel, href.split("?")[0]) ? href : null);
+  const link = (href: unknown) => (typeof href === "string" && podeAcessar(sessao.papel, href.split("?")[0], sessao.telasExtras, sessao.bloqueios) ? href : null);
 
   return (
     <>

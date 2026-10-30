@@ -279,7 +279,7 @@ async function pessoal(supabase: Cliente, p: Periodos): Promise<Comparativo[]> {
 export async function carregarComparativos(sessao: Sessao): Promise<Comparativo[]> {
   const supabase = await createClient();
   const p = periodos();
-  const pode = (rota: string) => podeAcessar(sessao.papel, rota);
+  const pode = (rota: string) => podeAcessar(sessao.papel, rota, sessao.telasExtras, sessao.bloqueios);
   const fontes: Promise<Comparativo[]>[] = [];
   if (pode("/financeiro/diferenca-caixa")) fontes.push(quebrasDeCaixa(supabase, p, "/financeiro/diferenca-caixa"));
   else if (sessao.papel === "gerente" || sessao.papel === "coordenador") fontes.push(quebrasDeCaixa(supabase, p, "/caixa"));

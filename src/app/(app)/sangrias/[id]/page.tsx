@@ -28,7 +28,7 @@ export default async function SangriaPage({ params, searchParams }: PageProps<"/
   const minha = s.criada_por === sessao.id;
   const podeCancelar = situacao === "pendente" && (minha || financeiro);
   const podeAnexar = situacao === "pendente" && (financeiro || minha || sessao.papel === "gerente" || sessao.papel === "usuario");
-  const veConferencia = podeAcessar(sessao.papel, "/financeiro/sangrias");
+  const veConferencia = podeAcessar(sessao.papel, "/financeiro/sangrias", sessao.telasExtras, sessao.bloqueios);
 
   return (
     <>

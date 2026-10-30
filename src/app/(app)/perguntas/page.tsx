@@ -17,7 +17,7 @@ const ICONE_AREA: Record<AreaPergunta, LucideIcon> = {
 
 export default async function PerguntasPage() {
   const sessao = await exigirAcesso("/perguntas");
-  const perguntas = perguntasDoPapel(sessao.papel);
+  const perguntas = perguntasDoPapel(sessao.papel, sessao.bloqueios);
   const areas = AREAS_PERGUNTA.filter((a) => perguntas.some((p) => p.area === a));
 
   return (

@@ -11,7 +11,7 @@ export async function GET(req: Request, ctx: RouteContext<"/api/relatorios/[tipo
   if (!tipoRelatorioValido(tipo)) return new NextResponse("Relatório inexistente", { status: 404 });
 
   const sessao = await getSessao();
-  if (!podeAcessar(sessao.papel, "/relatorios")) semAcesso("/relatorios");
+  if (!podeAcessar(sessao.papel, "/relatorios", sessao.telasExtras, sessao.bloqueios)) semAcesso("/relatorios");
   if (tipo === "folha" && sessao.papel !== "admin" && sessao.papel !== "rh") {
     return new NextResponse("Sem permissão", { status: 403 });
   }

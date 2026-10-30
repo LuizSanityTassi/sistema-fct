@@ -141,5 +141,5 @@ export const PERGUNTAS: Pergunta[] = [
 export const perguntaPorId = (id: string) => PERGUNTAS.find((p) => p.id === id) ?? null;
 
 /** Perguntas que o papel pode fazer (tem acesso à tela da área). */
-export const podeFazerPergunta = (papel: AppRole, p: Pergunta) => podeAcessar(papel, p.rota) && (!p.papeis || p.papeis.includes(papel));
-export const perguntasDoPapel = (papel: AppRole) => PERGUNTAS.filter((p) => podeFazerPergunta(papel, p));
+export const podeFazerPergunta = (papel: AppRole, p: Pergunta, bloqueios: readonly string[] = []) => podeAcessar(papel, p.rota, [], bloqueios) && (!p.papeis || p.papeis.includes(papel));
+export const perguntasDoPapel = (papel: AppRole, bloqueios: readonly string[] = []) => PERGUNTAS.filter((p) => podeFazerPergunta(papel, p, bloqueios));

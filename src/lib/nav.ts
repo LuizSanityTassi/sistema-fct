@@ -674,11 +674,14 @@ export function podeVerItem(item: NavItem, papel: AppRole) {
   return !item.papeis || item.papeis.includes(papel);
 }
 
-/** Menu filtrado pelo papel (sem itens ocultos); grupos que ficam vazios somem. */
-export function navParaPapel(papel: AppRole, extras: readonly string[] = []): NavGrupo[] {
-  return NAV.map((g) => ({ ...g, itens: g.itens.filter((i) => !i.oculto && (podeVerItem(i, papel) || extras.includes(i.href))) })).filter(
-    (g) => g.itens.length > 0,
-  );
+/** Grupos do menu que dá para bloquear por pessoa (profiles.modulos_bloqueados guarda o título do grupo). */
+export const MODULOS_BLOQUEAVEIS = NAV.flatMap((g) => (g.titulo ? [g.titulo] : []));
+
+/** Menu filtrado pelo papel (sem itens ocultos); grupos que ficam vazios somem. `bloqueios` = grupos tirados da pessoa. */
+export function navParaPapel(papel: AppRole, extras: readonly string[] = [], bloqueios: readonly string[] = []): NavGrupo[] {
+  return NAV.filter((g) => !g.titulo || !bloqueios.includes(g.titulo))
+    .map((g) => ({ ...g, itens: g.itens.filter((i) => !i.oculto && (podeVerItem(i, papel) || extras.includes(i.href))) }))
+    .filter((g) => g.itens.length > 0);
 }
 
 /** Item do menu que corresponde à rota (prefixo mais específico). */
@@ -694,8 +697,12 @@ export function grupoDaRota(pathname: string): NavGrupo | undefined {
 
 /** Autorização de rota derivada do menu. Rotas fora do menu são liberadas (ex.: /dashboard/...). */
 /** `extras` = telas liberadas para a pessoa além do papel (acesso_telas, ex.: Fluxo de caixa compartilhado). */
-export function podeAcessar(papel: AppRole, pathname: string, extras: readonly string[] = []): boolean {
+/** `bloqueios` = grupos do menu tirados da pessoa (profiles.modulos_bloqueados): valem mesmo para administrador. */
+export function podeAcessar(papel: AppRole, pathname: string, extras: readonly string[] = [], bloqueios: readonly string[] = []): boolean {
   if (papel === "relogio") return pathname === "/relogio";
   const item = itemDaRota(pathname);
-  return item ? podeVerItem(item, papel) || extras.includes(item.href) : true;
+  if (!item) return true;
+  // o grupo do item mais específico (/vendas/robo é Automações, não Comercial)
+  if (bloqueios.length && bloqueios.includes(NAV.find((g) => g.itens.includes(item))?.titulo ?? "")) return false;
+  return podeVerItem(item, papel) || extras.includes(item.href);
 }

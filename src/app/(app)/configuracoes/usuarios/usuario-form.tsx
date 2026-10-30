@@ -7,6 +7,7 @@ import { BotaoSalvar } from "@/components/form/botao-salvar";
 import { Campo, ErroFormulario, SelectNativo } from "@/components/form/campo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MODULOS_BLOQUEAVEIS } from "@/lib/nav";
 import { PAPEIS, PAPEL_LABEL, type AppRole } from "@/lib/roles";
 import type { EstadoUsuario } from "./actions";
 
@@ -30,6 +31,7 @@ type Props = {
     employee_id?: string | null;
     regional?: string | null;
     adminSistema?: boolean;
+    modulosBloqueados?: string[];
   };
   funcionarios?: OpcaoFuncionario[];
   ehProprioUsuario?: boolean;
@@ -172,6 +174,21 @@ export function UsuarioForm({ action, unidades, regionais = [], modo, valores, e
               <strong>Faz parte do comitê:</strong> pode ler e responder as denúncias recebidas. O nome aparece para quem vai denunciar.
             </span>
           </label>
+        </section>
+      )}
+
+      {modo === "edicao" && !ehProprioUsuario && (
+        <section className="rounded-xl border bg-card p-5">
+          <h2 className="mb-1 text-sm font-semibold">Módulos bloqueados</h2>
+          <p className="mb-4 text-xs text-muted-foreground">Os módulos marcados somem do menu e as telas deles ficam sem acesso para esta pessoa, mesmo que o papel libere (vale também para administrador).</p>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {MODULOS_BLOQUEAVEIS.map((m) => (
+              <label key={m} className="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="modulos_bloqueados" value={m} defaultChecked={valores.modulosBloqueados?.includes(m) ?? false} className="size-4 accent-fct-red" />
+                {m}
+              </label>
+            ))}
+          </div>
         </section>
       )}
 

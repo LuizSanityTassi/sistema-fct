@@ -5150,6 +5150,7 @@ export type Database = {
           email: string | null
           employee_id: string | null
           id: string
+          modulos_bloqueados: string[]
           nome: string
           papel: Database["public"]["Enums"]["app_role"]
           regional: string | null
@@ -5165,6 +5166,7 @@ export type Database = {
           email?: string | null
           employee_id?: string | null
           id: string
+          modulos_bloqueados?: string[]
           nome?: string
           papel?: Database["public"]["Enums"]["app_role"]
           regional?: string | null
@@ -5180,6 +5182,7 @@ export type Database = {
           email?: string | null
           employee_id?: string | null
           id?: string
+          modulos_bloqueados?: string[]
           nome?: string
           papel?: Database["public"]["Enums"]["app_role"]
           regional?: string | null

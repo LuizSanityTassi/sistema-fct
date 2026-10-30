@@ -371,7 +371,7 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
                       <TableCell className="whitespace-nowrap">{formatarData(q.dia)}</TableCell>
                       <TableCell className="font-mono text-xs">{q.filial?.codigo ?? "—"}</TableCell>
                       <TableCell>
-                        {podeAcessar(sessao.papel, "/financeiro/diferenca-caixa") ? (
+                        {podeAcessar(sessao.papel, "/financeiro/diferenca-caixa", sessao.telasExtras, sessao.bloqueios) ? (
                           <Link href={`/financeiro/diferenca-caixa/${q.id}`} className="font-mono text-fct-tinta hover:underline">
                             {rotuloCaixa}
                           </Link>
@@ -413,7 +413,7 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
                   {ficha.ativos.map((a) => (
                     <TableRow key={a.id}>
                       <TableCell>
-                        {podeAcessar(sessao.papel, "/ti/ativos") ? (
+                        {podeAcessar(sessao.papel, "/ti/ativos", sessao.telasExtras, sessao.bloqueios) ? (
                           <Link href={`/ti/ativos/${a.id}`} className="font-medium text-fct-tinta hover:underline">
                             {TIPO_ATIVO_LABEL[a.tipo] ?? a.tipo}
                           </Link>

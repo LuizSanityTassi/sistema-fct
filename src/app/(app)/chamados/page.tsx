@@ -53,7 +53,7 @@ export default async function ChamadosPage({ searchParams }: PageProps<"/chamado
         descricao="Abertura e acompanhamento de solicitações de TI, RH, financeiro, manutenção e compras."
         acoes={
           <>
-            {podeAcessar(sessao.papel, "/chamados/indicadores") && (
+            {podeAcessar(sessao.papel, "/chamados/indicadores", sessao.telasExtras, sessao.bloqueios) && (
               <Button variant="outline" nativeButton={false} render={<Link href="/chamados/indicadores" />}>
                 <ChartColumn data-icon="inline-start" />
                 Indicadores

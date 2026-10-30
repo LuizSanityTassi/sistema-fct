@@ -80,7 +80,7 @@ function item(l: Linha, papel: Sessao["papel"]): ItemBusca | null {
 export async function buscarTudo(sessao: Sessao, termo: string): Promise<GrupoBusca[]> {
   const q = termo.trim().slice(0, 80);
   const supabase = await createClient();
-  const comFornecedores = q.length >= 3 && podeAcessar(sessao.papel, "/conciliacao/fornecedores");
+  const comFornecedores = q.length >= 3 && podeAcessar(sessao.papel, "/conciliacao/fornecedores", sessao.telasExtras, sessao.bloqueios);
   const [{ data, error }, fornecedores] = await Promise.all([
     supabase.rpc("busca_global", { p_q: q, p_limite: LIMITE }),
     comFornecedores ? supabase.rpc("conc_fornecedores_lista", { p_q: q, p_limite: 5 }) : Promise.resolve({ data: [], error: null }),
@@ -89,7 +89,7 @@ export async function buscarTudo(sessao: Sessao, termo: string): Promise<GrupoBu
 
   const porTipo = new Map<TipoBusca, ItemBusca[]>();
   const somar = (i: ItemBusca | null) => {
-    if (!i || !podeAcessar(sessao.papel, i.href.split("?")[0])) return;
+    if (!i || !podeAcessar(sessao.papel, i.href.split("?")[0], sessao.telasExtras, sessao.bloqueios)) return;
     porTipo.set(i.tipo, [...(porTipo.get(i.tipo) ?? []), i]);
   };
   for (const l of (data ?? []) as Linha[]) somar(item(l, sessao.papel));

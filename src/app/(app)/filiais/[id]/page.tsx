@@ -254,7 +254,7 @@ export default async function FilialPage({ params, searchParams }: PageProps<"/f
           <section className="rounded-xl border bg-card lg:col-span-2">
             <div className="flex items-center justify-between px-5 pt-4">
               <h2 className="text-sm font-semibold">Receitas × despesas (realizado)</h2>
-              {podeAcessar(sessao.papel, "/financeiro/lancamentos") && (
+              {podeAcessar(sessao.papel, "/financeiro/lancamentos", sessao.telasExtras, sessao.bloqueios) && (
                 <Link href={`/financeiro/lancamentos?filial=${filial.id}`} className="text-xs text-fct-tinta underline">
                   Ver lançamentos
                 </Link>
@@ -442,7 +442,7 @@ export default async function FilialPage({ params, searchParams }: PageProps<"/f
           <section className="rounded-xl border bg-card">
             <div className="flex items-center justify-between px-5 pt-4">
               <h2 className="text-sm font-semibold">Equipamentos ({d.ativos.length})</h2>
-              {podeAcessar(sessao.papel, "/ti/ativos") && (
+              {podeAcessar(sessao.papel, "/ti/ativos", sessao.telasExtras, sessao.bloqueios) && (
                 <Link href={`/ti/ativos?filial=${filial.id}`} className="text-xs text-fct-tinta underline">
                   Abrir inventário
                 </Link>

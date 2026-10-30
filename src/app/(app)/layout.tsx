@@ -17,7 +17,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <AppShell
-      usuario={{ nome: sessao.nome, email: sessao.email, papel: sessao.papel, rotuloCargo: rotuloCargo(sessao.cargo, sessao.adminSistema), telasExtras: sessao.telasExtras }}
+      usuario={{ nome: sessao.nome, email: sessao.email, papel: sessao.papel, rotuloCargo: rotuloCargo(sessao.cargo, sessao.adminSistema), telasExtras: sessao.telasExtras, bloqueios: sessao.bloqueios }}
       onSair={signOut}
       menuRecolhido={jar.get(COOKIE_MENU)?.value === "recolhido"}
     >

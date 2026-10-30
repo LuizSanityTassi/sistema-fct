@@ -8,6 +8,7 @@ import { diferencas, registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { ehUuid } from "@/lib/data/filiais";
 import { convitesPendentes } from "@/lib/data/usuarios";
+import { MODULOS_BLOQUEAVEIS } from "@/lib/nav";
 import { PAPEIS } from "@/lib/roles";
 import { randomBytes } from "node:crypto";
 import { createClient as createClientPublico } from "@supabase/supabase-js";
@@ -56,7 +57,8 @@ async function regionalDoPapel(papel: string, bruto: string | undefined): Promis
 
 async function exigirAdmin() {
   const sessao = await getSessao();
-  return sessao.papel === "admin" ? sessao : null;
+  // administrador com o módulo Administração bloqueado não mexe em usuários
+  return sessao.papel === "admin" && !sessao.bloqueios.includes("Administração") ? sessao : null;
 }
 
 // ---------- convidar ----------
@@ -160,7 +162,7 @@ export async function salvarUsuario(id: string, _prev: EstadoUsuario, fd: FormDa
 
   const supabase = await createClient();
   const [{ data: atual }, { data: acessosAtuais }] = await Promise.all([
-    supabase.from("profiles").select("id, nome, papel, admin_sistema, branch_id, ativo, employee_id, regional").eq("id", id).maybeSingle(),
+    supabase.from("profiles").select("id, nome, papel, admin_sistema, branch_id, ativo, employee_id, regional, modulos_bloqueados").eq("id", id).maybeSingle(),
     supabase.from("user_branch_access").select("branch_id").eq("user_id", id),
   ]);
   if (!atual) return { erro: "Usuário não encontrado." };
@@ -171,7 +173,9 @@ export async function salvarUsuario(id: string, _prev: EstadoUsuario, fd: FormDa
     const { data: outro } = await supabase.from("profiles").select("nome").eq("employee_id", employee_id).neq("id", id).maybeSingle();
     if (outro) return { erro: `Esse funcionário já está ligado ao usuário ${outro.nome || "(sem nome)"}.` };
   }
-  const patch = { nome: r.data.nome, papel: r.data.papel, admin_sistema, branch_id: r.data.branch_id ?? null, ativo, employee_id, regional: reg.regional };
+  // módulos tirados da pessoa (o próprio usuário não mexe nos dele: o campo nem aparece)
+  const modulos_bloqueados = id === sessao.id ? atual.modulos_bloqueados : [...new Set(fd.getAll("modulos_bloqueados").filter((v): v is string => typeof v === "string" && MODULOS_BLOQUEAVEIS.includes(v)))];
+  const patch = { nome: r.data.nome, papel: r.data.papel, admin_sistema, branch_id: r.data.branch_id ?? null, ativo, employee_id, regional: reg.regional, modulos_bloqueados };
   const { error } = await supabase.from("profiles").update(patch).eq("id", id);
   if (error) return { erro: `Não foi possível salvar: ${error.message}` };
 

@@ -37,6 +37,8 @@ export type UsuarioShell = {
   papel: AppRole;
   /** telas liberadas para a pessoa além do papel (acesso_telas) */
   telasExtras?: string[];
+  /** grupos do menu tirados da pessoa (profiles.modulos_bloqueados) */
+  bloqueios?: string[];
   /** como o cargo aparece (ex.: "TI · administrador do sistema"); sem ele, o nome do papel */
   rotuloCargo?: string;
 };
@@ -105,8 +107,8 @@ function useGruposAbertos() {
   return { salvos, alternar };
 }
 
-function NavLinks({ papel, extras, pathname, recolhido, onNavigate }: { papel: AppRole; extras?: string[]; pathname: string; recolhido?: boolean; onNavigate?: () => void }) {
-  const grupos = navParaPapel(papel, extras);
+function NavLinks({ papel, extras, bloqueios, pathname, recolhido, onNavigate }: { papel: AppRole; extras?: string[]; bloqueios?: string[]; pathname: string; recolhido?: boolean; onNavigate?: () => void }) {
+  const grupos = navParaPapel(papel, extras, bloqueios);
   const { salvos, alternar } = useGruposAbertos();
   const idBase = React.useId();
   // a tela ativa é a de endereço mais longo que casa (Financeiro × Financeiro › Diferença de caixa)
@@ -313,7 +315,7 @@ export function AppShell({ usuario, onSair, menuRecolhido = false, children }: A
           )}
         >
           <Marca recolhido={recolhido} />
-          <NavLinks papel={usuario.papel} extras={usuario.telasExtras} pathname={pathname} recolhido={recolhido} />
+          <NavLinks papel={usuario.papel} extras={usuario.telasExtras} bloqueios={usuario.bloqueios} pathname={pathname} recolhido={recolhido} />
           <MenuUsuario usuario={usuario} onSair={onSair} recolhido={recolhido} />
         </aside>
 
@@ -322,7 +324,7 @@ export function AppShell({ usuario, onSair, menuRecolhido = false, children }: A
           <SheetContent side="left" className="w-72 gap-0 border-sidebar-border bg-sidebar p-0 text-sidebar-foreground sm:max-w-72">
             <SheetTitle className="sr-only">Menu principal</SheetTitle>
             <Marca onNavigate={fecharMenu} />
-            <NavLinks papel={usuario.papel} extras={usuario.telasExtras} pathname={pathname} onNavigate={fecharMenu} />
+            <NavLinks papel={usuario.papel} extras={usuario.telasExtras} bloqueios={usuario.bloqueios} pathname={pathname} onNavigate={fecharMenu} />
             <MenuUsuario usuario={usuario} onSair={onSair} />
           </SheetContent>
         </Sheet>
@@ -362,7 +364,7 @@ export function AppShell({ usuario, onSair, menuRecolhido = false, children }: A
               </span>
             </nav>
 
-            <BuscaRapida papel={usuario.papel} extras={usuario.telasExtras} />
+            <BuscaRapida papel={usuario.papel} extras={usuario.telasExtras} bloqueios={usuario.bloqueios} />
             <SinoPendencias />
           </header>
 

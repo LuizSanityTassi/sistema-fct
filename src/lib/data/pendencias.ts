@@ -44,7 +44,7 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
     const [a, m] = comp.split("-").map(Number);
     return m === 1 ? `${a - 1}-12` : `${a}-${String(m - 1).padStart(2, "0")}`;
   })();
-  const pode = (rota: string) => podeAcessar(sessao.papel, rota);
+  const pode = (rota: string) => podeAcessar(sessao.papel, rota, sessao.telasExtras, sessao.bloqueios);
   const financeiro = sessao.papel === "admin" || sessao.papel === "financeiro";
   const out: Pendencia[] = [];
   const contar = async (q: PromiseLike<{ count: number | null; error: unknown }>) => {

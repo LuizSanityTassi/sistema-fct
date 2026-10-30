@@ -9,7 +9,7 @@ export async function GET(req: Request, ctx: RouteContext<"/api/perguntas/[id]">
   const { id } = await ctx.params;
   const sessao = await getSessao();
   const pergunta = perguntaPorId(id);
-  if (!pergunta || !podeFazerPergunta(sessao.papel, pergunta)) return new NextResponse("Pergunta inexistente", { status: 404 });
+  if (!pergunta || !podeFazerPergunta(sessao.papel, pergunta, sessao.bloqueios)) return new NextResponse("Pergunta inexistente", { status: 404 });
   const sp = new URL(req.url).searchParams;
   const resposta = await responderPergunta(sessao, id, { mes: sp.get("mes") ?? undefined, filial: sp.get("filial") ?? undefined });
   if (!resposta) return new NextResponse("Pergunta inexistente", { status: 404 });
