@@ -54,6 +54,28 @@ export async function valoresManuais(empresa: string) {
   return out;
 }
 
+/** Valores gravados (sem rateio) da empresa nos meses pedidos ("aaaa-mm"): chave "filial|mês|conta" ("" = da empresa). */
+export async function valoresGravados(empresa: string, meses: string[], filial?: string) {
+  const supabase = await createClient();
+  let q = supabase
+    .from("dre_contabil")
+    .select("branch_id, competencia, linha, valor")
+    .eq("empresa", empresa)
+    .in(
+      "competencia",
+      meses.map((m) => `${m}-01`),
+    );
+  if (filial) q = q.eq("branch_id", filial);
+  const { data, error } = await q.range(0, 9999);
+  if (error) throw new Error(error.message);
+  const out = new Map<string, number>();
+  for (const r of data ?? []) {
+    const k = `${r.branch_id ?? ""}|${r.competencia.slice(0, 7)}|${r.linha}`;
+    out.set(k, (out.get(k) ?? 0) + Number(r.valor));
+  }
+  return out;
+}
+
 /** Divisão de cada rateio do mês entre as filiais (pela receita bruta do mês). */
 export function distribuirRateios(mapa: MapaDre, mes: string, rateios: RateioDre[]) {
   const bases = [...mapa.keys()].filter(Boolean).map((id) => ({ id, base: baseDoRateio(mapa.get(id)?.get(mes) ?? {}) }));

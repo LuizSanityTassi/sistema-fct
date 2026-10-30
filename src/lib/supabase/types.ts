@@ -2990,6 +2990,7 @@ export type Database = {
           id: string
           importacao_id: string
           linha: string
+          manual: boolean
           valor: number
         }
         Insert: {
@@ -2999,6 +3000,7 @@ export type Database = {
           id?: string
           importacao_id: string
           linha: string
+          manual?: boolean
           valor: number
         }
         Update: {
@@ -3008,6 +3010,7 @@ export type Database = {
           id?: string
           importacao_id?: string
           linha?: string
+          manual?: boolean
           valor?: number
         }
         Relationships: []

@@ -48,8 +48,11 @@ const LINHAS: Linha[] = [
 
 const tom = (v: number) => (v < 0 ? "text-red-700 dark:text-red-400" : v > 0 ? "text-emerald-700 dark:text-emerald-400" : "");
 
+/** Edição no próprio demonstrativo: cada conta de cada mês vira um campo de um formulário (atributo form). */
+export type EdicaoDemonstrativo = { form: string; campos: Record<string, { nome: string; valor: string }> };
+
 /** DRE linha a linha: um mês por coluna, o total do período e as participações sobre a receita líquida e a bruta. */
-export function Demonstrativo({ meses, porMes }: { meses: string[]; porMes: Map<string, Lancamentos> }) {
+export function Demonstrativo({ meses, porMes, editar }: { meses: string[]; porMes: Map<string, Lancamentos>; editar?: EdicaoDemonstrativo }) {
   const colunas: Coluna[] = meses.map((m) => {
     const l = porMes.get(m) ?? {};
     return { chave: m, rotulo: mesCurto(m), l, c: calcularDre(l) };
@@ -59,7 +62,7 @@ export function Demonstrativo({ meses, porMes }: { meses: string[]; porMes: Map<
   const total: Coluna = { chave: "total", rotulo: "Total", l: lTotal, c: calcularDre(lTotal) };
   const todas = [...colunas, total];
   const sobre = (v: number, base: number) => (base ? v / base : null);
-  const linhas = LINHAS.filter((d) => d.tipo !== "conta" || d.sempre || todas.some((c) => c.l[d.linha]));
+  const linhas = LINHAS.filter((d) => d.tipo !== "conta" || d.sempre || !!editar || todas.some((c) => c.l[d.linha]));
 
   return (
     <div className="overflow-x-auto">
@@ -100,6 +103,22 @@ export function Demonstrativo({ meses, porMes }: { meses: string[]; porMes: Map<
                 </th>
                 {todas.map((c) => {
                   const ehTotal = c.chave === "total";
+                  const campo = editar && d.tipo === "conta" && !ehTotal ? editar.campos[`${c.chave}|${d.linha}`] : undefined;
+                  if (campo) {
+                    return (
+                      <td key={c.chave} className="bg-amber-50 px-1 py-1 dark:bg-amber-400/10">
+                        <input
+                          form={editar!.form}
+                          name={campo.nome}
+                          defaultValue={campo.valor}
+                          inputMode="decimal"
+                          placeholder="0,00"
+                          aria-label={`${d.rotulo} · ${c.rotulo}`}
+                          className="h-7 w-24 rounded-md border bg-background px-2 text-right text-xs tabular-nums outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+                        />
+                      </td>
+                    );
+                  }
                   let texto: string;
                   let classe = "";
                   if (d.tipo === "pct") texto = mostraPct(d.valor(c.c));
