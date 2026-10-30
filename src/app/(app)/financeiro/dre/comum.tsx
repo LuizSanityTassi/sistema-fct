@@ -109,7 +109,7 @@ export function Filtros({ base, empresas, anos, ver, children }: { base: Props["
             <option value={TODAS}>Todas as empresas</option>
             {empresas.map((e) => (
               <option key={e} value={e}>
-                {e}
+                {e.replace("+", " + ")}
               </option>
             ))}
           </SelectNativo>

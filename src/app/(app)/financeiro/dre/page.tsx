@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
 import { contas, distribuirRateios, empresasDre, juntarMapas, lancamentosDre, somar, temLancamento, valoresManuais, type MapaDre } from "@/lib/data/dre-contabil";
-import { baseDoRateio, calcularDre, ehLinhaManual, LINHAS_MANUAIS, MES_MANUAL, ROTULO_LINHA, sinalManual, situacaoDoLucro, somarLancamentos, type Lancamentos, type LinhaManual } from "@/lib/financeiro/dre-contabil";
+import { baseDoRateio, calcularDre, ehLinhaManual, LINHAS_MANUAIS, MES_MANUAL, ROTULO_LINHA, sinalManual, situacaoDoLucro, type Lancamentos, type LinhaManual } from "@/lib/financeiro/dre-contabil";
 import { moedaFin } from "@/lib/financeiro/formatos";
 import { formatarDataHora } from "@/lib/formatos";
 import { rotuloCompetencia } from "@/lib/rh/competencia";
@@ -70,13 +70,21 @@ export default async function DrePage({ searchParams }: PageProps<"/financeiro/d
     );
   }
 
+  const ver: VisaoDre = VISOES_DRE.some(([v]) => v === s("ver")) ? (s("ver") as VisaoDre) : "resumo";
+  // filtro Empresa: Varela e Nazário separadas de Itajaí e Blumenau (que estão na DRE delas) ou juntas. Rateio e
+  // lançamento à mão são da empresa inteira (o rateio divide entre todas as filiais dela).
+  const reais = empresas.map((e) => e.empresa);
+  const recortes = RECORTES_DRE.filter((r) => reais.includes(r.empresa));
+  const porRecorte = ver === "resumo" || ver === "demonstrativo" || ver === "comparativo";
   const todas = empresas.length > 1 && s("empresa") === TODAS;
-  const selecionadas = todas ? empresas : [empresas.find((e) => e.empresa === s("empresa")) ?? empresas[0]];
+  const pedido = todas ? undefined : recortes.find((r) => r.valor === s("empresa"));
+  const real = pedido?.empresa ?? (reais.includes(s("empresa")) ? s("empresa") : reais[0]);
+  const recorte = !porRecorte || todas ? undefined : (pedido ?? recortes.find((r) => r.empresa === real && r.inteira));
+  const selecionadas = todas ? empresas : [empresas.find((e) => e.empresa === real) ?? empresas[0]];
   const meses = [...new Set(selecionadas.flatMap((e) => e.meses))].sort();
   const anos = [...new Set(meses.map((m) => m.slice(0, 4)))].sort().reverse();
   const ano = anos.includes(s("ano")) ? s("ano") : anos[0];
   const mesesDoAno = meses.filter((m) => m.startsWith(ano));
-  const ver: VisaoDre = VISOES_DRE.some(([v]) => v === s("ver")) ? (s("ver") as VisaoDre) : "resumo";
   // o comparativo olha também o ano passado (mesmo mês e os últimos 12 meses)
   const de = ver === "comparativo" ? `${Number(ano) - 1}-01` : `${ano}-01`;
   const dados = await Promise.all(selecionadas.map((e) => lancamentosDre(e.empresa, de, `${ano}-12`)));
@@ -84,19 +92,28 @@ export default async function DrePage({ searchParams }: PageProps<"/financeiro/d
   const rateios = dados.flatMap((d) => d.rateios);
   const empresaDaFilial = new Map(dados.flatMap((d, i) => [...d.mapa.keys()].filter(Boolean).map((id) => [id, selecionadas[i].empresa] as const)));
 
-  const ids = [...mapa.keys()].filter(Boolean);
+  const todosIds = [...mapa.keys()].filter(Boolean);
   const supabase = await createClient();
-  const { data: lojas } = ids.length ? await supabase.from("branches").select("id, codigo, nome").in("id", ids) : { data: [] };
+  const { data: lojas } = todosIds.length ? await supabase.from("branches").select("id, codigo, nome").in("id", todosIds) : { data: [] };
   const porId = new Map((lojas ?? []).map((l) => [l.id, l]));
+  // recorte escolhido: só as filiais dele (e o valor da empresa, a depreciação, quando o recorte é da empresa-mãe)
+  if (recorte) {
+    for (const id of [...mapa.keys()]) {
+      if (id ? !recorte.entra(porId.get(id)?.codigo ?? "") : !recorte.daEmpresa) mapa.delete(id);
+    }
+  }
+  const ids = [...mapa.keys()].filter(Boolean);
   const filiaisOrdenadas = ids
     .map((id) => ({ id, codigo: porId.get(id)?.codigo ?? "?", nome: porId.get(id)?.nome ?? "", empresa: empresaDaFilial.get(id) ?? "" }))
     .sort((a, b) => a.codigo.localeCompare(b.codigo));
-  const base = { empresa: todas ? TODAS : selecionadas[0].empresa, ano };
+  const base = { empresa: todas ? TODAS : (recorte?.valor ?? real), ano };
+  const nomeEscolha = recorte?.rotulo ?? real;
   const ultima = [...selecionadas].sort((a, b) => b.ultima.em.localeCompare(a.ultima.em))[0].ultima;
+  const porEmpresa = recorte ? [{ empresa: recorte.rotulo, mapa }] : dados.map((d, i) => ({ empresa: selecionadas[i].empresa, mapa: d.mapa }));
   const props: Props = {
     s,
     base,
-    empresas: empresas.map((e) => e.empresa),
+    empresas: porRecorte ? recortes.map((r) => r.valor) : reais,
     todas,
     anos,
     mesesDoAno,
@@ -111,21 +128,21 @@ export default async function DrePage({ searchParams }: PageProps<"/financeiro/d
       <PageHeader
         eyebrow="Financeiro"
         titulo="DRE"
-        descricao={`DRE contábil ${todas ? `de todas as empresas (${empresas.map((e) => e.empresa).join(" + ")})` : `da ${selecionadas[0].empresa}`} por filial (planilha do contador). Última importação: ${ultima.arquivo ?? "planilha"} · ${ultima.por ?? "—"} · ${formatarDataHora(ultima.em)}.`}
+        descricao={`DRE contábil ${todas ? `de todas as empresas (${empresas.map((e) => e.empresa).join(" + ")})` : `da ${nomeEscolha}`} por filial (planilha do contador). Última importação: ${ultima.arquivo ?? "planilha"} · ${ultima.por ?? "—"} · ${formatarDataHora(ultima.em)}.`}
       />
 
       <AbasDre ativa={ver} base={base} filial={s("filial") || undefined} podeImportar={podeImportar} />
 
       {ver === "resumo" ? (
-        <Resumo {...props} porEmpresa={dados.map((d, i) => ({ empresa: selecionadas[i].empresa, mapa: d.mapa }))} />
+        <Resumo {...props} porEmpresa={porEmpresa} />
       ) : ver === "demonstrativo" ? (
-        <VerDemonstrativo {...props} porEmpresa={dados.map((d, i) => ({ empresa: selecionadas[i].empresa, mapa: d.mapa }))} />
+        <VerDemonstrativo {...props} nomeEscolha={nomeEscolha} />
       ) : ver === "comparativo" ? (
         <Comparativo {...props} />
       ) : ver === "lancar" && podeImportar ? (
         <Lancar {...props} />
       ) : ver === "lancar" ? (
-        <Resumo {...props} porEmpresa={dados.map((d, i) => ({ empresa: selecionadas[i].empresa, mapa: d.mapa }))} />
+        <Resumo {...props} porEmpresa={porEmpresa} />
       ) : (
         <Rateio {...props} podeEditar={podeImportar} />
       )}
@@ -399,54 +416,39 @@ function Resumo({ s, base, empresas, todas, anos, mesesDoAno, mapa, rateios, fil
   );
 }
 
-/** Itajaí (F2xx) fica na DRE da Varela e Blumenau (F5xx) na da Nazário; o demonstrativo também os separa. */
+/**
+ * Opções do filtro Empresa: Itajaí (F2xx) está na DRE da Varela e Blumenau (F5xx) na da Nazário; dá para ver cada
+ * uma separada ou junto com a empresa-mãe. daEmpresa = entra o valor da empresa sem filial (a depreciação).
+ */
 const ehItajai = (codigo: string) => /^F2\d{2}$/.test(codigo);
 const ehBlumenau = (codigo: string) => /^F5\d{2}$/.test(codigo);
-const GRUPOS_DRE = [
-  { valor: "g:varela", rotulo: "VARELA", empresa: "VARELA", entra: (c: string) => !ehItajai(c), daEmpresa: true },
-  { valor: "g:itajai", rotulo: "ITAJAÍ", empresa: "VARELA", entra: ehItajai, daEmpresa: false },
-  { valor: "g:varela-itajai", rotulo: "VARELA + ITAJAÍ", empresa: "VARELA", entra: () => true, daEmpresa: true },
-  { valor: "g:nazario", rotulo: "NAZÁRIO", empresa: "NAZÁRIO", entra: (c: string) => !ehBlumenau(c), daEmpresa: true },
-  { valor: "g:blumenau", rotulo: "BLUMENAU", empresa: "NAZÁRIO", entra: ehBlumenau, daEmpresa: false },
-  { valor: "g:nazario-blumenau", rotulo: "NAZÁRIO + BLUMENAU", empresa: "NAZÁRIO", entra: () => true, daEmpresa: true },
+const RECORTES_DRE = [
+  { valor: "VARELA", rotulo: "VARELA", empresa: "VARELA", entra: (c: string) => !ehItajai(c), daEmpresa: true, inteira: false },
+  { valor: "ITAJAÍ", rotulo: "ITAJAÍ", empresa: "VARELA", entra: ehItajai, daEmpresa: false, inteira: false },
+  { valor: "VARELA+ITAJAÍ", rotulo: "VARELA + ITAJAÍ", empresa: "VARELA", entra: () => true, daEmpresa: true, inteira: true },
+  { valor: "NAZÁRIO", rotulo: "NAZÁRIO", empresa: "NAZÁRIO", entra: (c: string) => !ehBlumenau(c), daEmpresa: true, inteira: false },
+  { valor: "BLUMENAU", rotulo: "BLUMENAU", empresa: "NAZÁRIO", entra: ehBlumenau, daEmpresa: false, inteira: false },
+  { valor: "NAZÁRIO+BLUMENAU", rotulo: "NAZÁRIO + BLUMENAU", empresa: "NAZÁRIO", entra: () => true, daEmpresa: true, inteira: true },
 ];
 
-function VerDemonstrativo({ s, base, empresas, todas, anos, mesesDoAno, mapa, rateios, filiais, mesesPorEmpresa, porEmpresa }: Props & { porEmpresa: { empresa: string; mapa: MapaDre }[] }) {
-  // grupos das empresas escolhidas que têm filiais (ex.: Itajaí só aparece se tiver lançamento)
-  const grupos = GRUPOS_DRE.flatMap((g) => {
-    const daEmpresa = porEmpresa.find((e) => e.empresa === g.empresa);
-    const ids = filiais.filter((f) => f.empresa === g.empresa && g.entra(f.codigo)).map((f) => f.id);
-    return daEmpresa && ids.length ? [{ ...g, ids, mapaEmpresa: daEmpresa.mapa }] : [];
-  });
-  const grupo = grupos.find((g) => g.valor === s("filial"));
-  const filial = grupo ? undefined : filiais.find((f) => f.id === s("filial"));
+function VerDemonstrativo({ s, base, empresas, todas, anos, mesesDoAno, mapa, rateios, filiais, mesesPorEmpresa, nomeEscolha }: Props & { nomeEscolha: string }) {
+  const filial = filiais.find((f) => f.id === s("filial"));
   const chave = filial ? filial.id : "*";
-  const doGrupo = (m: string) =>
-    grupo ? somarLancamentos([...grupo.ids.map((id) => mapa.get(id)?.get(m) ?? {}), ...(grupo.daEmpresa ? [grupo.mapaEmpresa.get("")?.get(m) ?? {}] : [])]) : null;
-  const porMes = new Map(mesesDoAno.map((m) => [m, doGrupo(m) ?? somar(mapa, chave, [m])]));
-  const comDados = mesesDoAno.filter((m) => (filial ? temLancamento(mapa, filial.id, m) : grupo ? grupo.ids.some((id) => temLancamento(mapa, id, m)) : true));
-  const nomeTotal = grupo ? grupo.rotulo : todas ? "Consolidado de todas as empresas" : `Consolidado da ${base.empresa}`;
+  const porMes = new Map(mesesDoAno.map((m) => [m, somar(mapa, chave, [m])]));
+  const comDados = mesesDoAno.filter((m) => (filial ? temLancamento(mapa, filial.id, m) : true));
+  const nomeTotal = todas ? "Consolidado de todas as empresas" : `Consolidado da ${nomeEscolha}`;
   return (
     <>
       <Filtros base={base} empresas={empresas} anos={anos} ver="demonstrativo">
         <label className="grid gap-1 text-sm">
           <span className="font-medium">Filial</span>
-          <SelectNativo name="filial" defaultValue={grupo?.valor ?? filial?.id ?? ""} className="w-64">
+          <SelectNativo name="filial" defaultValue={filial?.id ?? ""} className="w-64">
             <option value="">{todas ? "Consolidado de todas as empresas" : "Consolidado da empresa"}</option>
-            {grupos.length > 0 && (
-              <optgroup label="Grupos">
-                {grupos.map((g) => (
-                  <option key={g.valor} value={g.valor}>
-                    {g.rotulo}
-                  </option>
-                ))}
-              </optgroup>
-            )}
             <OpcoesFiliais filiais={filiais} todas={todas} />
           </SelectNativo>
         </label>
       </Filtros>
-      {todas && !filial && !grupo && <AvisoCobertura empresas={empresasSemDre(mesesPorEmpresa, mesesDoAno)} texto={`de ${base.ano}`} />}
+      {todas && !filial && <AvisoCobertura empresas={empresasSemDre(mesesPorEmpresa, mesesDoAno)} texto={`de ${base.ano}`} />}
       {comDados.length > 1 && (
         <section className="mb-4 rounded-xl border bg-card p-5">
           <h2 className="mb-1 text-sm font-semibold">
@@ -468,12 +470,7 @@ function VerDemonstrativo({ s, base, empresas, todas, anos, mesesDoAno, mapa, ra
           <h2 className="text-sm font-semibold">
             {filial ? `${filial.codigo} ${filial.nome}` : nomeTotal} · {base.ano}
           </h2>
-          {grupo ? (
-            <Status tom="info">
-              {grupo.ids.length} {grupo.ids.length === 1 ? "filial" : "filiais"}
-              {grupo.daEmpresa ? " + depreciação da empresa" : ""}
-            </Status>
-          ) : filial ? (
+          {filial ? (
             <Status tom="info">sem a depreciação, que é da empresa{rateios.length ? " · com o rateio por faturamento" : ""}</Status>
           ) : (
             <Status tom="neutro">todas as filiais + depreciação</Status>
