@@ -234,6 +234,15 @@ export function faixasDeDias(dias: string[]) {
 // ---------- datas (horário de Brasília) ----------
 
 export const hojeNoBrasil = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+export const horaNoBrasil = (iso: string) => new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+
+/** Último dia das telas: hoje (parcial, lido às `lidoEm`) quando o robô de hoje já leu o dia; senão ontem. */
+export async function ultimoDiaVendas(): Promise<{ dia: string; parcial: boolean; lidoEm: string | null }> {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("vendas_hoje_lido_em");
+  const hoje = hojeNoBrasil();
+  return data ? { dia: hoje, parcial: true, lidoEm: data } : { dia: somarDias(hoje, -1), parcial: false, lidoEm: null };
+}
 export const somarDias = (dia: string, dias: number) => new Date(Date.parse(`${dia}T12:00:00Z`) + dias * 86_400_000).toISOString().slice(0, 10);
 export const ultimoDia = (ano: number, mes: number) => new Date(Date.UTC(ano, mes, 0)).getUTCDate();
 export const diaDaSemana = (dia: string) => new Date(`${dia}T12:00:00Z`).getUTCDay();

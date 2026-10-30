@@ -2620,6 +2620,7 @@ export type Database = {
           lido_em: string | null
           linhas: number | null
           ms: number | null
+          parcial: boolean
           relatorio: string
           status: string
           tamanho: number | null
@@ -2635,6 +2636,7 @@ export type Database = {
           lido_em?: string | null
           linhas?: number | null
           ms?: number | null
+          parcial?: boolean
           relatorio: string
           status: string
           tamanho?: number | null
@@ -2650,6 +2652,7 @@ export type Database = {
           lido_em?: string | null
           linhas?: number | null
           ms?: number | null
+          parcial?: boolean
           relatorio?: string
           status?: string
           tamanho?: number | null
@@ -6034,6 +6037,10 @@ export type Database = {
           p_de: string
         }
         Returns: string[]
+      }
+      vendas_hoje_lido_em: {
+        Args: never
+        Returns: string
       }
       vendas_filiais: {
         Args: {

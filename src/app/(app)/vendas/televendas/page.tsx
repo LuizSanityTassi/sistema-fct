@@ -7,7 +7,8 @@ import { ConfirmarAcao } from "@/components/layout/confirmar-acao";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
-import { chaveMetaVendedor, diasSemVendas, equipeTelevendas, responsavelTelevendas, faixasDeDias, MESES, mesmoDia, metasDoMes, resumirTelevendas, somar, televendasGrupos, televendasNoPeriodo, vendasPorFilial, type GrupoTelevendas, type LinhaTelevendas } from "@/lib/data/vendas";
+import { chaveMetaVendedor, diasSemVendas, equipeTelevendas, responsavelTelevendas, faixasDeDias, MESES, mesmoDia, metasDoMes, resumirTelevendas, somar, televendasGrupos, televendasNoPeriodo, ultimoDiaVendas, vendasPorFilial, type GrupoTelevendas, type LinhaTelevendas } from "@/lib/data/vendas";
+import { AtualizaSozinho } from "../atualiza-sozinho";
 import { AbasVendas, AvisoDiasFaltando, inteiro, moeda, moedaCurta, pct } from "../comum";
 import { Comparacao, MiniKpi, Secao } from "../painel-visual";
 import { CamposPeriodo, lerPeriodoVendas } from "../periodo";
@@ -49,8 +50,8 @@ function agrupar(linhas: LinhaTelevendas[], chave: (l: LinhaTelevendas) => strin
 }
 
 export default async function TelevendasPage({ searchParams }: PageProps<"/vendas/televendas">) {
-  const [sessao, sp] = await Promise.all([exigirAcesso("/vendas/televendas"), searchParams]);
-  const periodo = lerPeriodoVendas(sp);
+  const [sessao, sp, ultimo] = await Promise.all([exigirAcesso("/vendas/televendas"), searchParams, ultimoDiaVendas()]);
+  const periodo = lerPeriodoVendas(sp, ultimo.dia);
   const { de, ate } = periodo;
   const admin = sessao.papel === "admin";
   // comparação: os mesmos dias do mês anterior
@@ -109,6 +110,7 @@ export default async function TelevendasPage({ searchParams }: PageProps<"/venda
         descricao="O que a equipe de tele-vendas vendeu, por vendedor e por equipe, sem as vendas de e-commerce. Essa venda sai da filial onde o Trier lançou e conta só aqui, como uma loja à parte; o e-commerce da equipe continua na filial (vale de setembro/2026 em diante, desde quando há relatório por vendedor)."
       />
       <AbasVendas ativa="/vendas/televendas" papel={sessao.papel} />
+      <AtualizaSozinho />
       <AvisoDiasFaltando faltam={faltam.length} texto={`(${faixasDeDias(faltam)})`} admin={admin} />
 
       <form method="get" className="mb-4 flex flex-wrap items-end gap-2 rounded-xl border bg-card p-3">

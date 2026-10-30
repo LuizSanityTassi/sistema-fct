@@ -21,14 +21,14 @@ function mesesDisponiveis(ateMes: string) {
   return out;
 }
 
-export type PeriodoVendas = { ver: "mes" | "dia"; mes: string; meses: string[]; de: string; ate: string; ontem: string; texto: string };
+export type PeriodoVendas = { ver: "mes" | "dia"; mes: string; meses: string[]; de: string; ate: string; ultimo: string; texto: string };
 
-/** Período das telas de venda: ?ver=mes&mes=aaaa-mm (até ontem) ou ?ver=dia&de=…&ate=… */
-export function lerPeriodoVendas(sp: Record<string, string | string[] | undefined>): PeriodoVendas {
+/** Período das telas de venda: ?ver=mes&mes=aaaa-mm (até o último dia lido) ou ?ver=dia&de=…&ate=…. `ultimo` = último dia
+ * com vendas (ultimoDiaVendas: hoje quando o robô de hoje já leu, senão ontem). */
+export function lerPeriodoVendas(sp: Record<string, string | string[] | undefined>, ultimo = somarDias(hojeNoBrasil(), -1)): PeriodoVendas {
   const s = (k: string) => (typeof sp[k] === "string" ? sp[k] : "");
-  const ontem = somarDias(hojeNoBrasil(), -1);
   const ver = s("ver") === "dia" ? "dia" : "mes";
-  const meses = mesesDisponiveis(ontem.slice(0, 7));
+  const meses = mesesDisponiveis(ultimo.slice(0, 7));
   const mes = meses.includes(s("mes")) ? s("mes") : meses[0];
   const iso = /^\d{4}-\d{2}-\d{2}$/;
   let de: string;
@@ -37,14 +37,14 @@ export function lerPeriodoVendas(sp: Record<string, string | string[] | undefine
     const [a, m] = mes.split("-").map(Number);
     de = `${mes}-01`;
     ate = `${mes}-${String(ultimoDia(a, m)).padStart(2, "0")}`;
-    if (ate > ontem) ate = ontem;
+    if (ate > ultimo) ate = ultimo;
   } else {
-    ate = iso.test(s("ate")) && s("ate") <= ontem ? s("ate") : ontem;
+    ate = iso.test(s("ate")) && s("ate") <= ultimo ? s("ate") : ultimo;
     de = iso.test(s("de")) && s("de") <= ate ? s("de") : ate;
   }
   const [am, mm] = mes.split("-").map(Number);
-  const texto = ver === "mes" ? `${MESES[mm - 1]} de ${am}${ate.slice(0, 7) === ontem.slice(0, 7) ? ` (até ${formatarData(ate)})` : ""}` : de === ate ? formatarData(de) : `${formatarData(de)} a ${formatarData(ate)}`;
-  return { ver, mes, meses, de, ate, ontem, texto };
+  const texto = ver === "mes" ? `${MESES[mm - 1]} de ${am}${ate.slice(0, 7) === ultimo.slice(0, 7) ? ` (até ${formatarData(ate)})` : ""}` : de === ate ? formatarData(de) : `${formatarData(de)} a ${formatarData(ate)}`;
+  return { ver, mes, meses, de, ate, ultimo, texto };
 }
 
 /** Mensal/Diária + mês ou de/até (vai dentro do <form method="get"> da tela). `extra` = filtros mantidos ao trocar. */
@@ -77,11 +77,11 @@ export function CamposPeriodo({ p, rota, extra = "" }: { p: PeriodoVendas; rota:
         <>
           <label className="grid gap-1 text-sm">
             <span className="font-medium">De</span>
-            <Input name="de" type="date" defaultValue={p.de} min={INICIO_HISTORICO} max={p.ontem} className="w-40" />
+            <Input name="de" type="date" defaultValue={p.de} min={INICIO_HISTORICO} max={p.ultimo} className="w-40" />
           </label>
           <label className="grid gap-1 text-sm">
             <span className="font-medium">Até</span>
-            <Input name="ate" type="date" defaultValue={p.ate} min={INICIO_HISTORICO} max={p.ontem} className="w-40" />
+            <Input name="ate" type="date" defaultValue={p.ate} min={INICIO_HISTORICO} max={p.ultimo} className="w-40" />
           </label>
         </>
       )}

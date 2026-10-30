@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
 import { cn } from "cn";
-import { chaveMetaFilial, diasSemVendas, ehRegionalVendas, faixasDeDias, metasDoMes, REGIONAIS_VENDAS, somar, TELEVENDAS, vendasPorFilial, type LinhaFilialVendas } from "@/lib/data/vendas";
+import { chaveMetaFilial, diasSemVendas, ehRegionalVendas, faixasDeDias, metasDoMes, REGIONAIS_VENDAS, somar, TELEVENDAS, ultimoDiaVendas, vendasPorFilial, type LinhaFilialVendas } from "@/lib/data/vendas";
+import { AtualizaSozinho } from "../atualiza-sozinho";
 import { AbasVendas, AvisoDiasFaltando, decimal, inteiro, moeda, pct } from "../comum";
 import { CamposPeriodo, lerPeriodoVendas } from "../periodo";
 
@@ -26,9 +27,9 @@ const ORDENS = {
 type Ordem = keyof typeof ORDENS;
 
 export default async function VendaFiliaisPage({ searchParams }: PageProps<"/vendas/filiais">) {
-  const [sessao, sp] = await Promise.all([exigirAcesso("/vendas/filiais"), searchParams]);
+  const [sessao, sp, ultimo] = await Promise.all([exigirAcesso("/vendas/filiais"), searchParams, ultimoDiaVendas()]);
   const s = (k: string) => (typeof sp[k] === "string" ? sp[k] : "");
-  const periodo = lerPeriodoVendas(sp);
+  const periodo = lerPeriodoVendas(sp, ultimo.dia);
   const { de, ate } = periodo;
   const regional = ehRegionalVendas(s("regional")) ? s("regional") : "";
   const ordem: Ordem = s("ordem") in ORDENS ? (s("ordem") as Ordem) : "venda";
@@ -46,8 +47,9 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
 
   return (
     <>
-      <PageHeader eyebrow="Vendas" titulo="Venda por filial" descricao="Ranking das lojas no período: venda, atendimentos, ticket médio, unidades, Fortvigor, premium, genérico + similar e CMV. Números do Trier (vendas menos devoluções), atualizados toda madrugada com o dia anterior." />
+      <PageHeader eyebrow="Vendas" titulo="Venda por filial" descricao="Ranking das lojas no período: venda, atendimentos, ticket médio, unidades, Fortvigor, premium, genérico + similar e CMV. Números do Trier (vendas menos devoluções), lidos a cada 10 minutos das 7h às 23h50 (o dia de hoje é parcial) e o dia inteiro de novo de madrugada." />
       <AbasVendas ativa="/vendas/filiais" papel={sessao.papel} />
+      <AtualizaSozinho />
       <AvisoDiasFaltando faltam={faltam.length} texto={`(${faixasDeDias(faltam)})`} admin={sessao.papel === "admin"} />
 
       <form method="get" className="mb-4 flex flex-wrap items-end gap-2 rounded-xl border bg-card p-3">

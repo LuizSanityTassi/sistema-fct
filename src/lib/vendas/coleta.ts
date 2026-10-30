@@ -3,6 +3,8 @@
 // números do dia nas tabelas de vendas.
 // - relatórios diários (por filial, grupos, laboratórios, vendedores, tele-entrega): um pedido por dia;
 // - vendedor por grupo: o mês do dia 1 até a data (base da premiação), refeito a cada dia.
+// Coleta PARCIAL = o dia de hoje, buscado a cada 10 minutos pelo robô de hoje: não conta como feita (a madrugada busca o
+// dia inteiro de novo) e de cada relatório fica só a última.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buscarVendasTrier, RELATORIOS_VENDAS, type PedidoVendasTrier, type RelatorioVendas } from "@/lib/conciliacao/trier-robo";
 import type { CredenciaisTrier } from "@/lib/integracoes/segredos";
@@ -22,7 +24,7 @@ const RELATORIOS_HISTORICO: RelatorioVendas[] = ["filiais", "grupos"];
 
 export type ResultadoColetaVendas = { ok: number; vazios: number; erros: { relatorio: RelatorioVendas; de: string; ate: string; erro: string }[]; restantes: PedidoVendasTrier[]; ms: number };
 
-export async function coletarVendas(client: Cliente, cred: CredenciaisTrier, pedidos: PedidoVendasTrier[], quem: string | null, prazoMs: number): Promise<ResultadoColetaVendas> {
+export async function coletarVendas(client: Cliente, cred: CredenciaisTrier, pedidos: PedidoVendasTrier[], quem: string | null, prazoMs: number, parcial = false): Promise<ResultadoColetaVendas> {
   let ok = 0;
   let vazios = 0;
   const erros: ResultadoColetaVendas["erros"] = [];
@@ -35,13 +37,18 @@ export async function coletarVendas(client: Cliente, cred: CredenciaisTrier, ped
       const arquivo_b64 = resp.xlsx?.toString("base64") ?? null;
       const { data, error } = await client
         .from("vendas_coletas")
-        .insert({ relatorio: resp.relatorio, de: resp.de, ate: resp.ate, status, erro: resp.erro ?? null, ms: resp.ms, tamanho: resp.xlsx?.length ?? null, arquivo_b64, criado_por: quem })
+        .insert({ relatorio: resp.relatorio, de: resp.de, ate: resp.ate, status, erro: resp.erro ?? null, ms: resp.ms, tamanho: resp.xlsx?.length ?? null, arquivo_b64, criado_por: quem, parcial })
         .select("id")
         .single();
       let erro = error ? `não consegui gravar: ${error.message}` : resp.erro;
       if (!erro && data && arquivo_b64) erro = (await lerColetaAnotando(client, { id: data.id, relatorio: resp.relatorio, de: resp.de, ate: resp.ate, arquivo_b64 }, filiais)).erro ?? undefined;
-      if (erro) erros.push({ relatorio: resp.relatorio, de: resp.de, ate: resp.ate, erro });
-      else if (status === "ok") ok++;
+      if (erro) {
+        erros.push({ relatorio: resp.relatorio, de: resp.de, ate: resp.ate, erro });
+        return;
+      }
+      // parcial lida: as leituras parciais anteriores do mesmo relatório e período saem (os números já são os desta)
+      if (data && parcial) await client.from("vendas_coletas").delete().eq("parcial", true).eq("relatorio", resp.relatorio).eq("de", resp.de).eq("ate", resp.ate).neq("id", data.id);
+      if (status === "ok") ok++;
       else vazios++;
     },
     prazoMs,
@@ -71,13 +78,13 @@ export function pedidosDoPeriodo(de: string, ate: string, relatorios: RelatorioV
 }
 
 /** Tira os pedidos que já foram buscados (ok ou sem movimento) para o mesmo relatório e período. Erro de leitura se
- * resolve lendo de novo o Excel guardado, sem buscar outra vez. */
+ * resolve lendo de novo o Excel guardado, sem buscar outra vez. A leitura parcial (dia ainda correndo) não conta. */
 export async function pedidosPendentes(client: Cliente, pedidos: PedidoVendasTrier[]) {
   if (!pedidos.length) return [];
   const datas = pedidos.map((p) => p.de).sort();
   const feitos = new Set<string>();
   for (let desde = 0; ; desde += 1000) {
-    const { data, error } = await client.from("vendas_coletas").select("relatorio, de, ate").in("status", ["ok", "vazio"]).gte("de", datas[0]).lte("de", datas[datas.length - 1]).range(desde, desde + 999);
+    const { data, error } = await client.from("vendas_coletas").select("relatorio, de, ate").in("status", ["ok", "vazio"]).eq("parcial", false).gte("de", datas[0]).lte("de", datas[datas.length - 1]).range(desde, desde + 999);
     if (error) throw new Error(error.message);
     for (const c of data ?? []) feitos.add(`${c.relatorio}|${c.de}|${c.ate}`);
     if ((data?.length ?? 0) < 1000) break;
@@ -108,4 +115,20 @@ export async function pedidosDoRoboVendas(admin: Cliente, agora = new Date()): P
   const historico = await pedidosPendentes(admin, pedidosDoPeriodo(INICIO_HISTORICO, diaBrasil(agora, DIAS_CONFERIDOS + 1), RELATORIOS_HISTORICO));
   const vistos = new Set([...recentes, ...mes, ...doisMeses].map((p) => `${p.relatorio}|${p.de}|${p.ate}`));
   return [...recentes, ...mes, ...doisMeses, ...historico.filter((p) => !vistos.has(`${p.relatorio}|${p.de}|${p.ate}`))];
+}
+
+/** Relatórios de Excel grande (laboratórios, vendedor por grupo do mês): no robô de hoje entram uma vez por hora. */
+const PESADOS_DE_HOJE: RelatorioVendas[] = ["laboratorios", "vendedores"];
+
+/** Pedidos do robô de hoje (a cada 10 minutos): os relatórios diários do dia corrente e, se a última leitura parcial
+ * deles tem mais de 55 minutos, os pesados (vendedores por grupo do dia 1 até hoje). */
+export async function pedidosDeHoje(admin: Cliente, agora = new Date()): Promise<PedidoVendasTrier[]> {
+  const hoje = diaBrasil(agora, 0);
+  const { data, error } = await admin.from("vendas_coletas").select("relatorio").eq("parcial", true).eq("ate", hoje).in("relatorio", PESADOS_DE_HOJE).in("status", ["ok", "vazio"]).gt("coletado_em", new Date(agora.getTime() - 55 * 60_000).toISOString());
+  if (error) throw new Error(error.message);
+  const recentes = new Set((data ?? []).map((c) => c.relatorio));
+  return [
+    ...RELATORIOS_DIARIOS.filter((r) => !PESADOS_DE_HOJE.includes(r)).map((relatorio) => ({ relatorio, de: hoje, ate: hoje })),
+    ...PESADOS_DE_HOJE.filter((r) => !recentes.has(r)).map((relatorio) => ({ relatorio, de: relatorio === "vendedores" ? `${hoje.slice(0, 7)}-01` : hoje, ate: hoje })),
+  ];
 }

@@ -7,7 +7,7 @@ import { EstadoVazio } from "@/components/layout/painel";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
-import { chaveMetaFilial, chaveMetaVendedor, equipeTelevendas, hojeNoBrasil, MESES, mesmoDia, metasDoMes, somarDias, TELEVENDAS, ultimoDia, vendasPorFilial, vendedoresNoPeriodo } from "@/lib/data/vendas";
+import { chaveMetaFilial, chaveMetaVendedor, equipeTelevendas, MESES, mesmoDia, metasDoMes, TELEVENDAS, ultimoDia, ultimoDiaVendas, vendasPorFilial, vendedoresNoPeriodo } from "@/lib/data/vendas";
 import { INICIO_HISTORICO } from "@/lib/vendas/coleta";
 import { AbasVendas, decimal, moeda, pct } from "../comum";
 import { preencherMetas, salvarMetas } from "./actions";
@@ -107,17 +107,18 @@ function TabelaMetas({ linhas, rotulo, rotuloTotal = "Total", mesAnterior, temRe
 }
 
 export default async function MetasPage({ searchParams }: PageProps<"/vendas/metas">) {
-  const [sessao, sp] = await Promise.all([exigirAcesso("/vendas/metas"), searchParams]);
+  const [sessao, sp, ultimo] = await Promise.all([exigirAcesso("/vendas/metas"), searchParams, ultimoDiaVendas()]);
   const s = (k: string) => (typeof sp[k] === "string" ? sp[k] : "");
   const podeEditar = sessao.papel === "admin" || sessao.papel === "financeiro";
-  const ontem = somarDias(hojeNoBrasil(), -1);
-  const mesAtual = `${ontem.slice(0, 7)}-01`;
+  // realizado até o último dia lido (hoje parcial, quando o robô de hoje já leu)
+  const lido = ultimo.dia;
+  const mesAtual = `${lido.slice(0, 7)}-01`;
   const meses = mesesDoSeletor(mesAtual);
   const mes = meses.includes(`${s("mes")}-01`) ? `${s("mes")}-01` : mesAtual;
   const secao: Secao = SECOES.some((x) => x.chave === s("secao")) ? (s("secao") as Secao) : "filiais";
   const fim = fimDoMes(mes);
-  const ateReal = fim < ontem ? fim : ontem;
-  const temRealizado = mes <= ontem;
+  const ateReal = fim < lido ? fim : lido;
+  const temRealizado = mes <= lido;
   const decorrido = temRealizado ? Math.min(100, (Number(ateReal.slice(8, 10)) / Number(fim.slice(8, 10))) * 100) : null;
   const ant = mesmoDia(mes, 1);
   const antFim = fimDoMes(ant);
@@ -184,7 +185,7 @@ export default async function MetasPage({ searchParams }: PageProps<"/vendas/met
 
   return (
     <>
-      <PageHeader eyebrow="Vendas" titulo="Metas de venda" descricao="Meta do mês por filial, para o televendas e por vendedor (das filiais e do tele). O realizado vem do Trier (até ontem) e aparece também no painel, na venda por filial e no televendas." />
+      <PageHeader eyebrow="Vendas" titulo="Metas de venda" descricao="Meta do mês por filial, para o televendas e por vendedor (das filiais e do tele). O realizado vem do Trier (até hoje, lido a cada 10 minutos) e aparece também no painel, na venda por filial e no televendas." />
       <AbasVendas ativa="/vendas/metas" papel={sessao.papel} />
 
       <form method="get" className="mb-4 flex flex-wrap items-end gap-2 rounded-xl border bg-card p-3">
