@@ -57,7 +57,7 @@ const checar = ({ error }: { error: { message: string } | null }) => {
   if (error) throw new Error(error.message);
 };
 
-const DIARIOS: RelatorioVendas[] = ["filiais", "grupos", "laboratorios", "atendimentos", "tele_entrega"];
+const DIARIOS: RelatorioVendas[] = ["filiais", "grupos", "laboratorios", "atendimentos", "tele_entrega", "ecommerce"];
 
 /** Lê uma coleta e grava os números. Lança LeituraErro quando o Excel não tem o formato esperado. */
 export async function lerColeta(client: Cliente, coleta: ColetaParaLer, filiais: Map<number, string>): Promise<ResultadoLeitura> {
@@ -137,6 +137,9 @@ export async function lerColeta(client: Cliente, coleta: ColetaParaLer, filiais:
       ),
     );
     linhas = rows.length;
+  } else if (rel === "ecommerce") {
+    // o Excel fica guardado; a leitura (venda e-commerce por vendedor) entra quando o formato for conferido
+    throw new LeituraErro("e-commerce: Excel guardado, leitura ainda não liberada");
   } else throw new LeituraErro(`relatório desconhecido: ${coleta.relatorio}`);
 
   checar(await client.from("vendas_coletas").update({ lido_em: new Date().toISOString(), linhas, erro: null }).eq("id", coleta.id));

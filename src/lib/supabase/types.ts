@@ -6026,6 +6026,20 @@ export type Database = {
             venda_grupos: number
         }[]
       }
+      vendas_televendas_grupos: {
+        Args: {
+          p_ate: string
+          p_de: string
+        }
+        Returns: {
+          custo: number
+          grupo_codigo: number
+          grupo_nome: string
+          unidades: number
+          venda: number
+          vendedor_codigo: number
+        }[]
+      }
       vendas_televendas: {
         Args: {
           p_ate: string

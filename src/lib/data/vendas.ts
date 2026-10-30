@@ -148,6 +148,16 @@ export function resumirTelevendas(linhas: LinhaTelevendas[]): ResumoTelevendas {
   return { ...t, ticket: div(t.venda, t.atendimentos), cmv: cmv === null ? null : cmv * 100, vendedores: new Set(linhas.map((l) => l.vendedorCodigo)).size, lojas: new Set(linhas.map((l) => l.branchId)).size };
 }
 
+export type GrupoTelevendas = { vendedorCodigo: number; grupoCodigo: number; grupoNome: string; venda: number; unidades: number; custo: number };
+
+/** Mix por grupo de cada vendedor do televendas no período (do relatório vendedor × grupo do mês, na proporção). */
+export async function televendasGrupos(de: string, ate: string): Promise<GrupoTelevendas[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("vendas_televendas_grupos", { p_de: de, p_ate: ate });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => ({ vendedorCodigo: r.vendedor_codigo, grupoCodigo: r.grupo_codigo, grupoNome: r.grupo_nome, venda: n(r.venda), unidades: n(r.unidades), custo: n(r.custo) }));
+}
+
 /** Equipe cadastrada (quem conta como televendas). */
 export async function equipeTelevendas() {
   const supabase = await createClient();

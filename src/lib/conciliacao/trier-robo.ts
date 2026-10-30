@@ -692,6 +692,8 @@ export const RELATORIOS_VENDAS = {
   atendimentos: { pagina: "Rel_0028.pod", rotulo: "Vendas por vendedor, por filial", ajustes: { agrup_fil: "2", sel_relatorio: "0", sel_vendas: "2", chk_vendastel: "N" } },
   vendedores: { pagina: "Rel_0028.pod", rotulo: "Vendedor por grupo de produtos (mês)", ajustes: { agrup_fil: "2", sel_relatorio: "3", sel_vendas: "2", chk_vendastel: "N" } },
   tele_entrega: { pagina: "Rel_0028.pod", rotulo: "Tele-entrega por vendedor, por filial", ajustes: { agrup_fil: "2", sel_relatorio: "0", sel_vendas: "2", chk_vendastel: "S" } },
+  // só as vendas e-commerce (com a forma de pagamento): saem do televendas
+  ecommerce: { pagina: "Rel_0027.pod", rotulo: "Vendas e-commerce (relação de vendas)", ajustes: { agrup_fil: "2", selecaoVendas: "2", agrupProduto: "0", chk_venda_ecommerce: "S", chk_impr_formapagto: "S" } },
 } as const;
 export type RelatorioVendas = keyof typeof RELATORIOS_VENDAS;
 
