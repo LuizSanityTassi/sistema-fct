@@ -5876,6 +5876,10 @@ export type Database = {
         Args: { p_arquivo: string; p_avisos?: Json; p_empresa: string; p_meses: string[]; p_valores: Json }
         Returns: string
       }
+      dre_contabil_lancar_manual: {
+        Args: { p_competencia: string; p_empresa: string; p_valores: Json }
+        Returns: number
+      }
       caixa_quebra_folha_definir: {
         Args: { p_ligado: boolean }
         Returns: number

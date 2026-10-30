@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
-import { comSinalDaConta, ehLinhaRateio } from "@/lib/financeiro/dre-contabil";
+import { valoresManuais } from "@/lib/data/dre-contabil";
+import { comSinalDaConta, ehLinhaManual, ehLinhaRateio, MES_MANUAL, ROTULO_LINHA, sinalManual } from "@/lib/financeiro/dre-contabil";
 import { CHAVE_LEMBRETE_DRE } from "@/lib/financeiro/dre-lembrete";
 import { lerValor } from "@/lib/sangrias/rotulos";
 import { createClient } from "@/lib/supabase/server";
@@ -51,6 +52,53 @@ export async function excluirRateio(fd: FormData) {
   const { data } = await supabase.from("dre_contabil_rateios").delete().eq("id", id).select("empresa, competencia, item, valor").maybeSingle();
   if (data) await registrarAuditoria(supabase, { userId: sessao.id, acao: "excluir", entidade: "dre_contabil_rateios", registroId: id, anterior: data });
   revalidatePath("/financeiro/dre");
+}
+
+export type EstadoManual = { erro?: string; ok?: string };
+
+/** Valor digitado no lançamento à mão: vazio = 0; "-" na frente = sinal invertido (estorno). */
+function lerManual(bruto: string): number | null {
+  const t = bruto.replace(/[R$\s]/g, "");
+  if (!t || /^-?0+([.,]0+)?$/.test(t)) return 0;
+  const negativo = t.startsWith("-");
+  const v = lerValor(negativo ? t.slice(1) : t);
+  return v === null ? null : negativo ? -v : v;
+}
+
+/**
+ * Setembro/2026: o contador digita as contas "amarelas" de cada filial (campos "v:<filial ou empresa>:<conta>").
+ * Grava só o que mudou; o banco só aceita esse mês e essas contas.
+ */
+export async function lancarManual(_prev: EstadoManual, fd: FormData): Promise<EstadoManual> {
+  const sessao = await getSessao();
+  if (!podeEditar(sessao.papel)) return { erro: "Só Administrador, Financeiro e Contador lançam a DRE." };
+  const empresa = texto(fd, "empresa");
+  if (!empresa) return { erro: "Escolha a empresa." };
+  const atuais = await valoresManuais(empresa);
+  const mudou: { branch_id: string | null; linha: string; valor: number; antes: number }[] = [];
+  for (const [nome, bruto] of fd.entries()) {
+    const m = /^v:([0-9a-f-]{36}|empresa):([a-z_]+)$/i.exec(nome);
+    if (!m || typeof bruto !== "string") continue;
+    const [, filial, linha] = m;
+    if (!ehLinhaManual(linha) || (filial !== "empresa" && !UUID.test(filial))) return { erro: "Essa conta não está liberada para lançar à mão." };
+    const n = lerManual(bruto);
+    if (n === null) return { erro: `Valor inválido em ${ROTULO_LINHA[linha]}: "${bruto}". Use o formato 12.345,67.` };
+    const valor = Math.round(sinalManual(linha) * n * 100) / 100;
+    const branch = filial === "empresa" ? null : filial;
+    const antes = atuais.get(`${branch ?? ""}|${linha}`) ?? 0;
+    if (Math.abs(valor - antes) >= 0.005) mudou.push({ branch_id: branch, linha, valor, antes });
+  }
+  if (!mudou.length) return { ok: "Nada mudou." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("dre_contabil_lancar_manual", {
+    p_empresa: empresa,
+    p_competencia: `${MES_MANUAL}-01`,
+    p_valores: mudou.map(({ branch_id, linha, valor }) => ({ branch_id, linha, valor })),
+  });
+  if (error) return { erro: `Não foi possível salvar: ${error.message}` };
+  await registrarAuditoria(supabase, { userId: sessao.id, acao: "editar", entidade: "dre_contabil", novo: { empresa, competencia: MES_MANUAL, lancamento_manual: mudou } });
+  revalidatePath("/financeiro/dre");
+  return { ok: `Setembro da ${empresa} salvo: ${mudou.length === 1 ? "1 valor alterado" : `${mudou.length} valores alterados`}.` };
 }
 
 export type EstadoLembrete = { erro?: string; ok?: string };

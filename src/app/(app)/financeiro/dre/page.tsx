@@ -8,16 +8,17 @@ import { Status } from "@/components/layout/status";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
-import { contas, distribuirRateios, empresasDre, juntarMapas, lancamentosDre, somar, temLancamento, type MapaDre } from "@/lib/data/dre-contabil";
-import { baseDoRateio, calcularDre, ROTULO_LINHA, situacaoDoLucro, type Lancamentos } from "@/lib/financeiro/dre-contabil";
+import { contas, distribuirRateios, empresasDre, juntarMapas, lancamentosDre, somar, temLancamento, valoresManuais, type MapaDre } from "@/lib/data/dre-contabil";
+import { baseDoRateio, calcularDre, ehLinhaManual, LINHAS_MANUAIS, MES_MANUAL, ROTULO_LINHA, sinalManual, situacaoDoLucro, type Lancamentos, type LinhaManual } from "@/lib/financeiro/dre-contabil";
 import { moedaFin } from "@/lib/financeiro/formatos";
 import { formatarDataHora } from "@/lib/formatos";
 import { rotuloCompetencia } from "@/lib/rh/competencia";
 import { createClient } from "@/lib/supabase/server";
-import { excluirRateio, salvarRateio } from "./actions";
+import { excluirRateio, lancarManual, salvarRateio } from "./actions";
 import { AbasDre, AvisoCobertura, cabecalhosOrdenaveis, Cartao, empresasSemDre, Filtros, mostraPct, OpcoesFiliais, query, TODAS, tom, VISOES_DRE, type Direcao, type Props, type VisaoDre } from "./comum";
 import { Comparativo } from "./comparativo";
 import { Demonstrativo } from "./demonstrativo";
+import { LancarForm } from "./lancar-form";
 import { RateioForm } from "./rateio-form";
 
 export const metadata = { title: "DRE" };
@@ -120,8 +121,86 @@ export default async function DrePage({ searchParams }: PageProps<"/financeiro/d
         <VerDemonstrativo {...props} />
       ) : ver === "comparativo" ? (
         <Comparativo {...props} />
+      ) : ver === "lancar" && podeImportar ? (
+        <Lancar {...props} />
+      ) : ver === "lancar" ? (
+        <Resumo {...props} porEmpresa={dados.map((d, i) => ({ empresa: selecionadas[i].empresa, mapa: d.mapa }))} />
       ) : (
         <Rateio {...props} podeEditar={podeImportar} />
+      )}
+    </>
+  );
+}
+
+/** As contas "amarelas" com o nome da planilha do contador. */
+const ROTULO_MANUAL: Record<LinhaManual, string> = {
+  devolucoes: "(−) Devolução OFX",
+  comissoes: "(−) Comissões s/ vendas",
+  despesas_pessoal: "Despesas pessoal",
+  despesas_administrativas: "Despesas administrativa",
+  despesas_comerciais: "Despesas comerciais",
+  outras_despesas: "Outras despesas / tributos",
+  depreciacao: "Despesas c/ depreciação",
+  receita_financeira: "Receita financeira",
+  outras_receitas: "Outras receitas",
+  despesas_financeiras: "Despesas financeira",
+};
+
+/** Setembro/2026: o contador digita as contas amarelas de cada filial (a importação não mexe nelas). */
+async function Lancar({ base, empresas, todas, mapa, filiais }: Props) {
+  if (todas) {
+    return (
+      <section className="rounded-xl border bg-card">
+        <EstadoVazio
+          icone={ScrollText}
+          titulo="O lançamento é de cada empresa"
+          descricao="Escolha a empresa para digitar setembro (Itajaí está na Varela e Blumenau na Nazário):"
+          acao={
+            <div className="flex flex-wrap justify-center gap-2">
+              {empresas.map((e) => (
+                <Button key={e} variant="outline" size="sm" nativeButton={false} render={<Link href={`/financeiro/dre?${query({ empresa: e, ano: base.ano, ver: "lancar" })}`} />}>
+                  {e}
+                </Button>
+              ))}
+            </div>
+          }
+        />
+      </section>
+    );
+  }
+  const empresa = base.empresa;
+  const atuais = await valoresManuais(empresa);
+  const comValor = new Set([...atuais.keys()].map((k) => k.split("|")[0]));
+  const lista = filiais
+    .filter((f) => temLancamento(mapa, f.id, MES_MANUAL) || comValor.has(f.id))
+    .map((f) => ({ chave: f.id, codigo: f.codigo, nome: f.nome }));
+  if (comValor.has("") || temLancamento(mapa, "", MES_MANUAL)) lista.push({ chave: "empresa", codigo: empresa, nome: "valor da empresa (sem filial)" });
+  const iniciais: Record<string, string> = {};
+  for (const [k, v] of atuais) {
+    const [filial, linha] = k.split("|");
+    if (!ehLinhaManual(linha)) continue;
+    const digitado = v * sinalManual(linha);
+    if (Math.abs(digitado) >= 0.005) iniciais[`${filial || "empresa"}:${linha}`] = digitado.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  return (
+    <>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        {empresas.map((e) => (
+          <Button key={e} variant={e === empresa ? "default" : "outline"} size="sm" nativeButton={false} render={<Link href={`/financeiro/dre?${query({ empresa: e, ano: base.ano, ver: "lancar" })}`} />}>
+            {e}
+          </Button>
+        ))}
+        <p className="text-sm text-muted-foreground">
+          {rotuloCompetencia(MES_MANUAL)}: as contas em amarelo são digitadas aqui, filial por filial; a importação da planilha não mexe nelas. Digite sem sinal, como na
+          planilha (despesas e deduções entram negativas, receitas positivas); um “-” na frente inverte (estorno).
+        </p>
+      </div>
+      {lista.length ? (
+        <LancarForm action={lancarManual} empresa={empresa} filiais={lista} contas={LINHAS_MANUAIS.map((linha) => ({ linha, rotulo: ROTULO_MANUAL[linha] }))} iniciais={iniciais} />
+      ) : (
+        <section className="rounded-xl border bg-card">
+          <EstadoVazio icone={ScrollText} titulo={`A ${empresa} não tem ${rotuloCompetencia(MES_MANUAL).toLowerCase()} importado`} descricao="Importe o mês na aba Importar novo mês para aparecerem as filiais." />
+        </section>
       )}
     </>
   );

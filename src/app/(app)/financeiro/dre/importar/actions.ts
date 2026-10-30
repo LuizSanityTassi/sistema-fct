@@ -34,7 +34,7 @@ export async function conferirPlanilhaDre(_prev: EstadoDre, fd: FormData): Promi
   }
 }
 
-const MES = /^d{4}-(0[1-9]|1[0-2])$/;
+const MES = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 /**
  * Passo 2: grava. modo "mes" (padrão da aba Importar novo mês) = só o mês escolhido; modo "todos" = todos os meses do

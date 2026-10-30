@@ -1,5 +1,5 @@
 // Leitura da DRE contábil (servidor). O RLS deixa ver só Administrador, Financeiro e Contador.
-import { baseDoRateio, calcularDre, ehLinhaDre, ehLinhaRateio, ratear, somarLancamentos, type Lancamentos, type LinhaRateio } from "@/lib/financeiro/dre-contabil";
+import { baseDoRateio, calcularDre, ehLinhaDre, ehLinhaRateio, LINHAS_MANUAIS, MES_MANUAL, ratear, somarLancamentos, type Lancamentos, type LinhaRateio } from "@/lib/financeiro/dre-contabil";
 import { createClient } from "@/lib/supabase/server";
 
 /** Empresas com DRE importada e os meses de cada uma ("aaaa-mm"), do mais recente. */
@@ -34,6 +34,24 @@ export async function rateiosDre(empresa: string, de: string, ate: string): Prom
     .order("item");
   if (error) throw new Error(error.message);
   return (data ?? []).flatMap((r) => (ehLinhaRateio(r.linha) ? [{ ...r, competencia: r.competencia.slice(0, 7), linha: r.linha, valor: Number(r.valor) }] : []));
+}
+
+/** Valores das contas lançadas à mão no mês liberado (sem rateio): chave "filial|conta" ("" = valor da empresa). */
+export async function valoresManuais(empresa: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("dre_contabil")
+    .select("branch_id, linha, valor")
+    .eq("empresa", empresa)
+    .eq("competencia", `${MES_MANUAL}-01`)
+    .in("linha", [...LINHAS_MANUAIS]);
+  if (error) throw new Error(error.message);
+  const out = new Map<string, number>();
+  for (const r of data ?? []) {
+    const k = `${r.branch_id ?? ""}|${r.linha}`;
+    out.set(k, (out.get(k) ?? 0) + Number(r.valor));
+  }
+  return out;
 }
 
 /** Divisão de cada rateio do mês entre as filiais (pela receita bruta do mês). */

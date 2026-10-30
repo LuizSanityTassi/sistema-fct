@@ -39,6 +39,7 @@ export const VISOES_DRE = [
   ["demonstrativo", "Demonstrativo"],
   ["comparativo", "Comparativo"],
   ["rateio", "Rateio por faturamento"],
+  ["lancar", "Lançar setembro"],
 ] as const;
 export type VisaoDre = (typeof VISOES_DRE)[number][0];
 
@@ -50,7 +51,7 @@ export function AbasDre({ ativa, base, filial, podeImportar }: { ativa: VisaoDre
   const classe = (sel: boolean) => `rounded-full border px-3 py-1 ${sel ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary/40"}`;
   return (
     <nav className="mb-4 flex flex-wrap items-center gap-2 text-sm" aria-label="Visões da DRE">
-      {VISOES_DRE.map(([v, r]) => (
+      {VISOES_DRE.filter(([v]) => v !== "lancar" || podeImportar).map(([v, r]) => (
         <Link
           key={v}
           href={`/financeiro/dre${base || v !== "resumo" ? "?" : ""}${query({ ...base, ver: v === "resumo" ? undefined : v, filial: v === "demonstrativo" ? filial : undefined })}`}

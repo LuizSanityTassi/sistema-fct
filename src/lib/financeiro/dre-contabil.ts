@@ -308,6 +308,30 @@ const RECEITAS_RATEIO = new Set<LinhaRateio>(["receita_financeira", "outras_rece
 /** O valor vai digitado sem sinal; na DRE, receita entra positiva e despesa/dedução negativa. */
 export const comSinalDaConta = (linha: LinhaRateio, valor: number) => (RECEITAS_RATEIO.has(linha) ? Math.abs(valor) : -Math.abs(valor));
 
+// ---------- contas lançadas à mão (setembro/2026) ----------
+
+/**
+ * Mês em que as contas "amarelas" da planilha (deduções sem imposto, despesas e o financeiro) são digitadas pelo
+ * contador na aba "Lançar setembro"; a importação da planilha não mexe nelas (private.dre_manual no banco).
+ */
+export const MES_MANUAL = "2026-09";
+export const LINHAS_MANUAIS = [
+  "devolucoes",
+  "comissoes",
+  "despesas_pessoal",
+  "despesas_administrativas",
+  "despesas_comerciais",
+  "outras_despesas",
+  "depreciacao",
+  "receita_financeira",
+  "outras_receitas",
+  "despesas_financeiras",
+] as const satisfies readonly LinhaDre[];
+export type LinhaManual = (typeof LINHAS_MANUAIS)[number];
+export const ehLinhaManual = (v: unknown): v is LinhaManual => typeof v === "string" && (LINHAS_MANUAIS as readonly string[]).includes(v);
+/** Digitado como na planilha, sem sinal: receita entra positiva, dedução/despesa negativa; um "-" na frente inverte (estorno). */
+export const sinalManual = (linha: LinhaManual) => (linha === "receita_financeira" || linha === "outras_receitas" ? 1 : -1);
+
 /** Os itens que a planilha rateia hoje (PIS/COFINS, ICMS e despesa financeira). */
 export const SUGESTOES_RATEIO: { item: string; linha: LinhaRateio }[] = [
   { item: "PIS/COFINS", linha: "impostos_vendas" },
