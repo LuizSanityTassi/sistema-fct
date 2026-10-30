@@ -7,7 +7,7 @@ import { EstadoVazio } from "@/components/layout/painel";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
-import { chaveMetaFilial, chaveMetaVendedor, equipeTelevendas, MESES, mesmoDia, metasDoMes, TELEVENDAS, ultimoDia, ultimoDiaVendas, vendasPorFilial, vendedoresNoPeriodo } from "@/lib/data/vendas";
+import { chaveMetaFilial, chaveMetaVendedor, ehTele, equipeTelevendas, MESES, mesmoDia, metasDoMes, ultimoDia, ultimoDiaVendas, vendasPorFilial, vendedoresNoPeriodo } from "@/lib/data/vendas";
 import { INICIO_HISTORICO } from "@/lib/vendas/coleta";
 import { AbasVendas, decimal, moeda, pct } from "../comum";
 import { preencherMetas, salvarMetas } from "./actions";
@@ -151,7 +151,7 @@ export default async function MetasPage({ searchParams }: PageProps<"/vendas/met
   if (secao === "filiais") {
     const [real, ref] = await Promise.all([temRealizado ? vendasPorFilial(mes, ateReal) : Promise.resolve([]), vendasPorFilial(ant, antFim)]);
     const realPor = new Map(real.map((l) => [l.branchId, l.venda]));
-    const lojas = new Map([...ref, ...real].filter((l) => l.regional !== TELEVENDAS).map((l) => [l.branchId, l]));
+    const lojas = new Map([...ref, ...real].filter((l) => !ehTele(l)).map((l) => [l.branchId, l]));
     linhas = [...lojas.values()]
       .sort((a, b) => a.regional.localeCompare(b.regional) || a.codigo.localeCompare(b.codigo))
       .map((l) => ({ chave: chaveMetaFilial(l), titulo: <><span className="font-mono text-xs">{l.codigo}</span> <span className="text-sm">{l.nome}</span></>, detalhe: l.regional, referencia: ref.find((r) => r.branchId === l.branchId)?.venda ?? null, meta: meta(chaveMetaFilial(l)), realizado: temRealizado ? (realPor.get(l.branchId) ?? 0) : null }));
@@ -165,7 +165,8 @@ export default async function MetasPage({ searchParams }: PageProps<"/vendas/met
       vendedoresNoPeriodo(ant, antFim),
       equipeTelevendas(),
     ]);
-    const tele = (xs: typeof real) => xs.find((l) => l.regional === TELEVENDAS)?.venda ?? 0;
+    // a rede do tele = as centrais (filiais TLV-…) somadas
+    const tele = (xs: typeof real) => xs.filter(ehTele).reduce((s, l) => s + l.venda, 0);
     const linhaVendedor = (v: (typeof equipe)[number]): LinhaMeta => ({
       chave: chaveMetaVendedor(v.vendedor_codigo),
       titulo: <span className="text-sm">{v.nome}</span>,

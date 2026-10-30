@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
-import { chaveMetaFilial, chaveMetaVendedor, metasDoMes, mesmoDia, ultimoDia, vendasPorFilial, vendedoresNoPeriodo } from "@/lib/data/vendas";
+import { chaveMetaFilial, chaveMetaVendedor, ehTele, metasDoMes, mesmoDia, ultimoDia, vendasPorFilial, vendedoresNoPeriodo } from "@/lib/data/vendas";
 import { ehUuid } from "@/lib/data/filiais";
 import { createClient } from "@/lib/supabase/server";
 
@@ -94,10 +94,10 @@ export async function preencherMetas(_prev: EstadoMetas, fd: FormData): Promise<
   const atuais = await metasDoMes(mes);
   const base = new Map<string, number>();
   if (secao === "filiais" || secao === "televendas") {
-    for (const l of await vendasPorFilial(ini, fim)) {
-      const chave = chaveMetaFilial(l);
-      if ((secao === "televendas") === (chave === "televendas")) base.set(chave, l.venda);
-    }
+    const lojas = await vendasPorFilial(ini, fim);
+    // as centrais do tele (filiais TLV-…) ficam fora da aba Filiais; a meta da rede do tele é a soma delas
+    if (secao === "filiais") for (const l of lojas.filter((x) => !ehTele(x))) base.set(chaveMetaFilial(l), l.venda);
+    else base.set("televendas", lojas.filter(ehTele).reduce((s, l) => s + l.venda, 0));
   }
   if (secao === "televendas" || secao === "vendedores") {
     for (const v of await vendedoresNoPeriodo(ini, fim)) {

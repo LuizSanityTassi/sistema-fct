@@ -8,10 +8,14 @@ export const REGIONAIS_VENDAS = ["Sul", "Serra", "Oeste"] as const;
 export type RegionalVendas = (typeof REGIONAIS_VENDAS)[number];
 export const ehRegionalVendas = (r: string | null | undefined): r is RegionalVendas => REGIONAIS_VENDAS.includes(r as RegionalVendas);
 
-/** A equipe de televendas vem das funções como uma "regional" à parte (a venda dela sai das filiais). */
+/** A venda da equipe de televendas sai das filiais e vai para a filial da central de cada vendedor (código 'TLV-…',
+ * cidade = equipe; Criciúma e Lages no Sul, Concórdia no Oeste). Equipe sem central fica na "regional" Televendas. */
 export const TELEVENDAS = "Televendas" as const;
 export type RegionalOuTele = RegionalVendas | typeof TELEVENDAS;
 const ehRegionalOuTele = (r: string | null | undefined): r is RegionalOuTele => r === TELEVENDAS || ehRegionalVendas(r);
+export const PREFIXO_CENTRAL_TELE = "TLV-";
+/** Linha de venda do televendas (uma central ou a linha Televendas de equipe sem central). */
+export const ehTele = (l: { codigo: string; regional: string }) => l.regional === TELEVENDAS || l.codigo.startsWith(PREFIXO_CENTRAL_TELE);
 
 export const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 export const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
@@ -189,12 +193,23 @@ export async function equipeTelevendas() {
 export const chaveMetaFilial = (l: { branchId: string; regional: string }) => (l.regional === TELEVENDAS ? "televendas" : `filial:${l.branchId}`);
 export const chaveMetaVendedor = (codigo: number) => `vendedor:${codigo}`;
 
-/** Metas do mês (aaaa-mm-01) por chave. */
+/** Metas do mês (aaaa-mm-01) por chave. A meta de cada central do tele ('filial:<id da TLV-…>') é a soma das metas dos
+ * vendedores dela (a equipe só é lida por quem vê a rede). */
 export async function metasDoMes(mes: string): Promise<Map<string, number>> {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("vendas_metas").select("chave, valor").eq("mes", mes).range(0, 4999);
-  if (error) throw new Error(error.message);
-  return new Map((data ?? []).map((m) => [m.chave, n(m.valor)]));
+  const [metas, equipe, centrais] = await Promise.all([
+    supabase.from("vendas_metas").select("chave, valor").eq("mes", mes).range(0, 4999),
+    supabase.from("vendas_televendas_vendedores").select("vendedor_codigo, equipe"),
+    supabase.from("branches").select("id, cidade").like("codigo", `${PREFIXO_CENTRAL_TELE}%`).eq("ativo", true),
+  ]);
+  if (metas.error) throw new Error(metas.error.message);
+  const mapa = new Map((metas.data ?? []).map((m) => [m.chave, n(m.valor)]));
+  for (const c of centrais.data ?? []) {
+    const vendedores = (equipe.data ?? []).filter((v) => v.equipe === c.cidade).map((v) => mapa.get(chaveMetaVendedor(v.vendedor_codigo)));
+    const soma = vendedores.reduce<number>((s, v) => s + (v ?? 0), 0);
+    if (soma && !mapa.has(`filial:${c.id}`)) mapa.set(`filial:${c.id}`, soma);
+  }
+  return mapa;
 }
 
 export type VendedorPeriodo = { vendedorCodigo: number; vendedorNome: string; branchId: string; codigo: string; loja: string; regional: string | null; televendas: boolean; venda: number; atendimentos: number };

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
 import { cn } from "cn";
-import { chaveMetaFilial, diasSemVendas, ehRegionalVendas, faixasDeDias, metasDoMes, REGIONAIS_VENDAS, somar, TELEVENDAS, ultimoDiaVendas, vendasPorFilial, type LinhaFilialVendas } from "@/lib/data/vendas";
+import { chaveMetaFilial, diasSemVendas, ehRegionalVendas, ehTele, faixasDeDias, metasDoMes, REGIONAIS_VENDAS, somar, TELEVENDAS, ultimoDiaVendas, vendasPorFilial, type LinhaFilialVendas } from "@/lib/data/vendas";
 import { AtualizaSozinho } from "../atualiza-sozinho";
 import { AbasVendas, AvisoDiasFaltando, decimal, inteiro, moeda, pct } from "../comum";
 import { CamposPeriodo, lerPeriodoVendas } from "../periodo";
@@ -35,10 +35,10 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
   const ordem: Ordem = s("ordem") in ORDENS ? (s("ordem") as Ordem) : "venda";
 
   const [todas, faltam, metas] = await Promise.all([vendasPorFilial(de, ate), diasSemVendas(de, ate), periodo.ver === "mes" ? metasDoMes(`${periodo.mes}-01`) : Promise.resolve(new Map<string, number>())]);
-  // a linha Televendas (venda da equipe de tele-vendas, que sai das filiais) entra no ranking como uma loja
+  // as centrais do tele (venda da equipe de tele-vendas, que sai das filiais) entram no ranking como lojas da regional delas
   const linhas = todas.filter((l) => !regional || l.regional === regional).sort((a, b) => ORDENS[ordem].valor(b) - ORDENS[ordem].valor(a) || b.venda - a.venda);
   const total = somar(linhas);
-  const temTele = linhas.some((l) => l.regional === TELEVENDAS);
+  const temTele = linhas.some(ehTele);
   // meta do mês (só na visão mensal, quando há meta cadastrada)
   const metaDe = (l: LinhaFilialVendas) => metas.get(chaveMetaFilial(l)) ?? null;
   const temMeta = linhas.some((l) => metaDe(l) !== null);
@@ -125,7 +125,7 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
             </TableHeader>
             <TableBody>
               {linhas.map((l, i) => {
-                const tele = l.regional === TELEVENDAS;
+                const tele = ehTele(l);
                 return (
                 <TableRow key={l.branchId} className={cn(tele && "bg-sky-50/70 dark:bg-sky-950/30")}>
                   <TableCell className="text-xs font-semibold text-muted-foreground tabular-nums">{i + 1}º</TableCell>
@@ -133,14 +133,14 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
                     {tele ? (
                       <Link href={`/vendas/televendas?ver=${periodo.ver}&mes=${periodo.mes}&de=${de}&ate=${ate}`} className="inline-flex items-center gap-1.5 text-sm font-semibold hover:underline">
                         <Headset className="size-4 text-sky-600" aria-hidden />
-                        Televendas
+                        {l.regional === TELEVENDAS ? "Televendas" : l.nome}
                       </Link>
                     ) : (
                       <>
                         <span className="font-mono text-xs">{l.codigo}</span> <span className="text-sm">{l.nome}</span>
                       </>
                     )}
-                    {!regional && <span className="block text-[11px] text-muted-foreground">{tele ? "equipe de tele-vendas" : l.regional}</span>}
+                    {!regional && <span className="block text-[11px] text-muted-foreground">{tele ? (l.regional === TELEVENDAS ? "equipe de tele-vendas" : `${l.regional} · central de tele-vendas`) : l.regional}</span>}
                   </TableCell>
                   <TableCell className="text-right font-semibold tabular-nums">{moeda(l.venda)}</TableCell>
                   {temMeta && <TableCell className="hidden text-right tabular-nums text-muted-foreground lg:table-cell">{moeda(metaDe(l))}</TableCell>}
@@ -188,7 +188,7 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
         {temTele && (
           <>
             {" "}
-            Televendas = o que a equipe de tele-vendas vendeu: essa venda sai da filial onde o Trier lançou e fica só nesta linha (premium, gen+sim e unidades na proporção do mês de cada vendedor);{" "}
+            TELE = o que cada central de tele-vendas vendeu: essa venda sai da filial onde o Trier lançou e fica só na linha da central, que conta na regional dela (premium, gen+sim e unidades na proporção do mês de cada vendedor);{" "}
             <Link href={`/vendas/televendas?ver=${periodo.ver}&mes=${periodo.mes}&de=${de}&ate=${ate}`} className="underline">
               ver por vendedor
             </Link>
