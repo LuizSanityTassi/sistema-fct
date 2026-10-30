@@ -2814,6 +2814,50 @@ export type Database = {
           },
         ]
       }
+      vendas_metas: {
+        Row: {
+          alvo: string
+          atualizado_em: string
+          atualizado_por: string | null
+          branch_id: string | null
+          chave: string
+          id: string
+          mes: string
+          valor: number
+          vendedor_codigo: number | null
+        }
+        Insert: {
+          alvo: string
+          atualizado_em?: string
+          atualizado_por?: string | null
+          branch_id?: string | null
+          chave: string
+          id?: string
+          mes: string
+          valor: number
+          vendedor_codigo?: number | null
+        }
+        Update: {
+          alvo?: string
+          atualizado_em?: string
+          atualizado_por?: string | null
+          branch_id?: string | null
+          chave?: string
+          id?: string
+          mes?: string
+          valor?: number
+          vendedor_codigo?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendas_metas_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vendas_televendas_vendedores: {
         Row: {
           atualizado_em: string
@@ -6030,6 +6074,23 @@ export type Database = {
             unidades: number
             venda: number
             venda_grupos: number
+        }[]
+      }
+      vendas_vendedores_periodo: {
+        Args: {
+          p_ate: string
+          p_de: string
+        }
+        Returns: {
+          atendimentos: number
+          branch_id: string
+          codigo: string
+          loja: string
+          regional: string | null
+          televendas: boolean
+          venda: number
+          vendedor_codigo: number
+          vendedor_nome: string
         }[]
       }
       vendas_televendas_grupos: {

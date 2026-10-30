@@ -69,6 +69,7 @@ const ABAS = [
   { href: "/vendas", rotulo: "Painel" },
   { href: "/vendas/filiais", rotulo: "Venda por filial" },
   { href: "/vendas/televendas", rotulo: "Televendas" },
+  { href: "/vendas/metas", rotulo: "Metas" },
 ] as const;
 
 /** Abas das vendas (só as que o papel abre). */

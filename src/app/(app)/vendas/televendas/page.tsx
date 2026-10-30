@@ -7,7 +7,7 @@ import { ConfirmarAcao } from "@/components/layout/confirmar-acao";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
-import { diasSemVendas, equipeTelevendas, faixasDeDias, MESES, mesmoDia, resumirTelevendas, somar, televendasGrupos, televendasNoPeriodo, vendasPorFilial, type GrupoTelevendas, type LinhaTelevendas } from "@/lib/data/vendas";
+import { chaveMetaVendedor, diasSemVendas, equipeTelevendas, faixasDeDias, MESES, mesmoDia, metasDoMes, resumirTelevendas, somar, televendasGrupos, televendasNoPeriodo, vendasPorFilial, type GrupoTelevendas, type LinhaTelevendas } from "@/lib/data/vendas";
 import { AbasVendas, AvisoDiasFaltando, inteiro, moeda, moedaCurta, pct } from "../comum";
 import { Comparacao, MiniKpi, Secao } from "../painel-visual";
 import { CamposPeriodo, lerPeriodoVendas } from "../periodo";
@@ -66,6 +66,10 @@ export default async function TelevendasPage({ searchParams }: PageProps<"/venda
     televendasGrupos(de, ate),
     televendasGrupos(deAnt, ateAnt),
   ]);
+  // metas do mês (só na visão mensal)
+  const metas = periodo.ver === "mes" ? await metasDoMes(`${periodo.mes}-01`) : new Map<string, number>();
+  const metaVend = (codigo: string) => metas.get(chaveMetaVendedor(Number(codigo))) ?? null;
+  const metaTele = metas.get("televendas") ?? null;
 
   const t = resumirTelevendas(linhas);
   const tAnt = resumirTelevendas(linhasAnt);
@@ -121,7 +125,7 @@ export default async function TelevendasPage({ searchParams }: PageProps<"/venda
       ) : (
         <>
           <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <MiniKpi rotulo="Venda televendas" valor={moeda(t.venda)} comparacao={<Comparacao atual={t.venda} anterior={tAnt.venda} rotulo={rotuloAnt} />} detalhe={t.ecomVenda ? `sem ${moeda(t.ecomVenda)} de e-commerce (ficou na filial)` : undefined} />
+            <MiniKpi rotulo="Venda televendas" valor={moeda(t.venda)} comparacao={<Comparacao atual={t.venda} anterior={tAnt.venda} rotulo={rotuloAnt} />} detalhe={[metaTele ? `meta ${moeda(metaTele)} · ${pct((t.venda / metaTele) * 100, 1)} atingido` : "", t.ecomVenda ? `sem ${moeda(t.ecomVenda)} de e-commerce (ficou na filial)` : ""].filter(Boolean).join(" · ") || undefined} />
             <MiniKpi rotulo="Atendimentos" valor={inteiro(t.atendimentos)} comparacao={<Comparacao atual={t.atendimentos} anterior={tAnt.atendimentos} rotulo={rotuloAnt} />} />
             <MiniKpi rotulo="Ticket médio" valor={moeda(t.ticket)} comparacao={<Comparacao atual={t.ticket} anterior={tAnt.ticket} rotulo={rotuloAnt} />} />
             <MiniKpi rotulo="CMV" valor={pct(t.cmv, 1)} comparacao={<Comparacao atual={t.cmv} anterior={tAnt.cmv} rotulo={rotuloAnt} formato="pp" inverso />} />
@@ -141,6 +145,7 @@ export default async function TelevendasPage({ searchParams }: PageProps<"/venda
                     <TableHead>Equipe</TableHead>
                     <TableHead className="text-right">Venda R$</TableHead>
                     <TableHead className="hidden md:table-cell" />
+                    {metas.size > 0 && <TableHead className="text-right">% meta</TableHead>}
                     <TableHead className="text-right">Nº atend.</TableHead>
                     <TableHead className="text-right">Ticket médio</TableHead>
                     <TableHead className="text-right">CMV</TableHead>
@@ -171,6 +176,11 @@ export default async function TelevendasPage({ searchParams }: PageProps<"/venda
                         <TableCell className="hidden md:table-cell">
                           <Comparacao atual={v.venda} anterior={antPorVendedor.get(v.chave)?.venda ?? null} rotulo={rotuloAnt} />
                         </TableCell>
+                        {metas.size > 0 && (
+                          <TableCell className="text-right tabular-nums" title={metaVend(v.chave) ? `meta ${moeda(metaVend(v.chave))}` : "sem meta"}>
+                            {metaVend(v.chave) ? <span className={cn((v.venda / metaVend(v.chave)!) * 100 >= 100 && "font-semibold text-emerald-700")}>{pct((v.venda / metaVend(v.chave)!) * 100, 1)}</span> : <span className="text-muted-foreground">—</span>}
+                          </TableCell>
+                        )}
                         <TableCell className="text-right tabular-nums">{inteiro(v.atendimentos)}</TableCell>
                         <TableCell className="text-right tabular-nums">{moeda(v.ticket)}</TableCell>
                         <TableCell className="text-right tabular-nums">{pct(v.cmv, 1)}</TableCell>
@@ -189,6 +199,7 @@ export default async function TelevendasPage({ searchParams }: PageProps<"/venda
                     <TableCell colSpan={2}>Total televendas</TableCell>
                     <TableCell className="text-right tabular-nums">{moeda(t.venda)}</TableCell>
                     <TableCell className="hidden md:table-cell" />
+                    {metas.size > 0 && <TableCell className="text-right tabular-nums">{metaTele ? pct((t.venda / metaTele) * 100, 1) : "—"}</TableCell>}
                     <TableCell className="text-right tabular-nums">{inteiro(t.atendimentos)}</TableCell>
                     <TableCell className="text-right tabular-nums">{moeda(t.ticket)}</TableCell>
                     <TableCell className="text-right tabular-nums">{pct(t.cmv, 1)}</TableCell>

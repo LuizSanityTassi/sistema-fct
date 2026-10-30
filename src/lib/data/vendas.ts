@@ -170,6 +170,30 @@ export async function equipeTelevendas() {
   return data ?? [];
 }
 
+// ---------- metas do mês ----------
+
+/** Chave da meta: 'filial:<branch_id>', 'televendas' ou 'vendedor:<código>'. */
+export const chaveMetaFilial = (l: { branchId: string; regional: string }) => (l.regional === TELEVENDAS ? "televendas" : `filial:${l.branchId}`);
+export const chaveMetaVendedor = (codigo: number) => `vendedor:${codigo}`;
+
+/** Metas do mês (aaaa-mm-01) por chave. */
+export async function metasDoMes(mes: string): Promise<Map<string, number>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("vendas_metas").select("chave, valor").eq("mes", mes).range(0, 4999);
+  if (error) throw new Error(error.message);
+  return new Map((data ?? []).map((m) => [m.chave, n(m.valor)]));
+}
+
+export type VendedorPeriodo = { vendedorCodigo: number; vendedorNome: string; branchId: string; codigo: string; loja: string; regional: string | null; televendas: boolean; venda: number; atendimentos: number };
+
+/** Venda de cada vendedor no período (todas as filiais) e a filial onde mais vendeu; do televendas, sem o e-commerce. */
+export async function vendedoresNoPeriodo(de: string, ate: string): Promise<VendedorPeriodo[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("vendas_vendedores_periodo", { p_de: de, p_ate: ate });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => ({ vendedorCodigo: r.vendedor_codigo, vendedorNome: r.vendedor_nome, branchId: r.branch_id, codigo: r.codigo, loja: r.loja, regional: r.regional, televendas: r.televendas, venda: n(r.venda), atendimentos: n(r.atendimentos) }));
+}
+
 /** Dias do período sem vendas guardadas (o robô ainda não buscou): os totais ficam menores até completar. */
 export async function diasSemVendas(de: string, ate: string): Promise<string[]> {
   const supabase = await createClient();

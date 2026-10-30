@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
 import { cn } from "cn";
-import { diasSemVendas, ehRegionalVendas, faixasDeDias, REGIONAIS_VENDAS, somar, TELEVENDAS, vendasPorFilial, type LinhaFilialVendas } from "@/lib/data/vendas";
+import { chaveMetaFilial, diasSemVendas, ehRegionalVendas, faixasDeDias, metasDoMes, REGIONAIS_VENDAS, somar, TELEVENDAS, vendasPorFilial, type LinhaFilialVendas } from "@/lib/data/vendas";
 import { AbasVendas, AvisoDiasFaltando, decimal, inteiro, moeda, pct } from "../comum";
 import { CamposPeriodo, lerPeriodoVendas } from "../periodo";
 
@@ -33,11 +33,16 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
   const regional = ehRegionalVendas(s("regional")) ? s("regional") : "";
   const ordem: Ordem = s("ordem") in ORDENS ? (s("ordem") as Ordem) : "venda";
 
-  const [todas, faltam] = await Promise.all([vendasPorFilial(de, ate), diasSemVendas(de, ate)]);
+  const [todas, faltam, metas] = await Promise.all([vendasPorFilial(de, ate), diasSemVendas(de, ate), periodo.ver === "mes" ? metasDoMes(`${periodo.mes}-01`) : Promise.resolve(new Map<string, number>())]);
   // a linha Televendas (venda da equipe de tele-vendas, que sai das filiais) entra no ranking como uma loja
   const linhas = todas.filter((l) => !regional || l.regional === regional).sort((a, b) => ORDENS[ordem].valor(b) - ORDENS[ordem].valor(a) || b.venda - a.venda);
   const total = somar(linhas);
   const temTele = linhas.some((l) => l.regional === TELEVENDAS);
+  // meta do mês (só na visão mensal, quando há meta cadastrada)
+  const metaDe = (l: LinhaFilialVendas) => metas.get(chaveMetaFilial(l)) ?? null;
+  const temMeta = linhas.some((l) => metaDe(l) !== null);
+  const metaTotal = linhas.reduce((s, l) => s + (metaDe(l) ?? 0), 0);
+  const pctMeta = (venda: number, meta: number | null) => (meta ? (venda / meta) * 100 : null);
 
   return (
     <>
@@ -100,6 +105,8 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
                 <TableHead className="w-10">#</TableHead>
                 <TableHead>Filial</TableHead>
                 <TableHead className="text-right">Venda R$</TableHead>
+                {temMeta && <TableHead className="hidden text-right lg:table-cell">Meta</TableHead>}
+                {temMeta && <TableHead className="text-right">% meta</TableHead>}
                 <TableHead className="text-right">Nº atend.</TableHead>
                 <TableHead className="text-right">Ticket médio</TableHead>
                 <TableHead className="hidden text-right md:table-cell">Unid. vendidas</TableHead>
@@ -133,6 +140,8 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
                     {!regional && <span className="block text-[11px] text-muted-foreground">{tele ? "equipe de tele-vendas" : l.regional}</span>}
                   </TableCell>
                   <TableCell className="text-right font-semibold tabular-nums">{moeda(l.venda)}</TableCell>
+                  {temMeta && <TableCell className="hidden text-right tabular-nums text-muted-foreground lg:table-cell">{moeda(metaDe(l))}</TableCell>}
+                  {temMeta && <TableCell className={cn("text-right tabular-nums", (pctMeta(l.venda, metaDe(l)) ?? 0) >= 100 && "font-semibold text-emerald-700")}>{pct(pctMeta(l.venda, metaDe(l)), 1)}</TableCell>}
                   <TableCell className="text-right tabular-nums">{inteiro(l.atendimentos)}</TableCell>
                   <TableCell className="text-right tabular-nums">{moeda(l.ticket)}</TableCell>
                   <TableCell className="hidden text-right tabular-nums md:table-cell">{inteiro(l.unidades)}</TableCell>
@@ -153,6 +162,8 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
                 <TableCell />
                 <TableCell>Total{regional ? ` ${regional}` : " da rede"}</TableCell>
                 <TableCell className="text-right tabular-nums">{moeda(total.venda)}</TableCell>
+                {temMeta && <TableCell className="hidden text-right tabular-nums lg:table-cell">{moeda(metaTotal)}</TableCell>}
+                {temMeta && <TableCell className="text-right tabular-nums">{pct(pctMeta(total.venda, metaTotal), 1)}</TableCell>}
                 <TableCell className="text-right tabular-nums">{inteiro(total.atendimentos)}</TableCell>
                 <TableCell className="text-right tabular-nums">{moeda(total.ticket)}</TableCell>
                 <TableCell className="hidden text-right tabular-nums md:table-cell">{inteiro(total.unidades)}</TableCell>

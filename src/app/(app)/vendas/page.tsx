@@ -5,7 +5,7 @@ import { BarrasDuplas } from "@/components/graficos";
 import { PageHeader } from "@/components/layout/page-header";
 import { EstadoVazio, LinkPainel } from "@/components/layout/painel";
 import { exigirAcesso } from "@/lib/auth/session";
-import { DIAS_SEMANA, diaDaSemana, diasSemVendas, ehRegionalVendas, faixasDeDias, hojeNoBrasil, MESES, mesmoDia, porPeriodo, REGIONAIS_VENDAS, resumirTelevendas, serieVendas, somar, somarDias, TELEVENDAS, televendasNoPeriodo, ultimoDia, vendasPorFilial, type LinhaFilialVendas, type RegionalVendas } from "@/lib/data/vendas";
+import { chaveMetaFilial, DIAS_SEMANA, diaDaSemana, diasSemVendas, ehRegionalVendas, faixasDeDias, hojeNoBrasil, MESES, mesmoDia, metasDoMes, porPeriodo, REGIONAIS_VENDAS, resumirTelevendas, serieVendas, somar, somarDias, TELEVENDAS, televendasNoPeriodo, ultimoDia, vendasPorFilial, type LinhaFilialVendas, type RegionalVendas } from "@/lib/data/vendas";
 import { formatarData } from "@/lib/formatos";
 import { AbasVendas, AvisoDiasFaltando, decimal, inteiro, moeda, moedaCurta, pct } from "./comum";
 import { BarraProgresso, ColunasSemana, Comparacao, delta, EvolucaoMes, MiniKpi, Rosca, Secao, type FatiaComposicao } from "./painel-visual";
@@ -29,7 +29,7 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
   const [anoAnt, mesAntNum] = inicioMesAnt.split("-").map(Number);
   const fimMesAnt = `${inicioMesAnt.slice(0, 7)}-${String(ultimoDia(anoAnt, mesAntNum)).padStart(2, "0")}`;
 
-  const [listaMes, listaMesAnt, listaAnoAnt, meses, diasDoMes, diasDoMesAnt, quinzena, faltamMes, faltamMesAnt, teleLinhas, teleLinhasAnt] = await Promise.all([
+  const [listaMes, listaMesAnt, listaAnoAnt, meses, diasDoMes, diasDoMesAnt, quinzena, faltamMes, faltamMesAnt, teleLinhas, teleLinhasAnt, metas] = await Promise.all([
     vendasPorFilial(inicioMes, ontem),
     vendasPorFilial(inicioMesAnt, mesmoDia(ontem, 1)),
     vendasPorFilial(`${ano - 1}-01-01`, mesmoDia(ontem, 12)),
@@ -42,6 +42,7 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
     // televendas (equipe de tele-vendas): a RLS não devolve nada para o gerente
     soLoja ? Promise.resolve([]) : televendasNoPeriodo(inicioMes, ontem),
     soLoja ? Promise.resolve([]) : televendasNoPeriodo(inicioMesAnt, mesmoDia(ontem, 1)),
+    metasDoMes(inicioMes),
   ]);
   const tele = resumirTelevendas(teleLinhas);
   const teleAnt = resumirTelevendas(teleLinhasAnt);
@@ -107,6 +108,9 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
   const realizado = projecao ? (tMes.venda / projecao) * 100 : 0;
   const decorrido = (dia / diasNoMes) * 100;
   const falta = Math.max(0, projecao - tMes.venda);
+  // meta do escopo (rede, regional ou a loja do gerente): soma das metas cadastradas das lojas mostradas
+  const metaMes = lojasMes.reduce((s, l) => s + (metas.get(chaveMetaFilial(l)) ?? 0), 0);
+  const faltaMeta = Math.max(0, metaMes - tMes.venda);
 
   // acumulado dia a dia (este mês e o anterior) para a linha de evolução
   const acumular = (mapa: Map<string, { venda: number }>, prefixo: string, ate: number) => {
@@ -297,7 +301,32 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
                 <dd className="text-xs text-muted-foreground">média do dia × {diasNoMes} dias</dd>
               </div>
             </dl>
-            <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground">A projeção soma ao realizado a média de cada dia da semana no mês (domingo vende diferente de segunda). Quando houver meta cadastrada, ela aparece aqui.</p>
+            {metaMes > 0 && (
+              <div className="mt-5 rounded-xl border bg-card p-4">
+                <p className="rotulo flex items-center gap-1.5">
+                  <Target className="size-3.5" aria-hidden /> Meta do mês · {moedaCurta(metaMes)}
+                </p>
+                <div className="mt-3">
+                  <BarraProgresso pct={(tMes.venda / metaMes) * 100} marca={decorrido} rotuloMarca={`hoje · ${decimal(decorrido, 0)}%`} />
+                </div>
+                <dl className="mt-3 grid grid-cols-3 gap-3 text-sm">
+                  <div>
+                    <dt className="rotulo">Atingido</dt>
+                    <dd className={cn("mt-0.5 font-semibold tabular-nums", tMes.venda >= metaMes && "text-emerald-700")}>{pct((tMes.venda / metaMes) * 100, 1)}</dd>
+                  </div>
+                  <div>
+                    <dt className="rotulo">Projeção</dt>
+                    <dd className={cn("mt-0.5 font-semibold tabular-nums", projecao >= metaMes ? "text-emerald-700" : "text-amber-700")}>{pct((projecao / metaMes) * 100, 1)}</dd>
+                  </div>
+                  <div>
+                    <dt className="rotulo">{faltaMeta > 0 ? "Falta" : "Meta"}</dt>
+                    <dd className="mt-0.5 font-semibold tabular-nums">{faltaMeta > 0 ? moedaCurta(faltaMeta) : "batida"}</dd>
+                    {faltaMeta > 0 && faltamDias.length > 0 && <dd className="text-xs text-muted-foreground">{moedaCurta(faltaMeta / faltamDias.length)}/dia</dd>}
+                  </div>
+                </dl>
+              </div>
+            )}
+            <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground">A projeção soma ao realizado a média de cada dia da semana no mês (domingo vende diferente de segunda).{metaMes > 0 ? " A meta é a soma das metas cadastradas das lojas mostradas." : soLoja ? "" : " Cadastre a meta em Comercial → Metas e ela aparece aqui."}</p>
           </div>
         </div>
       </section>
