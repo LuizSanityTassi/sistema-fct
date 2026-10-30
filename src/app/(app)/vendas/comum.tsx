@@ -68,6 +68,7 @@ export function AvisoDiasFaltando({ faltam, texto, admin }: { faltam: number; te
 const ABAS = [
   { href: "/vendas", rotulo: "Painel" },
   { href: "/vendas/filiais", rotulo: "Venda por filial" },
+  { href: "/vendas/televendas", rotulo: "Televendas" },
 ] as const;
 
 /** Abas das vendas (só as que o papel abre). */

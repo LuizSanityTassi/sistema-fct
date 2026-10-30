@@ -1,16 +1,15 @@
+import { Fragment } from "react";
 import Link from "next/link";
-import { Store } from "lucide-react";
+import { Headset, Store } from "lucide-react";
 import { SelectNativo } from "@/components/form/campo";
 import { PageHeader } from "@/components/layout/page-header";
 import { EstadoVazio } from "@/components/layout/painel";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
-import { diasSemVendas, ehRegionalVendas, faixasDeDias, hojeNoBrasil, MESES, REGIONAIS_VENDAS, somar, somarDias, ultimoDia, vendasPorFilial, type LinhaFilialVendas } from "@/lib/data/vendas";
-import { formatarData } from "@/lib/formatos";
-import { INICIO_HISTORICO } from "@/lib/vendas/coleta";
+import { diasSemVendas, ehRegionalVendas, faixasDeDias, REGIONAIS_VENDAS, resumirTelevendas, somar, televendasNoPeriodo, vendasPorFilial, type LinhaFilialVendas, type ResumoTelevendas } from "@/lib/data/vendas";
 import { AbasVendas, AvisoDiasFaltando, decimal, inteiro, moeda, pct } from "../comum";
+import { CamposPeriodo, lerPeriodoVendas } from "../periodo";
 
 export const metadata = { title: "Venda por filial" };
 
@@ -26,49 +25,33 @@ const ORDENS = {
 } as const;
 type Ordem = keyof typeof ORDENS;
 
-/** Meses do histórico (mais recente primeiro) para o seletor. */
-function mesesDisponiveis(ateMes: string) {
-  const out: string[] = [];
-  let [a, m] = ateMes.split("-").map(Number);
-  const [a0, m0] = INICIO_HISTORICO.split("-").map(Number);
-  while (a > a0 || (a === a0 && m >= m0)) {
-    out.push(`${a}-${String(m).padStart(2, "0")}`);
-    m -= 1;
-    if (!m) {
-      m = 12;
-      a -= 1;
-    }
-  }
-  return out;
-}
+/** Valor da linha Televendas na ordem escolhida (null = a ordem não se aplica a ela, vai para o fim). */
+const valorTele: Record<Ordem, (t: ResumoTelevendas) => number | null> = {
+  venda: (t) => t.venda,
+  atendimentos: (t) => t.atendimentos,
+  ticket: (t) => t.ticket ?? 0,
+  sacola: () => null,
+  fortvigor: () => null,
+  premium: () => null,
+  gensim: () => null,
+  cmv: (t) => -(t.cmv ?? 999),
+};
 
 export default async function VendaFiliaisPage({ searchParams }: PageProps<"/vendas/filiais">) {
   const [sessao, sp] = await Promise.all([exigirAcesso("/vendas/filiais"), searchParams]);
   const s = (k: string) => (typeof sp[k] === "string" ? sp[k] : "");
-  const ontem = somarDias(hojeNoBrasil(), -1);
-  const ver = s("ver") === "dia" ? "dia" : "mes";
-  const meses = mesesDisponiveis(ontem.slice(0, 7));
-  const mes = meses.includes(s("mes")) ? s("mes") : meses[0];
-  const iso = /^\d{4}-\d{2}-\d{2}$/;
-  let de: string;
-  let ate: string;
-  if (ver === "mes") {
-    const [a, m] = mes.split("-").map(Number);
-    de = `${mes}-01`;
-    ate = `${mes}-${String(ultimoDia(a, m)).padStart(2, "0")}`;
-    if (ate > ontem) ate = ontem;
-  } else {
-    ate = iso.test(s("ate")) && s("ate") <= ontem ? s("ate") : ontem;
-    de = iso.test(s("de")) && s("de") <= ate ? s("de") : ate;
-  }
+  const periodo = lerPeriodoVendas(sp);
+  const { de, ate } = periodo;
   const regional = ehRegionalVendas(s("regional")) ? s("regional") : "";
   const ordem: Ordem = s("ordem") in ORDENS ? (s("ordem") as Ordem) : "venda";
 
-  const [todas, faltam] = await Promise.all([vendasPorFilial(de, ate), diasSemVendas(de, ate)]);
+  const [todas, faltam, televendas] = await Promise.all([vendasPorFilial(de, ate), diasSemVendas(de, ate), televendasNoPeriodo(de, ate)]);
   const linhas = todas.filter((l) => !regional || l.regional === regional).sort((a, b) => ORDENS[ordem].valor(b) - ORDENS[ordem].valor(a) || b.venda - a.venda);
   const total = somar(linhas);
-  const [am, mm] = mes.split("-").map(Number);
-  const periodoTexto = ver === "mes" ? `${MESES[mm - 1]} de ${am}${ate.slice(0, 7) === ontem.slice(0, 7) ? ` (até ${formatarData(ate)})` : ""}` : de === ate ? formatarData(de) : `${formatarData(de)} a ${formatarData(ate)}`;
+  // televendas: uma linha à parte, no lugar dela no ranking; a venda já está dentro das filiais (não soma no total)
+  const tele = resumirTelevendas(televendas.filter((t) => !regional || t.regional === regional));
+  const vTele = tele.venda > 0 ? valorTele[ordem](tele) : null;
+  const posTele = tele.venda <= 0 ? -1 : vTele === null ? linhas.length : linhas.filter((l) => ORDENS[ordem].valor(l) > vTele).length;
 
   return (
     <>
@@ -77,40 +60,7 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
       <AvisoDiasFaltando faltam={faltam.length} texto={`(${faixasDeDias(faltam)})`} admin={sessao.papel === "admin"} />
 
       <form method="get" className="mb-4 flex flex-wrap items-end gap-2 rounded-xl border bg-card p-3">
-        <div className="flex rounded-lg border p-0.5 text-sm" role="group" aria-label="Período">
-          {(["mes", "dia"] as const).map((v) => (
-            <Link key={v} href={`/vendas/filiais?ver=${v}${regional ? `&regional=${encodeURIComponent(regional)}` : ""}`} aria-current={ver === v ? "page" : undefined} className={`rounded-md px-3 py-1 ${ver === v ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}>
-              {v === "mes" ? "Mensal" : "Diária"}
-            </Link>
-          ))}
-        </div>
-        <input type="hidden" name="ver" value={ver} />
-        {ver === "mes" ? (
-          <label className="grid gap-1 text-sm">
-            <span className="font-medium">Mês</span>
-            <SelectNativo name="mes" defaultValue={mes} className="w-48">
-              {meses.map((m) => {
-                const [a, mm2] = m.split("-").map(Number);
-                return (
-                  <option key={m} value={m}>
-                    {MESES[mm2 - 1]} de {a}
-                  </option>
-                );
-              })}
-            </SelectNativo>
-          </label>
-        ) : (
-          <>
-            <label className="grid gap-1 text-sm">
-              <span className="font-medium">De</span>
-              <Input name="de" type="date" defaultValue={de} min={INICIO_HISTORICO} max={ontem} className="w-40" />
-            </label>
-            <label className="grid gap-1 text-sm">
-              <span className="font-medium">Até</span>
-              <Input name="ate" type="date" defaultValue={ate} min={INICIO_HISTORICO} max={ontem} className="w-40" />
-            </label>
-          </>
-        )}
+        <CamposPeriodo p={periodo} rota="/vendas/filiais" extra={regional ? `&regional=${encodeURIComponent(regional)}` : ""} />
         <label className="grid gap-1 text-sm">
           <span className="font-medium">Regional</span>
           <SelectNativo name="regional" defaultValue={regional} className="w-36">
@@ -134,7 +84,7 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
         </label>
         <Button type="submit">Pesquisar</Button>
         <p className="ml-auto self-center text-xs text-muted-foreground">
-          {periodoTexto} · {linhas.length} {linhas.length === 1 ? "filial" : "filiais"}
+          {periodo.texto} · {linhas.length} {linhas.length === 1 ? "filial" : "filiais"}
         </p>
       </form>
 
@@ -179,7 +129,9 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
             </TableHeader>
             <TableBody>
               {linhas.map((l, i) => (
-                <TableRow key={l.branchId}>
+                <Fragment key={l.branchId}>
+                {i === posTele && <LinhaTele tele={tele} />}
+                <TableRow>
                   <TableCell className="text-xs font-semibold text-muted-foreground tabular-nums">{i + 1}º</TableCell>
                   <TableCell>
                     <span className="font-mono text-xs">{l.codigo}</span> <span className="text-sm">{l.nome}</span>
@@ -198,7 +150,9 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
                   <TableCell className="text-right tabular-nums">{pct(l.cmv)}</TableCell>
                   <TableCell className="hidden text-right tabular-nums xl:table-cell">{pct(l.rentab)}</TableCell>
                 </TableRow>
+                </Fragment>
               ))}
+              {posTele === linhas.length && <LinhaTele tele={tele} />}
             </TableBody>
             <TableFooter>
               <TableRow className="font-semibold">
@@ -221,7 +175,49 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
           </Table>
         )}
       </section>
-      <p className="mt-2 text-xs text-muted-foreground">Unid. sacola = unidades por atendimento. CMV = custo do cadastro do produto ÷ venda. % rentab. = 100% − CMV. Fortvigor = laboratórios Fortvigor/FCT e Agape/Fortvigor.</p>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Unid. sacola = unidades por atendimento. CMV = custo do cadastro do produto ÷ venda. % rentab. = 100% − CMV. Fortvigor = laboratórios Fortvigor/FCT e Agape/Fortvigor.
+        {tele.venda > 0 && (
+          <>
+            {" "}
+            Televendas = o que a equipe de tele-vendas vendeu (já está dentro da filial onde a venda foi lançada, por isso não soma de novo no total);{" "}
+            <Link href={`/vendas/televendas?ver=${periodo.ver}&mes=${periodo.mes}&de=${de}&ate=${ate}`} className="underline">
+              ver por vendedor
+            </Link>
+            .
+          </>
+        )}
+      </p>
     </>
+  );
+}
+
+/** Linha "Televendas" no ranking: só venda, atendimentos, ticket e CMV (o resto o relatório por vendedor não traz). */
+function LinhaTele({ tele }: { tele: ResumoTelevendas }) {
+  const vazio = <span className="text-muted-foreground">—</span>;
+  return (
+    <TableRow className="bg-sky-50/70 dark:bg-sky-950/30">
+      <TableCell>
+        <Headset className="size-4 text-sky-600" aria-label="Televendas" />
+      </TableCell>
+      <TableCell>
+        <Link href="/vendas/televendas" className="text-sm font-semibold hover:underline">
+          Televendas
+        </Link>
+        <span className="block text-[11px] text-muted-foreground">{tele.vendedores} vendedores · já somada nas filiais</span>
+      </TableCell>
+      <TableCell className="text-right font-semibold tabular-nums">{moeda(tele.venda)}</TableCell>
+      <TableCell className="text-right tabular-nums">{inteiro(tele.atendimentos)}</TableCell>
+      <TableCell className="text-right tabular-nums">{moeda(tele.ticket)}</TableCell>
+      <TableCell className="hidden text-right md:table-cell">{vazio}</TableCell>
+      <TableCell className="hidden text-right md:table-cell">{vazio}</TableCell>
+      <TableCell className="hidden text-right lg:table-cell">{vazio}</TableCell>
+      <TableCell className="hidden text-right lg:table-cell">{vazio}</TableCell>
+      <TableCell className="text-right">{vazio}</TableCell>
+      <TableCell className="hidden text-right lg:table-cell">{vazio}</TableCell>
+      <TableCell className="text-right">{vazio}</TableCell>
+      <TableCell className="text-right tabular-nums">{pct(tele.cmv)}</TableCell>
+      <TableCell className="hidden text-right tabular-nums xl:table-cell">{tele.cmv === null ? vazio : pct(100 - tele.cmv)}</TableCell>
+    </TableRow>
   );
 }

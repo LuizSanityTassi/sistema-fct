@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { Activity, BarChart3, CalendarDays, ChartLine, CircleAlert, CircleCheck, Info, MapPinned, PieChart, Sparkles, Target, Trophy } from "lucide-react";
+import { Activity, BarChart3, CalendarDays, ChartLine, CircleAlert, CircleCheck, Headset, Info, MapPinned, PieChart, Sparkles, Target, Trophy } from "lucide-react";
 import { cn } from "cn";
 import { BarrasDuplas } from "@/components/graficos";
 import { PageHeader } from "@/components/layout/page-header";
 import { EstadoVazio, LinkPainel } from "@/components/layout/painel";
 import { exigirAcesso } from "@/lib/auth/session";
-import { DIAS_SEMANA, diaDaSemana, diasSemVendas, ehRegionalVendas, faixasDeDias, hojeNoBrasil, MESES, mesmoDia, porPeriodo, REGIONAIS_VENDAS, serieVendas, somar, somarDias, ultimoDia, vendasPorFilial, type LinhaFilialVendas, type RegionalVendas } from "@/lib/data/vendas";
+import { DIAS_SEMANA, diaDaSemana, diasSemVendas, ehRegionalVendas, faixasDeDias, hojeNoBrasil, MESES, mesmoDia, porPeriodo, REGIONAIS_VENDAS, resumirTelevendas, serieVendas, somar, somarDias, televendasNoPeriodo, ultimoDia, vendasPorFilial, type LinhaFilialVendas, type RegionalVendas } from "@/lib/data/vendas";
 import { formatarData } from "@/lib/formatos";
 import { AbasVendas, AvisoDiasFaltando, decimal, inteiro, moeda, moedaCurta, pct } from "./comum";
 import { BarraProgresso, ColunasSemana, Comparacao, delta, EvolucaoMes, MiniKpi, Rosca, Secao, type FatiaComposicao } from "./painel-visual";
@@ -29,7 +29,7 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
   const [anoAnt, mesAntNum] = inicioMesAnt.split("-").map(Number);
   const fimMesAnt = `${inicioMesAnt.slice(0, 7)}-${String(ultimoDia(anoAnt, mesAntNum)).padStart(2, "0")}`;
 
-  const [listaMes, listaMesAnt, listaAnoAnt, meses, diasDoMes, diasDoMesAnt, quinzena, faltamMes, faltamMesAnt] = await Promise.all([
+  const [listaMes, listaMesAnt, listaAnoAnt, meses, diasDoMes, diasDoMesAnt, quinzena, faltamMes, faltamMesAnt, teleLinhas, teleLinhasAnt] = await Promise.all([
     vendasPorFilial(inicioMes, ontem),
     vendasPorFilial(inicioMesAnt, mesmoDia(ontem, 1)),
     vendasPorFilial(`${ano - 1}-01-01`, mesmoDia(ontem, 12)),
@@ -39,7 +39,12 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
     serieVendas(somarDias(ontem, -13), ontem, "dia"),
     diasSemVendas(inicioMes, ontem),
     diasSemVendas(inicioMesAnt, fimMesAnt),
+    // televendas (equipe de tele-vendas): a RLS não devolve nada para o gerente
+    soLoja ? Promise.resolve([]) : televendasNoPeriodo(inicioMes, ontem),
+    soLoja ? Promise.resolve([]) : televendasNoPeriodo(inicioMesAnt, mesmoDia(ontem, 1)),
   ]);
+  const tele = resumirTelevendas(teleLinhas);
+  const teleAnt = resumirTelevendas(teleLinhasAnt);
 
   const r = regional || undefined;
   const filtra = <T extends { regional: string }>(xs: T[]) => (r ? xs.filter((x) => x.regional === r) : xs);
@@ -382,6 +387,29 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
               </li>
             ))}
           </ol>
+          {tele.venda > 0 && (
+            <Link href="/vendas/televendas" className="mt-4 block rounded-xl border border-dashed border-sky-300 bg-sky-50/50 p-3 transition-colors hover:border-sky-500 dark:border-sky-800 dark:bg-sky-950/20">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="inline-grid size-7 place-items-center rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900 dark:text-sky-200">
+                  <Headset className="size-4" aria-hidden />
+                </span>
+                <span className="font-heading text-sm font-semibold">Televendas</span>
+                <span className="text-xs text-muted-foreground">{tele.vendedores} vendedores · já dentro das regiões acima</span>
+                <span className="ml-auto font-semibold tabular-nums">{moedaCurta(tele.venda)}</span>
+              </div>
+              <div className="mt-2.5 h-2.5 overflow-hidden rounded-full bg-muted">
+                <div className="h-full rounded-full bg-sky-600" style={{ width: `${(tele.venda / maxRegiao) * 100}%` }} />
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                <span>
+                  <strong className="text-foreground tabular-nums">{pct((tele.venda / totalRede) * 100, 1)}</strong> da rede
+                </span>
+                <span className="tabular-nums">ticket {moeda(tele.ticket)}</span>
+                <span className="tabular-nums">CMV {pct(tele.cmv, 1)}</span>
+                <Comparacao className="ml-auto" atual={tele.venda} anterior={teleAnt.venda} rotulo={`vs ${nomeMesAnt}`} />
+              </div>
+            </Link>
+          )}
         </Secao>
         )}
 

@@ -2814,6 +2814,33 @@ export type Database = {
           },
         ]
       }
+      vendas_televendas_vendedores: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          equipe: string
+          funcao: string | null
+          nome: string
+          vendedor_codigo: number
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          equipe: string
+          funcao?: string | null
+          nome: string
+          vendedor_codigo: number
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          equipe?: string
+          funcao?: string | null
+          nome?: string
+          vendedor_codigo?: number
+        }
+        Relationships: []
+      }
       vendas_vendedor_dia: {
         Row: {
           atendimentos: number
@@ -5997,6 +6024,28 @@ export type Database = {
             unidades: number
             venda: number
             venda_grupos: number
+        }[]
+      }
+      vendas_televendas: {
+        Args: {
+          p_ate: string
+          p_de: string
+        }
+        Returns: {
+          atendimentos: number
+          branch_id: string
+          codigo: string
+          custo: number
+          dias: number
+          equipe: string
+          funcao: string | null
+          loja: string
+          regional: string | null
+          tele_atendimentos: number
+          tele_venda: number
+          venda: number
+          vendedor_codigo: number
+          vendedor_nome: string
         }[]
       }
       lojas_para_sangria: {

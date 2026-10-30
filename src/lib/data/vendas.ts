@@ -86,6 +86,72 @@ export function porPeriodo(pontos: PontoSerie[], regional?: RegionalVendas) {
   return new Map([...mapa].sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => [k, somar(v)]));
 }
 
+// ---------- televendas (equipe de tele-vendas = uma "loja" à parte) ----------
+
+export const TELEVENDAS = "Televendas";
+
+/** Venda de um vendedor da equipe de televendas numa filial (onde o Trier lançou a venda). */
+export type LinhaTelevendas = {
+  vendedorCodigo: number;
+  vendedorNome: string;
+  equipe: string;
+  funcao: string | null;
+  branchId: string;
+  codigo: string;
+  loja: string;
+  regional: string | null;
+  venda: number;
+  atendimentos: number;
+  custo: number;
+  /** parte marcada como tele-entrega no Trier */
+  teleVenda: number;
+  teleAtendimentos: number;
+};
+
+export async function televendasNoPeriodo(de: string, ate: string): Promise<LinhaTelevendas[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("vendas_televendas", { p_de: de, p_ate: ate });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => ({
+    vendedorCodigo: r.vendedor_codigo,
+    vendedorNome: r.vendedor_nome,
+    equipe: r.equipe,
+    funcao: r.funcao,
+    branchId: r.branch_id,
+    codigo: r.codigo,
+    loja: r.loja,
+    regional: r.regional,
+    venda: n(r.venda),
+    atendimentos: n(r.atendimentos),
+    custo: n(r.custo),
+    teleVenda: n(r.tele_venda),
+    teleAtendimentos: n(r.tele_atendimentos),
+  }));
+}
+
+export type ResumoTelevendas = { venda: number; atendimentos: number; custo: number; teleVenda: number; teleAtendimentos: number; ticket: number | null; cmv: number | null; vendedores: number; lojas: number };
+
+export function resumirTelevendas(linhas: LinhaTelevendas[]): ResumoTelevendas {
+  const t = { venda: 0, atendimentos: 0, custo: 0, teleVenda: 0, teleAtendimentos: 0 };
+  for (const l of linhas) {
+    t.venda += l.venda;
+    t.atendimentos += l.atendimentos;
+    t.custo += l.custo;
+    t.teleVenda += l.teleVenda;
+    t.teleAtendimentos += l.teleAtendimentos;
+  }
+  const cmv = div(t.custo, t.venda);
+  return { ...t, ticket: div(t.venda, t.atendimentos), cmv: cmv === null ? null : cmv * 100, vendedores: new Set(linhas.map((l) => l.vendedorCodigo)).size, lojas: new Set(linhas.map((l) => l.branchId)).size };
+}
+
+/** Equipe cadastrada (quem conta como televendas). */
+export async function equipeTelevendas() {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("vendas_televendas_vendedores").select("vendedor_codigo, nome, equipe, funcao").order("equipe").order("nome");
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
 /** Dias do período sem vendas guardadas (o robô ainda não buscou): os totais ficam menores até completar. */
 export async function diasSemVendas(de: string, ate: string): Promise<string[]> {
   const supabase = await createClient();
