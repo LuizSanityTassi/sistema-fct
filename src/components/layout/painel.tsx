@@ -73,7 +73,26 @@ export function Variacao({ v }: { v: VariacaoIndicador }) {
   );
 }
 
-/** Indicador (KPI): rótulo, número, variação contra o período anterior e minigráfico opcional. */
+/** Meta do indicador: barra do quanto já foi feito, com a marca de onde devia estar hoje (mesmas cores da tela de metas). */
+function BarraMeta({ meta }: { meta: MetaIndicador }) {
+  const tom = meta.pct >= 100 ? "bg-emerald-500" : meta.ritmo === undefined || meta.pct >= meta.ritmo ? "bg-sky-500" : "bg-amber-500";
+  return (
+    <div className="mt-3">
+      <div className="flex items-baseline justify-between gap-2 text-xs">
+        <span className="truncate text-muted-foreground">Meta {meta.texto}</span>
+        <span className="font-semibold tabular-nums">{meta.pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</span>
+      </div>
+      <div className="relative mt-1 h-1.5 rounded-full bg-muted" role="img" aria-label={`${meta.pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% da meta${meta.ritmo === undefined ? "" : `; o esperado para hoje é ${Math.round(meta.ritmo)}%`}`}>
+        <div className={cn("h-full rounded-full", tom)} style={{ width: `${Math.min(100, meta.pct)}%` }} />
+        {meta.ritmo !== undefined && <span aria-hidden className="absolute -top-0.5 h-2.5 w-0.5 rounded-full bg-foreground/60" style={{ left: `${Math.min(100, meta.ritmo)}%` }} />}
+      </div>
+    </div>
+  );
+}
+
+export type MetaIndicador = { texto: string; pct: number; ritmo?: number };
+
+/** Indicador (KPI): rótulo, número, variação contra o período anterior, meta e minigráfico opcionais. */
 export function Indicador({
   rotulo,
   valor,
@@ -81,6 +100,7 @@ export function Indicador({
   variacao,
   comparadoCom,
   detalhe,
+  meta,
   serie,
   tomValor,
   href,
@@ -93,6 +113,7 @@ export function Indicador({
   /** texto ao lado da variação ("× ago até dia 19") */
   comparadoCom?: React.ReactNode;
   detalhe?: React.ReactNode;
+  meta?: MetaIndicador;
   serie?: number[];
   tomValor?: Tom;
   href?: string;
@@ -112,12 +133,17 @@ export function Indicador({
         </div>
       )}
       {detalhe && <p className="mt-1.5 text-xs text-muted-foreground">{detalhe}</p>}
-      {serie && serie.length > 1 && <Sparkline valores={serie} className={cn("mt-3 -mb-1 h-9 w-full", variacao ? TEXTO[variacao.tom === "neutro" ? "info" : variacao.tom] : "text-muted-foreground")} />}
+      {meta && <BarraMeta meta={meta} />}
+      {serie && serie.length > 1 && (
+        <div className="mt-auto pt-3">
+          <Sparkline valores={serie} className={cn("-mb-1 h-9 w-full", variacao ? TEXTO[variacao.tom === "neutro" ? "info" : variacao.tom] : "text-muted-foreground")} />
+        </div>
+      )}
     </>
   );
   const base = cn("flex min-w-0 flex-col rounded-xl border bg-card p-4", className);
   return href ? (
-    <Link href={href} className={cn(base, "outline-none focus-visible:ring-2 focus-visible:ring-ring")}>
+    <Link href={href} className={cn(base, "cartao-interativo")}>
       {conteudo}
     </Link>
   ) : (

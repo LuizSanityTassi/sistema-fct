@@ -1,9 +1,14 @@
 // Vitrine dos componentes com dados fictícios, só no ambiente local (em produção responde 404 e nem é rota pública).
 // Serve para conferir visual e acessibilidade sem precisar de login.
 import { notFound } from "next/navigation";
-import { Download, Plus, Search, TriangleAlert } from "lucide-react";
+import { Banknote, CalendarX2, Download, Plus, Scale, Search, TriangleAlert } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { BoasVindas } from "@/components/layout/boas-vindas";
+import { TabelaFiliais } from "@/app/(app)/dashboard/desempenho-filiais";
+import { ListaPrioridades, NiveisPrioridade, resumirNiveis } from "@/app/(app)/dashboard/prioridades";
+import { ResumoExecutivo } from "@/app/(app)/dashboard/resumo-executivo";
+import type { LinhaFilialOperacao } from "@/lib/data/dashboard-filiais";
+import type { Pendencia } from "@/lib/data/pendencias";
 import { BadgeAtivo, BadgeStatusFuncionario } from "@/components/layout/badge-status";
 import { BarrasDuplas, ColunasResultado } from "@/components/graficos";
 import { PageHeader } from "@/components/layout/page-header";
@@ -28,6 +33,38 @@ import { ImportarPosForm } from "@/app/(app)/financeiro/diferenca-caixa/importar
 import type { EstadoPos } from "@/app/(app)/financeiro/diferenca-caixa/importar/actions";
 
 export const metadata = { title: "Vitrine" };
+
+// dados fictícios do painel geral
+const PENDENCIAS_VITRINE: Pendencia[] = [
+  { id: "a", severidade: "critico", area: "Conciliação", quantidade: 231, prazo: "vencido", total: 1078, href: "#t-botoes", titulo: "231 pendências de conciliação vencidas", detalhe: "1078 em aberto no total." },
+  { id: "b", severidade: "alto", area: "Caixa", quantidade: 512, href: "#t-botoes", titulo: "512 quebras paradas há mais de 5 dias sem justificativa", detalhe: "Cobre o gestor da loja antes do fechamento da folha." },
+  { id: "c", severidade: "alto", area: "Conciliação", quantidade: 18, prazo: "vencendo", href: "#t-botoes", titulo: "18 pendências vencem em até 3 dias" },
+  { id: "d", severidade: "atencao", area: "Caixa", quantidade: 4, minha: true, href: "#t-botoes", titulo: "4 sangrias a conferir com o extrato" },
+];
+const filialVitrine = (codigo: string, nome: string, regional: string, status: LinhaFilialOperacao["status"], quebrasValor: number, quebrasAbertas: number, concVencidas: number, concPct: number | null, pendencias: string[]): LinhaFilialOperacao => ({
+  id: codigo,
+  codigo,
+  nome,
+  regional,
+  status,
+  pendencias,
+  quebrasTotal: quebrasAbertas,
+  quebrasAbertas,
+  quebrasParadas: quebrasAbertas,
+  quebrasValor,
+  concAbertas: concVencidas,
+  concVencidas,
+  concPct,
+  chamados: 0,
+  asoVencidos: 0,
+  pctRitmo: null,
+});
+const FILIAIS_VITRINE = [
+  filialVitrine("F001", "LOJA MATRIZ", "Sul", "critica", 1340, 18, 96, 2.1, ["96 conciliações vencidas", "12 quebras paradas há +5 dias"]),
+  filialVitrine("F301", "LOJA OESTE", "Oeste", "critica", 528, 10, 80, 90.3, ["80 conciliações vencidas", "7 quebras paradas há +5 dias"]),
+  filialVitrine("F106", "LOJA SERRA", "Serra", "atencao", 415, 12, 0, null, ["8 quebras paradas há +5 dias"]),
+  filialVitrine("F204", "LOJA EM DIA", "Sul", "em_dia", 0, 0, 0, null, []),
+];
 
 const PESSOAS = [
   { nome: "Maria Exemplo da Silva", cargo: "Atendente", filial: "F101", status: "ativo", salario: "R$ 2.150,00" },
@@ -104,9 +141,36 @@ export default function VitrinePage() {
   ];
   return (
     <AppShell usuario={{ nome: "Usuária de Exemplo", email: "exemplo@fct.local", papel: "admin" }} onSair={sair}>
-      <BoasVindas data="Sexta-feira, 16 de outubro" titulo="Olá, Usuária">
-        Administrador · números de todas as unidades · 5 pendências esperando ação.
+      <BoasVindas data="Sexta-feira, 16 de outubro" titulo="Olá, Usuária" situacao={{ tom: "perigo", rotulo: "Exige ação", texto: "20 filiais críticas · 231 pendências vencidas" }}>
+        Administrador · números de todas as unidades
       </BoasVindas>
+      <ResumoExecutivo
+        atualizadoAs="14:32"
+        filiais={{ contagem: { total: 44, critica: 20, atencao: 22, em_dia: 2 }, meta: "Nenhuma filial com meta de venda em novembro." }}
+        metricas={[
+          { chave: "q", rotulo: "Quebras em aberto", icone: Banknote, valor: "R$ 44.131", contexto: "782 quebras · 99,7% do total", variacao: { texto: "8%", direcao: "sobe", tom: "perigo" }, comparado: "novas em novembro: R$ 2.325", href: "#t-botoes" },
+          { chave: "c", rotulo: "Conciliação", icone: Scale, valor: "28,8%", tom: "perigo", contexto: "Varela 2,1% (29/10) · Nazário 90,3% (14/10)", variacao: { texto: "0,1 p.p.", direcao: "desce", tom: "perigo" }, comparado: "vs. as conciliações anteriores", href: "#t-botoes" },
+          { chave: "v", rotulo: "Pendências vencidas", icone: CalendarX2, valor: "231", tom: "perigo", contexto: "21,4% das 1.078 de conciliação em aberto", href: "#t-botoes" },
+        ]}
+      />
+      <div className="mb-8 grid gap-4 lg:grid-cols-3">
+        <Painel id="v-prioridades" titulo={<span className="text-base">Central de prioridades</span>} descricao="O que precisa da sua atenção. Clique em um nível para abrir a lista filtrada." acao={<LinkPainel href="#t-botoes">Ver todas (4)</LinkPainel>} className="lg:col-span-2">
+          <NiveisPrioridade resumo={resumirNiveis(PENDENCIAS_VITRINE, [{ area: "Caixa" }, { area: "Conciliação" }, { area: "Folha" }, { area: "Chamados" }, { area: "Ponto" }])} className="px-5 pb-4" />
+          <ListaPrioridades pendencias={PENDENCIAS_VITRINE} />
+        </Painel>
+        <Painel id="v-sem-prioridades" titulo={<span className="text-base">Sem nada pendente</span>} descricao="Os níveis apagados, sem cor">
+          <NiveisPrioridade resumo={resumirNiveis([], [{ area: "Caixa" }, { area: "Folha" }])} className="px-5 pb-4 lg:grid-cols-2!" />
+        </Painel>
+      </div>
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Indicador href="#t-botoes" rotulo="Venda do mês" valor="R$ 1.248.320,10" variacao={{ texto: "6%", direcao: "sobe", tom: "sucesso" }} comparadoCom="melhor que out/26 até dia 3" detalhe="hoje parcial, lido às 14:30" meta={{ texto: "R$ 13.500.000", pct: 9.2, ritmo: 10 }} serie={[310, 402, 380, 455, 420, 510, 498]} />
+        <Indicador href="#t-botoes" rotulo="Quebras de caixa" valor="R$ 2.325,37" variacao={{ texto: "12%", direcao: "sobe", tom: "perigo" }} comparadoCom="pior que out/26 até dia 3" detalhe="35 quebra(s): 20 falta(s), 15 sobra(s)" serie={[120, 90, 240, 180, 310, 260, 420]} />
+        <Indicador href="#t-botoes" rotulo="Conciliação automática" valor="28,8%" variacao={{ texto: "0,1 p.p.", direcao: "desce", tom: "perigo" }} comparadoCom="pior que as conciliações anteriores" detalhe="última de cada empresa · Varela 2,1% (29/10) · Nazário 90,3% (14/10)" />
+        <Indicador href="#t-botoes" rotulo="Admissões" valor="7" comparadoCom="sem base para comparar ainda" detalhe="2 desligamento(s)" />
+      </div>
+      <Painel id="v-desempenho" titulo={<span className="text-base">Desempenho por filial</span>} descricao="As 4 que mais pedem atenção agora" acao={<LinkPainel href="#t-botoes">Ver todas as filiais (44)</LinkPainel>} className="mb-8">
+        <TabelaFiliais linhas={FILIAIS_VITRINE} veConciliacao abreFicha />
+      </Painel>
       <PageHeader
         eyebrow="Vitrine"
         titulo="Componentes do sistema"

@@ -21,6 +21,10 @@ export type Pendencia = {
   href: string;
   /** Depende de uma ação da própria pessoa (é dela, não só do setor). */
   minha?: boolean;
+  /** Tem data: já passou do prazo ou está para vencer (separa o "Vencendo" na central de prioridades). */
+  prazo?: "vencido" | "vencendo";
+  /** De quantos em aberto a quantidade faz parte, quando isso diz alguma coisa. */
+  total?: number;
 };
 
 export const ORDEM_SEVERIDADE: Severidade[] = ["critico", "alto", "atencao", "info"];
@@ -28,6 +32,24 @@ export const ORDEM_SEVERIDADE: Severidade[] = ["critico", "alto", "atencao", "in
 const DIA = 86_400_000;
 const isoBrasil = (ms: number) => new Date(ms - 3 * 3_600_000).toISOString().slice(0, 10);
 const plural = (n: number, um: string, varios: string) => (n === 1 ? um : varios);
+
+/** Módulos que a central acompanha para esta pessoa (os que não têm pendência estão "em dia"). */
+export function modulosMonitorados(sessao: Sessao): { area: AreaPendencia; href: string }[] {
+  const pode = (rota: string) => podeAcessar(sessao.papel, rota, sessao.telasExtras, sessao.bloqueios);
+  const financeiro = sessao.papel === "admin" || sessao.papel === "financeiro";
+  const modulos: { area: AreaPendencia; href: string; ve: boolean }[] = [
+    { area: "Caixa", href: financeiro ? "/financeiro/diferenca-caixa" : "/caixa", ve: (financeiro && pode("/financeiro/diferenca-caixa")) || pode("/caixa") },
+    { area: "Conciliação", href: "/conciliacao/pendencias", ve: pode("/conciliacao/pendencias") },
+    { area: "DRE", href: "/financeiro/dre", ve: pode("/financeiro/dre") && (financeiro || sessao.papel === "contador") },
+    { area: "Folha", href: "/rh/lancamentos", ve: pode("/rh/lancamentos") },
+    { area: "RH", href: "/rh/aso", ve: pode("/rh/aso") },
+    { area: "Ponto", href: "/ponto/ajustes", ve: pode("/ponto/ajustes") },
+    { area: "Chamados", href: "/chamados", ve: pode("/chamados") },
+    { area: "Coordenação", href: "/coordenacao", ve: pode("/coordenacao") },
+    { area: "Acessos", href: "/configuracoes/acessos", ve: sessao.papel === "admin" },
+  ];
+  return modulos.filter((m) => m.ve).map(({ area, href }) => ({ area, href }));
+}
 
 export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
   const supabase = await createClient();
@@ -213,6 +235,8 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
             severidade: "critico",
             area: "Conciliação",
             quantidade: vencidas,
+            prazo: "vencido",
+            total,
             href: "/conciliacao/pendencias?ordem=vencimento",
             titulo: `${vencidas} ${plural(vencidas, "pendência de conciliação vencida", "pendências de conciliação vencidas")}`,
             detalhe: `${total} em aberto no total.`,
@@ -223,6 +247,8 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
             severidade: "alto",
             area: "Conciliação",
             quantidade: aVencer,
+            prazo: "vencendo",
+            total,
             href: "/conciliacao/pendencias?ordem=vencimento",
             titulo: `${aVencer} ${plural(aVencer, "pendência vence", "pendências vencem")} em até 3 dias`,
           });
@@ -292,6 +318,7 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
             severidade: "critico",
             area: "RH",
             quantidade: vencidos,
+            prazo: "vencido",
             href: "/rh/aso?situacao=vencidos",
             titulo: `${vencidos} ${plural(vencidos, "ASO vencido", "ASOs vencidos")}`,
           });
@@ -301,6 +328,7 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
             severidade: "atencao",
             area: "RH",
             quantidade: vencendo,
+            prazo: "vencendo",
             href: "/rh/aso?situacao=proximos",
             titulo: `${vencendo} ${plural(vencendo, "ASO vence", "ASOs vencem")} nos próximos 30 dias`,
           });
@@ -327,6 +355,7 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
             severidade: "critico",
             area: "Chamados",
             quantidade: slaEstourado,
+            prazo: "vencido",
             href: "/chamados?sla=estourado",
             titulo: `${slaEstourado} ${plural(slaEstourado, "chamado com SLA estourado", "chamados com SLA estourado")}`,
             detalhe: "Passou do prazo de primeira resposta e ninguém respondeu.",

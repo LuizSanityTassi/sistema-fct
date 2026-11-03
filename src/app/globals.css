@@ -410,6 +410,35 @@
     letter-spacing: -0.03em;
     font-variant-numeric: tabular-nums;
   }
+  /* o número que um diretor lê primeiro (resumo executivo) */
+  .numero-lg {
+    font-size: 2.125rem;
+    line-height: 2.5rem;
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    font-variant-numeric: tabular-nums;
+  }
+  /* cartão clicável: sobe de leve no hover e afunda ao clicar */
+  .cartao-interativo {
+    transition:
+      transform 160ms ease,
+      box-shadow 160ms ease,
+      border-color 160ms ease,
+      background-color 160ms ease;
+    outline: none;
+  }
+  .cartao-interativo:hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in oklch, var(--foreground) 24%, var(--border));
+    box-shadow: 0 8px 20px -14px color-mix(in oklch, var(--foreground) 45%, transparent);
+  }
+  .cartao-interativo:active {
+    transform: translateY(0) scale(0.992);
+    box-shadow: none;
+  }
+  .cartao-interativo:focus-visible {
+    box-shadow: 0 0 0 2px var(--ring);
+  }
   .numero-sm {
     font-size: 1.3125rem;
     line-height: 1.75rem;

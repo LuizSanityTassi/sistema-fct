@@ -6038,6 +6038,26 @@ export type Database = {
         }
         Returns: string[]
       }
+      dashboard_filiais: {
+        Args: never
+        Returns: {
+          aso_vencidos: number
+          branch_id: string
+          caixas_recentes: number
+          chamados_abertos: number
+          codigo: string
+          conc_abertas: number
+          conc_em: string | null
+          conc_pct: number | null
+          conc_vencidas: number
+          nome: string
+          quebras_abertas: number
+          quebras_paradas: number
+          quebras_total: number
+          quebras_valor: number
+          regional: string | null
+        }[]
+      }
       vendas_hoje_lido_em: {
         Args: never
         Returns: string

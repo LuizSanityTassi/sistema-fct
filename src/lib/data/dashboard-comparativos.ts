@@ -4,6 +4,7 @@
 import type { Sessao } from "@/lib/auth/session";
 import { situacaoSla } from "@/lib/chamados/sla";
 import { podeAcessar } from "@/lib/nav";
+import { horaNoBrasil, mesmoDia, metasDoMes, porPeriodo, serieVendas, ultimoDia, ultimoDiaVendas } from "@/lib/data/vendas";
 import { rotuloCompetencia } from "@/lib/rh/competencia";
 import { createClient } from "@/lib/supabase/server";
 
@@ -24,6 +25,8 @@ export type Comparativo = {
   serie?: number[];
   /** Receitas e despesas dos últimos meses (gráfico do financeiro). */
   mensal?: { competencia: string; receber: number; pagar: number }[];
+  /** Meta do mês, quando existe: quanto já foi feito e onde devia estar hoje (% do mês que passou). */
+  meta?: { valor: number; pct: number; ritmo: number };
 };
 
 type Cliente = Awaited<ReturnType<typeof createClient>>;
@@ -102,6 +105,38 @@ async function quebrasDeCaixa(supabase: Cliente, p: Periodos, href: string): Pro
   ];
 }
 
+/** Venda do mês até o último dia lido, os mesmos dias do mês anterior e a meta das filiais (mesma conta do painel de vendas). */
+async function vendas(): Promise<Comparativo[]> {
+  const ultimo = await ultimoDiaVendas();
+  const ate = ultimo.dia;
+  const inicio = `${ate.slice(0, 7)}-01`;
+  const ateAnt = mesmoDia(ate, 1);
+  const [dias, mesAnt, metas] = await Promise.all([serieVendas(inicio, ate, "dia"), serieVendas(mesmoDia(inicio, 1), ateAnt, "mes"), metasDoMes(inicio)]);
+  const porDiaVenda = porPeriodo(dias);
+  if (!porDiaVenda.size) return [];
+  const atual = r2([...porDiaVenda.values()].reduce((s, d) => s + d.venda, 0));
+  const anterior = [...porPeriodo(mesAnt).values()].reduce((s, d) => s + d.venda, 0);
+  const metaTotal = [...metas].reduce((s, [chave, v]) => s + (chave.startsWith("filial:") ? v : 0), 0);
+  const dia = Number(ate.slice(8, 10));
+  const nomeMes = (d: string) => MESES[Number(d.slice(5, 7)) - 1];
+  return [
+    {
+      id: "venda",
+      titulo: "Venda do mês",
+      href: "/vendas",
+      atual,
+      anterior: anterior > 0 ? r2(anterior) : null,
+      formato: "moeda",
+      melhor: "maior",
+      periodo: `${nomeMes(ate)}/${ate.slice(2, 4)} até dia ${dia}`,
+      comparadoCom: `${nomeMes(ateAnt)}/${ateAnt.slice(2, 4)} até dia ${Number(ateAnt.slice(8, 10))}`,
+      nota: ultimo.parcial && ultimo.lidoEm ? `hoje parcial, lido às ${horaNoBrasil(ultimo.lidoEm)}` : null,
+      serie: Array.from({ length: dia }, (_, i) => r2(porDiaVenda.get(`${inicio.slice(0, 8)}${String(i + 1).padStart(2, "0")}`)?.venda ?? 0)),
+      meta: metaTotal > 0 ? { valor: metaTotal, pct: (atual / metaTotal) * 100, ritmo: (dia / ultimoDia(Number(ate.slice(0, 4)), Number(ate.slice(5, 7)))) * 100 } : undefined,
+    },
+  ];
+}
+
 async function chamados(supabase: Cliente, p: Periodos): Promise<Comparativo[]> {
   const linhas = await todas<{ created_at: string; resolved_at: string | null; prioridade: "baixa" | "normal" | "alta" | "critica"; status: string; primeira_resposta_em: string | null }>((de, ate) =>
     supabase.from("tickets").select("created_at, resolved_at, prioridade, status, primeira_resposta_em").gte("created_at", `${p.inicioAnt}T00:00:00-03:00`).order("created_at").range(de, ate),
@@ -147,7 +182,7 @@ async function chamados(supabase: Cliente, p: Periodos): Promise<Comparativo[]> 
 
 async function conciliacao(supabase: Cliente, p: Periodos): Promise<Comparativo[]> {
   const [{ data: concs }, novas, { count: abertas }, { data: primeira }] = await Promise.all([
-    supabase.from("conc_conciliacoes").select("pct_bateu, criado_em, fil_min, fil_max").order("criado_em", { ascending: false }).limit(2),
+    supabase.from("conc_conciliacoes").select("pct_bateu, qtd_trier, criado_em, fil_min").order("criado_em", { ascending: false }).limit(40),
     todas<{ criado_em: string }>((de, ate) => supabase.from("conc_pendencias").select("criado_em").gte("criado_em", `${p.inicioAnt}T00:00:00-03:00`).order("criado_em").range(de, ate)),
     supabase.from("conc_pendencias").select("chave", { count: "exact", head: true }).in("status", ["pendente", "em_analise"]),
     supabase.from("conc_conciliacoes").select("criado_em").order("criado_em").limit(1).maybeSingle(),
@@ -155,20 +190,31 @@ async function conciliacao(supabase: Cliente, p: Periodos): Promise<Comparativo[
   // sem conciliação antes do fim do período anterior não há base (o módulo começou depois)
   const temBase = !!primeira && diaDe(primeira.criado_em) <= p.fimAnt;
   const cards: Comparativo[] = [];
-  const [ult, ant] = concs ?? [];
-  if (ult)
+  // cada empresa concilia à parte: a rede é a última de cada uma, pesada pelos títulos do Trier
+  const lista = concs ?? [];
+  const empresas = [
+    { nome: "Varela", runs: lista.filter((c) => c.fil_min < 301) },
+    { nome: "Nazário", runs: lista.filter((c) => c.fil_min >= 301) },
+  ].filter((e) => e.runs.length);
+  const pesada = (xs: { pct_bateu: number | null; qtd_trier: number }[]) => {
+    const titulos = xs.reduce((s, x) => s + x.qtd_trier, 0);
+    return titulos ? (100 * xs.reduce((s, x) => s + Number(x.pct_bateu) * x.qtd_trier, 0)) / titulos : 0;
+  };
+  if (empresas.length) {
+    const dataBr = (ts: string) => diaDe(ts).slice(5).split("-").reverse().join("/");
     cards.push({
       id: "conc-auto",
       titulo: "Conciliação automática",
       href: "/conciliacao",
-      atual: r2(Number(ult.pct_bateu) * 100),
-      anterior: ant ? r2(Number(ant.pct_bateu) * 100) : null,
+      atual: r2(pesada(empresas.map((e) => e.runs[0]))),
+      anterior: empresas.some((e) => e.runs[1]) ? r2(pesada(empresas.map((e) => e.runs[1] ?? e.runs[0]))) : null,
       formato: "pct",
       melhor: "maior",
-      periodo: `última (${diaDe(ult.criado_em).split("-").reverse().join("/")}, filiais ${ult.fil_min}–${ult.fil_max})`,
-      comparadoCom: "a conciliação anterior",
-      nota: "títulos do Trier que bateram com o banco",
+      periodo: "última de cada empresa",
+      comparadoCom: "as conciliações anteriores",
+      nota: empresas.map((e) => `${e.nome} ${(Number(e.runs[0].pct_bateu) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% (${dataBr(e.runs[0].criado_em)})`).join(" · "),
     });
+  }
   cards.push({
     id: "conc-pend",
     titulo: "Pendências novas na conciliação",
@@ -276,11 +322,14 @@ async function pessoal(supabase: Cliente, p: Periodos): Promise<Comparativo[]> {
   ];
 }
 
+const ORDEM_CARTOES = ["venda", "caixa", "conc-auto", "resultado", "conc-pend", "chamados", "sla", "folha", "admissoes"];
+
 export async function carregarComparativos(sessao: Sessao): Promise<Comparativo[]> {
   const supabase = await createClient();
   const p = periodos();
   const pode = (rota: string) => podeAcessar(sessao.papel, rota, sessao.telasExtras, sessao.bloqueios);
   const fontes: Promise<Comparativo[]>[] = [];
+  if (pode("/vendas")) fontes.push(vendas());
   if (pode("/financeiro/diferenca-caixa")) fontes.push(quebrasDeCaixa(supabase, p, "/financeiro/diferenca-caixa"));
   else if (sessao.papel === "gerente" || sessao.papel === "coordenador") fontes.push(quebrasDeCaixa(supabase, p, "/caixa"));
   if (pode("/conciliacao")) fontes.push(conciliacao(supabase, p));
@@ -289,9 +338,12 @@ export async function carregarComparativos(sessao: Sessao): Promise<Comparativo[
   if (pode("/rh/funcionarios")) fontes.push(pessoal(supabase, p));
   if (pode("/chamados")) fontes.push(chamados(supabase, p));
   const resultados = await Promise.allSettled(fontes);
-  return resultados.flatMap((r) => {
+  const cards = resultados.flatMap((r) => {
     if (r.status === "fulfilled") return r.value;
     console.error("[dashboard] comparativo:", r.reason instanceof Error ? r.reason.message : r.reason);
     return [];
   });
+  // o que mais pesa para quem decide vem primeiro
+  const posicao = (id: string) => ORDEM_CARTOES.indexOf(id) + 1 || ORDEM_CARTOES.length + 1;
+  return cards.sort((a, b) => posicao(a.id) - posicao(b.id));
 }
