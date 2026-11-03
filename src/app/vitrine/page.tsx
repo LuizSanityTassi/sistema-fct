@@ -31,6 +31,7 @@ import { assuntoAviso, htmlAviso, type Destinatario } from "@/lib/caixa/avisos-e
 import { JustificativaForm } from "@/app/(app)/caixa/justificativa-form";
 import { ImportarPosForm } from "@/app/(app)/financeiro/diferenca-caixa/importar/importar-form";
 import type { EstadoPos } from "@/app/(app)/financeiro/diferenca-caixa/importar/actions";
+import { ChatAssistente } from "@/app/(app)/assistente/chat";
 import { Demonstrativo } from "@/app/(app)/financeiro/dre/demonstrativo";
 import { lerConta } from "@/lib/financeiro/conta";
 import { LINHAS_DRE, sinalManual, type Lancamentos } from "@/lib/financeiro/dre-contabil";
@@ -451,6 +452,23 @@ export default function VitrinePage() {
         <div className="border-t px-5 py-3">
           <Paginacao pagina={2} paginas={5} total={118} tamanho={25} params={{}} />
         </div>
+      </section>
+
+      <section aria-labelledby="t-ia" className="my-6">
+        <h2 id="t-ia" className="mb-2 text-sm font-semibold">
+          Assistente IA (conversa fictícia)
+        </h2>
+        <ChatAssistente
+          conversaInicial={null}
+          mensagensIniciais={[
+            { papel: "user", texto: "Qual filial mais caiu em venda este mês?" },
+            { papel: "assistant", texto: "A **F004 Hospital** foi a que mais caiu: de R$ 412.350,40 para R$ 398.120,10 (-3,5%) de 1 a 19 de outubro contra o mesmo período de setembro.\n\n| Filial | Setembro | Outubro | Variação |\n|---|---:|---:|---:|\n| F004 Hospital | R$ 412.350,40 | R$ 398.120,10 | -3,5% |\n| F101 Lages 109 | R$ 301.200,00 | R$ 295.410,75 | -1,9% |\n\n[Link externo](https://exemplo.com/x) e [tela do sistema](/vendas/filiais).\n\n![imagem](https://exemplo.com/foto.png)" },
+          ]}
+          sugestoes={["Qual filial mais caiu em venda este mês?", "Quais lojas estão em situação crítica?"]}
+          gastoHoje={0.32}
+          limiteDia={2}
+          maxCaracteres={2000}
+        />
       </section>
 
       <section aria-labelledby="t-dre" className="my-6 rounded-xl border bg-card">

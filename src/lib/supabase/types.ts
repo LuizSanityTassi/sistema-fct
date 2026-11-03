@@ -4922,6 +4922,109 @@ export type Database = {
         }
         Relationships: []
       }
+      ia_conversas: {
+        Row: {
+          atualizado_em: string
+          criado_em: string
+          id: string
+          titulo: string
+          user_id: string
+        }
+        Insert: {
+          atualizado_em?: string
+          criado_em?: string
+          id?: string
+          titulo: string
+          user_id?: string
+        }
+        Update: {
+          atualizado_em?: string
+          criado_em?: string
+          id?: string
+          titulo?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ia_mensagens: {
+        Row: {
+          conteudo: string
+          conversa_id: string
+          criado_em: string
+          ordem: number
+          papel: string
+        }
+        Insert: {
+          conteudo: string
+          conversa_id: string
+          criado_em?: string
+          ordem: number
+          papel: string
+        }
+        Update: {
+          conteudo?: string
+          conversa_id?: string
+          criado_em?: string
+          ordem?: number
+          papel?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ia_mensagens_conversa_id_fkey"
+            columns: ["conversa_id"]
+            isOneToOne: false
+            referencedRelation: "ia_conversas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ia_uso: {
+        Row: {
+          cache_escrita: number
+          cache_leitura: number
+          conversa_id: string | null
+          criado_em: string
+          custo_usd: number
+          entrada: number
+          id: number
+          modelo: string
+          saida: number
+          user_id: string
+        }
+        Insert: {
+          cache_escrita?: number
+          cache_leitura?: number
+          conversa_id?: string | null
+          criado_em?: string
+          custo_usd: number
+          entrada?: number
+          id?: never
+          modelo: string
+          saida?: number
+          user_id?: string
+        }
+        Update: {
+          cache_escrita?: number
+          cache_leitura?: number
+          conversa_id?: string | null
+          criado_em?: string
+          custo_usd?: number
+          entrada?: number
+          id?: never
+          modelo?: string
+          saida?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ia_uso_conversa_id_fkey"
+            columns: ["conversa_id"]
+            isOneToOne: false
+            referencedRelation: "ia_conversas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       it_assets: {
         Row: {
           anydesk: string | null
@@ -5631,6 +5734,13 @@ export type Database = {
       }
     }
     Functions: {
+      ia_gastos: {
+        Args: never
+        Returns: {
+          hoje_usuario: number
+          mes_total: number
+        }[]
+      }
       fin_fluxo_importar_pagar: {
         Args: {
           p_arquivo: string
