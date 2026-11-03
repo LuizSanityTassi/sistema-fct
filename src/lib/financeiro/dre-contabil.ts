@@ -35,7 +35,7 @@ export const ROTULO_LINHA: Record<LinhaDre, string> = {
   impostos_vendas: "(−) Impostos s/ vendas",
   comissoes: "(−) Comissões s/ vendas",
   custo_mercadoria: "Custo das mercadorias",
-  ajuste_cmv: "Ajuste do CMV",
+  ajuste_cmv: "Crédito CMV",
   despesas_pessoal: "Despesas com pessoal",
   despesas_administrativas: "Despesas administrativas",
   despesas_comerciais: "Despesas comerciais",
@@ -331,7 +331,7 @@ export type LinhaManual = (typeof LINHAS_MANUAIS)[number];
 export const ehLinhaManual = (v: unknown): v is LinhaManual => typeof v === "string" && (LINHAS_MANUAIS as readonly string[]).includes(v);
 /**
  * Sinal de cada conta ao digitar, como na planilha (sem sinal): receitas entram positivas, deduções e despesas
- * negativas; um "-" na frente inverte (estorno). O ajuste do CMV é digitado com o sinal que tem.
+ * negativas; um "-" na frente inverte (estorno). O Crédito CMV é digitado com o sinal que tem.
  */
 export const SINAL_DIGITADO: Record<LinhaDre, 1 | -1> = {
   vendas: 1,
