@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Clock, KeyRound, Maximize } from "lucide-react";
+import { Clock, Fingerprint, KeyRound, Maximize } from "lucide-react";
 import { SelectNativo } from "@/components/form/campo";
 import { PageHeader } from "@/components/layout/page-header";
 import { EstadoVazio, Painel } from "@/components/layout/painel";
@@ -17,8 +17,9 @@ import { lerUuid } from "@/lib/data/ponto";
 import { formatarDataHora } from "@/lib/formatos";
 import { createClient } from "@/lib/supabase/server";
 import { FormAcessoRelogio } from "./acessos-relogio";
-import { salvarAcessoRelogio } from "./actions";
+import { gerarCodigoLeitor, revogarLeitor, salvarAcessoRelogio } from "./actions";
 import { filiaisDoRelogio } from "./filiais";
+import { FormCodigoLeitor } from "./leitores-relogio";
 
 export const metadata = { title: "Relógio da filial" };
 
@@ -44,14 +45,26 @@ export default async function RelogioPage({
     ultimo_acesso: string | null;
     branch_id: string | null;
   }[] = [];
+  let leitores: {
+    id: string;
+    branch_id: string;
+    ativo: boolean;
+    ativado_em: string | null;
+    codigo_expira: string | null;
+    ultimo_uso: string | null;
+  }[] = [];
   if (admin) {
     const supabase = await createClient();
-    const { data } = await supabase
-      .from("profiles")
-      .select("id, email, ativo, ultimo_acesso, branch_id")
-      .eq("papel", "relogio")
-      .order("email");
+    const [{ data }, { data: dadosLeitores }] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id, email, ativo, ultimo_acesso, branch_id")
+        .eq("papel", "relogio")
+        .order("email"),
+      supabase.rpc("ponto_leitores_lista"),
+    ]);
     acessos = data ?? [];
+    leitores = dadosLeitores ?? [];
   }
   const filialPorId = new Map(opcoes.map((u) => [u.id, u]));
   const comAcesso = new Set(acessos.map((a) => a.branch_id));
@@ -178,6 +191,79 @@ export default async function RelogioPage({
                           {a.ultimo_acesso
                             ? formatarDataHora(a.ultimo_acesso)
                             : "nunca"}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </Painel>
+      )}
+
+      {admin && (
+        <Painel
+          className="mt-6"
+          icone={Fingerprint}
+          titulo="Leitor de digital de cada filial"
+          descricao="Com o leitor ativado, quem tem digital cadastrada digita a matrícula e coloca o dedo; o PIN continua valendo como reserva. Instale o programa do leitor no computador da loja e ative com o código de uma vez."
+        >
+          <FormCodigoLeitor
+            acao={gerarCodigoLeitor}
+            filiais={opcoes.map((u) => ({
+              id: u.id,
+              codigo: u.codigo,
+              nome: u.nome,
+            }))}
+          />
+          {leitores.length > 0 && (
+            <div className="border-t">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="pl-5">Filial</TableHead>
+                    <TableHead>Situação</TableHead>
+                    <TableHead>Último uso</TableHead>
+                    <TableHead />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {leitores.map((l) => {
+                    const u = filialPorId.get(l.branch_id);
+                    return (
+                      <TableRow key={l.id}>
+                        <TableCell className="pl-5">
+                          {u ? (
+                            <>
+                              <span className="font-mono">{u.codigo}</span>{" "}
+                              {u.nome}
+                            </>
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {!l.ativo
+                            ? "Desativado"
+                            : l.ativado_em
+                              ? `Ativo desde ${formatarDataHora(l.ativado_em)}`
+                              : `Aguardando o código, até ${formatarDataHora(l.codigo_expira ?? "")}`}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {l.ultimo_uso
+                            ? formatarDataHora(l.ultimo_uso)
+                            : "nunca"}
+                        </TableCell>
+                        <TableCell className="pr-5 text-right">
+                          {l.ativo && (
+                            <form action={revogarLeitor}>
+                              <input type="hidden" name="leitor" value={l.id} />
+                              <Button type="submit" size="xs" variant="ghost">
+                                Desativar
+                              </Button>
+                            </form>
+                          )}
                         </TableCell>
                       </TableRow>
                     );

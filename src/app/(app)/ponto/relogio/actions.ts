@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { lerUuid } from "@/lib/data/ponto";
+import { mensagemBanco } from "@/lib/ponto/form";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { emailDoRelogio } from "./filiais";
@@ -113,4 +114,56 @@ export async function salvarAcessoRelogio(
   return {
     ok: `Acesso criado. Na loja, entre com ${email} e a senha que você definiu.`,
   };
+}
+
+export type EstadoCodigoLeitor = { erro?: string; codigo?: string; filial?: string };
+
+/** Gera o código de uso único (vale 30 minutos) para ativar o leitor de digital de uma filial. Só admin. */
+export async function gerarCodigoLeitor(
+  _prev: EstadoCodigoLeitor,
+  fd: FormData,
+): Promise<EstadoCodigoLeitor> {
+  const filialId = lerUuid(fd.get("filial"));
+  if (!filialId) return { erro: "Escolha a filial." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("ponto_leitor_gerar_codigo", {
+    p_branch: filialId,
+  });
+  if (error)
+    return { erro: mensagemBanco(error, "Não foi possível gerar o código.") };
+  revalidatePath("/ponto/relogio");
+  return { codigo: data, filial: filialId };
+}
+
+/** Desativa o leitor de um computador: o relógio dele volta a aceitar só o PIN. Só admin. */
+export async function revogarLeitor(fd: FormData): Promise<void> {
+  const id = lerUuid(fd.get("leitor"));
+  if (!id) return;
+  const supabase = await createClient();
+  await supabase.rpc("ponto_leitor_revogar", { p_leitor: id });
+  revalidatePath("/ponto/relogio");
+}
+
+export type LeitorAtivado =
+  | { ok: true; id: string; segredo: string }
+  | { ok: false; erro: string };
+
+/** No relógio da loja: troca o código pelo segredo que fica guardado no programa do leitor. */
+export async function ativarLeitorNoRelogio(
+  filial: string,
+  codigo: string,
+): Promise<LeitorAtivado> {
+  const b = lerUuid(filial);
+  const c = codigo.trim().slice(0, 12);
+  if (!b || !c) return { ok: false, erro: "Digite o código de ativação." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("ponto_leitor_ativar", {
+    p_branch: b,
+    p_codigo: c,
+    p_nome: "Relógio da filial",
+  });
+  if (error)
+    return { ok: false, erro: mensagemBanco(error, "Não foi possível ativar o leitor.") };
+  const r = data as { id: string; segredo: string };
+  return { ok: true, id: r.id, segredo: r.segredo };
 }

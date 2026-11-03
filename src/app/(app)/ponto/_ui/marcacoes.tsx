@@ -1,10 +1,10 @@
-import { KeyRound, MapPin, Monitor, PencilLine, Smartphone, type LucideIcon } from "lucide-react";
+import { Fingerprint, KeyRound, MapPin, Monitor, PencilLine, Smartphone, type LucideIcon } from "lucide-react";
 import { local, METODO_LABEL, TIPO_MARCACAO_CURTO, type Marcacao } from "@/lib/ponto/calculo";
 import { cn } from "@/lib/utils";
 import { ICONE_TIPO_CLIENTE } from "./icones-tipo";
 
 export const ICONE_TIPO = ICONE_TIPO_CLIENTE;
-const ICONE_METODO: Record<string, LucideIcon> = { web: Monitor, celular: Smartphone, relogio_pin: KeyRound, ajuste: PencilLine };
+const ICONE_METODO: Record<string, LucideIcon> = { web: Monitor, celular: Smartphone, relogio_pin: KeyRound, biometria: Fingerprint, ajuste: PencilLine };
 
 export function horaLocal(iso: string) {
   const l = local(iso);
