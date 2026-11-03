@@ -77,3 +77,21 @@ export function filialDoNome(nome: string, codigosConhecidos: number[]) {
   const numeros = (nome.replace(/\.[^.]+$/, "").match(/(?<!\d)\d{3}(?!\d)/g) ?? []).map(Number);
   return numeros.find((n) => codigosConhecidos.includes(n)) ?? null;
 }
+
+/**
+ * Filial de uma planilha do portal Itaú. O cabeçalho traz sempre a matriz, então a filial vem do nome do arquivo: o código
+ * ("421"), o final do CNPJ ("2325" = /0023-25) ou o número do CNPJ ("07-" = /0007), com a raiz do CNPJ do cabeçalho.
+ */
+export function filialDaPlanilha(nome: string, empresaCnpj: string, filiais: { codigos: number[]; porCnpj: Map<string, number> }) {
+  const peloCodigo = filialDoNome(nome, filiais.codigos);
+  if (peloCodigo != null) return peloCodigo;
+  const raiz = empresaCnpj.replace(/\D/g, "").slice(0, 8);
+  if (raiz.length !== 8) return null;
+  const base = nome.replace(/\.[^.]+$/, "").trim();
+  if (/^\d{4}$/.test(base)) return filiais.porCnpj.get(`${raiz}00${base}`) ?? null;
+  const numero = /^(\d{1,2})\s*-/.exec(base)?.[1];
+  if (!numero) return null;
+  const prefixo = raiz + numero.padStart(4, "0");
+  for (const [cnpj, fil] of filiais.porCnpj) if (cnpj.startsWith(prefixo)) return fil;
+  return null;
+}

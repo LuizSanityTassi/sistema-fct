@@ -6,7 +6,7 @@ import { registrarAuditoria } from "@/lib/auditoria";
 import { mapaFiliais } from "@/lib/data/conciliacao";
 import type { Database, Json } from "@/lib/supabase/types";
 import type { Inserir, Linha } from "@/lib/tipos";
-import { detectarTipo, filialDoNome, lerDDA, lerTrier } from "./leitores";
+import { detectarTipo, filialDaPlanilha, lerDDA, lerTrier } from "./leitores";
 import { Motor, type ArquivoDDA, type ResultadoConciliacao, type ResultadoTrier, type TituloTrier } from "./motor";
 import { Omie, type GruposOmie, type ItemOmie } from "./omie";
 import { aplicarDecisao, alvoDeItem, contarUso, decidirPendencia, gravarUso, motivoDaRegra, primeiraRegra, regrasAtivas, type AlvoRegra, type StatusRegra, type Uso } from "./regras";
@@ -90,7 +90,7 @@ export async function guardarArquivo(
     if (tipo === "dda_ret" || tipo === "dda_planilha") {
       const a = lerDDA(nome, buf);
       meta = { ...meta, ...metaDDA(a) };
-      if (a.planilha) filial = filialDoNome(nome, filiais.codigos);
+      if (a.planilha) filial = filialDaPlanilha(nome, a.empresaCnpj, filiais);
       else {
         // .RET de UMA filial (CNPJ do lote ≠ matriz /0001) fica ligado a ela; o da matriz traz várias
         const lote = (a.lotes[0]?.cnpj ?? a.empresaCnpj).replace(/\D/g, "").slice(-14);
@@ -230,7 +230,7 @@ export async function executarConciliacao(supabase: Cliente, userId: string | nu
     } else if (a.tipo === "dda_ret" || a.tipo === "dda_planilha") {
       const d = lerDDA(a.nome, buf);
       if (d.planilha) {
-        d.filial = a.filial ?? filialDoNome(a.nome, filiais.codigos);
+        d.filial = a.filial ?? filialDaPlanilha(a.nome, d.empresaCnpj, filiais);
         for (const t of d.titulos) t.filialArquivo = d.filial;
         if (d.filial == null) avisos.push(`"${a.nome}": não deu para saber a filial pelo nome do arquivo; os boletos valem para qualquer filial da faixa.`);
       }

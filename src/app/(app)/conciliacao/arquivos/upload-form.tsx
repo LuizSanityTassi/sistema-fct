@@ -25,7 +25,7 @@ export function UploadForm({ action }: Props) {
     <form ref={formRef} action={enviar} className="rounded-xl border bg-card p-5">
       <h2 className="mb-1 text-sm font-semibold">Enviar arquivos</h2>
       <p className="mb-4 text-xs text-muted-foreground">
-        Aceita vários de uma vez: <strong>.RET</strong> do Itaú (DDA), planilha <strong>“Boletos Recebidos”</strong> do portal Itaú (.xlsx, com o número da filial no nome, ex.: “out 421.xlsx”) e o relatório do Trier
+        Aceita vários de uma vez: <strong>.RET</strong> do Itaú (DDA), planilha <strong>“Boletos Recebidos”</strong> do portal Itaú (.xlsx, com a filial no nome: o código, “out 421.xlsx”, ou o final do CNPJ, “2325.xlsx”) e o relatório do Trier
         <strong> “Contas a Pagar ou Pagas”</strong> (PDF ou Excel, detalhado). O tipo é reconhecido pelo conteúdo. Arquivo repetido não duplica.
       </p>
       <ErroFormulario mensagem={estado.erro} />
