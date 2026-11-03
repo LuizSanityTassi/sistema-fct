@@ -154,7 +154,7 @@ export async function listarAsos(f: FiltrosAso) {
   let consulta = supabase
     .from("employee_aso")
     .select(
-      "id, tipo, data_realizacao, data_validade, storage_path, employees!inner(id, nome, status, branch_id, branches!employees_branch_id_fkey(id, codigo, nome))",
+      "id, tipo, data_realizacao, data_validade, storage_path, observacoes, employees!inner(id, nome, status, branch_id, branches!employees_branch_id_fkey(id, codigo, nome))",
       { count: "exact" },
     )
     .eq("ativo", true)
