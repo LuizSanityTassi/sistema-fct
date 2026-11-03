@@ -19,6 +19,7 @@ type Props = {
 export function DigitalForm({ cadastrar, remover, nome, dedos }: Props) {
   const [aberto, setAberto] = useState(false);
   const [leitor, setLeitor] = useState<string | null | undefined>(undefined);
+  const [semLeitor, setSemLeitor] = useState<string | undefined>(undefined);
   const [dedo, setDedo] = useState(2);
   const [ocupado, setOcupado] = useState<"lendo" | "removendo" | null>(null);
   const [estado, setEstado] = useState<EstadoPonto>({});
@@ -26,8 +27,10 @@ export function DigitalForm({ cadastrar, remover, nome, dedos }: Props) {
   useEffect(() => {
     if (!aberto) return;
     let vale = true;
-    verLeitor().then((l) => {
-      if (vale) setLeitor(l);
+    verLeitor().then((r) => {
+      if (!vale) return;
+      setLeitor(r.leitor);
+      setSemLeitor(r.erro);
     });
     return () => {
       vale = false;
@@ -42,7 +45,7 @@ export function DigitalForm({ cadastrar, remover, nome, dedos }: Props) {
       const { template, leitor: nomeLeitor } = await capturarDigital();
       setEstado(await cadastrar(dedo, template, nomeLeitor));
     } catch (e) {
-      setEstado({ erro: e instanceof Error && e.name !== "TimeoutError" ? e.message : "O leitor não recebeu o dedo a tempo. Tente de novo." });
+      setEstado({ erro: e instanceof Error && e.name === "TimeoutError" ? "O cadastro passou de 3 minutos. Tente de novo." : e instanceof TypeError ? "O agente do leitor parou de responder. Tente de novo." : e instanceof Error ? e.message : "Não consegui ler a digital. Tente de novo." });
     } finally {
       setOcupado(null);
     }
@@ -63,12 +66,13 @@ export function DigitalForm({ cadastrar, remover, nome, dedos }: Props) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Digital · {nome}</DialogTitle>
-            <DialogDescription>Escolha o dedo e peça para a pessoa colocar no leitor. O sistema guarda só um código gerado a partir da digital, nunca a imagem do dedo.</DialogDescription>
+            <DialogDescription>Escolha o dedo, clique em Ler digital e siga a janela do leitor. O sistema guarda só um código gerado a partir da digital, nunca a imagem do dedo.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <ErroFormulario mensagem={estado.erro} />
             <AvisoSucesso mensagem={estado.ok} />
-            {leitor === null && <AvisoAtencao mensagem="Leitor não encontrado neste computador. Confira se ele está ligado e se o programa do leitor está instalado." />}
+            {leitor === null && <AvisoAtencao mensagem={semLeitor} />}
+            {ocupado === "lendo" && <p className="text-sm text-muted-foreground">Siga a janela do leitor e cadastre o mesmo dedo. Ela pode abrir atrás do navegador; se não aparecer, olhe na barra de tarefas.</p>}
             {leitor && <p className="text-xs text-muted-foreground">Leitor: {leitor}</p>}
             <div className="flex flex-wrap items-end gap-2">
               <Campo id="digital-dedo" label="Dedo">
@@ -83,7 +87,7 @@ export function DigitalForm({ cadastrar, remover, nome, dedos }: Props) {
               </Campo>
               <Button type="button" onClick={ler} disabled={!leitor || !!ocupado}>
                 <Fingerprint data-icon="inline-start" />
-                {ocupado === "lendo" ? "Coloque o dedo no leitor…" : "Ler digital"}
+                {ocupado === "lendo" ? "Aguardando o leitor…" : "Ler digital"}
               </Button>
             </div>
             {dedos.length > 0 && (
