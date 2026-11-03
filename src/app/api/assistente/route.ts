@@ -22,7 +22,7 @@ const MENSAGEM_FIM: Partial<Record<FimConversa, string>> = {
 };
 
 function mensagemDeErro(e: unknown) {
-  if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) return "A chave da IA não foi aceita. Avise o administrador.";
+  if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError || (e instanceof Anthropic.BadRequestError && /workspace/i.test(e.message))) return "A chave da IA não foi aceita. Avise o administrador.";
   if (e instanceof Anthropic.RateLimitError) return "Muitas perguntas ao mesmo tempo. Tente de novo em instantes.";
   if (e instanceof Anthropic.BadRequestError && /credit/i.test(e.message)) return "O crédito da IA acabou. Avise o administrador.";
   if (e instanceof Anthropic.InternalServerError || e instanceof Anthropic.APIConnectionError) return "A IA está indisponível agora. Tente de novo em instantes.";
