@@ -9,7 +9,7 @@ export type RegionalVendas = (typeof REGIONAIS_VENDAS)[number];
 export const ehRegionalVendas = (r: string | null | undefined): r is RegionalVendas => REGIONAIS_VENDAS.includes(r as RegionalVendas);
 
 /** A venda da equipe de televendas sai das filiais e vai para a filial da central de cada vendedor (código 'TLV-…',
- * cidade = equipe; Criciúma e Lages no Sul, Concórdia no Oeste). Equipe sem central fica na "regional" Televendas. */
+ * cidade = equipe; Criciúma no Sul, Lages na Serra, Concórdia no Oeste). Equipe sem central fica na "regional" Televendas. */
 export const TELEVENDAS = "Televendas" as const;
 export type RegionalOuTele = RegionalVendas | typeof TELEVENDAS;
 const ehRegionalOuTele = (r: string | null | undefined): r is RegionalOuTele => r === TELEVENDAS || ehRegionalVendas(r);
