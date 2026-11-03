@@ -32,6 +32,7 @@ import { JustificativaForm } from "@/app/(app)/caixa/justificativa-form";
 import { ImportarPosForm } from "@/app/(app)/financeiro/diferenca-caixa/importar/importar-form";
 import type { EstadoPos } from "@/app/(app)/financeiro/diferenca-caixa/importar/actions";
 import { ChatAssistente } from "@/app/(app)/assistente/chat";
+import { DigitalForm } from "@/app/(app)/ponto/_ui/digital-form";
 import { Demonstrativo } from "@/app/(app)/financeiro/dre/demonstrativo";
 import { lerConta } from "@/lib/financeiro/conta";
 import { LINHAS_DRE, sinalManual, type Lancamentos } from "@/lib/financeiro/dre-contabil";
@@ -43,6 +44,10 @@ const DRE_VITRINE: Record<string, Lancamentos> = {
   "2026-08": { vendas: 412350.4, devolucoes: -1820.15, impostos_vendas: -30120.5, comissoes: -4100, custo_mercadoria: -251300.75, despesas_pessoal: -38250.9, despesas_administrativas: -6120.33, despesas_comerciais: -1200, outras_despesas: -2610.45, despesas_financeiras: -3480.12 },
   "2026-09": { vendas: 398120.1, devolucoes: -1640.2, impostos_vendas: -29080.75, comissoes: -3950, custo_mercadoria: -243900.6, despesas_pessoal: -39100.25, despesas_administrativas: -5980.1, despesas_comerciais: -950, outras_despesas: -2950, despesas_financeiras: -3210.47 },
 };
+async function digitalFicticia() {
+  "use server";
+  return { ok: "Digital cadastrada." };
+}
 async function celulaFicticia(fd: FormData) {
   "use server";
   return lerConta(String(fd.get("valor"))) || !fd.get("valor") ? { ok: true as const } : { erro: "Valor ou conta inválida." };
@@ -452,6 +457,13 @@ export default function VitrinePage() {
         <div className="border-t px-5 py-3">
           <Paginacao pagina={2} paginas={5} total={118} tamanho={25} params={{}} />
         </div>
+      </section>
+
+      <section aria-labelledby="t-digital" className="my-6 rounded-xl border bg-card p-5">
+        <h2 id="t-digital" className="mb-3 text-sm font-semibold">
+          Cadastro de digital do ponto
+        </h2>
+        <DigitalForm cadastrar={digitalFicticia} remover={digitalFicticia} nome="Funcionário fictício" dedos={[2]} />
       </section>
 
       <section aria-labelledby="t-ia" className="my-6">

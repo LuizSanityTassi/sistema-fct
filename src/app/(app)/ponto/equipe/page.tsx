@@ -12,8 +12,9 @@ import { hojeLocal } from "@/lib/ponto/calculo";
 import { situacaoAgora } from "@/lib/ponto/situacao";
 import { createClient } from "@/lib/supabase/server";
 import { BarraFiltrosPonto, lerFiltrosPonto } from "../_ui/filtros";
+import { DigitalForm } from "../_ui/digital-form";
 import { PinForm } from "../_ui/pin-form";
-import { aplicarJornada, definirPin } from "./actions";
+import { aplicarJornada, cadastrarDigital, definirPin, removerDigital } from "./actions";
 import { ID_FORM_LOTE, LoteJornadaForm, MarcarTodos } from "./lote-form";
 
 export const metadata = { title: "Equipe e jornadas" };
@@ -37,8 +38,9 @@ export default async function EquipePage({ searchParams }: PageProps<"/ponto/equ
   const filtradas = situacao === "sem_jornada" ? linhas.filter((l) => !l.jornadaAtual) : situacao ? linhas.filter((l) => l.agora.codigo === situacao) : linhas;
   const paginas = Math.max(1, Math.ceil(filtradas.length / TAMANHO));
   const pag = filtradas.slice((pagina - 1) * TAMANHO, pagina * TAMANHO);
-  const { data: comPin } = await supabase.rpc("ponto_tem_pin", { p_employees: pag.map((l) => l.func.id) });
+  const [{ data: comPin }, { data: comDigital }] = await Promise.all([supabase.rpc("ponto_tem_pin", { p_employees: pag.map((l) => l.func.id) }), supabase.rpc("ponto_digitais_cadastradas", { p_employees: pag.map((l) => l.func.id) })]);
   const temPin = new Set(comPin ?? []);
+  const dedosDe = (id: string) => (comDigital ?? []).filter((d) => d.employee_id === id).map((d) => d.dedo);
   const contar = (c: string) => linhas.filter((l) => l.agora.codigo === c).length;
   const semJornada = linhas.filter((l) => !l.jornadaAtual).length;
   const params = { filial: filtros.filial ?? (sp.filial === "todas" ? "todas" : undefined), departamento: filtros.departamento, q: filtros.q, situacao: situacao || undefined };
@@ -49,7 +51,7 @@ export default async function EquipePage({ searchParams }: PageProps<"/ponto/equ
       <PageHeader
         eyebrow="Ponto"
         titulo="Equipe e jornadas"
-        descricao="Jornada de cada funcionário (o cadastro vem do RH), PIN do relógio e como está o dia agora. Marque vários para trocar a jornada de uma vez."
+        descricao="Jornada de cada funcionário (o cadastro vem do RH), PIN e digital do relógio e como está o dia agora. Marque vários para trocar a jornada de uma vez."
       />
       <section className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {[
@@ -104,6 +106,7 @@ export default async function EquipePage({ searchParams }: PageProps<"/ponto/equ
                     <TableHead>Jornada</TableHead>
                     <TableHead>Agora</TableHead>
                     <TableHead className="hidden lg:table-cell">PIN</TableHead>
+                    <TableHead className="hidden lg:table-cell">Digital</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -133,12 +136,14 @@ export default async function EquipePage({ searchParams }: PageProps<"/ponto/equ
                         <Status tom={s.tom}>{s.texto}</Status>
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">{temPin.has(f.id) ? <Status tom="sucesso">Cadastrado</Status> : <Status tom="neutro">Sem PIN</Status>}</TableCell>
+                      <TableCell className="hidden lg:table-cell">{dedosDe(f.id).length ? <Status tom="sucesso">{dedosDe(f.id).length === 1 ? "1 dedo" : `${dedosDe(f.id).length} dedos`}</Status> : <Status tom="neutro">Sem digital</Status>}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex flex-wrap items-center justify-end gap-1.5">
                           <Link href={`/ponto/banco?funcionario=${f.id}`} className="text-xs text-fct-tinta underline">
                             Banco
                           </Link>
                           {podeEditar && <PinForm action={definirPin.bind(null, f.id)} nome={f.nome} temPin={temPin.has(f.id)} compacto />}
+                          {podeEditar && <DigitalForm cadastrar={cadastrarDigital.bind(null, f.id)} remover={removerDigital.bind(null, f.id)} nome={f.nome} dedos={dedosDe(f.id)} />}
                         </div>
                       </TableCell>
                     </TableRow>

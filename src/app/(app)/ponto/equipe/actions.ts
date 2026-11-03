@@ -61,3 +61,24 @@ export async function definirPin(employeeId: string, _prev: EstadoPonto, fd: For
   revalidatePath("/ponto/registrar");
   return { ok: "PIN definido." };
 }
+
+/** Digital do relógio: grava o código que o leitor gerou (a função do banco cifra e confere quem pode). */
+export async function cadastrarDigital(employeeId: string, dedo: number, template: string, leitor: string): Promise<EstadoPonto> {
+  const id = lerUuid(employeeId);
+  if (!id || !Number.isInteger(dedo)) return { erro: "Dados inválidos." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("ponto_cadastrar_digital", { p_employee: id, p_dedo: dedo, p_template: template, p_leitor: leitor });
+  if (error) return { erro: mensagemBanco(error) };
+  revalidatePath("/ponto/equipe");
+  return { ok: "Digital cadastrada." };
+}
+
+export async function removerDigital(employeeId: string, dedo: number): Promise<EstadoPonto> {
+  const id = lerUuid(employeeId);
+  if (!id || !Number.isInteger(dedo)) return { erro: "Dados inválidos." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("ponto_remover_digital", { p_employee: id, p_dedo: dedo });
+  if (error) return { erro: mensagemBanco(error) };
+  revalidatePath("/ponto/equipe");
+  return { ok: "Digital removida." };
+}

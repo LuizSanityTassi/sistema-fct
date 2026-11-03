@@ -6059,6 +6059,9 @@ export type Database = {
         Args: { p_branch: string; p_matricula: string }
         Returns: Json
       }
+      ponto_cadastrar_digital: { Args: { p_employee: string; p_dedo: number; p_template: string; p_leitor: string }; Returns: undefined }
+      ponto_digitais_cadastradas: { Args: { p_employees: string[] }; Returns: { employee_id: string; dedo: number }[] }
+      ponto_remover_digital: { Args: { p_employee: string; p_dedo: number }; Returns: undefined }
       ponto_tem_pin: { Args: { p_employees: string[] }; Returns: string[] }
       rh_historico_funcionario: {
         Args: { p_employee: string }
