@@ -23,6 +23,8 @@ type Props = {
   podeEditar: boolean;
   /** dica ao passar o mouse (no lugar da padrão) e texto do campo vazio — ex.: célula que edita um ajuste somado */
   dicaEditar?: string;
+  /** dica do campo aberto (no lugar da padrão) — ex.: na DRE, apagar zera em vez de voltar ao automático */
+  dicaCampo?: string;
   placeholder?: string;
 };
 
@@ -31,7 +33,7 @@ type Props = {
  * clicar a célula mostra o valor (ou a conta) que já tem: dá para continuar a conta como numa planilha — "+200",
  * "-100" — e a conta fica guardada como memória de cálculo.
  */
-export function CelulaEditavel({ action, campos, valorAtual, base, conta, deBaixo, exibicao, automatico, ajustado: ajustadoGravado, destacar = true, classe, podeEditar, dicaEditar, placeholder }: Props) {
+export function CelulaEditavel({ action, campos, valorAtual, base, conta, deBaixo, exibicao, automatico, ajustado: ajustadoGravado, destacar = true, classe, podeEditar, dicaEditar, dicaCampo, placeholder }: Props) {
   const router = useRouter();
   const ajustado = ajustadoGravado && destacar;
   const [editando, setEditando] = React.useState(false);
@@ -78,7 +80,7 @@ export function CelulaEditavel({ action, campos, valorAtual, base, conta, deBaix
             if (e.key === "Escape") setEditando(false);
           }}
           placeholder={placeholder ?? automatico ?? "—"}
-          title={comConta ? "Digite o valor ou continue a conta: +200, -100, *2… Apague tudo para voltar ao automático." : undefined}
+          title={dicaCampo ?? (comConta ? "Digite o valor ou continue a conta: +200, -100, *2… Apague tudo para voltar ao automático." : undefined)}
           className={`${comConta ? "w-40" : "w-28"} rounded border border-input bg-background px-1.5 py-0.5 text-right text-xs text-foreground`}
           inputMode={comConta ? "text" : "decimal"}
         />

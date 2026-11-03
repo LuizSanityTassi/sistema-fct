@@ -15,12 +15,11 @@ import { formatarDataHora } from "@/lib/formatos";
 import { rotuloCompetencia } from "@/lib/rh/competencia";
 import { createClient } from "@/lib/supabase/server";
 import { ConfirmarAcao } from "@/components/layout/confirmar-acao";
-import { excluirRateio, lancarManual, preencherOmie, salvarRateio } from "./actions";
+import { excluirRateio, lancarManual, preencherOmie, salvarCelulaDre, salvarRateio } from "./actions";
 import { AbasDre, AvisoCobertura, cabecalhosOrdenaveis, Cartao, empresasSemDre, Filtros, mostraPct, OpcoesFiliais, query, TODAS, tom, VISOES_DRE, type Direcao, type Props, type VisaoDre } from "./comum";
 import { Comparativo } from "./comparativo";
 import { Demonstrativo, type EdicaoDemonstrativo } from "./demonstrativo";
 import { LancarForm } from "./lancar-form";
-import { SalvarDemonstrativo } from "./salvar-demonstrativo";
 import { RateioForm } from "./rateio-form";
 
 export const metadata = { title: "DRE" };
@@ -137,7 +136,7 @@ export default async function DrePage({ searchParams }: PageProps<"/financeiro/d
       {ver === "resumo" ? (
         <Resumo {...props} porEmpresa={porEmpresa} />
       ) : ver === "demonstrativo" ? (
-        <VerDemonstrativo {...props} nomeEscolha={nomeEscolha} podeEditar={podeImportar} />
+        <VerDemonstrativo {...props} nomeEscolha={nomeEscolha} podeEditar={podeImportar} destacarDigitados={sessao.papel === "admin"} />
       ) : ver === "comparativo" ? (
         <Comparativo {...props} />
       ) : ver === "lancar" && podeImportar ? (
@@ -441,7 +440,7 @@ const RECORTES_DRE = [
   { valor: "NAZÁRIO+BLUMENAU", rotulo: "NAZÁRIO + BLUMENAU", empresa: "NAZÁRIO", entra: () => true, daEmpresa: true, inteira: true },
 ];
 
-async function VerDemonstrativo({ s, base, empresas, todas, anos, mesesDoAno, mapa, rateios, filiais, mesesPorEmpresa, nomeEscolha, podeEditar }: Props & { nomeEscolha: string; podeEditar: boolean }) {
+async function VerDemonstrativo({ s, base, empresas, todas, anos, mesesDoAno, mapa, rateios, filiais, mesesPorEmpresa, nomeEscolha, podeEditar, destacarDigitados }: Props & { nomeEscolha: string; podeEditar: boolean; destacarDigitados: boolean }) {
   const filial = filiais.find((f) => f.id === s("filial"));
   const chave = filial ? filial.id : "*";
   const porMes = new Map(mesesDoAno.map((m) => [m, somar(mapa, chave, [m])]));
@@ -454,10 +453,11 @@ async function VerDemonstrativo({ s, base, empresas, todas, anos, mesesDoAno, ma
     const campos: EdicaoDemonstrativo["campos"] = {};
     for (const mes of mesesDoAno) {
       for (const linha of LINHAS_DRE) {
-        campos[`${mes}|${linha}`] = { nome: `v:${filial.id}:${linha}:${mes}`, valor: textoDigitado(gravados.get(`${filial.id}|${mes}|${linha}`), linha) };
+        const g = gravados.get(`${filial.id}|${mes}|${linha}`);
+        campos[`${mes}|${linha}`] = { valor: (g?.valor ?? 0) * sinalManual(linha), conta: g?.formula ?? null, manual: !!g?.manual };
       }
     }
-    editar = { form: "form-demonstrativo", campos };
+    editar = { salvar: salvarCelulaDre, empresa: filial.empresa, filial: filial.id, destacar: destacarDigitados, campos };
   }
   return (
     <>
@@ -499,15 +499,12 @@ async function VerDemonstrativo({ s, base, empresas, todas, anos, mesesDoAno, ma
           )}
         </header>
         {editar && filial ? (
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-amber-50/60 px-5 py-2.5 text-sm dark:bg-amber-400/5">
-            <p className="text-muted-foreground">
-              Todas as contas de todos os meses podem ser digitadas aqui (sem sinal, como na planilha; “-” na frente inverte). O que for digitado vale mais que a
-              planilha: reimportar o mês não passa por cima.
-            </p>
-            <SalvarDemonstrativo action={lancarManual} empresa={filial.empresa} id="form-demonstrativo" rotulo={`Salvar ${filial.codigo}`} />
-          </div>
+          <p className="border-t px-5 py-2.5 text-sm text-muted-foreground">
+            Clique no valor de uma conta para alterar: digite sem sinal, como na planilha, ou continue a conta (+200, -100). Enter ou sair do campo salva; Esc cancela. O que for digitado vale mais que a
+            planilha: reimportar o mês não passa por cima.{editar.destacar ? " Células amarelas = valor digitado." : ""}
+          </p>
         ) : podeEditar && !filial ? (
-          <p className="border-t px-5 py-2.5 text-sm text-muted-foreground">Para digitar, escolha uma filial no filtro acima: todas as contas de todos os meses ficam editáveis.</p>
+          <p className="border-t px-5 py-2.5 text-sm text-muted-foreground">Para alterar um valor, escolha uma filial no filtro acima: todas as contas de todos os meses ficam editáveis.</p>
         ) : null}
         <Demonstrativo meses={mesesDoAno} porMes={porMes} editar={editar} />
       </section>

@@ -105,6 +105,15 @@ export async function lancarManual(_prev: EstadoManual, fd: FormData): Promise<E
   return { ok: `${empresa}: ${mudou.length === 1 ? "1 valor alterado" : `${mudou.length} valores alterados`}.` };
 }
 
+/** Uma célula do demonstrativo (clique, digita, Enter ou sai do campo): mesma gravação e mesmas regras de lancarManual. */
+export async function salvarCelulaDre(fd: FormData): Promise<{ ok?: true; erro?: string }> {
+  const dados = new FormData();
+  dados.set("empresa", texto(fd, "empresa"));
+  dados.set(`v:${texto(fd, "filial")}:${texto(fd, "linha")}:${texto(fd, "mes")}`, String(fd.get("valor") ?? ""));
+  const r = await lancarManual({}, dados);
+  return r.erro ? { erro: r.erro } : { ok: true };
+}
+
 /**
  * Refaz as contas do plano (devoluções, comissões = Premiação, outras receitas, receita financeira, despesas de pessoal,
  * administrativas, comerciais, outras e financeiras) do mês liberado a partir dos lançamentos do Omie, filial por

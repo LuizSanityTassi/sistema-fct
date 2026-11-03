@@ -36,12 +36,12 @@ export async function rateiosDre(empresa: string, de: string, ate: string): Prom
   return (data ?? []).flatMap((r) => (ehLinhaRateio(r.linha) ? [{ ...r, competencia: r.competencia.slice(0, 7), linha: r.linha, valor: Number(r.valor) }] : []));
 }
 
-/** Valores gravados (sem rateio) da empresa nos meses pedidos ("aaaa-mm"), com a conta digitada: chave "filial|mês|conta" ("" = da empresa). */
+/** Valores gravados (sem rateio) da empresa nos meses pedidos ("aaaa-mm"), com a conta digitada e se foi digitado: chave "filial|mês|conta" ("" = da empresa). */
 export async function valoresGravados(empresa: string, meses: string[], filial?: string) {
   const supabase = await createClient();
   let q = supabase
     .from("dre_contabil")
-    .select("branch_id, competencia, linha, valor, formula")
+    .select("branch_id, competencia, linha, valor, formula, manual")
     .eq("empresa", empresa)
     .in(
       "competencia",
@@ -50,11 +50,11 @@ export async function valoresGravados(empresa: string, meses: string[], filial?:
   if (filial) q = q.eq("branch_id", filial);
   const { data, error } = await q.range(0, 9999);
   if (error) throw new Error(error.message);
-  const out = new Map<string, { valor: number; formula: string | null }>();
+  const out = new Map<string, { valor: number; formula: string | null; manual: boolean }>();
   for (const r of data ?? []) {
     const k = `${r.branch_id ?? ""}|${r.competencia.slice(0, 7)}|${r.linha}`;
     const antes = out.get(k);
-    out.set(k, { valor: (antes?.valor ?? 0) + Number(r.valor), formula: r.formula ?? antes?.formula ?? null });
+    out.set(k, { valor: (antes?.valor ?? 0) + Number(r.valor), formula: r.formula ?? antes?.formula ?? null, manual: r.manual || !!antes?.manual });
   }
   return out;
 }

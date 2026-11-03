@@ -31,8 +31,21 @@ import { assuntoAviso, htmlAviso, type Destinatario } from "@/lib/caixa/avisos-e
 import { JustificativaForm } from "@/app/(app)/caixa/justificativa-form";
 import { ImportarPosForm } from "@/app/(app)/financeiro/diferenca-caixa/importar/importar-form";
 import type { EstadoPos } from "@/app/(app)/financeiro/diferenca-caixa/importar/actions";
+import { Demonstrativo } from "@/app/(app)/financeiro/dre/demonstrativo";
+import { lerConta } from "@/lib/financeiro/conta";
+import { LINHAS_DRE, sinalManual, type Lancamentos } from "@/lib/financeiro/dre-contabil";
 
 export const metadata = { title: "Vitrine" };
+
+// dados fictícios do demonstrativo da DRE; a célula não grava nada
+const DRE_VITRINE: Record<string, Lancamentos> = {
+  "2026-08": { vendas: 412350.4, devolucoes: -1820.15, impostos_vendas: -30120.5, comissoes: -4100, custo_mercadoria: -251300.75, despesas_pessoal: -38250.9, despesas_administrativas: -6120.33, despesas_comerciais: -1200, outras_despesas: -2610.45, despesas_financeiras: -3480.12 },
+  "2026-09": { vendas: 398120.1, devolucoes: -1640.2, impostos_vendas: -29080.75, comissoes: -3950, custo_mercadoria: -243900.6, despesas_pessoal: -39100.25, despesas_administrativas: -5980.1, despesas_comerciais: -950, outras_despesas: -2950, despesas_financeiras: -3210.47 },
+};
+async function celulaFicticia(fd: FormData) {
+  "use server";
+  return lerConta(String(fd.get("valor"))) || !fd.get("valor") ? { ok: true as const } : { erro: "Valor ou conta inválida." };
+}
 
 // dados fictícios do painel geral
 const PENDENCIAS_VITRINE: Pendencia[] = [
@@ -438,6 +451,27 @@ export default function VitrinePage() {
         <div className="border-t px-5 py-3">
           <Paginacao pagina={2} paginas={5} total={118} tamanho={25} params={{}} />
         </div>
+      </section>
+
+      <section aria-labelledby="t-dre" className="my-6 rounded-xl border bg-card">
+        <h2 id="t-dre" className="px-5 pt-4 pb-3 text-sm font-semibold">
+          DRE · demonstrativo de uma filial (clique no valor para alterar)
+        </h2>
+        <Demonstrativo
+          meses={Object.keys(DRE_VITRINE)}
+          porMes={new Map(Object.entries(DRE_VITRINE))}
+          editar={{
+            salvar: celulaFicticia,
+            empresa: "VARELA",
+            filial: "00000000-0000-0000-0000-000000000001",
+            destacar: true,
+            campos: Object.fromEntries(
+              Object.entries(DRE_VITRINE).flatMap(([mes, l]) =>
+                LINHAS_DRE.map((linha) => [`${mes}|${linha}`, { valor: (l[linha] ?? 0) * sinalManual(linha), conta: mes === "2026-09" && linha === "outras_despesas" ? "2800+150" : null, manual: mes === "2026-09" && linha === "despesas_pessoal" }]),
+              ),
+            ),
+          }}
+        />
       </section>
     </AppShell>
   );

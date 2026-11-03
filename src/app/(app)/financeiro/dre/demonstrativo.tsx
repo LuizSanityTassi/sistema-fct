@@ -2,6 +2,7 @@ import { calcularDre, ROTULO_LINHA, type ContasDre, type Lancamentos, type Linha
 import { moedaFin } from "@/lib/financeiro/formatos";
 import { rotuloCompetencia } from "@/lib/rh/competencia";
 import { cn } from "@/lib/utils";
+import { CelulaEditavel } from "../caixa-contabil/celula-editavel";
 
 const pct = new Intl.NumberFormat("pt-BR", { style: "percent", minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const mostraPct = (v: number | null | undefined) => (v === null || v === undefined || !Number.isFinite(v) ? "—" : pct.format(v));
@@ -48,8 +49,18 @@ const LINHAS: Linha[] = [
 
 const tom = (v: number) => (v < 0 ? "text-red-700 dark:text-red-400" : v > 0 ? "text-emerald-700 dark:text-emerald-400" : "");
 
-/** Edição no próprio demonstrativo: cada conta de cada mês vira um campo de um formulário (atributo form). */
-export type EdicaoDemonstrativo = { form: string; campos: Record<string, { nome: string; valor: string }> };
+/**
+ * Edição no próprio demonstrativo, igual ao Caixa contábil: clique no valor, digite ou continue a conta; Enter ou sair do
+ * campo salva. campos: por "mês|conta", o valor sem sinal (como na planilha), a conta guardada e se foi digitado.
+ */
+export type EdicaoDemonstrativo = {
+  salvar: (fd: FormData) => Promise<{ ok?: true; erro?: string }>;
+  empresa: string;
+  filial: string;
+  /** pinta de amarelo o valor digitado (como no Caixa contábil, só para o administrador) */
+  destacar: boolean;
+  campos: Record<string, { valor: number; conta: string | null; manual: boolean }>;
+};
 
 /** DRE linha a linha: um mês por coluna, o total do período e as participações sobre a receita líquida e a bruta. */
 export function Demonstrativo({ meses, porMes, editar }: { meses: string[]; porMes: Map<string, Lancamentos>; editar?: EdicaoDemonstrativo }) {
@@ -104,20 +115,23 @@ export function Demonstrativo({ meses, porMes, editar }: { meses: string[]; porM
                 {todas.map((c) => {
                   const ehTotal = c.chave === "total";
                   const campo = editar && d.tipo === "conta" && !ehTotal ? editar.campos[`${c.chave}|${d.linha}`] : undefined;
-                  if (campo) {
+                  if (campo && d.tipo === "conta") {
+                    const v = valorDe(c);
                     return (
-                      <td key={c.chave} className="bg-amber-50 px-1 py-1 dark:bg-amber-400/10">
-                        <input
-                          form={editar!.form}
-                          name={campo.nome}
-                          defaultValue={campo.valor}
-                          inputMode="decimal"
-                          placeholder="0,00"
-                          title="Valor ou conta: 1.200+350-80 (a conta fica guardada)"
-                          aria-label={`${d.rotulo} · ${c.rotulo}`}
-                          className="h-7 w-24 rounded-md border bg-background px-2 text-right text-xs tabular-nums outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
-                        />
-                      </td>
+                      <CelulaEditavel
+                        key={c.chave}
+                        action={editar!.salvar}
+                        campos={{ empresa: editar!.empresa, filial: editar!.filial, linha: d.linha, mes: c.chave }}
+                        base={campo.valor}
+                        conta={campo.conta}
+                        exibicao={v ? moedaFin(v) : "—"}
+                        ajustado={campo.manual}
+                        destacar={editar!.destacar}
+                        classe="whitespace-nowrap px-3 py-1.5"
+                        podeEditar
+                        dicaEditar="Clique para alterar: digite o valor ou continue a conta (ex.: +200 ou -100). Apague para zerar."
+                        dicaCampo="Digite o valor sem sinal, como na planilha, ou continue a conta: +200, -100, *2… Apague tudo para zerar."
+                      />
                     );
                   }
                   let texto: string;
