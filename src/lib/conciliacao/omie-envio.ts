@@ -10,6 +10,7 @@ import type { Linha } from "@/lib/tipos";
 import { Motor, type TituloDDA, type TituloTrierConciliado } from "./motor";
 import { Omie, type ConfigOmie, type ItemOmie, type LinhaOmie } from "./omie";
 import { mapaFiliais, obterConfig } from "@/lib/data/conciliacao";
+import { LIMITE_LANCAMENTO_API } from "./rotulos";
 import { buscarCadastros, chavesOmie, EMPRESAS_OMIE, lancarContas, type CacheOmie, type Chaves, type ContaApi, type EmpresaOmie, type ResultadoLancamento } from "./omie-api";
 import { OMIE_MODELO_B64 } from "./omie-modelo";
 import { alvoDeLinha, aplicarNasLinhas, contarUso, gravarUso, regrasAtivas, regrasDaConta, regrasUsadas, type Regra, type RegrasDaConta, type Uso } from "./regras";
@@ -364,10 +365,6 @@ export async function gerarPlanilhaOmie(supabase: Cliente, userId: string, conc:
 // ---------- API ----------
 
 const PRAZO_LANCAMENTO_MS = 220_000;
-/** A Omie aceita cerca de 1 conta por segundo: mais que isto não cabe nos 300 s da função, e a resposta se perde. */
-export const LIMITE_LANCAMENTO_API = 200;
-export const mensagemLimiteApi = (qtd: number) =>
-  `Pela API dá para lançar até ${LIMITE_LANCAMENTO_API} contas por vez, e você marcou ${qtd.toLocaleString("pt-BR")}. Marque menos, por exemplo filtrando por data, ou gere a planilha, que aceita até 10.000.`;
 
 export type ResultadoApi = {
   resultados: (ResultadoLancamento & { nome: string; valor: number })[];
@@ -377,7 +374,7 @@ export type ResultadoApi = {
 
 export async function lancarPorApi(supabase: Cliente, userId: string, conc: Conciliacao, chaves: string[], cfg: ConfigOmie, cadastrarFornecedor: boolean): Promise<ResultadoApi> {
   if (!chaves.length) throw new Error("Nenhuma conta selecionada.");
-  if (chaves.length > LIMITE_LANCAMENTO_API) throw new Error(mensagemLimiteApi(chaves.length));
+  if (chaves.length > LIMITE_LANCAMENTO_API) throw new Error(`Cada lote aceita até ${LIMITE_LANCAMENTO_API} contas.`);
   const linhasItens = await itensPorChave(supabase, conc.id, chaves);
   const itens = linhasItens.map((l) => itemDeLinha(l));
   const linhas = Omie.montarLinhas(itens, cfg, Motor.ROTULO);
@@ -417,6 +414,8 @@ export async function lancarPorApi(supabase: Cliente, userId: string, conc: Conc
         nome,
         valor: l.F,
         venc: Motor.dtxt(d ? d.venc : (t?.venc ?? null)),
+        // a emissão real do Trier: lançar não pode trocar a data de quem já está na Omie
+        emissao: t?.emis != null && t.emis <= ((d ? d.venc : t.venc) ?? t.emis) ? Motor.dtxt(t.emis) : null,
         numdoc: l.U,
         nota: l.Y,
         barra: l.AB,

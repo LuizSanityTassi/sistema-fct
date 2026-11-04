@@ -9,7 +9,7 @@ import { Ponto } from "@/components/layout/status";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { ContaEnvio } from "@/lib/conciliacao/omie-envio";
-import { CATEGORIA_LABEL } from "@/lib/conciliacao/rotulos";
+import { CATEGORIA_LABEL, LIMITE_LANCAMENTO_API } from "@/lib/conciliacao/rotulos";
 import type { Tom } from "@/lib/tons";
 import type { EstadoLancamentoApi, EstadoValidacao } from "../omie-actions";
 
@@ -37,6 +37,22 @@ const GRUPOS: { chave: string; rotulo: string; dica: string }[] = [
 ];
 
 const moeda = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const inteiro = (v: number) => v.toLocaleString("pt-BR");
+
+/** Envio em lotes: cada empresa tem a sua fila, porque a Omie aceita cerca de 1 conta por segundo em cada uma. */
+type EnvioEmLotes = {
+  total: number;
+  lancadas: number;
+  qtdErros: number;
+  motivos: Record<string, number>;
+  erros: { nome: string; valor: number; erro: string }[];
+  filas: Record<string, { total: number; feitas: number }>;
+  rodando: boolean;
+  aviso?: string;
+};
+type RespostaLote = { lancadas: number; adiadas: string[]; erros: { nome: string; valor: number; erro: string }[]; modoTeste: string[]; erro?: string };
+const ROTULO_FILA: Record<string, string> = { nazario: "Nazário", varela: "Varela", sem: "Sem empresa" };
+const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const data = (iso: string | null) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : "—");
 
 export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grupoInicial, marcadas, validar, enviarPlanilha, lancarApi }: Props) {
@@ -56,6 +72,15 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grup
   const [validacao, acaoValidar, validando] = useActionState(validar, {});
   const [planilha, acaoPlanilha, gerando] = useActionState(enviarPlanilha, {});
   const [lancamento, acaoLancar, lancando] = useActionState(lancarApi, {});
+  const [lote, setLote] = React.useState<EnvioEmLotes | null>(null);
+  const parar = React.useRef(false);
+  const emLotes = !!lote?.rodando;
+  React.useEffect(() => {
+    if (!emLotes) return;
+    const avisar = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", avisar);
+    return () => window.removeEventListener("beforeunload", avisar);
+  }, [emLotes]);
 
   const filiais = [...new Set(contas.map((c) => c.filial).filter((f): f is number => f != null))].sort((a, b) => a - b);
   const termo = q.trim().toUpperCase();
@@ -95,12 +120,68 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grup
     return fd;
   };
   const pedirValidacao = (verbo: "planilha" | "api") => React.startTransition(() => acaoValidar(fdCom([...sel], { verbo })));
+  const lancarEmLotes = async (chaves: string[]) => {
+    parar.current = false;
+    const porChave = new Map(contas.map((c) => [c.chave, c]));
+    const filas = new Map<string, string[]>();
+    for (const k of chaves) {
+      const emp = porChave.get(k)?.empresa ?? "sem";
+      const fila = filas.get(emp);
+      if (fila) fila.push(k);
+      else filas.set(emp, [k]);
+    }
+    setLote({ total: chaves.length, lancadas: 0, qtdErros: 0, motivos: {}, erros: [], filas: Object.fromEntries([...filas].map(([e, f]) => [e, { total: f.length, feitas: 0 }])), rodando: true });
+    const rodarFila = async (emp: string, fila: string[]) => {
+      let falhas = 0;
+      while (fila.length && !parar.current) {
+        const pedaco = fila.slice(0, LIMITE_LANCAMENTO_API);
+        try {
+          const resp = await fetch("/api/conciliacao/omie-lote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conciliacao: conciliacaoId, chaves: pedaco, cadastrar }) });
+          const r = (await resp.json()) as RespostaLote;
+          if (!resp.ok) throw new Error(r.erro ?? `HTTP ${resp.status}`);
+          if (r.modoTeste.length) throw new Error(`modo teste em ${r.modoTeste.join(", ")}: libere o lote em Conciliação → Omie`);
+          const feitas = r.lancadas + r.erros.length;
+          if (!feitas) throw new Error("nenhuma conta foi processada neste lote");
+          fila.splice(0, pedaco.length);
+          fila.push(...r.adiadas);
+          falhas = 0;
+          setLote((l) => {
+            if (!l) return l;
+            const motivos = { ...l.motivos };
+            for (const x of r.erros) motivos[x.erro] = (motivos[x.erro] ?? 0) + 1;
+            return {
+              ...l,
+              lancadas: l.lancadas + r.lancadas,
+              qtdErros: l.qtdErros + r.erros.length,
+              motivos,
+              erros: [...l.erros, ...r.erros].slice(0, 300),
+              filas: { ...l.filas, [emp]: { ...l.filas[emp], feitas: l.filas[emp].feitas + feitas } },
+            };
+          });
+        } catch (e) {
+          falhas += 1;
+          if (falhas >= 3) {
+            const motivo = e instanceof Error ? e.message : "falha";
+            setLote((l) => (l ? { ...l, aviso: `${ROTULO_FILA[emp] ?? emp} parou depois de 3 tentativas: ${motivo}. O que já foi lançado está marcado; recarregue e marque de novo para continuar.` } : l));
+            return;
+          }
+          await dormir(15_000);
+        }
+      }
+    };
+    await Promise.all([...filas].map(([emp, fila]) => rodarFila(emp, fila)));
+    setLote((l) => (l ? { ...l, rodando: false } : l));
+  };
   const executar = (chaves: string[]) => {
     if (!validacao.verbo) return;
+    if (validacao.verbo === "api" && chaves.length > LIMITE_LANCAMENTO_API) {
+      void lancarEmLotes(chaves);
+      return;
+    }
     if (validacao.verbo === "planilha") React.startTransition(() => acaoPlanilha(fdCom(chaves)));
     else React.startTransition(() => acaoLancar(fdCom(chaves, { cadastrar_fornecedor: cadastrar ? "on" : "" })));
   };
-  const ocupado = validando || gerando || lancando;
+  const ocupado = validando || gerando || lancando || emLotes;
   const v = validacao.validacao;
 
   return (
@@ -305,6 +386,48 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grup
                 </Button>
                 {!v.grave.length && !v.atencao.length && <span className="text-xs text-emerald-700">Tudo certo para enviar.</span>}
               </div>
+              {validacao.verbo === "api" && (validacao.chaves?.length ?? 0) > LIMITE_LANCAMENTO_API && (
+                <p className="text-xs text-muted-foreground">Vai em lotes de {LIMITE_LANCAMENTO_API}, cerca de 1 conta por segundo em cada empresa. Conta que já está na Omie é atualizada, não duplicada. Deixe esta aba aberta até terminar.</p>
+              )}
+            </div>
+          )}
+
+          {lote && (
+            <div className="mt-4 space-y-2 border-t pt-3 text-sm">
+              <p className="font-medium" aria-live="polite">
+                {lote.rodando ? "Lançando em lotes" : "Envio em lotes parado"}: {inteiro(lote.lancadas)} lançada(s) e {inteiro(lote.qtdErros)} com erro, de {inteiro(lote.total)}
+              </p>
+              <div className="h-2 overflow-hidden rounded-full bg-muted">
+                <div className="h-full bg-fct-tinta" style={{ width: `${Math.min(100, ((lote.lancadas + lote.qtdErros) / lote.total) * 100)}%` }} />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {Object.entries(lote.filas)
+                  .map(([e, f]) => `${ROTULO_FILA[e] ?? e}: ${inteiro(f.feitas)} de ${inteiro(f.total)}`)
+                  .join(" · ")}
+                {lote.rodando ? " · deixe esta aba aberta" : ""}
+              </p>
+              {lote.aviso && <p role="alert" className="text-xs font-semibold text-red-700">{lote.aviso}</p>}
+              {lote.rodando && (
+                <Button type="button" size="sm" variant="outline" onClick={() => (parar.current = true)}>
+                  <CirclePause data-icon="inline-start" />
+                  Parar depois deste lote
+                </Button>
+              )}
+              {lote.qtdErros > 0 && (
+                <details>
+                  <summary className="cursor-pointer font-medium">Motivos dos erros</summary>
+                  <ul className="mt-1 max-h-48 space-y-0.5 overflow-y-auto text-xs">
+                    {Object.entries(lote.motivos)
+                      .sort((a, b) => b[1] - a[1])
+                      .slice(0, 30)
+                      .map(([m, q]) => (
+                        <li key={m}>
+                          <strong>{inteiro(q)}×</strong> {m}
+                        </li>
+                      ))}
+                  </ul>
+                </details>
+              )}
             </div>
           )}
 

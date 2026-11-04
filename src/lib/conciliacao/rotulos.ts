@@ -78,6 +78,9 @@ export function prioridadePendencia(p: { vencimento: string | null; valor: numbe
   return 1;
 }
 
+/** A Omie aceita cerca de 1 conta por segundo: mais que isto não cabe nos 300 s da função. Seleção maior vai em lotes pela tela. */
+export const LIMITE_LANCAMENTO_API = 200;
+
 /** Faixas de filiais como a diretoria chama (Trier usa códigos numéricos). */
 export const FAIXAS_PADRAO = [
   { nome: "Nazário", min: 301, max: 504 },

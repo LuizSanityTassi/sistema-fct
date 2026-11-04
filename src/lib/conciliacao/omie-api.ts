@@ -227,6 +227,8 @@ export type ContaApi = {
   nome: string;
   valor: number;
   venc: string; // dd/mm/aaaa
+  /** Emissão do título no Trier (dd/mm/aaaa). Sem ela, vai o vencimento. */
+  emissao?: string | null;
   numdoc: string;
   nota: string;
   barra: string;
@@ -239,7 +241,8 @@ export type ContaApi = {
   departamentoFixo?: boolean;
 };
 
-export type ResultadoLancamento = { chave: string; ok: boolean; codigoOmie?: string | null; msg?: string; erro?: string };
+/** `adiada`: não houve tentativa, faltou tempo nesta chamada; vale mandar de novo. */
+export type ResultadoLancamento = { chave: string; ok: boolean; codigoOmie?: string | null; msg?: string; erro?: string; adiada?: boolean };
 
 /** Lança contas a pagar de UMA empresa (UpsertContaPagar), uma a uma, sem atropelar o limite da Omie. */
 export async function lancarContas(ch: Chaves, emp: EmpresaOmie, cache: CacheOmie, contas: ContaApi[], cadastrarFornecedor: boolean, prazo = Infinity): Promise<ResultadoLancamento[]> {
@@ -252,6 +255,7 @@ export async function lancarContas(ch: Chaves, emp: EmpresaOmie, cache: CacheOmi
     const r: ResultadoLancamento = { chave: c.chave, ok: false };
     if (Date.now() > prazo) {
       r.erro = "não deu tempo nesta leva. Recarregue a página e lance de novo: as já lançadas ficaram marcadas como enviadas.";
+      r.adiada = true;
       resultados.push(r);
       continue;
     }
@@ -290,8 +294,8 @@ export async function lancarContas(ch: Chaves, emp: EmpresaOmie, cache: CacheOmi
         codigo_cliente_fornecedor: codigoFornec,
         data_vencimento: c.venc,
         data_previsao: c.venc,
-        data_emissao: c.venc,
-        data_entrada: c.venc,
+        data_emissao: c.emissao ?? c.venc,
+        data_entrada: c.emissao ?? c.venc,
         valor_documento: valor,
         codigo_categoria: codigoCategoria,
         id_conta_corrente: cache.conta.id,
