@@ -31,8 +31,15 @@ export const CATEGORIA_DOC_LABEL: Record<CategoriaDocumento, string> = {
   comprovante: "Comprovante",
   folha: "Folha",
   atestado: "Atestado",
+  rescisao: "Rescisão",
   outros: "Outros",
 };
+
+export const ASSINATURA_LABEL = { aguardando: "Aguardando assinatura", assinado: "Assinado" } as const;
+
+export const ESCOLARIDADES = ["Ensino Fundamental Incompleto", "Ensino Fundamental Completo", "Ensino Médio Incompleto", "Ensino Médio Completo", "Ensino Superior Incompleto", "Ensino Superior Completo", "Pós-graduação"];
+export const ESTADOS_CIVIS = ["Solteiro", "Casado", "União estável", "Divorciado", "Separado", "Viúvo"];
+export const RACAS_CORES = ["Branca", "Preta", "Parda", "Amarela", "Indígena", "Não informada"];
 
 export const ASO_TIPO_LABEL: Record<TipoAso, string> = {
   admissional: "Admissional",

@@ -16,7 +16,7 @@ export async function GET(req: Request, ctx: RouteContext<"/api/arquivos/[tipo]/
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.redirect(new URL("/login", req.url));
 
-  const arquivo = await obterArquivo(tipo, id);
+  const arquivo = await obterArquivo(tipo, id, { original: new URL(req.url).searchParams.get("original") === "1" });
   if (!arquivo) return new NextResponse("Arquivo não encontrado ou sem permissão.", { status: 404 });
 
   const { data, error } = await supabase.storage

@@ -332,6 +332,16 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
             href: "/rh/aso?situacao=proximos",
             titulo: `${vencendo} ${plural(vencendo, "ASO vence", "ASOs vencem")} nos próximos 30 dias`,
           });
+        const assinaturas = await contar(supabase.from("employee_documents").select("id", { count: "exact", head: true }).eq("ativo", true).eq("assinatura", "aguardando"));
+        if (assinaturas)
+          out.push({
+            id: "assinaturas-aguardando",
+            severidade: "atencao",
+            area: "RH",
+            quantidade: assinaturas,
+            href: "/rh/assinaturas",
+            titulo: `${assinaturas} ${plural(assinaturas, "documento aguarda", "documentos aguardam")} a assinatura do funcionário`,
+          });
       })(),
     );
   }

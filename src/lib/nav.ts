@@ -30,6 +30,7 @@ import {
   Laptop,
   ListChecks,
   MessageCircleQuestion,
+  PenLine,
   Scale,
   LayoutDashboard,
   LifeBuoy,
@@ -123,6 +124,13 @@ export const NAV: NavGrupo[] = [
         icon: FileText,
         papeis: ["admin", "rh", "gerente"],
         descricao: "Documentos dos funcionários em armazenamento privado.",
+      },
+      {
+        label: "Assinaturas",
+        href: "/rh/assinaturas",
+        icon: PenLine,
+        papeis: ["admin", "rh", "gerente"],
+        descricao: "Documentos que o RH mandou para o gerente colher a assinatura; devolvido, vai direto para a ficha.",
       },
       {
         label: "ASO",

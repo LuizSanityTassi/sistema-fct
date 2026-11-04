@@ -73,6 +73,35 @@ const CAMPOS = [
   "data_admissao",
   "observacoes",
   "salario",
+  "pis",
+  "nome_mae",
+  "nome_pai",
+  "endereco",
+  "endereco_numero",
+  "bairro",
+  "cidade",
+  "uf",
+  "cep",
+  "celular",
+  "escolaridade",
+  "estado_civil",
+  "rg",
+  "rg_emissao",
+  "rg_emissor",
+  "rg_uf",
+  "raca_cor",
+  "titulo_eleitor",
+  "titulo_zona",
+  "titulo_secao",
+  "cnh",
+  "cnh_emissao",
+  "cnh_vencimento",
+  "cnh_categoria",
+  "reservista",
+  "reservista_categoria",
+  "horario_trabalho",
+  "periodo_experiencia",
+  "adicionais",
 ] as const;
 
 const esquema = z.object({
@@ -101,7 +130,39 @@ const esquema = z.object({
   data_admissao: dataOpcional,
   observacoes: opcional(2000),
   salario: numeroOpcional(1_000_000, "Salário inválido."),
+  pis: opcional(20),
+  nome_mae: opcional(120),
+  nome_pai: opcional(120),
+  endereco: opcional(150),
+  endereco_numero: opcional(20),
+  bairro: opcional(80),
+  cidade: opcional(80),
+  uf: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "Use a sigla, ex.: SC.").optional(),
+  cep: opcional(10),
+  celular: opcional(30),
+  escolaridade: opcional(40),
+  estado_civil: opcional(30),
+  rg: opcional(20),
+  rg_emissao: dataOpcional,
+  rg_emissor: opcional(20),
+  rg_uf: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "Use a sigla, ex.: SC.").optional(),
+  raca_cor: opcional(20),
+  titulo_eleitor: opcional(20),
+  titulo_zona: opcional(10),
+  titulo_secao: opcional(10),
+  cnh: opcional(20),
+  cnh_emissao: dataOpcional,
+  cnh_vencimento: dataOpcional,
+  cnh_categoria: opcional(5),
+  reservista: opcional(20),
+  reservista_categoria: opcional(10),
+  horario_trabalho: opcional(150),
+  periodo_experiencia: opcional(20),
+  adicionais: opcional(200),
 });
+
+/** Documentos pessoais não vão para a auditoria em claro. */
+const SENSIVEIS = ["cpf", "pis", "rg", "titulo_eleitor", "cnh", "reservista"] as const;
 
 /** Cria (id = null) ou atualiza um funcionário. Só admin/RH. */
 export async function salvarFuncionario(
@@ -136,6 +197,35 @@ export async function salvarFuncionario(
     optante_fgts: fd.get("optante_fgts") === "on",
     data_admissao: d.data_admissao ?? null,
     observacoes: d.observacoes ?? null,
+    pis: d.pis ?? null,
+    nome_mae: d.nome_mae ?? null,
+    nome_pai: d.nome_pai ?? null,
+    endereco: d.endereco ?? null,
+    endereco_numero: d.endereco_numero ?? null,
+    bairro: d.bairro ?? null,
+    cidade: d.cidade ?? null,
+    uf: d.uf ?? null,
+    cep: d.cep ?? null,
+    celular: d.celular ?? null,
+    escolaridade: d.escolaridade ?? null,
+    estado_civil: d.estado_civil ?? null,
+    rg: d.rg ?? null,
+    rg_emissao: d.rg_emissao ?? null,
+    rg_emissor: d.rg_emissor ?? null,
+    rg_uf: d.rg_uf ?? null,
+    raca_cor: d.raca_cor ?? null,
+    titulo_eleitor: d.titulo_eleitor ?? null,
+    titulo_zona: d.titulo_zona ?? null,
+    titulo_secao: d.titulo_secao ?? null,
+    cnh: d.cnh ?? null,
+    cnh_emissao: d.cnh_emissao ?? null,
+    cnh_vencimento: d.cnh_vencimento ?? null,
+    cnh_categoria: d.cnh_categoria ?? null,
+    reservista: d.reservista ?? null,
+    reservista_categoria: d.reservista_categoria ?? null,
+    horario_trabalho: d.horario_trabalho ?? null,
+    periodo_experiencia: d.periodo_experiencia ?? null,
+    adicionais: d.adicionais ?? null,
   };
 
   const supabase = await createClient();
@@ -150,10 +240,11 @@ export async function salvarFuncionario(
     if (error) return { erro: mensagemErroBanco(error) };
     mudouFilial = atual.branch_id !== registro.branch_id;
     const dif = diferencas(atual, registro);
-    // CPF não vai para a auditoria em claro
-    if ("cpf" in dif.novo) {
-      dif.anterior.cpf = atual.cpf ? "(alterado)" : null;
-      dif.novo.cpf = "(alterado)";
+    for (const campo of SENSIVEIS) {
+      if (campo in dif.novo) {
+        dif.anterior[campo] = atual[campo] ? "(alterado)" : null;
+        dif.novo[campo] = "(alterado)";
+      }
     }
     await registrarAuditoria(supabase, {
       userId: sessao.id,
@@ -172,7 +263,7 @@ export async function salvarFuncionario(
       acao: "criar",
       entidade: "employees",
       registroId: destino,
-      novo: { ...registro, cpf: registro.cpf ? "(informado)" : null },
+      novo: { ...registro, ...Object.fromEntries(SENSIVEIS.map((c) => [c, registro[c] ? "(informado)" : null])) },
     });
   }
 

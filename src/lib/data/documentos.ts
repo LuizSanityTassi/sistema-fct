@@ -11,7 +11,7 @@ export async function listarDocumentosDoFuncionario(employeeId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("employee_documents")
-    .select("id, categoria, nome, descricao, data_documento, storage_path, created_at, enviado_por:profiles(nome)")
+    .select("id, categoria, nome, descricao, data_documento, storage_path, created_at, assinatura, assinado_path, enviado_por:profiles(nome)")
     .eq("employee_id", employeeId)
     .eq("ativo", true)
     .order("created_at", { ascending: false });
@@ -34,16 +34,18 @@ export async function listarAsoDoFuncionario(employeeId: string) {
 export type TipoArquivo = "documento" | "aso" | "holerite" | "anexo" | "caixa" | "sangria";
 
 /** Para download: devolve o caminho no Storage (o RLS decide se o usuário pode ver). */
-export async function obterArquivo(tipo: TipoArquivo, id: string) {
+export async function obterArquivo(tipo: TipoArquivo, id: string, opcoes: { original?: boolean } = {}) {
   if (!ehUuid(id)) return null;
   const supabase = await createClient();
   if (tipo === "documento") {
     const { data } = await supabase
       .from("employee_documents")
-      .select("id, nome, storage_path")
+      .select("id, nome, storage_path, assinado_path")
       .eq("id", id)
       .maybeSingle();
-    return data ? { nome: data.nome, storage_path: data.storage_path } : null;
+    if (!data) return null;
+    // documento já assinado: o que vale é o assinado; o original continua guardado
+    return data.assinado_path && !opcoes.original ? { nome: `${data.nome} (assinado)`, storage_path: data.assinado_path } : { nome: data.nome, storage_path: data.storage_path };
   }
   if (tipo === "holerite") {
     const { data } = await supabase
@@ -100,7 +102,7 @@ export async function listarDocumentos(f: FiltrosDocumentos) {
   let consulta = supabase
     .from("employee_documents")
     .select(
-      "id, categoria, nome, data_documento, created_at, employees!inner(id, nome, branch_id, branches!employees_branch_id_fkey(id, codigo, nome))",
+      "id, categoria, nome, data_documento, created_at, assinatura, employees!inner(id, nome, branch_id, branches!employees_branch_id_fkey(id, codigo, nome))",
       { count: "exact" },
     )
     .eq("ativo", true);
@@ -116,6 +118,40 @@ export async function listarDocumentos(f: FiltrosDocumentos) {
   if (error) throw error;
   const total = count ?? 0;
   return { itens: data, total, pagina: f.pagina, paginas: Math.max(1, Math.ceil(total / TAMANHO_PAGINA)) };
+}
+
+/** Documentos que passam pela assinatura do funcionário (o RLS mostra ao gerente só os da filial dele). */
+export async function listarAssinaturas(situacao: "aguardando" | "assinado") {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("employee_documents")
+    .select("id, categoria, nome, descricao, created_at, assinado_em, enviado_por:profiles(nome), employees!inner(id, nome, status, branches!employees_branch_id_fkey(codigo, nome))")
+    .eq("ativo", true)
+    .eq("assinatura", situacao)
+    .order(situacao === "aguardando" ? "created_at" : "assinado_em", { ascending: situacao === "aguardando" })
+    .limit(200);
+  if (error) throw error;
+  return data;
+}
+
+/** Empresa do funcionário para a ficha de registro (a filial) e a declaração do banco (a empresa do grupo). */
+export async function carregarEmpresaDaFilial(branchId: string | null) {
+  if (!branchId) return null;
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("branches")
+    .select("razao_social, cnpj, organizations(id, razao_social, cnpj, razao_declaracao, endereco_declaracao, socio_nome, socio_cpf)")
+    .eq("id", branchId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+/** Assinatura do sócio para a declaração do banco (o RLS só libera para Admin e RH). */
+export async function carregarAssinaturaDoSocio(organizationId: string) {
+  const supabase = await createClient();
+  const { data } = await supabase.from("rh_assinatura_socio").select("imagem").eq("organization_id", organizationId).maybeSingle();
+  return data?.imagem ?? null;
 }
 
 export type SituacaoAsoFiltro = "vencidos" | "proximos" | "validos" | "todos";

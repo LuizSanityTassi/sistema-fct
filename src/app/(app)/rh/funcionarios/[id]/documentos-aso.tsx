@@ -1,10 +1,12 @@
-import { Download } from "lucide-react";
+import Link from "next/link";
+import { Download, FileText, Landmark } from "lucide-react";
 import { ConfirmarAcao } from "@/components/layout/confirmar-acao";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { listarAsoDoFuncionario, listarDocumentosDoFuncionario } from "@/lib/data/documentos";
 import { formatarData, formatarDataHora } from "@/lib/formatos";
-import { ASO_TIPO_LABEL, CATEGORIA_DOC_LABEL, situacaoAso } from "@/lib/rh/rotulos";
+import { ASO_TIPO_LABEL, ASSINATURA_LABEL, CATEGORIA_DOC_LABEL, situacaoAso } from "@/lib/rh/rotulos";
 import { removerAso, salvarAso } from "../../aso/actions";
 import { enviarDocumento, removerDocumento } from "../../documentos/actions";
 import { AsoForm } from "./aso-form";
@@ -16,6 +18,16 @@ const CLASSE_SITUACAO = {
   vencido: "border-red-200 bg-red-50 text-red-700",
   sem_validade: "border-border bg-muted text-muted-foreground",
 } as const;
+
+/** Situação do documento que passa pela assinatura do funcionário. */
+export function BadgeAssinatura({ situacao }: { situacao: keyof typeof ASSINATURA_LABEL | null }) {
+  if (!situacao) return null;
+  return (
+    <Badge variant="outline" className={situacao === "assinado" ? CLASSE_SITUACAO.valido : CLASSE_SITUACAO.vencendo}>
+      {ASSINATURA_LABEL[situacao]}
+    </Badge>
+  );
+}
 
 export function BadgeAso({ validade }: { validade: string | null }) {
   const s = situacaoAso(validade);
@@ -40,6 +52,16 @@ export async function DocumentosEAso({ employeeId, podeEditar }: Props) {
       <section id="documentos" className="mt-4 rounded-xl border bg-card">
         <div className="flex items-center justify-between px-5 py-4">
           <h2 className="text-sm font-semibold">Documentos ({documentos.length})</h2>
+          {podeEditar && (
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button size="sm" variant="outline" nativeButton={false} render={<Link href={`/rh/funcionarios/${employeeId}/ficha-registro`} />}>
+                <FileText data-icon="inline-start" /> Ficha de registro
+              </Button>
+              <Button size="sm" variant="outline" nativeButton={false} render={<Link href={`/rh/funcionarios/${employeeId}/declaracao-banco`} />}>
+                <Landmark data-icon="inline-start" /> Declaração do banco
+              </Button>
+            </div>
+          )}
         </div>
         {documentos.length === 0 ? (
           <p className="border-t px-5 py-5 text-sm text-muted-foreground">Nenhum documento enviado.</p>
@@ -60,6 +82,11 @@ export async function DocumentosEAso({ employeeId, podeEditar }: Props) {
                   <TableCell>
                     <p className="font-medium">{d.nome}</p>
                     {d.descricao && <p className="text-xs text-muted-foreground">{d.descricao}</p>}
+                    {d.assinatura && (
+                      <p className="mt-1">
+                        <BadgeAssinatura situacao={d.assinatura as keyof typeof ASSINATURA_LABEL} />
+                      </p>
+                    )}
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">{CATEGORIA_DOC_LABEL[d.categoria]}</TableCell>
                   <TableCell className="hidden md:table-cell">{formatarData(d.data_documento)}</TableCell>
@@ -75,6 +102,11 @@ export async function DocumentosEAso({ employeeId, podeEditar }: Props) {
                       >
                         <Download className="size-3.5" aria-hidden /> Baixar
                       </a>
+                      {d.assinado_path && (
+                        <a href={`/api/arquivos/documento/${d.id}?original=1`} className="text-sm text-muted-foreground underline">
+                          Original
+                        </a>
+                      )}
                       {podeEditar && (
                         <ConfirmarAcao
                           titulo="Remover documento?"

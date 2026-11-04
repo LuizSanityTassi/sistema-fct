@@ -6,7 +6,7 @@ import { BotaoSalvar } from "@/components/form/botao-salvar";
 import { Campo, ErroFormulario, SelectNativo } from "@/components/form/campo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CONTRATO_LABEL } from "@/lib/rh/rotulos";
+import { CONTRATO_LABEL, ESCOLARIDADES, ESTADOS_CIVIS, RACAS_CORES } from "@/lib/rh/rotulos";
 import type { EstadoFormulario } from "./actions";
 
 export type OpcaoUnidade = { id: string; codigo: string; nome: string; ativo: boolean; grupo: string };
@@ -30,6 +30,35 @@ export type ValoresFuncionario = Partial<{
   data_admissao: string | null;
   observacoes: string | null;
   salario: number | string | null;
+  pis: string | null;
+  nome_mae: string | null;
+  nome_pai: string | null;
+  endereco: string | null;
+  endereco_numero: string | null;
+  bairro: string | null;
+  cidade: string | null;
+  uf: string | null;
+  cep: string | null;
+  celular: string | null;
+  escolaridade: string | null;
+  estado_civil: string | null;
+  rg: string | null;
+  rg_emissao: string | null;
+  rg_emissor: string | null;
+  rg_uf: string | null;
+  raca_cor: string | null;
+  titulo_eleitor: string | null;
+  titulo_zona: string | null;
+  titulo_secao: string | null;
+  cnh: string | null;
+  cnh_emissao: string | null;
+  cnh_vencimento: string | null;
+  cnh_categoria: string | null;
+  reservista: string | null;
+  reservista_categoria: string | null;
+  horario_trabalho: string | null;
+  periodo_experiencia: string | null;
+  adicionais: string | null;
 }>;
 
 type Props = {
@@ -53,6 +82,32 @@ export function FuncionarioForm({ action, unidades, valores = {}, podeSalario, v
 
   const grupos = new Map<string, OpcaoUnidade[]>();
   for (const u of unidades) grupos.set(u.grupo, [...(grupos.get(u.grupo) ?? []), u]);
+
+  const texto = (campo: keyof ValoresFuncionario, label: string, maxLength: number, className?: string) => (
+    <Campo id={campo} label={label} erro={erro(campo)} className={className}>
+      <Input id={campo} name={campo} defaultValue={v(campo)} maxLength={maxLength} aria-invalid={!!erro(campo)} />
+    </Campo>
+  );
+  const data = (campo: keyof ValoresFuncionario, label: string) => (
+    <Campo id={campo} label={label} erro={erro(campo)}>
+      <Input id={campo} name={campo} type="date" defaultValue={v(campo)} aria-invalid={!!erro(campo)} />
+    </Campo>
+  );
+  const lista = (campo: keyof ValoresFuncionario, label: string, opcoes: string[]) => {
+    const atual = v(campo);
+    return (
+      <Campo id={campo} label={label} erro={erro(campo)}>
+        <SelectNativo id={campo} name={campo} defaultValue={atual}>
+          <option value="">—</option>
+          {(atual && !opcoes.includes(atual) ? [...opcoes, atual] : opcoes).map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+        </SelectNativo>
+      </Campo>
+    );
+  };
 
   const categoriaAtual = v("categoria");
   const categorias = categoriaAtual && !CATEGORIAS.includes(categoriaAtual) ? [...CATEGORIAS, categoriaAtual] : CATEGORIAS;
@@ -157,6 +212,42 @@ export function FuncionarioForm({ action, unidades, valores = {}, podeSalario, v
             <input type="checkbox" name="optante_fgts" defaultChecked={valores.optante_fgts ?? true} className="size-4 accent-fct-tinta" />
             Optante do FGTS
           </label>
+        </div>
+      </section>
+
+      <section className="rounded-xl border bg-card p-5">
+        <h2 className="mb-1 text-sm font-semibold">Ficha de registro</h2>
+        <p className="mb-4 text-xs text-muted-foreground">Estes dados saem na ficha de registro e na declaração do banco, na aba Documentos.</p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {texto("horario_trabalho", "Horário de trabalho", 150, "sm:col-span-2")}
+          {texto("periodo_experiencia", "Período de experiência", 20)}
+          {texto("adicionais", "Adicionais e benefícios", 200, "sm:col-span-2 lg:col-span-3")}
+          {texto("pis", "PIS/PASEP/NIT", 20)}
+          {texto("nome_mae", "Nome da mãe", 120)}
+          {texto("nome_pai", "Nome do pai", 120)}
+          {texto("endereco", "Endereço", 150, "sm:col-span-2")}
+          {texto("endereco_numero", "Número", 20)}
+          {texto("bairro", "Bairro", 80)}
+          {texto("cidade", "Cidade", 80)}
+          {texto("uf", "UF", 2)}
+          {texto("cep", "CEP", 10)}
+          {texto("celular", "Celular", 30)}
+          {lista("escolaridade", "Escolaridade", ESCOLARIDADES)}
+          {lista("estado_civil", "Estado civil", ESTADOS_CIVIS)}
+          {lista("raca_cor", "Raça/cor", RACAS_CORES)}
+          {texto("rg", "RG", 20)}
+          {data("rg_emissao", "Emissão do RG")}
+          {texto("rg_emissor", "Emissor do RG", 20)}
+          {texto("rg_uf", "UF do RG", 2)}
+          {texto("titulo_eleitor", "Título de eleitor", 20)}
+          {texto("titulo_zona", "Zona", 10)}
+          {texto("titulo_secao", "Seção", 10)}
+          {texto("cnh", "CNH", 20)}
+          {data("cnh_emissao", "Emissão da CNH")}
+          {data("cnh_vencimento", "Vencimento da CNH")}
+          {texto("cnh_categoria", "Categoria da CNH", 5)}
+          {texto("reservista", "Reservista", 20)}
+          {texto("reservista_categoria", "Categoria do reservista", 10)}
         </div>
       </section>
 

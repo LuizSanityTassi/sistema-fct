@@ -3232,6 +3232,10 @@ export type Database = {
           nome: string
           storage_path: string
           uploaded_by: string | null
+          assinatura: string | null
+          assinado_path: string | null
+          assinado_em: string | null
+          assinado_por: string | null
         }
         Insert: {
           ativo?: boolean
@@ -3244,6 +3248,10 @@ export type Database = {
           nome: string
           storage_path: string
           uploaded_by?: string | null
+          assinatura?: string | null
+          assinado_path?: string | null
+          assinado_em?: string | null
+          assinado_por?: string | null
         }
         Update: {
           ativo?: boolean
@@ -3256,6 +3264,10 @@ export type Database = {
           nome?: string
           storage_path?: string
           uploaded_by?: string | null
+          assinatura?: string | null
+          assinado_path?: string | null
+          assinado_em?: string | null
+          assinado_por?: string | null
         }
         Relationships: [
           {
@@ -3337,6 +3349,35 @@ export type Database = {
           telefone: string | null
           tipo_contrato: Database["public"]["Enums"]["contract_type"] | null
           updated_at: string
+          pis: string | null
+          nome_mae: string | null
+          nome_pai: string | null
+          endereco: string | null
+          endereco_numero: string | null
+          bairro: string | null
+          cidade: string | null
+          uf: string | null
+          cep: string | null
+          celular: string | null
+          escolaridade: string | null
+          estado_civil: string | null
+          rg: string | null
+          rg_emissao: string | null
+          rg_emissor: string | null
+          rg_uf: string | null
+          raca_cor: string | null
+          titulo_eleitor: string | null
+          titulo_zona: string | null
+          titulo_secao: string | null
+          cnh: string | null
+          cnh_emissao: string | null
+          cnh_vencimento: string | null
+          cnh_categoria: string | null
+          reservista: string | null
+          reservista_categoria: string | null
+          horario_trabalho: string | null
+          periodo_experiencia: string | null
+          adicionais: string | null
         }
         Insert: {
           branch_id: string
@@ -3362,6 +3403,35 @@ export type Database = {
           telefone?: string | null
           tipo_contrato?: Database["public"]["Enums"]["contract_type"] | null
           updated_at?: string
+          pis?: string | null
+          nome_mae?: string | null
+          nome_pai?: string | null
+          endereco?: string | null
+          endereco_numero?: string | null
+          bairro?: string | null
+          cidade?: string | null
+          uf?: string | null
+          cep?: string | null
+          celular?: string | null
+          escolaridade?: string | null
+          estado_civil?: string | null
+          rg?: string | null
+          rg_emissao?: string | null
+          rg_emissor?: string | null
+          rg_uf?: string | null
+          raca_cor?: string | null
+          titulo_eleitor?: string | null
+          titulo_zona?: string | null
+          titulo_secao?: string | null
+          cnh?: string | null
+          cnh_emissao?: string | null
+          cnh_vencimento?: string | null
+          cnh_categoria?: string | null
+          reservista?: string | null
+          reservista_categoria?: string | null
+          horario_trabalho?: string | null
+          periodo_experiencia?: string | null
+          adicionais?: string | null
         }
         Update: {
           branch_id?: string
@@ -3387,6 +3457,35 @@ export type Database = {
           telefone?: string | null
           tipo_contrato?: Database["public"]["Enums"]["contract_type"] | null
           updated_at?: string
+          pis?: string | null
+          nome_mae?: string | null
+          nome_pai?: string | null
+          endereco?: string | null
+          endereco_numero?: string | null
+          bairro?: string | null
+          cidade?: string | null
+          uf?: string | null
+          cep?: string | null
+          celular?: string | null
+          escolaridade?: string | null
+          estado_civil?: string | null
+          rg?: string | null
+          rg_emissao?: string | null
+          rg_emissor?: string | null
+          rg_uf?: string | null
+          raca_cor?: string | null
+          titulo_eleitor?: string | null
+          titulo_zona?: string | null
+          titulo_secao?: string | null
+          cnh?: string | null
+          cnh_emissao?: string | null
+          cnh_vencimento?: string | null
+          cnh_categoria?: string | null
+          reservista?: string | null
+          reservista_categoria?: string | null
+          horario_trabalho?: string | null
+          periodo_experiencia?: string | null
+          adicionais?: string | null
         }
         Relationships: [
           {
@@ -5118,6 +5217,10 @@ export type Database = {
           nome_fantasia: string | null
           razao_social: string
           updated_at: string
+          razao_declaracao: string | null
+          endereco_declaracao: string | null
+          socio_nome: string | null
+          socio_cpf: string | null
         }
         Insert: {
           ativo?: boolean
@@ -5127,6 +5230,10 @@ export type Database = {
           nome_fantasia?: string | null
           razao_social: string
           updated_at?: string
+          razao_declaracao?: string | null
+          endereco_declaracao?: string | null
+          socio_nome?: string | null
+          socio_cpf?: string | null
         }
         Update: {
           ativo?: boolean
@@ -5136,6 +5243,10 @@ export type Database = {
           nome_fantasia?: string | null
           razao_social?: string
           updated_at?: string
+          razao_declaracao?: string | null
+          endereco_declaracao?: string | null
+          socio_nome?: string | null
+          socio_cpf?: string | null
         }
         Relationships: []
       }
@@ -5221,6 +5332,12 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      rh_assinatura_socio: {
+        Row: { atualizado_em: string; imagem: string; organization_id: string }
+        Insert: { atualizado_em?: string; imagem: string; organization_id: string }
+        Update: { atualizado_em?: string; imagem?: string; organization_id?: string }
+        Relationships: []
       }
       rh_desligamento_checklist: {
         Row: {
@@ -6067,6 +6184,7 @@ export type Database = {
       ponto_leitor_revogar: { Args: { p_leitor: string }; Returns: undefined }
       ponto_leitores_lista: { Args: never; Returns: { id: string; branch_id: string; nome: string | null; ativo: boolean; ativado_em: string | null; codigo_expira: string | null; ultimo_uso: string | null }[] }
       ponto_registrar_digital: { Args: { p_desafio: string; p_dedo: number; p_assinatura: string; p_tipo: string | null; p_dispositivo: string | null; p_ip: string | null }; Returns: Json }
+      rh_documento_devolver_assinado: { Args: { p_documento: string; p_caminho: string }; Returns: undefined }
       ponto_remover_digital: { Args: { p_employee: string; p_dedo: number }; Returns: undefined }
       ponto_tem_pin: { Args: { p_employees: string[] }; Returns: string[] }
       rh_historico_funcionario: {
@@ -6361,6 +6479,7 @@ export type Database = {
         | "comprovante"
         | "folha"
         | "atestado"
+        | "rescisao"
         | "outros"
       employee_status: "ativo" | "afastado" | "ferias" | "desligado"
       fin_origem: "manual" | "omie" | "migracao"
@@ -6549,6 +6668,7 @@ export const Constants = {
         "comprovante",
         "folha",
         "atestado",
+        "rescisao",
         "outros",
       ],
       employee_status: ["ativo", "afastado", "ferias", "desligado"],

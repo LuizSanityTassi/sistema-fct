@@ -177,7 +177,7 @@ export function ferramentasDe(sessao: Sessao): Ferramenta[] {
       }),
       executar: async ({ busca, filial, categoria, pagina }) => {
         const r = await listarDocumentos({ q: busca, filial: filial ? (await idDaFilial(filial)).id : undefined, categoria, pagina: pagina ?? 1 });
-        return { total: r.total, pagina: r.pagina, paginas: r.paginas, documentos: r.itens.map((d) => ({ funcionario: d.employees.nome, filial: d.employees.branches?.codigo ?? null, categoria: CATEGORIA_DOC_LABEL[d.categoria], nome: d.nome, data: d.data_documento })) };
+        return { total: r.total, pagina: r.pagina, paginas: r.paginas, documentos: r.itens.map((d) => ({ funcionario: d.employees.nome, filial: d.employees.branches?.codigo ?? null, categoria: CATEGORIA_DOC_LABEL[d.categoria], nome: d.nome, data: d.data_documento, assinatura: d.assinatura })) };
       },
     }),
     criar({
@@ -220,7 +220,7 @@ export function ferramentasDe(sessao: Sessao): Ferramenta[] {
       nome: "ficha_funcionario",
       rota: "/rh/funcionarios",
       status: "Abrindo a ficha do funcionário",
-      descricao: "Ficha completa de quem bate com a busca (até 5 pessoas): CPF, nascimento, e-mail, telefone, cargo, departamento, filial, contrato, admissão, desligamento, filhos, dependentes, observações e histórico de salário. Fica registrado na auditoria.",
+      descricao: "Ficha completa de quem bate com a busca (até 5 pessoas): CPF, RG, PIS, nascimento, endereço, e-mail, telefone, cargo, departamento, filial, contrato, admissão, desligamento, filhos, dependentes, observações e histórico de salário. Fica registrado na auditoria.",
       esquema: z.object({ busca: z.string().min(2).max(60).describe("Parte do nome ou a matrícula."), filial: CODIGO_FILIAL.optional() }),
       executar: async ({ busca, filial }) => {
         const r = await listarFuncionarios({ q: busca, filial: filial ? (await idDaFilial(filial)).id : undefined, situacao: "todos", pagina: 1 });
@@ -248,6 +248,22 @@ export function ferramentasDe(sessao: Sessao): Ferramenta[] {
               filhos: d.num_filhos,
               dependentes: d.num_dependentes,
               observacoes: d.observacoes,
+              pis: d.pis,
+              mae: d.nome_mae,
+              pai: d.nome_pai,
+              endereco: [d.endereco, d.endereco_numero, d.bairro, d.cidade, d.uf, d.cep].filter(Boolean).join(", ") || null,
+              celular: d.celular,
+              escolaridade: d.escolaridade,
+              estado_civil: d.estado_civil,
+              rg: d.rg,
+              raca_cor: d.raca_cor,
+              titulo_eleitor: d.titulo_eleitor,
+              cnh: d.cnh,
+              cnh_vencimento: d.cnh_vencimento,
+              reservista: d.reservista,
+              horario_trabalho: d.horario_trabalho,
+              periodo_experiencia: d.periodo_experiencia,
+              adicionais: d.adicionais,
               salarios: salarios.map((s) => ({ salario: r2(Number(s.salario)), de: s.vigencia_inicio, ate: s.vigencia_fim })),
             };
           }),

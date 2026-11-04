@@ -42,6 +42,13 @@ export function DocumentoForm({ action }: Props) {
           <Campo id="doc-descricao" label="Descrição" erro={erro("descricao")} className="sm:col-span-2">
             <Input id="doc-descricao" name="descricao" maxLength={500} />
           </Campo>
+          <label className="flex items-start gap-2 text-sm sm:col-span-2">
+            <input type="checkbox" name="para_assinatura" className="mt-0.5 size-4 accent-fct-tinta" />
+            <span>
+              Precisa da assinatura do funcionário
+              <span className="block text-xs text-muted-foreground">Vai para o gerente da filial, em RH &gt; Assinaturas. Quando ele devolver assinado, o documento fica aqui na ficha.</span>
+            </span>
+          </label>
         </div>
         <BotaoSalvar rotuloPendente="Enviando…">Enviar</BotaoSalvar>
       </form>

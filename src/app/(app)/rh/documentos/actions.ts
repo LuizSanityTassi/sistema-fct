@@ -74,6 +74,7 @@ export async function enviarDocumento(employeeId: string, _prev: EstadoArquivo, 
     data_documento: r.data.data_documento ?? null,
     storage_path: caminho,
     uploaded_by: sessao.id,
+    assinatura: fd.get("para_assinatura") === "on" ? ("aguardando" as const) : null,
   };
   const { data: criado, error } = await supabase.from("employee_documents").insert(registro).select("id").single();
   if (error) {
@@ -86,11 +87,31 @@ export async function enviarDocumento(employeeId: string, _prev: EstadoArquivo, 
     acao: "criar",
     entidade: "employee_documents",
     registroId: criado.id,
-    novo: { employee_id: employeeId, categoria: registro.categoria, nome: registro.nome, data_documento: registro.data_documento },
+    novo: { employee_id: employeeId, categoria: registro.categoria, nome: registro.nome, data_documento: registro.data_documento, assinatura: registro.assinatura },
   });
   revalidatePath(`/rh/funcionarios/${employeeId}`);
   revalidatePath("/rh/documentos");
-  return { ok: "Documento enviado." };
+  revalidatePath("/rh/assinaturas");
+  return { ok: registro.assinatura ? "Documento enviado para o gerente colher a assinatura." : "Documento enviado." };
+}
+
+/** O gerente (ou RH) devolve o documento assinado: o arquivo vai para a pasta do funcionário e aparece na ficha. */
+export async function devolverAssinado(documentoId: string, employeeId: string, _prev: EstadoArquivo, fd: FormData): Promise<EstadoArquivo> {
+  const arq = validarArquivo(fd.get("arquivo"), true);
+  if (!arq.arquivo) return { erro: arq.erro };
+  const supabase = await createClient();
+  const caminho = caminhoArquivo(employeeId, arq.arquivo.name, "assinados");
+  const { error: erroUpload } = await supabase.storage.from(BUCKET_DOCUMENTOS).upload(caminho, await arq.arquivo.arrayBuffer(), { contentType: arq.arquivo.type, upsert: false });
+  if (erroUpload) return { erro: "Não foi possível enviar o arquivo. Confira se o funcionário é da sua filial." };
+  const { error } = await supabase.rpc("rh_documento_devolver_assinado", { p_documento: documentoId, p_caminho: caminho });
+  if (error) {
+    await supabase.storage.from(BUCKET_DOCUMENTOS).remove([caminho]);
+    return { erro: error.code === "P0001" ? error.message : "Não foi possível registrar o documento assinado." };
+  }
+  revalidatePath(`/rh/funcionarios/${employeeId}`);
+  revalidatePath("/rh/documentos");
+  revalidatePath("/rh/assinaturas");
+  return { ok: "Documento assinado guardado na ficha." };
 }
 
 /** Exclusão lógica do documento (o arquivo fica guardado). Só admin/RH. */
