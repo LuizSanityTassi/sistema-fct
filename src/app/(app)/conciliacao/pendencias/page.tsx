@@ -8,7 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { exigirAcesso } from "@/lib/auth/session";
 import { podeConciliar } from "@/lib/conciliacao/permissoes";
 import { PROBLEMA_LABEL, PROBLEMAS, STATUS_PENDENCIA, STATUS_PENDENCIA_LABEL } from "@/lib/conciliacao/rotulos";
-import { lerFiltrosPendencias, listarPendencias, listarResponsaveis, mapaFiliais } from "@/lib/data/conciliacao";
+import { Paginacao } from "@/components/layout/paginacao";
+import { lerFiltrosPendencias, listarPendencias, listarResponsaveis, mapaFiliais, TAMANHO_PAGINA_PENDENCIAS } from "@/lib/data/conciliacao";
 import { descreverPeriodo, formatarData, formatarMoeda, pluralizar } from "@/lib/formatos";
 import { alterarStatusPendencias, atribuirPendencias } from "../actions";
 import { BadgePrioridadePendencia, BadgeStatusPendencia, Filial } from "../badges-conc";
@@ -27,7 +28,11 @@ export default async function PendenciasPage({ searchParams }: PageProps<"/conci
   for (const [k, v] of Object.entries({ status: filtros.status, prioridade: filtros.prioridade ? String(filtros.prioridade) : undefined, problema: filtros.problema, filial: filtros.filial !== undefined ? String(filtros.filial) : undefined, responsavel: filtros.responsavel, q: filtros.q, ordem: filtros.ordem })) {
     if (v) query.set(k, v);
   }
-  const voltar = `/conciliacao/pendencias?${query.toString()}`;
+  const paginas = Math.max(1, Math.ceil(lista.length / TAMANHO_PAGINA_PENDENCIAS));
+  const paginaPedida = typeof sp.pagina === "string" ? Number.parseInt(sp.pagina, 10) : 1;
+  const pagina = Number.isFinite(paginaPedida) && paginaPedida > 0 ? Math.min(paginaPedida, paginas) : 1;
+  const naPagina = lista.slice((pagina - 1) * TAMANHO_PAGINA_PENDENCIAS, pagina * TAMANHO_PAGINA_PENDENCIAS);
+  const voltar = `/conciliacao/pendencias?${query.toString()}${pagina > 1 ? `&pagina=${pagina}` : ""}`;
   const totalValor = lista.reduce((s, p) => s + Number(p.valor), 0);
   const filiaisComPendencia = [...new Set(lista.map((p) => p.filial).filter((f): f is number => f != null))].sort((a, b) => a - b);
 
@@ -112,7 +117,7 @@ export default async function PendenciasPage({ searchParams }: PageProps<"/conci
         {filiaisComPendencia.length ? ` · filiais ${filiaisComPendencia.join(", ")}` : ""}
       </p>
 
-      {escreve && lista.length > 0 && <AcoesPendencias chaves={lista.map((p) => p.chave)} responsaveis={responsaveis} voltar={voltar} alterarStatus={alterarStatusPendencias} atribuir={atribuirPendencias} />}
+      {escreve && lista.length > 0 && <AcoesPendencias chaves={naPagina.map((p) => p.chave)} responsaveis={responsaveis} voltar={voltar} alterarStatus={alterarStatusPendencias} atribuir={atribuirPendencias} />}
 
       <form id="form-pendencias" className="rounded-xl border bg-card">
         <Table>
@@ -136,7 +141,7 @@ export default async function PendenciasPage({ searchParams }: PageProps<"/conci
                 </TableCell>
               </TableRow>
             ) : (
-              lista.map((p) => (
+              naPagina.map((p) => (
                 <TableRow key={p.chave}>
                   {escreve && (
                     <TableCell>
@@ -183,6 +188,11 @@ export default async function PendenciasPage({ searchParams }: PageProps<"/conci
             )}
           </TableBody>
         </Table>
+        {paginas > 1 && (
+          <div className="border-t px-4 py-3">
+            <Paginacao pagina={pagina} paginas={paginas} total={lista.length} tamanho={TAMANHO_PAGINA_PENDENCIAS} params={Object.fromEntries(query)} />
+          </div>
+        )}
       </form>
     </>
   );

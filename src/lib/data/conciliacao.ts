@@ -16,6 +16,8 @@ import {
 import { createClient } from "@/lib/supabase/server";
 
 export const TAMANHO_PAGINA_ITENS = 100;
+/** Igual ao máximo que as ações em lote da central aplicam de uma vez. */
+export const TAMANHO_PAGINA_PENDENCIAS = 500;
 const LOTE = 1000;
 
 // ---------- filiais (código Trier ↔ unidade) ----------
@@ -232,21 +234,34 @@ export function lerFiltrosPendencias(sp: Record<string, string | string[] | unde
   };
 }
 
+/** Todas as pendências com os filtros: a busca e a prioridade são calculadas aqui, então a leitura não pode parar no limite de linhas da API. */
 export async function listarPendencias(f: FiltrosPendencias, usuarioId: string) {
   const supabase = await createClient();
-  let consulta = supabase
-    .from("conc_pendencias")
-    .select("*, quem_resp:profiles!conc_pendencias_responsavel_fkey(nome), quem_dec:profiles!conc_pendencias_decidido_por_fkey(nome)")
-    .limit(5000);
-  if (f.status === "abertas") consulta = consulta.in("status", ["pendente", "em_analise"]);
-  else if (f.status !== "todas") consulta = consulta.eq("status", f.status);
-  if (f.problema) consulta = consulta.eq("problema", f.problema);
-  if (f.filial !== undefined) consulta = consulta.eq("filial", f.filial);
-  if (f.responsavel === "sem") consulta = consulta.is("responsavel", null);
-  else if (f.responsavel === "eu") consulta = consulta.eq("responsavel", usuarioId);
-  else if (f.responsavel && ehUuid(f.responsavel)) consulta = consulta.eq("responsavel", f.responsavel);
-  const { data, error } = await consulta;
-  if (error) throw error;
+  const lerLote = (inicio: number) => {
+    let consulta = supabase
+      .from("conc_pendencias")
+      .select(
+        "chave, problema, filial, beneficiario, cnpj, documento, valor, vencimento, detalhe, status, auto, motivo, decidido_em, criado_em, quem_resp:profiles!conc_pendencias_responsavel_fkey(nome), quem_dec:profiles!conc_pendencias_decidido_por_fkey(nome)",
+        { count: "exact" },
+      );
+    if (f.status === "abertas") consulta = consulta.in("status", ["pendente", "em_analise"]);
+    else if (f.status !== "todas") consulta = consulta.eq("status", f.status);
+    if (f.problema) consulta = consulta.eq("problema", f.problema);
+    if (f.filial !== undefined) consulta = consulta.eq("filial", f.filial);
+    if (f.responsavel === "sem") consulta = consulta.is("responsavel", null);
+    else if (f.responsavel === "eu") consulta = consulta.eq("responsavel", usuarioId);
+    else if (f.responsavel && ehUuid(f.responsavel)) consulta = consulta.eq("responsavel", f.responsavel);
+    return consulta.order("chave").range(inicio, inicio + LOTE - 1);
+  };
+  const primeiro = await lerLote(0);
+  if (primeiro.error) throw primeiro.error;
+  const faltam = Math.max(0, Math.ceil((primeiro.count ?? 0) / LOTE) - 1);
+  const resto = await Promise.all(Array.from({ length: faltam }, (_, i) => lerLote((i + 1) * LOTE)));
+  const data = [...primeiro.data];
+  for (const r of resto) {
+    if (r.error) throw r.error;
+    data.push(...r.data);
+  }
 
   const termo = f.q ? f.q.toUpperCase() : "";
   const lista = data
