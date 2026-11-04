@@ -181,12 +181,16 @@ async function chamados(supabase: Cliente, p: Periodos): Promise<Comparativo[]> 
 }
 
 async function conciliacao(supabase: Cliente, p: Periodos): Promise<Comparativo[]> {
-  const [{ data: concs }, novas, { count: abertas }, { data: primeira }] = await Promise.all([
+  const [{ data: concs }, novasPorDia, { count: abertas }, { data: primeira }] = await Promise.all([
     supabase.from("conc_conciliacoes").select("pct_bateu, qtd_trier, criado_em, fil_min").order("criado_em", { ascending: false }).limit(40),
-    todas<{ criado_em: string }>((de, ate) => supabase.from("conc_pendencias").select("criado_em").gte("criado_em", `${p.inicioAnt}T00:00:00-03:00`).order("criado_em").range(de, ate)),
+    supabase.rpc("conc_pendencias_novas", { p_de: `${p.inicioAnt}T00:00:00-03:00` }),
     supabase.from("conc_pendencias").select("chave", { count: "exact", head: true }).in("status", ["pendente", "em_analise"]),
     supabase.from("conc_conciliacoes").select("criado_em").order("criado_em").limit(1).maybeSingle(),
   ]);
+  if (novasPorDia.error) throw new Error(novasPorDia.error.message);
+  const novas = (novasPorDia.data ?? []).map((l) => ({ dia: l.dia, valor: Number(l.qtd) }));
+  const novasEm = (noPeriodo: (dia: string) => boolean) => novas.filter((x) => noPeriodo(x.dia));
+  const somaNovas = (linhas: typeof novas) => linhas.reduce((s, x) => s + x.valor, 0);
   // sem conciliação antes do fim do período anterior não há base (o módulo começou depois)
   const temBase = !!primeira && diaDe(primeira.criado_em) <= p.fimAnt;
   const cards: Comparativo[] = [];
@@ -219,14 +223,14 @@ async function conciliacao(supabase: Cliente, p: Periodos): Promise<Comparativo[
     id: "conc-pend",
     titulo: "Pendências novas na conciliação",
     href: "/conciliacao/pendencias",
-    atual: novas.filter((x) => noAtual(diaDe(x.criado_em), p)).length,
-    anterior: temBase ? novas.filter((x) => noAnterior(diaDe(x.criado_em), p)).length : null,
+    atual: somaNovas(novasEm((d) => noAtual(d, p))),
+    anterior: temBase ? somaNovas(novasEm((d) => noAnterior(d, p))) : null,
     formato: "numero",
     melhor: "menor",
     periodo: p.rotulo,
     comparadoCom: p.rotuloAnt,
     nota: `${abertas ?? 0} em aberto agora`,
-    serie: porDia(p, novas.filter((x) => noAtual(diaDe(x.criado_em), p)).map((x) => ({ dia: diaDe(x.criado_em), valor: 1 }))),
+    serie: porDia(p, novasEm((d) => noAtual(d, p))),
   });
   return cards;
 }
