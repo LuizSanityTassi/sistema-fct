@@ -140,10 +140,8 @@ export function lerFiltrosItens(sp: Record<string, string | string[] | undefined
   };
 }
 
-export async function listarItens(conciliacaoId: string, f: FiltrosItens) {
-  const supabase = await createClient();
-  const inicio = (f.pagina - 1) * TAMANHO_PAGINA_ITENS;
-  let consulta = supabase.from("conc_itens").select("*", { count: "exact" }).eq("conciliacao_id", conciliacaoId);
+function consultaItens<C extends string>(supabase: Awaited<ReturnType<typeof createClient>>, conciliacaoId: string, f: FiltrosItens, colunas: C, opcoes?: { count: "exact" }) {
+  let consulta = supabase.from("conc_itens").select(colunas, opcoes).eq("conciliacao_id", conciliacaoId);
   if (f.grupo === "descontos") consulta = consulta.not("desconto", "is", null);
   else consulta = consulta.eq("grupo", f.grupo);
   if (f.filial !== undefined) consulta = consulta.eq("filial", f.filial);
@@ -156,7 +154,26 @@ export async function listarItens(conciliacaoId: string, f: FiltrosItens) {
       consulta = consulta.or(`beneficiario.ilike.${like},fornecedor.ilike.${like},documento.ilike.${like},numdoc.ilike.${like},cnpj.ilike.${like}`);
     }
   }
-  const { data, error, count } = await consulta
+  return consulta;
+}
+
+/** Todas as contas que a lista mostra com estes filtros, de todas as páginas ("marcar todos desta lista"). */
+export async function chavesDoFiltro(conciliacaoId: string, f: FiltrosItens) {
+  const supabase = await createClient();
+  const chaves = new Set<string>();
+  for (let inicio = 0; ; inicio += LOTE) {
+    const { data, error } = await consultaItens(supabase, conciliacaoId, f, "chave").order("id").range(inicio, inicio + LOTE - 1);
+    if (error) throw error;
+    for (const l of data) chaves.add(l.chave);
+    if (data.length < LOTE) break;
+  }
+  return [...chaves];
+}
+
+export async function listarItens(conciliacaoId: string, f: FiltrosItens) {
+  const supabase = await createClient();
+  const inicio = (f.pagina - 1) * TAMANHO_PAGINA_ITENS;
+  const { data, error, count } = await consultaItens(supabase, conciliacaoId, f, "*", { count: "exact" })
     .order("vencimento", { ascending: true })
     .order("beneficiario", { ascending: true })
     .range(inicio, inicio + TAMANHO_PAGINA_ITENS - 1);

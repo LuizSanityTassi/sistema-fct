@@ -363,6 +363,8 @@ export async function gerarPlanilhaOmie(supabase: Cliente, userId: string, conc:
 
 // ---------- API ----------
 
+const PRAZO_LANCAMENTO_MS = 220_000;
+
 export type ResultadoApi = {
   resultados: (ResultadoLancamento & { nome: string; valor: number })[];
   fora: { chave: string; nome: string; motivo: string }[];
@@ -424,6 +426,8 @@ export async function lancarPorApi(supabase: Cliente, userId: string, conc: Conc
 
   const modoTeste: EmpresaOmie[] = [];
   const resultados: ResultadoApi["resultados"] = [];
+  // a função da Vercel vai até 300 s: para antes, para dar tempo de marcar como enviado o que já foi lançado
+  const prazo = Date.now() + PRAZO_LANCAMENTO_MS;
   for (const emp of ["nazario", "varela"] as EmpresaOmie[]) {
     let lista = porEmpresa[emp];
     if (!lista.length) continue;
@@ -431,7 +435,7 @@ export async function lancarPorApi(supabase: Cliente, userId: string, conc: Conc
       modoTeste.push(emp);
       lista = lista.slice(0, 1); // 1ª conta de cada empresa é teste: a pessoa confere na Omie e libera o lote
     }
-    const res = await lancarContas(credOmie[emp]!, emp, cache(emp)!, lista.map((x) => x.conta), cadastrarFornecedor);
+    const res = await lancarContas(credOmie[emp]!, emp, cache(emp)!, lista.map((x) => x.conta), cadastrarFornecedor, prazo);
     const ok = res.filter((r) => r.ok);
     await gravarUso(supabase, usoDasRegras(lista.filter((x) => ok.some((r) => r.chave === x.linha.chave)).map((x) => x.regras)));
     await marcarEnviados(

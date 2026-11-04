@@ -15,7 +15,7 @@ import { CONFIG_OMIE_PADRAO, contasDaConciliacao } from "@/lib/conciliacao/omie-
 import { podeConciliar } from "@/lib/conciliacao/permissoes";
 import { CATEGORIA_LABEL, GRUPO_LABEL, type GrupoItem } from "@/lib/conciliacao/rotulos";
 import { anomaliaGrave, type ResumoAnomalia } from "@/lib/conciliacao/servico";
-import { chavesEnviadas, lerFiltrosItens, listarItens, mapaFiliais, obterConciliacao, obterConfig, TAMANHO_PAGINA_ITENS } from "@/lib/data/conciliacao";
+import { chavesDoFiltro, chavesEnviadas, lerFiltrosItens, listarItens, mapaFiliais, obterConciliacao, obterConfig, TAMANHO_PAGINA_ITENS } from "@/lib/data/conciliacao";
 import { formatarData, formatarDataHora, formatarMoeda, pluralizar } from "@/lib/formatos";
 import { createClient } from "@/lib/supabase/server";
 import { BadgeCategoria, BadgeStatusPendencia, Filial } from "../badges-conc";
@@ -24,6 +24,8 @@ import { EnvioOmie } from "./envio-omie";
 import { BarraMarcarOmie, FORM_MARCAR_OMIE } from "./marcar-omie";
 
 export const metadata = { title: "Conciliação" };
+// a aba do Omie lê todas as contas e o envio em lote leva minutos
+export const maxDuration = 300;
 
 const pct = (v: number | string | null | undefined) => (v == null ? "—" : `${(Number(v) * 100).toFixed(1).replace(".", ",")}%`);
 type Contagem = { qtd: number; valor: number };
@@ -82,8 +84,12 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
   ]);
   const base = `/conciliacao/${c.id}`;
   // marcados na lista (Só no DDA etc.) chegam aqui pela barra "Enviar marcados ao Omie"
-  const marcadas = [sp.marcar].flat().filter((k): k is string => typeof k === "string" && k.length > 0 && k.length <= 80);
+  // "marcar todos desta lista" chega pelos filtros: não cabem milhares de contas no endereço
   const grupoOmie = typeof sp.grupo === "string" ? sp.grupo : undefined;
+  const marcadas =
+    aba === "omie" && sp.todos === "1"
+      ? await chavesDoFiltro(c.id, lerFiltrosItens({ ...sp, aba: grupoOmie }))
+      : [sp.marcar].flat().filter((k): k is string => typeof k === "string" && k.length > 0 && k.length <= 80);
   const marcavel = podeConciliar(sessao.papel) && ["exato", "aproximado", "so_trier", "so_dda"].includes(filtros.grupo);
   const omie =
     aba === "omie"
@@ -443,7 +449,13 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
               </div>
             )}
           </div>
-          {marcavel && itens.length > 0 && <BarraMarcarOmie grupo={filtros.grupo} />}
+          {marcavel && itens.length > 0 && (
+            <BarraMarcarOmie
+              grupo={filtros.grupo}
+              totalDaLista={resultado && resultado.paginas > 1 ? resultado.total : null}
+              filtros={{ q: filtros.q, filial: filtros.filial, categoria: filtros.categoria, anomalias: filtros.anomalias }}
+            />
+          )}
         </>
       )}
     </>

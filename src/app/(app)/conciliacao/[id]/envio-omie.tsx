@@ -217,7 +217,7 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grup
             )}
           </tbody>
         </table>
-        {visiveis.length > 800 && <p className="border-t px-3 py-2 text-xs text-muted-foreground">Mostrando 800 de {visiveis.length}; use os filtros.</p>}
+        {visiveis.length > 800 && <p className="border-t px-3 py-2 text-xs text-muted-foreground">Mostrando 800 de {visiveis.length} na tela; as marcadas que não aparecem aqui também vão no envio.</p>}
       </div>
 
       {podeEnviar && (

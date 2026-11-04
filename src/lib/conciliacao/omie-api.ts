@@ -242,7 +242,7 @@ export type ContaApi = {
 export type ResultadoLancamento = { chave: string; ok: boolean; codigoOmie?: string | null; msg?: string; erro?: string };
 
 /** Lança contas a pagar de UMA empresa (UpsertContaPagar), uma a uma, sem atropelar o limite da Omie. */
-export async function lancarContas(ch: Chaves, emp: EmpresaOmie, cache: CacheOmie, contas: ContaApi[], cadastrarFornecedor: boolean): Promise<ResultadoLancamento[]> {
+export async function lancarContas(ch: Chaves, emp: EmpresaOmie, cache: CacheOmie, contas: ContaApi[], cadastrarFornecedor: boolean, prazo = Infinity): Promise<ResultadoLancamento[]> {
   if (!cache.conta?.id || !cache.categoria?.codigo) {
     throw new OmieErro(`Antes de lançar na ${EMPRESAS_OMIE[emp]}, busque os cadastros na Omie (conta corrente e categoria não foram encontradas).`);
   }
@@ -250,6 +250,11 @@ export async function lancarContas(ch: Chaves, emp: EmpresaOmie, cache: CacheOmi
   const resultados: ResultadoLancamento[] = [];
   for (const c of contas) {
     const r: ResultadoLancamento = { chave: c.chave, ok: false };
+    if (Date.now() > prazo) {
+      r.erro = "não deu tempo nesta leva. Recarregue a página e lance de novo: as já lançadas ficaram marcadas como enviadas.";
+      resultados.push(r);
+      continue;
+    }
     try {
       let dep = cache.departamentos[c.departamento] ?? null;
       if (!dep && c.departamentoFixo) {
