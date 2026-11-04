@@ -213,6 +213,9 @@ export type FiltrosPendencias = {
   filial?: number;
   responsavel?: string; // uuid | "sem" | "eu"
   q?: string;
+  /** Vencimento entre estas datas (aaaa-mm-dd). */
+  vencDe?: string;
+  vencAte?: string;
   ordem: "prioridade" | "vencimento" | "valor" | "filial" | "antigas";
 };
 
@@ -223,7 +226,10 @@ export function lerFiltrosPendencias(sp: Record<string, string | string[] | unde
   const filial = Number.parseInt(s("filial"), 10);
   const ordem = s("ordem");
   const problema = s("problema");
+  const dia = (k: string) => (/^\d{4}-\d{2}-\d{2}$/.test(s(k)) ? s(k) : undefined);
   return {
+    vencDe: dia("venc_de"),
+    vencAte: dia("venc_ate"),
     status: status === "todas" || ehStatusPendencia(status) ? status : "abertas",
     prioridade: pri === 1 || pri === 2 || pri === 3 ? pri : undefined,
     problema: ehProblema(problema) ? problema : undefined,
@@ -251,6 +257,8 @@ export async function listarPendencias(f: FiltrosPendencias, usuarioId: string) 
     if (f.responsavel === "sem") consulta = consulta.is("responsavel", null);
     else if (f.responsavel === "eu") consulta = consulta.eq("responsavel", usuarioId);
     else if (f.responsavel && ehUuid(f.responsavel)) consulta = consulta.eq("responsavel", f.responsavel);
+    if (f.vencDe) consulta = consulta.gte("vencimento", f.vencDe);
+    if (f.vencAte) consulta = consulta.lte("vencimento", f.vencAte);
     return consulta.order("chave").range(inicio, inicio + LOTE - 1);
   };
   const primeiro = await lerLote(0);
@@ -279,6 +287,19 @@ export async function listarPendencias(f: FiltrosPendencias, usuarioId: string) 
   return lista.sort(cmp[f.ordem]);
 }
 export type PendenciaLista = Awaited<ReturnType<typeof listarPendencias>>[number];
+
+/** Código de barras das pendências: fica no boleto gravado nos itens da conciliação. A mesma conta aparece em várias conciliações, daí os lotes pequenos. */
+export async function barrasDasPendencias(chaves: string[]) {
+  const supabase = await createClient();
+  const lotes = Array.from({ length: Math.ceil(chaves.length / 100) }, (_, i) => chaves.slice(i * 100, (i + 1) * 100));
+  const respostas = await Promise.all(lotes.map((lote) => supabase.from("conc_itens").select("chave, barra").in("chave", lote).not("barra", "is", null)));
+  const mapa = new Map<string, string>();
+  for (const { data, error } of respostas) {
+    if (error) throw error;
+    for (const l of data) if (l.barra) mapa.set(l.chave, l.barra);
+  }
+  return mapa;
+}
 
 export async function resumoPendencias() {
   const supabase = await createClient();

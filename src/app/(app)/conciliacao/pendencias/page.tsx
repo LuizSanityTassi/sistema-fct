@@ -9,8 +9,8 @@ import { exigirAcesso } from "@/lib/auth/session";
 import { podeConciliar } from "@/lib/conciliacao/permissoes";
 import { PROBLEMA_LABEL, PROBLEMAS, STATUS_PENDENCIA, STATUS_PENDENCIA_LABEL } from "@/lib/conciliacao/rotulos";
 import { Paginacao } from "@/components/layout/paginacao";
-import { lerFiltrosPendencias, listarPendencias, listarResponsaveis, mapaFiliais, TAMANHO_PAGINA_PENDENCIAS } from "@/lib/data/conciliacao";
-import { descreverPeriodo, formatarData, formatarMoeda, pluralizar } from "@/lib/formatos";
+import { barrasDasPendencias, lerFiltrosPendencias, listarPendencias, listarResponsaveis, mapaFiliais, TAMANHO_PAGINA_PENDENCIAS } from "@/lib/data/conciliacao";
+import { formatarData, formatarMoeda, pluralizar } from "@/lib/formatos";
 import { alterarStatusPendencias, atribuirPendencias } from "../actions";
 import { BadgePrioridadePendencia, BadgeStatusPendencia, Filial } from "../badges-conc";
 import { AcoesPendencias } from "./acoes-pendencias";
@@ -25,13 +25,15 @@ export default async function PendenciasPage({ searchParams }: PageProps<"/conci
   const erro = typeof sp.erro === "string" ? sp.erro : null;
   const ok = typeof sp.ok === "string" ? Number(sp.ok) : null;
   const query = new URLSearchParams();
-  for (const [k, v] of Object.entries({ status: filtros.status, prioridade: filtros.prioridade ? String(filtros.prioridade) : undefined, problema: filtros.problema, filial: filtros.filial !== undefined ? String(filtros.filial) : undefined, responsavel: filtros.responsavel, q: filtros.q, ordem: filtros.ordem })) {
+  for (const [k, v] of Object.entries({ status: filtros.status, prioridade: filtros.prioridade ? String(filtros.prioridade) : undefined, problema: filtros.problema, filial: filtros.filial !== undefined ? String(filtros.filial) : undefined, responsavel: filtros.responsavel, q: filtros.q, venc_de: filtros.vencDe, venc_ate: filtros.vencAte, ordem: filtros.ordem })) {
     if (v) query.set(k, v);
   }
   const paginas = Math.max(1, Math.ceil(lista.length / TAMANHO_PAGINA_PENDENCIAS));
   const paginaPedida = typeof sp.pagina === "string" ? Number.parseInt(sp.pagina, 10) : 1;
   const pagina = Number.isFinite(paginaPedida) && paginaPedida > 0 ? Math.min(paginaPedida, paginas) : 1;
   const naPagina = lista.slice((pagina - 1) * TAMANHO_PAGINA_PENDENCIAS, pagina * TAMANHO_PAGINA_PENDENCIAS);
+  // título só no Trier não tem boleto, logo não tem código de barras
+  const barras = await barrasDasPendencias(naPagina.filter((p) => p.problema !== "SO_TRIER").map((p) => p.chave));
   const voltar = `/conciliacao/pendencias?${query.toString()}${pagina > 1 ? `&pagina=${pagina}` : ""}`;
   const totalValor = lista.reduce((s, p) => s + Number(p.valor), 0);
   const filiaisComPendencia = [...new Set(lista.map((p) => p.filial).filter((f): f is number => f != null))].sort((a, b) => a - b);
@@ -102,6 +104,14 @@ export default async function PendenciasPage({ searchParams }: PageProps<"/conci
           <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
           <Input name="q" defaultValue={filtros.q ?? ""} placeholder="Beneficiário, documento, motivo" className="pl-8" aria-label="Buscar" />
         </div>
+        <label className="text-xs text-muted-foreground">
+          Vencimento de
+          <Input name="venc_de" type="date" defaultValue={filtros.vencDe ?? ""} className="mt-1" />
+        </label>
+        <label className="text-xs text-muted-foreground">
+          Vencimento até
+          <Input name="venc_ate" type="date" defaultValue={filtros.vencAte ?? ""} className="mt-1" />
+        </label>
         <div className="flex items-center gap-2">
           <Button type="submit" variant="outline">
             Filtrar
@@ -161,6 +171,11 @@ export default async function PendenciasPage({ searchParams }: PageProps<"/conci
                       {p.cnpj ? ` · ${p.cnpj}` : ""}
                       {p.detalhe ? ` · ${p.detalhe}` : ""}
                     </p>
+                    {barras.get(p.chave) && (
+                      <p className="text-xs text-muted-foreground">
+                        Código de barras: <span className="font-mono break-all select-all">{barras.get(p.chave)}</span>
+                      </p>
+                    )}
                     {p.motivo && (
                       <p className="text-xs text-foreground/80">
                         {STATUS_PENDENCIA_LABEL[p.status]}: {p.motivo}
@@ -175,7 +190,7 @@ export default async function PendenciasPage({ searchParams }: PageProps<"/conci
                   <TableCell className="text-right font-medium tabular-nums">{formatarMoeda(p.valor)}</TableCell>
                   <TableCell className="tabular-nums">
                     {formatarData(p.vencimento)}
-                    <p className="text-xs text-muted-foreground">há {descreverPeriodo(p.criado_em) ?? "—"}</p>
+                    <p className="text-xs text-muted-foreground">aberta em {formatarData(p.criado_em)}</p>
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
                     <div className="flex flex-col items-start gap-1">
