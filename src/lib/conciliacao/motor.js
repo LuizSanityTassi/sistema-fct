@@ -183,6 +183,17 @@ function conciliar(trierTit, ddaArquivos, opt) {
   const bancoVencFim = temPlanilha && vencsBanco.length ? maxDe(vencsBanco) : null;
   const cobIni = geracoes.length && !temPlanilha ? minDe(geracoes) - 1 : null;
   const cobFim = geracoes.length ? maxDe(geracoes) - 8 : null;
+  // cada planilha é a foto de UMA filial, com o período que foi pedido para ela: o que está coberto vale filial a filial
+  const cobFilial = new Map();
+  let boletoSemFilial = false;
+  if (temPlanilha) for (const d of U.values()) {
+    if (d.mov === '31' || d.venc == null) continue;
+    const f = d.filialArquivo || (opt.filialDeCnpj ? opt.filialDeCnpj(String(d.pagadorCnpj || d.pagador || '').replace(/\D/g, '').slice(-14)) : null);
+    if (!f) { boletoSemFilial = true; continue; }
+    const c = cobFilial.get(f);
+    if (!c) cobFilial.set(f, { ini: d.venc, fim: d.venc });
+    else { if (d.venc < c.ini) c.ini = d.venc; if (d.venc > c.fim) c.fim = d.venc; }
+  }
 
   const used = new Set();
   const push = (m, k, v) => { let a = m.get(k); if (!a) m.set(k, a = []); a.push(v); return a; };
@@ -368,7 +379,10 @@ function conciliar(trierTit, ddaArquivos, opt) {
 
   // Classificação final
   for (const t of T) {
-    const foraBanco = (bancoVencIni != null && t.venc < bancoVencIni) || (bancoVencFim != null && t.venc > bancoVencFim);
+    const cf = cobFilial.get(t.fil);
+    const foraBanco = cf
+      ? t.venc < cf.ini || t.venc > cf.fim
+      : (temPlanilha && !boletoSemFilial) || (bancoVencIni != null && t.venc < bancoVencIni) || (bancoVencFim != null && t.venc > bancoVencFim); // filial sem arquivo do banco
     t.resultado = t.m ? t.m.tipo : (!foraBanco && (cobIni == null || (t.emis >= cobIni && t.emis <= cobFim)) ? 'SO_TRIER' : 'SEM_ARQUIVO');
     if (t.m) {
       const d = Dd[t.m.i]; t.dda = d; t.diferenca = (t.m.tipo === 'AGRUPADO' || t.m.tipo === 'COMBINACAO') ? null : Math.round((d.valor - t.valor) * 100) / 100;

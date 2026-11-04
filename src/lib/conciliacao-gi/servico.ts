@@ -482,7 +482,8 @@ async function registrarPendencias(supabase: Cliente, conciliacaoId: string, gru
     const rp = primeiraRegra(regras, alvos.get(it.chave)!, "pendencia");
     if (!ex) {
       novas += 1;
-      let nova: Inserir<"gi_conc_pendencias"> = { ...it, status: "pendente", criado_em: agora, historico: [{ status: "pendente", quando: agora, por: "sistema", motivo: "Encontrada na conciliação" }] };
+      // auto explícito: no upsert em lote, coluna que falta numa linha vai nula, e a nova entra junto com as que já existem
+      let nova: Inserir<"gi_conc_pendencias"> = { ...it, status: "pendente", auto: false, criado_em: agora, historico: [{ status: "pendente", quando: agora, por: "sistema", motivo: "Encontrada na conciliação" }] };
       if (rp) {
         nova = aplicarDecisao(nova, { status: rp.pendencia_acao as StatusRegra, regra: rp, motivo: motivoDaRegra(rp) }, agora);
         porRegra += 1;

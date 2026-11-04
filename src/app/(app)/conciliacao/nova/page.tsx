@@ -9,6 +9,8 @@ import { conciliar } from "../actions";
 import { NovaConciliacaoForm, type ArquivoOpcao, type Faixa } from "./nova-form";
 
 export const metadata = { title: "Nova conciliação" };
+// com todos os arquivos do banco e o relatório geral do Trier, leva uns minutos para ler e gravar
+export const maxDuration = 300;
 
 function opcao(a: { id: string; nome: string; tipo: string; filial: number | null; meta: unknown; enviado_em: string }): ArquivoOpcao {
   const m = (a.meta ?? {}) as Record<string, unknown>;
