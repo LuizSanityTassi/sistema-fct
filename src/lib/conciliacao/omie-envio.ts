@@ -366,6 +366,19 @@ export async function gerarPlanilhaOmie(supabase: Cliente, userId: string, conc:
 
 const PRAZO_LANCAMENTO_MS = 220_000;
 
+/** Contas que a consulta achou na Omie: ficam como enviadas, com o código de lá, sem chamar a Omie. */
+export async function marcarJaNaOmie(supabase: Cliente, userId: string, conc: Conciliacao, contas: { chave: string; codigo: string }[]) {
+  const linhasItens = await itensPorChave(supabase, conc.id, contas.map((c) => c.chave));
+  const codigo = new Map(contas.map((c) => [c.chave, c.codigo]));
+  const itens = linhasItens.map((linha) => {
+    const item = itemDeLinha(linha);
+    return { linha, item, empresa: Omie.empresaDe(item), codigoOmie: codigo.get(linha.chave) ?? null };
+  });
+  await marcarEnviados(supabase, userId, conc, itens, "api", null);
+  await registrarAuditoria(supabase, { userId, acao: "criar", entidade: "conc_enviados_omie", novo: { via: "ja_na_omie", conciliacao: conc.id, marcadas: itens.length } });
+  return itens.length;
+}
+
 export type ResultadoApi = {
   resultados: (ResultadoLancamento & { nome: string; valor: number })[];
   fora: { chave: string; nome: string; motivo: string }[];
@@ -385,6 +398,8 @@ export async function lancarPorApi(supabase: Cliente, userId: string, conc: Conc
   const testado = (emp: EmpresaOmie) => !!(cfgMap.get(`omie_${emp}`) as { testado?: boolean } | undefined)?.testado;
   const credOmie: Record<EmpresaOmie, Chaves | null> = { nazario: await chavesOmie(supabase, "nazario"), varela: await chavesOmie(supabase, "varela") };
 
+  const hoje = new Date();
+  const pisoEmissao = Math.round(Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth() - 1, 1) / 86_400_000);
   const porEmpresa: Record<EmpresaOmie, { linha: ItemConciliacao; item: ItemOmie; conta: ContaApi; regras: RegrasDaConta }[]> = { nazario: [], varela: [] };
   const fora: ResultadoApi["fora"] = [];
   linhasItens.forEach((linha, i) => {
@@ -414,8 +429,8 @@ export async function lancarPorApi(supabase: Cliente, userId: string, conc: Conc
         nome,
         valor: l.F,
         venc: Motor.dtxt(d ? d.venc : (t?.venc ?? null)),
-        // a emissão real do Trier: lançar não pode trocar a data de quem já está na Omie
-        emissao: t?.emis != null && t.emis <= ((d ? d.venc : t.venc) ?? t.emis) ? Motor.dtxt(t.emis) : null,
+        // emissão do Trier; mais antiga que o mês passado cairia em período contábil fechado, que a Omie recusa
+        emissao: t?.emis != null && t.emis >= pisoEmissao && t.emis <= ((d ? d.venc : t.venc) ?? t.emis) ? Motor.dtxt(t.emis) : null,
         numdoc: l.U,
         nota: l.Y,
         barra: l.AB,

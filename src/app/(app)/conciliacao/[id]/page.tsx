@@ -19,7 +19,7 @@ import { chavesDoFiltro, chavesEnviadas, lerFiltrosItens, listarItens, mapaFilia
 import { formatarData, formatarDataHora, formatarMoeda, pluralizar } from "@/lib/formatos";
 import { createClient } from "@/lib/supabase/server";
 import { BadgeCategoria, BadgeStatusPendencia, Filial } from "../badges-conc";
-import { enviarPlanilhaOmie, lancarOmieApi, validarEnvioOmie } from "../omie-actions";
+import { enviarPlanilhaOmie, validarEnvioOmie } from "../omie-actions";
 import { EnvioOmie } from "./envio-omie";
 import { BarraMarcarOmie, FORM_MARCAR_OMIE } from "./marcar-omie";
 
@@ -261,7 +261,6 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
           marcadas={marcadas}
           validar={validarEnvioOmie}
           enviarPlanilha={enviarPlanilhaOmie}
-          lancarApi={lancarOmieApi}
         />
       ) : aba === "filiais" ? (
         <div className="rounded-xl border bg-card">

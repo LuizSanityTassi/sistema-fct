@@ -58,6 +58,8 @@ async function chamar(ch: Chaves, emp: EmpresaOmie, caminho: string, call: strin
     const j = json as Resposta;
     if (typeof j.faultstring === "string") {
       ultimo = j.faultstring;
+      // API bloqueada por consumo indevido: insistir não adianta, a Omie diz quantos segundos faltam
+      if (/bloqueada/i.test(ultimo)) throw new OmieErro(ultimo);
       // limite de uso / requisição repetida: espera e tenta de novo
       if (tentativa < 2 && /consumo redundante|aguarde|too many|tente novamente em/i.test(ultimo)) {
         await dormir(3000);
@@ -241,8 +243,24 @@ export type ContaApi = {
   departamentoFixo?: boolean;
 };
 
-/** `adiada`: não houve tentativa, faltou tempo nesta chamada; vale mandar de novo. */
-export type ResultadoLancamento = { chave: string; ok: boolean; codigoOmie?: string | null; msg?: string; erro?: string; adiada?: boolean };
+/** `adiada`: não houve tentativa, faltou tempo nesta chamada; vale mandar de novo. `parada`: o lote parou por erros seguidos ou API bloqueada. */
+export type ResultadoLancamento = { chave: string; ok: boolean; codigoOmie?: string | null; msg?: string; erro?: string; adiada?: boolean; parada?: boolean };
+
+/** Erros seguidos que param o lote: a Omie bloqueia a API por 30 minutos quando recebe muitas chamadas com erro. */
+const MAX_ERROS_SEGUIDOS = 5;
+
+/** Uma página dos títulos a pagar da Omie por vencimento: [código de integração, código de barras, código na Omie]. */
+export async function listarTitulosOmie(ch: Chaves, emp: EmpresaOmie, de: string, ate: string, pagina: number) {
+  type Mov = { detalhes?: { cCodIntTitulo?: string; cCodigoBarras?: string; nCodTitulo?: number } };
+  try {
+    const r = await chamar(ch, emp, "financas/mf/", "ListarMovimentos", { nPagina: pagina, nRegPorPagina: 100, dDtVencDe: de, dDtVencAte: ate, cNatureza: "P" });
+    const titulos = ((r.movimentos as Mov[] | undefined) ?? []).map((m) => [m.detalhes?.cCodIntTitulo ?? "", String(m.detalhes?.cCodigoBarras ?? "").trim(), String(m.detalhes?.nCodTitulo ?? "")] as const);
+    return { paginas: Number(r.nTotPaginas ?? 1), titulos };
+  } catch (e) {
+    if (e instanceof OmieErro && semRegistros(e.message)) return { paginas: 1, titulos: [] };
+    throw e;
+  }
+}
 
 /** Lança contas a pagar de UMA empresa (UpsertContaPagar), uma a uma, sem atropelar o limite da Omie. */
 export async function lancarContas(ch: Chaves, emp: EmpresaOmie, cache: CacheOmie, contas: ContaApi[], cadastrarFornecedor: boolean, prazo = Infinity): Promise<ResultadoLancamento[]> {
@@ -251,8 +269,16 @@ export async function lancarContas(ch: Chaves, emp: EmpresaOmie, cache: CacheOmi
   }
   const fornecedores = new Map<string, number>();
   const resultados: ResultadoLancamento[] = [];
+  let seguidos = 0;
+  let parou = "";
   for (const c of contas) {
     const r: ResultadoLancamento = { chave: c.chave, ok: false };
+    if (parou) {
+      r.erro = parou;
+      r.adiada = r.parada = true;
+      resultados.push(r);
+      continue;
+    }
     if (Date.now() > prazo) {
       r.erro = "não deu tempo nesta leva. Recarregue a página e lance de novo: as já lançadas ficaram marcadas como enviadas.";
       r.adiada = true;
@@ -317,6 +343,9 @@ export async function lancarContas(ch: Chaves, emp: EmpresaOmie, cache: CacheOmi
     } catch (e) {
       r.erro = e instanceof Error ? e.message : String(e);
     }
+    seguidos = r.ok ? 0 : seguidos + 1;
+    if (r.erro && /bloqueada/i.test(r.erro)) parou = r.erro;
+    else if (seguidos >= MAX_ERROS_SEGUIDOS) parou = `${MAX_ERROS_SEGUIDOS} erros seguidos (o último: ${r.erro})`;
     resultados.push(r);
     await dormir(300);
   }

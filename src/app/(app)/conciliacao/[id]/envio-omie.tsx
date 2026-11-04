@@ -3,7 +3,7 @@
 import Link from "next/link";
 import * as React from "react";
 import { useActionState } from "react";
-import { CheckCircle2, CircleAlert, CirclePause, FileSpreadsheet, Send } from "lucide-react";
+import { CheckCircle2, CirclePause, FileSpreadsheet, Send } from "lucide-react";
 import { ErroFormulario, SelectNativo } from "@/components/form/campo";
 import { Ponto } from "@/components/layout/status";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import type { ContaEnvio } from "@/lib/conciliacao/omie-envio";
 import { CATEGORIA_LABEL, LIMITE_LANCAMENTO_API } from "@/lib/conciliacao/rotulos";
 import type { Tom } from "@/lib/tons";
-import type { EstadoLancamentoApi, EstadoValidacao } from "../omie-actions";
+import type { EstadoValidacao } from "../omie-actions";
 
 type StatusEmpresa = { nome: string; configurado: boolean; pronto: boolean; testado: boolean };
 type Props = {
@@ -26,7 +26,6 @@ type Props = {
   marcadas?: string[];
   validar: (prev: EstadoValidacao, fd: FormData) => Promise<EstadoValidacao>;
   enviarPlanilha: (prev: EstadoValidacao, fd: FormData) => Promise<EstadoValidacao>;
-  lancarApi: (prev: EstadoLancamentoApi, fd: FormData) => Promise<EstadoLancamentoApi>;
 };
 
 const GRUPOS: { chave: string; rotulo: string; dica: string }[] = [
@@ -43,19 +42,20 @@ const inteiro = (v: number) => v.toLocaleString("pt-BR");
 type EnvioEmLotes = {
   total: number;
   lancadas: number;
+  jaNaOmie: number;
+  vencidas: number;
   qtdErros: number;
   motivos: Record<string, number>;
-  erros: { nome: string; valor: number; erro: string }[];
-  filas: Record<string, { total: number; feitas: number }>;
+  filas: Record<string, { total: number; etapa: string }>;
   rodando: boolean;
   aviso?: string;
 };
-type RespostaLote = { lancadas: number; adiadas: string[]; erros: { nome: string; valor: number; erro: string }[]; modoTeste: string[]; erro?: string };
+type RespostaLote = { lancadas: number; adiadas: string[]; parada: string | null; erros: { nome: string; valor: number; erro: string }[]; modoTeste: string[] };
 const ROTULO_FILA: Record<string, string> = { nazario: "Nazário", varela: "Varela", sem: "Sem empresa" };
 const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const data = (iso: string | null) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : "—");
 
-export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grupoInicial, marcadas, validar, enviarPlanilha, lancarApi }: Props) {
+export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grupoInicial, marcadas, validar, enviarPlanilha }: Props) {
   const [grupo, setGrupo] = React.useState(() => (GRUPOS.some((g) => g.chave === grupoInicial) ? grupoInicial! : "exato"));
   const [env, setEnv] = React.useState<"faltam" | "enviados" | "todos">("faltam");
   const [filial, setFilial] = React.useState("");
@@ -71,7 +71,6 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grup
   const [cadastrar, setCadastrar] = React.useState(true);
   const [validacao, acaoValidar, validando] = useActionState(validar, {});
   const [planilha, acaoPlanilha, gerando] = useActionState(enviarPlanilha, {});
-  const [lancamento, acaoLancar, lancando] = useActionState(lancarApi, {});
   const [lote, setLote] = React.useState<EnvioEmLotes | null>(null);
   const parar = React.useRef(false);
   const emLotes = !!lote?.rodando;
@@ -123,65 +122,103 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grup
   const lancarEmLotes = async (chaves: string[]) => {
     parar.current = false;
     const porChave = new Map(contas.map((c) => [c.chave, c]));
-    const filas = new Map<string, string[]>();
+    const filas = new Map<string, ContaEnvio[]>();
     for (const k of chaves) {
-      const emp = porChave.get(k)?.empresa ?? "sem";
+      const c = porChave.get(k);
+      if (!c) continue;
+      const emp = c.empresa ?? "sem";
       const fila = filas.get(emp);
-      if (fila) fila.push(k);
-      else filas.set(emp, [k]);
+      if (fila) fila.push(c);
+      else filas.set(emp, [c]);
     }
-    setLote({ total: chaves.length, lancadas: 0, qtdErros: 0, motivos: {}, erros: [], filas: Object.fromEntries([...filas].map(([e, f]) => [e, { total: f.length, feitas: 0 }])), rodando: true });
-    const rodarFila = async (emp: string, fila: string[]) => {
-      let falhas = 0;
-      while (fila.length && !parar.current) {
-        const pedaco = fila.slice(0, LIMITE_LANCAMENTO_API);
+    setLote({ total: chaves.length, lancadas: 0, jaNaOmie: 0, vencidas: 0, qtdErros: 0, motivos: {}, filas: Object.fromEntries([...filas].map(([e, f]) => [e, { total: f.length, etapa: "aguardando" }])), rodando: true });
+    const etapa = (emp: string, texto: string) => setLote((l) => (l ? { ...l, filas: { ...l.filas, [emp]: { ...l.filas[emp], etapa: texto } } } : l));
+    const avisar = (emp: string, texto: string) => setLote((l) => (l ? { ...l, aviso: [l.aviso, `${ROTULO_FILA[emp] ?? emp}: ${texto}`].filter(Boolean).join(" · ") } : l));
+    const postar = async <T,>(url: string, corpo: unknown): Promise<T> => {
+      let ultimo = "";
+      for (let tentativa = 0; tentativa < 3; tentativa++) {
         try {
-          const resp = await fetch("/api/conciliacao/omie-lote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conciliacao: conciliacaoId, chaves: pedaco, cadastrar }) });
-          const r = (await resp.json()) as RespostaLote;
-          if (!resp.ok) throw new Error(r.erro ?? `HTTP ${resp.status}`);
+          const resp = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
+          const r = (await resp.json()) as T & { erro?: string };
+          if (resp.ok) return r;
+          ultimo = r.erro ?? `HTTP ${resp.status}`;
+          if (/bloqueada/i.test(ultimo)) break; // a Omie já disse quanto falta: insistir não adianta
+        } catch (e) {
+          ultimo = e instanceof Error ? e.message : "sem conexão";
+        }
+        await dormir(15_000);
+      }
+      throw new Error(ultimo);
+    };
+    const hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+    const rodarFila = async (emp: string, lista: ContaEnvio[]) => {
+      try {
+        // 1) o que já está na Omie, pelo código de integração ou pelo código de barras
+        const existentes = new Map<string, string>();
+        if (emp !== "sem") {
+          const vencs = lista.map((c) => c.vencimento).filter((v): v is string => !!v).sort();
+          for (let pagina = 1, paginas = 1; pagina <= paginas && !parar.current; pagina++) {
+            etapa(emp, `consultando a Omie, página ${inteiro(pagina)}${paginas > 1 ? ` de ${inteiro(paginas)}` : ""}`);
+            const r = await postar<{ paginas: number; titulos: [string, string, string][] }>("/api/conciliacao/omie-existentes", { empresa: emp, de: vencs[0], ate: vencs[vencs.length - 1], pagina });
+            paginas = r.paginas;
+            for (const [codigo, barra, omie] of r.titulos) {
+              if (codigo) existentes.set(codigo, omie);
+              if (barra) existentes.set(barra, omie);
+            }
+          }
+        }
+        if (parar.current) return;
+        // 2) separa: já está lá, vencida (a Omie pede vencimento a partir de hoje) ou nova
+        const ja: { chave: string; codigo: string }[] = [];
+        const novas: string[] = [];
+        let vencidas = 0;
+        for (const c of lista) {
+          const achado = existentes.get(c.chave.split("|")[0]) ?? (c.barra ? existentes.get(c.barra) : undefined);
+          if (achado) ja.push({ chave: c.chave, codigo: achado });
+          else if (c.vencimento && c.vencimento < hoje) vencidas += 1;
+          else novas.push(c.chave);
+        }
+        setLote((l) => (l ? { ...l, vencidas: l.vencidas + vencidas } : l));
+        // 3) quem já está lá sai de "a enviar", sem mexer no título da Omie
+        for (let i = 0; i < ja.length && !parar.current; i += 500) {
+          etapa(emp, `marcando ${inteiro(ja.length)} que já estão na Omie`);
+          const pedaco = ja.slice(i, i + 500);
+          await postar("/api/conciliacao/omie-marcar", { conciliacao: conciliacaoId, contas: pedaco });
+          setLote((l) => (l ? { ...l, jaNaOmie: l.jaNaOmie + pedaco.length } : l));
+        }
+        // 4) lança só as novas
+        const inicioNovas = novas.length;
+        while (novas.length && !parar.current) {
+          etapa(emp, `lançando novas, faltam ${inteiro(novas.length)} de ${inteiro(inicioNovas)}`);
+          const pedaco = novas.slice(0, LIMITE_LANCAMENTO_API);
+          const r = await postar<RespostaLote>("/api/conciliacao/omie-lote", { conciliacao: conciliacaoId, chaves: pedaco, cadastrar });
           if (r.modoTeste.length) throw new Error(`modo teste em ${r.modoTeste.join(", ")}: libere o lote em Conciliação → Omie`);
-          const feitas = r.lancadas + r.erros.length;
-          if (!feitas) throw new Error("nenhuma conta foi processada neste lote");
-          fila.splice(0, pedaco.length);
-          fila.push(...r.adiadas);
-          falhas = 0;
+          novas.splice(0, pedaco.length);
+          novas.push(...r.adiadas);
           setLote((l) => {
             if (!l) return l;
             const motivos = { ...l.motivos };
             for (const x of r.erros) motivos[x.erro] = (motivos[x.erro] ?? 0) + 1;
-            return {
-              ...l,
-              lancadas: l.lancadas + r.lancadas,
-              qtdErros: l.qtdErros + r.erros.length,
-              motivos,
-              erros: [...l.erros, ...r.erros].slice(0, 300),
-              filas: { ...l.filas, [emp]: { ...l.filas[emp], feitas: l.filas[emp].feitas + feitas } },
-            };
+            return { ...l, lancadas: l.lancadas + r.lancadas, qtdErros: l.qtdErros + r.erros.length, motivos };
           });
-        } catch (e) {
-          falhas += 1;
-          if (falhas >= 3) {
-            const motivo = e instanceof Error ? e.message : "falha";
-            setLote((l) => (l ? { ...l, aviso: `${ROTULO_FILA[emp] ?? emp} parou depois de 3 tentativas: ${motivo}. O que já foi lançado está marcado; recarregue e marque de novo para continuar.` } : l));
-            return;
-          }
-          await dormir(15_000);
+          if (r.parada) throw new Error(r.parada);
+          if (!r.lancadas && !r.erros.length) throw new Error("nenhuma conta foi processada neste lote");
         }
+        etapa(emp, parar.current ? "parada" : "terminou");
+      } catch (e) {
+        etapa(emp, "parou");
+        avisar(emp, `${e instanceof Error ? e.message : "falha"}. O que já foi feito está marcado; recarregue e marque de novo para continuar.`);
       }
     };
-    await Promise.all([...filas].map(([emp, fila]) => rodarFila(emp, fila)));
+    await Promise.all([...filas].map(([emp, lista]) => rodarFila(emp, lista)));
     setLote((l) => (l ? { ...l, rodando: false } : l));
   };
   const executar = (chaves: string[]) => {
     if (!validacao.verbo) return;
-    if (validacao.verbo === "api" && chaves.length > LIMITE_LANCAMENTO_API) {
-      void lancarEmLotes(chaves);
-      return;
-    }
     if (validacao.verbo === "planilha") React.startTransition(() => acaoPlanilha(fdCom(chaves)));
-    else React.startTransition(() => acaoLancar(fdCom(chaves, { cadastrar_fornecedor: cadastrar ? "on" : "" })));
+    else void lancarEmLotes(chaves);
   };
-  const ocupado = validando || gerando || lancando || emLotes;
+  const ocupado = validando || gerando || emLotes;
   const v = validacao.validacao;
 
   return (
@@ -303,7 +340,7 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grup
 
       {podeEnviar && (
         <section className="sticky bottom-2 rounded-xl border bg-card p-4 shadow-md">
-          <ErroFormulario mensagem={validacao.erro ?? planilha.erro ?? lancamento.erro} />
+          <ErroFormulario mensagem={validacao.erro ?? planilha.erro} />
           <div className="mt-2 flex flex-wrap items-center gap-3">
             <span className="text-sm font-medium">
               {selecionadas.length} conta(s) · {moeda(totalSel)}
@@ -382,12 +419,12 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grup
                   </Button>
                 )}
                 <Button type="button" variant={v.grave.length ? "outline" : "default"} disabled={ocupado} onClick={() => executar(validacao.chaves ?? [])}>
-                  {gerando || lancando ? "Aguarde…" : v.grave.length ? `${validacao.verbo === "planilha" ? "Gerar" : "Lançar"} mesmo assim (todas, ${validacao.chaves?.length ?? 0})` : validacao.verbo === "planilha" ? `Gerar planilha (${validacao.chaves?.length ?? 0})` : `Lançar no Omie (${validacao.chaves?.length ?? 0})`}
+                  {gerando ? "Aguarde…" : v.grave.length ? `${validacao.verbo === "planilha" ? "Gerar" : "Lançar"} mesmo assim (todas, ${validacao.chaves?.length ?? 0})` : validacao.verbo === "planilha" ? `Gerar planilha (${validacao.chaves?.length ?? 0})` : `Lançar no Omie (${validacao.chaves?.length ?? 0})`}
                 </Button>
                 {!v.grave.length && !v.atencao.length && <span className="text-xs text-emerald-700">Tudo certo para enviar.</span>}
               </div>
-              {validacao.verbo === "api" && (validacao.chaves?.length ?? 0) > LIMITE_LANCAMENTO_API && (
-                <p className="text-xs text-muted-foreground">Vai em lotes de {LIMITE_LANCAMENTO_API}, cerca de 1 conta por segundo em cada empresa. Conta que já está na Omie é atualizada, não duplicada. Deixe esta aba aberta até terminar.</p>
+              {validacao.verbo === "api" && (
+                <p className="text-xs text-muted-foreground">Antes de lançar, o sistema consulta o Omie: o que já está lá fica marcado como enviado, sem mexer no título, e só as novas são lançadas. Deixe esta aba aberta até terminar.</p>
               )}
             </div>
           )}
@@ -395,14 +432,14 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grup
           {lote && (
             <div className="mt-4 space-y-2 border-t pt-3 text-sm">
               <p className="font-medium" aria-live="polite">
-                {lote.rodando ? "Lançando em lotes" : "Envio em lotes parado"}: {inteiro(lote.lancadas)} lançada(s) e {inteiro(lote.qtdErros)} com erro, de {inteiro(lote.total)}
+                {lote.rodando ? "Enviando ao Omie" : "Envio parado"}: {inteiro(lote.jaNaOmie)} já estavam lá, {inteiro(lote.lancadas)} lançada(s), {inteiro(lote.qtdErros)} com erro e {inteiro(lote.vencidas)} vencida(s) sem lançar, de {inteiro(lote.total)}
               </p>
               <div className="h-2 overflow-hidden rounded-full bg-muted">
-                <div className="h-full bg-fct-tinta" style={{ width: `${Math.min(100, ((lote.lancadas + lote.qtdErros) / lote.total) * 100)}%` }} />
+                <div className="h-full bg-fct-tinta" style={{ width: `${Math.min(100, ((lote.jaNaOmie + lote.lancadas + lote.qtdErros + lote.vencidas) / Math.max(1, lote.total)) * 100)}%` }} />
               </div>
               <p className="text-xs text-muted-foreground">
                 {Object.entries(lote.filas)
-                  .map(([e, f]) => `${ROTULO_FILA[e] ?? e}: ${inteiro(f.feitas)} de ${inteiro(f.total)}`)
+                  .map(([e, f]) => `${ROTULO_FILA[e] ?? e} (${inteiro(f.total)}): ${f.etapa}`)
                   .join(" · ")}
                 {lote.rodando ? " · deixe esta aba aberta" : ""}
               </p>
@@ -410,7 +447,7 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grup
               {lote.rodando && (
                 <Button type="button" size="sm" variant="outline" onClick={() => (parar.current = true)}>
                   <CirclePause data-icon="inline-start" />
-                  Parar depois deste lote
+                  Parar
                 </Button>
               )}
               {lote.qtdErros > 0 && (
@@ -428,32 +465,7 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grup
                   </ul>
                 </details>
               )}
-            </div>
-          )}
-
-          {lancamento.resultado && (
-            <div className="mt-4 border-t pt-3 text-sm">
-              <p className="font-medium">
-                Lançamento pela API: {lancamento.resultado.resultados.filter((r) => r.ok).length} lançada(s), {lancamento.resultado.resultados.filter((r) => !r.ok).length} com erro, {lancamento.resultado.fora.length} fora
-                {lancamento.resultado.modoTeste.length ? ` · modo teste em ${lancamento.resultado.modoTeste.join(", ")} (só 1 conta; confira na Omie e libere o lote em Conciliação → Omie)` : ""}
-              </p>
-              <ul className="mt-1 max-h-56 space-y-0.5 overflow-y-auto text-xs">
-                {lancamento.resultado.resultados.map((r) => (
-                  <li key={r.chave} className="flex items-start gap-1">
-                    {r.ok ? <CheckCircle2 className="mt-0.5 size-3.5 text-emerald-600" aria-hidden /> : <CircleAlert className="mt-0.5 size-3.5 text-red-600" aria-hidden />}
-                    <span>
-                      {r.nome} · {moeda(r.valor)} {r.ok ? `· Omie nº ${r.codigoOmie ?? "—"}` : `· ${r.erro}`}
-                    </span>
-                  </li>
-                ))}
-                {lancamento.resultado.fora.map((f) => (
-                  <li key={f.chave} className="text-muted-foreground">
-                    <CirclePause className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />
-                    {f.nome}: {f.motivo}
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-2 text-xs text-muted-foreground">Recarregue a página para ver as contas marcadas como enviadas.</p>
+              {!lote.rodando && <p className="text-xs text-muted-foreground">Recarregue a página para ver as contas marcadas como enviadas.</p>}
             </div>
           )}
         </section>

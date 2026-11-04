@@ -32,6 +32,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       lancadas: r.resultados.filter((x) => x.ok).length,
       adiadas: r.resultados.filter((x) => x.adiada).map((x) => x.chave),
+      parada: r.resultados.find((x) => x.parada)?.erro ?? null,
       erros: [
         ...r.resultados.filter((x) => !x.ok && !x.adiada).map((x) => ({ nome: x.nome, valor: x.valor, erro: x.erro ?? "recusado" })),
         ...r.fora.map((x) => ({ nome: x.nome, valor: 0, erro: x.motivo })),
