@@ -249,12 +249,12 @@ export type ResultadoLancamento = { chave: string; ok: boolean; codigoOmie?: str
 /** Erros seguidos que param o lote: a Omie bloqueia a API por 30 minutos quando recebe muitas chamadas com erro. */
 const MAX_ERROS_SEGUIDOS = 5;
 
-/** Uma página dos títulos a pagar da Omie por vencimento: [código de integração, código de barras, código na Omie]. */
+/** Uma página dos títulos a pagar da Omie por vencimento: [código de integração, código de barras, código na Omie, CPF/CNPJ, vencimento dd/mm/aaaa, valor]. */
 export async function listarTitulosOmie(ch: Chaves, emp: EmpresaOmie, de: string, ate: string, pagina: number) {
-  type Mov = { detalhes?: { cCodIntTitulo?: string; cCodigoBarras?: string; nCodTitulo?: number } };
+  type Mov = { detalhes?: { cCodIntTitulo?: string; cCodigoBarras?: string; nCodTitulo?: number; cCPFCNPJCliente?: string; dDtVenc?: string; nValorTitulo?: number } };
   try {
     const r = await chamar(ch, emp, "financas/mf/", "ListarMovimentos", { nPagina: pagina, nRegPorPagina: 100, dDtVencDe: de, dDtVencAte: ate, cNatureza: "P" });
-    const titulos = ((r.movimentos as Mov[] | undefined) ?? []).map((m) => [m.detalhes?.cCodIntTitulo ?? "", String(m.detalhes?.cCodigoBarras ?? "").trim(), String(m.detalhes?.nCodTitulo ?? "")] as const);
+    const titulos = ((r.movimentos as Mov[] | undefined) ?? []).map((m) => [m.detalhes?.cCodIntTitulo ?? "", String(m.detalhes?.cCodigoBarras ?? "").trim(), String(m.detalhes?.nCodTitulo ?? ""), String(m.detalhes?.cCPFCNPJCliente ?? "").replace(/\D/g, ""), m.detalhes?.dDtVenc ?? "", Number(m.detalhes?.nValorTitulo ?? 0)] as const);
     return { paginas: Number(r.nTotPaginas ?? 1), titulos };
   } catch (e) {
     if (e instanceof OmieErro && semRegistros(e.message)) return { paginas: 1, titulos: [] };

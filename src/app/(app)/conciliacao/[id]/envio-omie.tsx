@@ -44,6 +44,7 @@ type EnvioEmLotes = {
   lancadas: number;
   jaNaOmie: number;
   vencidas: number;
+  parecidas: number;
   qtdErros: number;
   motivos: Record<string, number>;
   filas: Record<string, { total: number; etapa: string }>;
@@ -131,7 +132,7 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grup
       if (fila) fila.push(c);
       else filas.set(emp, [c]);
     }
-    setLote({ total: chaves.length, lancadas: 0, jaNaOmie: 0, vencidas: 0, qtdErros: 0, motivos: {}, filas: Object.fromEntries([...filas].map(([e, f]) => [e, { total: f.length, etapa: "aguardando" }])), rodando: true });
+    setLote({ total: chaves.length, lancadas: 0, jaNaOmie: 0, vencidas: 0, parecidas: 0, qtdErros: 0, motivos: {}, filas: Object.fromEntries([...filas].map(([e, f]) => [e, { total: f.length, etapa: "aguardando" }])), rodando: true });
     const etapa = (emp: string, texto: string) => setLote((l) => (l ? { ...l, filas: { ...l.filas, [emp]: { ...l.filas[emp], etapa: texto } } } : l));
     const avisar = (emp: string, texto: string) => setLote((l) => (l ? { ...l, aviso: [l.aviso, `${ROTULO_FILA[emp] ?? emp}: ${texto}`].filter(Boolean).join(" · ") } : l));
     const postar = async <T,>(url: string, corpo: unknown): Promise<T> => {
@@ -155,15 +156,18 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grup
       try {
         // 1) o que já está na Omie, pelo código de integração ou pelo código de barras
         const existentes = new Map<string, string>();
+        // título da Omie sem código de barras (lançado à mão, por exemplo): só dá para comparar por fornecedor, vencimento e valor
+        const semBarra = new Map<string, number[]>();
         if (emp !== "sem") {
           const vencs = lista.map((c) => c.vencimento).filter((v): v is string => !!v).sort();
           for (let pagina = 1, paginas = 1; pagina <= paginas && !parar.current; pagina++) {
             etapa(emp, `consultando a Omie, página ${inteiro(pagina)}${paginas > 1 ? ` de ${inteiro(paginas)}` : ""}`);
-            const r = await postar<{ paginas: number; titulos: [string, string, string][] }>("/api/conciliacao/omie-existentes", { empresa: emp, de: vencs[0], ate: vencs[vencs.length - 1], pagina });
+            const r = await postar<{ paginas: number; titulos: [string, string, string, string, string, number][] }>("/api/conciliacao/omie-existentes", { empresa: emp, de: vencs[0], ate: vencs[vencs.length - 1], pagina });
             paginas = r.paginas;
-            for (const [codigo, barra, omie] of r.titulos) {
+            for (const [codigo, barra, omie, doc, venc, valor] of r.titulos) {
               if (codigo) existentes.set(codigo, omie);
               if (barra) existentes.set(barra, omie);
+              else if (doc) semBarra.set(`${doc}|${venc}`, [...(semBarra.get(`${doc}|${venc}`) ?? []), valor]);
             }
           }
         }
@@ -172,13 +176,15 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grup
         const ja: { chave: string; codigo: string }[] = [];
         const novas: string[] = [];
         let vencidas = 0;
+        let parecidas = 0;
         for (const c of lista) {
           const achado = existentes.get(c.chave.split("|")[0]) ?? (c.barra ? existentes.get(c.barra) : undefined);
           if (achado) ja.push({ chave: c.chave, codigo: achado });
           else if (c.vencimento && c.vencimento < hoje) vencidas += 1;
+          else if ((semBarra.get(`${(c.cnpj ?? "").replace(/\D/g, "")}|${data(c.vencimento)}`) ?? []).some((v) => Math.abs(v - c.valor) <= 2)) parecidas += 1;
           else novas.push(c.chave);
         }
-        setLote((l) => (l ? { ...l, vencidas: l.vencidas + vencidas } : l));
+        setLote((l) => (l ? { ...l, vencidas: l.vencidas + vencidas, parecidas: l.parecidas + parecidas } : l));
         // 3) quem já está lá sai de "a enviar", sem mexer no título da Omie
         for (let i = 0; i < ja.length && !parar.current; i += 500) {
           etapa(emp, `marcando ${inteiro(ja.length)} que já estão na Omie`);
@@ -432,10 +438,10 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grup
           {lote && (
             <div className="mt-4 space-y-2 border-t pt-3 text-sm">
               <p className="font-medium" aria-live="polite">
-                {lote.rodando ? "Enviando ao Omie" : "Envio parado"}: {inteiro(lote.jaNaOmie)} já estavam lá, {inteiro(lote.lancadas)} lançada(s), {inteiro(lote.qtdErros)} com erro e {inteiro(lote.vencidas)} vencida(s) sem lançar, de {inteiro(lote.total)}
+                {lote.rodando ? "Enviando ao Omie" : "Envio parado"}: {inteiro(lote.jaNaOmie)} já estavam lá, {inteiro(lote.lancadas)} lançada(s), {inteiro(lote.qtdErros)} com erro, {inteiro(lote.vencidas)} vencida(s) e {inteiro(lote.parecidas)} parecida(s) com título sem código de barras (não lançadas), de {inteiro(lote.total)}
               </p>
               <div className="h-2 overflow-hidden rounded-full bg-muted">
-                <div className="h-full bg-fct-tinta" style={{ width: `${Math.min(100, ((lote.jaNaOmie + lote.lancadas + lote.qtdErros + lote.vencidas) / Math.max(1, lote.total)) * 100)}%` }} />
+                <div className="h-full bg-fct-tinta" style={{ width: `${Math.min(100, ((lote.jaNaOmie + lote.lancadas + lote.qtdErros + lote.vencidas + lote.parecidas) / Math.max(1, lote.total)) * 100)}%` }} />
               </div>
               <p className="text-xs text-muted-foreground">
                 {Object.entries(lote.filas)
