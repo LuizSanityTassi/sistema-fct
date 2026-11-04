@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { chavesOmie, ehEmpresaOmie, EMPRESAS_OMIE, OmieErro } from "@/lib/conciliacao/omie-api";
-import { atualizarCadastrosOmie, CONFIG_OMIE_PADRAO, contasDaConciliacao, desfazerEnvio, gerarPlanilhaOmie, lancarPorApi, validarEnvio, type ResultadoApi, type Validacao } from "@/lib/conciliacao/omie-envio";
+import { atualizarCadastrosOmie, CONFIG_OMIE_PADRAO, contasDaConciliacao, desfazerEnvio, gerarPlanilhaOmie, lancarPorApi, LIMITE_LANCAMENTO_API, mensagemLimiteApi, validarEnvio, type ResultadoApi, type Validacao } from "@/lib/conciliacao/omie-envio";
 import { podeConciliar, podeConfigurarConciliacao } from "@/lib/conciliacao/permissoes";
 import { obterConciliacao, obterConfig } from "@/lib/data/conciliacao";
 import { ehUuid } from "@/lib/data/filiais";
@@ -43,6 +43,7 @@ export async function validarEnvioOmie(_prev: EstadoValidacao, fd: FormData): Pr
   const chaves = chavesDe(fd);
   if (!ehUuid(conciliacaoId)) return { erro: "Conciliação inválida." };
   if (!chaves.length) return { erro: "Nada selecionado." };
+  if (verbo === "api" && chaves.length > LIMITE_LANCAMENTO_API) return { erro: mensagemLimiteApi(chaves.length) };
   const contas = await carregarContas(conciliacaoId, chaves);
   if (!contas.length) return { erro: "As contas selecionadas não foram encontradas." };
   return { validacao: validarEnvio(contas, verbo), verbo, chaves: contas.map((c) => c.chave) };

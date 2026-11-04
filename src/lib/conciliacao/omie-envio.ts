@@ -364,6 +364,10 @@ export async function gerarPlanilhaOmie(supabase: Cliente, userId: string, conc:
 // ---------- API ----------
 
 const PRAZO_LANCAMENTO_MS = 220_000;
+/** A Omie aceita cerca de 1 conta por segundo: mais que isto não cabe nos 300 s da função, e a resposta se perde. */
+export const LIMITE_LANCAMENTO_API = 200;
+export const mensagemLimiteApi = (qtd: number) =>
+  `Pela API dá para lançar até ${LIMITE_LANCAMENTO_API} contas por vez, e você marcou ${qtd.toLocaleString("pt-BR")}. Marque menos, por exemplo filtrando por data, ou gere a planilha, que aceita até 10.000.`;
 
 export type ResultadoApi = {
   resultados: (ResultadoLancamento & { nome: string; valor: number })[];
@@ -373,6 +377,7 @@ export type ResultadoApi = {
 
 export async function lancarPorApi(supabase: Cliente, userId: string, conc: Conciliacao, chaves: string[], cfg: ConfigOmie, cadastrarFornecedor: boolean): Promise<ResultadoApi> {
   if (!chaves.length) throw new Error("Nenhuma conta selecionada.");
+  if (chaves.length > LIMITE_LANCAMENTO_API) throw new Error(mensagemLimiteApi(chaves.length));
   const linhasItens = await itensPorChave(supabase, conc.id, chaves);
   const itens = linhasItens.map((l) => itemDeLinha(l));
   const linhas = Omie.montarLinhas(itens, cfg, Motor.ROTULO);
