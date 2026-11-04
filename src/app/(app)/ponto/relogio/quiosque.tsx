@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, useTransition, type FormEvent
 import { CircleCheck, Delete, Expand, Fingerprint, Shrink, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TIPO_MARCACAO_LABEL, TIPOS_MARCACAO, type TipoMarcacao } from "@/lib/ponto/calculo";
-import { conferirDigital, parearLeitor, verLeitor } from "@/lib/ponto/leitor-digital";
+import { esperarDedo, identificarDigital as identificarNoLeitor, parearLeitor, verLeitor, VERSAO_SO_DEDO } from "@/lib/ponto/leitor-digital";
 import { cn } from "@/lib/utils";
 import { ICONE_TIPO_CLIENTE } from "../_ui/icones-tipo";
 import { RelogioDigital } from "../_ui/relogio-digital";
@@ -15,17 +15,25 @@ type Props = {
   filial: { id: string; codigo: string; nome: string };
   identificar: (filial: string, matricula: string) => Promise<Identificado>;
   registrar: (employeeId: string, pin: string, tipo: string | null) => Promise<ResultadoRegistro>;
-  iniciarDigital: (employeeId: string, leitorId: string) => Promise<LeituraAberta>;
+  iniciarLeitura: (filial: string, leitorId: string) => Promise<LeituraAberta>;
+  identificarDigital: (desafio: string, employeeId: string, dedo: number, assinatura: string) => Promise<Identificado>;
   registrarDigital: (desafio: string, dedo: number, assinatura: string, tipo: string | null) => Promise<ResultadoRegistro>;
   ativarLeitor: (filial: string, codigo: string) => Promise<LeitorAtivado>;
 };
 
-type Etapa = "matricula" | "digital" | "pin" | "tipo" | "ok";
+type Etapa = "dedo" | "matricula" | "pin" | "tipo" | "ok";
 type Pessoa = Extract<Identificado, { ok: true }>;
 type Prova = { desafio: string; dedo: number; assinatura: string };
+type EstadoLeitor = { id: string | null; versao: number };
 
 const OCIOSO_MS = 30_000;
 const CONFIRMACAO_MS = 6_000;
+/** Depois de um erro, o tempo para a pessoa ler e tirar o dedo. */
+const PAUSA_ERRO_MS = 2_500;
+const PAUSA_TELA_ESCONDIDA_MS = 1_000;
+const CONFERIR_LEITOR_MS = 30_000;
+
+const pausa = (ms: number) => new Promise((fim) => setTimeout(fim, ms));
 
 function AvisoErro({ texto }: { texto: string }) {
   return (
@@ -82,8 +90,8 @@ function AtivarLeitor({ filial, ativar, ativado }: { filial: string; ativar: Pro
   );
 }
 
-/** Relógio da filial: matrícula → dedo ou PIN → tipo → confirmação. Volta ao início sozinho. */
-export function Quiosque({ filial, identificar, registrar, iniciarDigital, registrarDigital, ativarLeitor }: Props) {
+/** Relógio da filial: dedo → tipo → confirmação. Sem leitor pronto, ou por escolha da pessoa: matrícula → PIN → tipo. Volta ao início sozinho. */
+export function Quiosque({ filial, identificar, registrar, iniciarLeitura, identificarDigital, registrarDigital, ativarLeitor }: Props) {
   const [etapa, setEtapa] = useState<Etapa>("matricula");
   const [digitos, setDigitos] = useState("");
   const [pessoa, setPessoa] = useState<Pessoa | null>(null);
@@ -92,68 +100,91 @@ export function Quiosque({ filial, identificar, registrar, iniciarDigital, regis
   const [resultado, setResultado] = useState<Extract<ResultadoRegistro, { ok: true }> | null>(null);
   const [pendente, iniciar] = useTransition();
   const [telaCheia, setTelaCheia] = useState(false);
-  const [leitor, setLeitor] = useState<{ id: string | null } | null>(null);
-  const [lendo, setLendo] = useState(false);
+  const [leitor, setLeitor] = useState<EstadoLeitor | null>(null);
+  const [conferindo, setConferindo] = useState(false);
   const [prova, setProva] = useState<Prova | null>(null);
   const ocioso = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const leitura = useRef(0);
+
+  // só com o programa novo e ativado dá para descobrir a pessoa pelo dedo
+  const leitorDoDedo = leitor?.id && leitor.versao >= VERSAO_SO_DEDO ? leitor.id : null;
+  const inicio: Etapa = leitorDoDedo ? "dedo" : "matricula";
 
   const reiniciar = useCallback(() => {
-    leitura.current += 1;
-    setLendo(false);
     setProva(null);
-    setEtapa("matricula");
+    setEtapa(inicio);
     setDigitos("");
     setPin("");
     setPessoa(null);
     setResultado(null);
-  }, []);
+  }, [inicio]);
 
+  // o computador pode ligar antes do programa ou do leitor: sem leitor pronto, confere de tempos em tempos
   useEffect(() => {
+    if (leitorDoDedo) return;
     let vale = true;
-    verLeitor().then((r) => {
-      if (vale) setLeitor(r.leitor ? { id: r.leitorId ?? null } : null);
-    });
+    const conferir = () =>
+      verLeitor().then((r) => {
+        if (!vale) return;
+        setLeitor(r.leitor ? { id: r.leitorId ?? null, versao: r.versao ?? 1 } : null);
+        if (r.leitor && r.leitorId && (r.versao ?? 1) >= VERSAO_SO_DEDO) setEtapa((e) => (e === "matricula" ? "dedo" : e));
+      });
+    void conferir();
+    const t = setInterval(conferir, CONFERIR_LEITOR_MS);
     return () => {
       vale = false;
+      clearInterval(t);
     };
-  }, []);
+  }, [leitorDoDedo]);
 
-  const lerDedo = useCallback(
-    (alvo: Pessoa, leitorId: string) => {
-      const minha = ++leitura.current;
-      setErro(null);
-      setLendo(true);
-      setEtapa("digital");
-      void (async () => {
-        try {
-          const aberta = await iniciarDigital(alvo.id, leitorId);
-          if (!aberta.ok) throw new Error(aberta.erro);
-          const conferida = await conferirDigital(aberta);
-          if (minha !== leitura.current) return;
-          setProva({ desafio: aberta.desafio, dedo: conferida.dedo, assinatura: conferida.assinatura });
-          setEtapa("tipo");
-        } catch (falha) {
-          if (minha === leitura.current) setErro(falha instanceof Error ? falha.message : "Não consegui conferir a digital. Tente de novo.");
-        } finally {
-          if (minha === leitura.current) setLendo(false);
+  // fica esperando o dedo enquanto esta tela estiver aberta; a espera é só com o programa do leitor, o servidor entra quando há dedo
+  useEffect(() => {
+    if (etapa !== "dedo" || !leitorDoDedo) return;
+    let vale = true;
+    void (async () => {
+      while (vale) {
+        // com a tela escondida, deixa o leitor livre (para cadastrar digital em outra aba, por exemplo)
+        if (document.visibilityState !== "visible") {
+          await pausa(PAUSA_TELA_ESCONDIDA_MS);
+          continue;
         }
-      })();
-    },
-    [iniciarDigital],
-  );
-
-  const usarPin = useCallback(() => {
-    leitura.current += 1;
-    setLendo(false);
-    setErro(null);
-    setEtapa("pin");
-  }, []);
+        try {
+          const lido = await esperarDedo();
+          if (!vale) return;
+          if (!lido) {
+            setErro(null);
+            continue;
+          }
+          setConferindo(true);
+          setErro(null);
+          const aberta = await iniciarLeitura(filial.id, leitorDoDedo);
+          if (!aberta.ok) throw new Error(aberta.erro);
+          const achada = await identificarNoLeitor(aberta);
+          const quem = await identificarDigital(aberta.desafio, achada.employee, achada.dedo, achada.assinatura);
+          if (!quem.ok) throw new Error(quem.erro);
+          if (!vale) return;
+          setConferindo(false);
+          setPessoa(quem);
+          setProva({ desafio: aberta.desafio, dedo: achada.dedo, assinatura: achada.assinatura });
+          setEtapa("tipo");
+          return;
+        } catch (falha) {
+          if (!vale) return;
+          setConferindo(false);
+          setErro(falha instanceof Error ? falha.message : "Não consegui conferir a digital. Tente de novo.");
+          await pausa(PAUSA_ERRO_MS);
+        }
+      }
+    })();
+    return () => {
+      vale = false;
+      setConferindo(false);
+    };
+  }, [etapa, leitorDoDedo, filial.id, iniciarLeitura, identificarDigital]);
 
   // volta ao início depois de um tempo parado (ou da confirmação)
   useEffect(() => {
     if (ocioso.current) clearTimeout(ocioso.current);
-    if (etapa === "matricula" && !digitos) return;
+    if (etapa === inicio && !digitos) return;
     ocioso.current = setTimeout(
       () => {
         reiniciar();
@@ -164,12 +195,17 @@ export function Quiosque({ filial, identificar, registrar, iniciarDigital, regis
     return () => {
       if (ocioso.current) clearTimeout(ocioso.current);
     };
-  }, [etapa, digitos, pin, lendo, reiniciar]);
+  }, [etapa, inicio, digitos, pin, reiniciar]);
 
   useEffect(() => {
     const f = () => setTelaCheia(!!document.fullscreenElement);
     document.addEventListener("fullscreenchange", f);
     return () => document.removeEventListener("fullscreenchange", f);
+  }, []);
+
+  const usarMatricula = useCallback(() => {
+    setErro(null);
+    setEtapa("matricula");
   }, []);
 
   const confirmarMatricula = useCallback(() => {
@@ -182,27 +218,15 @@ export function Quiosque({ filial, identificar, registrar, iniciarDigital, regis
         setDigitos("");
         return;
       }
-      // quem tem digital bate com o dedo se o leitor deste computador estiver pronto; o PIN fica de reserva
-      let leitorId: string | null = null;
-      if (r.temDigital) {
-        const v = await verLeitor();
-        setLeitor(v.leitor ? { id: v.leitorId ?? null } : null);
-        leitorId = v.leitor ? (v.leitorId ?? null) : null;
-      }
-      if (leitorId) {
-        setPessoa(r);
-        lerDedo(r, leitorId);
-        return;
-      }
       if (!r.temPin) {
-        setErro(r.temDigital ? `${r.nome}, o leitor de digital não está pronto neste computador e você ainda não tem PIN. Chame o gestor.` : `${r.nome}, você ainda não tem PIN. Peça ao gestor para cadastrar (ou cadastre em “Meu ponto”).`);
+        setErro(r.temDigital ? (leitorDoDedo ? `${r.nome}, você ainda não tem PIN. Bata o ponto com o dedo no leitor.` : `${r.nome}, o leitor de digital não está pronto neste computador e você ainda não tem PIN. Chame o gestor.`) : `${r.nome}, você ainda não tem PIN. Peça ao gestor para cadastrar (ou cadastre em “Meu ponto”).`);
         setDigitos("");
         return;
       }
       setPessoa(r);
       setEtapa("pin");
     });
-  }, [digitos, filial.id, identificar, lerDedo]);
+  }, [digitos, filial.id, identificar, leitorDoDedo]);
 
   const confirmarPin = useCallback(() => {
     if (pin.length < 4) return;
@@ -225,19 +249,19 @@ export function Quiosque({ filial, identificar, registrar, iniciarDigital, regis
         setErro(r.erro);
         setPin("");
         const errouPin = !prova && /PIN/i.test(r.erro) && !/bloqueado/i.test(r.erro);
-        setEtapa(errouPin ? "pin" : "matricula");
+        setEtapa(errouPin ? "pin" : inicio);
         if (!errouPin) {
           setDigitos("");
           setPessoa(null);
         }
       });
     },
-    [pessoa, pin, prova, registrar, registrarDigital],
+    [inicio, pessoa, pin, prova, registrar, registrarDigital],
   );
 
   const tecla = useCallback(
     (t: string) => {
-      if (pendente || etapa === "ok" || etapa === "tipo" || etapa === "digital") return;
+      if (pendente || etapa === "ok" || etapa === "tipo" || etapa === "dedo") return;
       const valor = etapa === "matricula" ? digitos : pin;
       const set = etapa === "matricula" ? setDigitos : setPin;
       const max = etapa === "matricula" ? 12 : 6;
@@ -266,6 +290,14 @@ export function Quiosque({ filial, identificar, registrar, iniciarDigital, regis
     else void document.documentElement.requestFullscreen?.();
   };
 
+  const leitorAtivado = (id: string) => {
+    const versao = leitor?.versao ?? 1;
+    setLeitor({ id, versao });
+    if (versao >= VERSAO_SO_DEDO) setEtapa("dedo");
+  };
+
+  const primeiroNome = pessoa?.nome.split(" ")[0];
+
   return (
     <div className="mx-auto flex max-w-xl flex-col items-center gap-5 rounded-2xl border bg-card px-5 py-6 shadow-sm">
       <div className="flex w-full items-center justify-between gap-2">
@@ -288,34 +320,21 @@ export function Quiosque({ filial, identificar, registrar, iniciarDigital, regis
             Próximo
           </Button>
         </div>
-      ) : etapa === "digital" && pessoa ? (
+      ) : etapa === "dedo" ? (
         <div className="w-full space-y-3 text-center">
-          <p className="text-lg">
-            Olá, <strong>{pessoa.nome.split(" ")[0]}</strong>!
-          </p>
-          <div className="flex flex-col items-center gap-3 rounded-xl border bg-background px-5 py-8" role="status">
-            <Fingerprint className={cn("size-16 text-fct-red", lendo && "motion-safe:animate-pulse")} aria-hidden />
-            <p className="text-lg font-medium">{lendo ? "Coloque o dedo no leitor" : "Não deu certo"}</p>
+          <div className="flex flex-col items-center gap-3 rounded-xl border bg-background px-5 py-10" role="status">
+            <Fingerprint className="size-20 text-fct-red motion-safe:animate-pulse" aria-hidden />
+            <p className="text-xl font-medium">{conferindo ? "Conferindo a digital…" : "Coloque o dedo no leitor"}</p>
           </div>
           {erro && <AvisoErro texto={erro} />}
-          {!lendo && leitor?.id && (
-            <Button type="button" size="lg" className="w-full" onClick={() => lerDedo(pessoa, leitor.id as string)}>
-              <Fingerprint aria-hidden /> Tentar de novo
-            </Button>
-          )}
-          {pessoa.temPin && (
-            <Button type="button" variant="outline" className="w-full" onClick={usarPin}>
-              Usar o PIN
-            </Button>
-          )}
-          <Button type="button" variant="ghost" className="w-full" onClick={reiniciar}>
-            Não sou {pessoa.nome.split(" ")[0]}
+          <Button type="button" variant="ghost" className="w-full" onClick={usarMatricula}>
+            Usar a matrícula e o PIN
           </Button>
         </div>
       ) : etapa === "tipo" && pessoa ? (
         <div className="w-full space-y-3">
           <p className="text-center text-lg">
-            Olá, <strong>{pessoa.nome.split(" ")[0]}</strong>! O que você vai registrar?
+            Olá, <strong>{primeiroNome}</strong>! O que você vai registrar?
           </p>
           {pessoa.ultima && <p className="text-center text-xs text-muted-foreground">Última hoje: {pessoa.ultima}</p>}
           <div className="grid grid-cols-2 gap-2">
@@ -331,13 +350,13 @@ export function Quiosque({ filial, identificar, registrar, iniciarDigital, regis
             })}
           </div>
           <Button type="button" variant="ghost" className="w-full" onClick={reiniciar}>
-            Cancelar
+            {prova ? `Não sou ${primeiroNome}` : "Cancelar"}
           </Button>
         </div>
       ) : (
         <div className="w-full space-y-4">
           <div className="text-center">
-            <p className="text-sm text-muted-foreground">{etapa === "matricula" ? "Digite sua matrícula" : `${pessoa?.nome.split(" ")[0]}, digite seu PIN`}</p>
+            <p className="text-sm text-muted-foreground">{etapa === "matricula" ? "Digite sua matrícula" : `${primeiroNome}, digite seu PIN`}</p>
             <p className="mt-2 flex h-12 items-center justify-center rounded-xl border bg-background text-3xl font-semibold tracking-[0.3em] tabular-nums" aria-live="polite">
               {etapa === "matricula" ? digitos || <span className="text-muted-foreground/40">——</span> : "•".repeat(pin.length) || <span className="text-muted-foreground/40">••••</span>}
             </p>
@@ -358,14 +377,21 @@ export function Quiosque({ filial, identificar, registrar, iniciarDigital, regis
               </Button>
             ))}
           </div>
-          {etapa === "pin" && (
+          {etapa === "pin" ? (
             <Button type="button" variant="ghost" className="w-full" onClick={reiniciar}>
-              Não sou {pessoa?.nome.split(" ")[0]}
+              Não sou {primeiroNome}
             </Button>
+          ) : (
+            leitorDoDedo && (
+              <Button type="button" variant="ghost" className="w-full" onClick={reiniciar}>
+                <Fingerprint aria-hidden /> Voltar para o dedo
+              </Button>
+            )
           )}
         </div>
       )}
-      {etapa === "matricula" && leitor && !leitor.id && <AtivarLeitor filial={filial.id} ativar={ativarLeitor} ativado={(id) => setLeitor({ id })} />}
+      {etapa === "matricula" && leitor && !leitor.id && <AtivarLeitor filial={filial.id} ativar={ativarLeitor} ativado={leitorAtivado} />}
+      {etapa === "matricula" && leitor?.id && !leitorDoDedo && <p className="text-center text-xs text-amber-700">O programa do leitor deste computador está desatualizado: instale a versão nova para bater o ponto só com o dedo.</p>}
       <p className="text-center text-xs text-muted-foreground">Data, hora, filial e aparelho ficam gravados. 5 PINs errados bloqueiam por 15 minutos.</p>
     </div>
   );

@@ -64,12 +64,18 @@ servidor não ter de confiar no navegador:
 
 1. O administrador gera um código em `/ponto/relogio` (uso único, 30 minutos). Digitado no relógio, ele vira um segredo que
    fica cifrado no banco e, no computador, protegido pelo Windows (`leitor.dat`, DPAPI). Cada computador tem o seu.
-2. Para cada leitura, `ponto_digital_iniciar` devolve as digitais cifradas com uma chave daquela leitura. O navegador só
-   repassa; quem abre é o programa do leitor (`Desktop\agente-digital`).
-3. O programa lê o dedo, compara e assina `desafio|nonce|dedo` com o segredo. `ponto_registrar_digital` confere a assinatura,
-   usa a leitura uma vez só (vence em 3 minutos) e grava a marcação. Assinatura errada fica em `audit_logs`.
+2. A tela do relógio fica esperando o dedo no programa do leitor (`Desktop\agente-digital`, POST `/esperar`), sem passar pelo
+   servidor. Só quando há dedo lido, `ponto_digital_iniciar_filial` devolve as digitais da filial do leitor, cada uma cifrada
+   com uma chave que depende do segredo, da leitura e do dono da digital. O navegador só repassa: se trocar o dono de uma
+   digital, o programa não consegue abrir, e não sai assinatura em nome de outra pessoa.
+3. O programa compara com todas (POST `/identificar`). Se bater com duas pessoas, recusa. Se bater com uma, assina
+   `desafio|nonce|employee|dedo`. `ponto_digital_identificar` confere a assinatura e prende a leitura àquela pessoa; o relógio
+   mostra o nome para a pessoa escolher o tipo.
+4. `ponto_registrar_digital` confere de novo, usa a leitura uma vez só (vence em 3 minutos) e grava a marcação. Assinatura
+   errada fica em `audit_logs`.
 
-O PIN continua valendo: é a saída quando o leitor falha ou a pessoa não tem digital.
+A matrícula com o PIN continua valendo: é a saída quando o leitor falha ou a pessoa não tem digital. O portal só usa o dedo com
+o programa na versão 2 ou maior (`versao` em GET `/status`); com a versão antiga, o relógio abre no teclado.
 
 ## Cálculo (`src/lib/ponto/calculo.ts`)
 

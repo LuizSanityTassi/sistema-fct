@@ -25,6 +25,14 @@ function textoConfirmacao(tipo: TipoMarcacao, momento: string) {
 
 export type Identificado = { ok: true; id: string; nome: string; temPin: boolean; temDigital: boolean; sugestao: TipoMarcacao; ultima: string | null } | { ok: false; erro: string };
 
+type PessoaDoBanco = { id: string; nome: string; tem_pin: boolean; tem_digital?: boolean; qtd_hoje?: number; ultima?: { tipo: TipoMarcacao; momento: string } | null };
+
+/** Sugestão do próximo tipo pelas marcações de hoje (vêm do próprio banco: o login do relógio não lê as marcações). */
+function pessoaIdentificada(f: PessoaDoBanco): Identificado {
+  const qtd = f.qtd_hoje ?? 0;
+  return { ok: true, id: f.id, nome: f.nome, temPin: f.tem_pin, temDigital: f.tem_digital === true, sugestao: TIPOS_MARCACAO[qtd % 4], ultima: f.ultima ? textoConfirmacao(f.ultima.tipo, f.ultima.momento) : null };
+}
+
 /** Relógio da filial, passo 1: matrícula → funcionário (só filiais que o usuário do relógio atende). */
 export async function identificarNoRelogio(filial: string, matricula: string): Promise<Identificado> {
   const b = lerUuid(filial);
@@ -33,24 +41,35 @@ export async function identificarNoRelogio(filial: string, matricula: string): P
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("ponto_relogio_identificar", { p_branch: b, p_matricula: m });
   if (error) return { ok: false, erro: mensagemBanco(error, "Não foi possível consultar.") };
-  const f = data as { id: string; nome: string; tem_pin: boolean; tem_digital?: boolean; qtd_hoje?: number; ultima?: { tipo: TipoMarcacao; momento: string } | null } | null;
+  const f = data as PessoaDoBanco | null;
   if (!f) return { ok: false, erro: "Matrícula não encontrada nesta filial." };
-  // sugestão do próximo tipo pelas marcações de hoje (vêm do próprio banco: o login do relógio não lê as marcações)
-  const qtd = f.qtd_hoje ?? 0;
-  return { ok: true, id: f.id, nome: f.nome, temPin: f.tem_pin, temDigital: f.tem_digital === true, sugestao: TIPOS_MARCACAO[qtd % 4], ultima: f.ultima ? textoConfirmacao(f.ultima.tipo, f.ultima.momento) : null };
+  return pessoaIdentificada(f);
 }
 
 export type LeituraAberta = ({ ok: true } & LeituraDigital) | { ok: false; erro: string };
 
-/** Relógio da filial com digital, passo 2: abre uma leitura. As digitais vêm cifradas, só o programa do leitor abre. */
-export async function iniciarDigitalNoRelogio(employeeId: string, leitorId: string): Promise<LeituraAberta> {
-  const id = lerUuid(employeeId);
+/** Relógio da filial com digital, passo 1: já tem dedo no leitor; abre uma leitura com as digitais da filial, cifradas (só o programa do leitor abre). */
+export async function iniciarLeituraNoRelogio(filial: string, leitorId: string): Promise<LeituraAberta> {
+  const b = lerUuid(filial);
   const leitor = lerUuid(leitorId);
-  if (!id || !leitor) return { ok: false, erro: "Leitor ou funcionário inválido." };
+  if (!b || !leitor) return { ok: false, erro: "Leitor ou filial inválida." };
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("ponto_digital_iniciar", { p_employee: id, p_leitor: leitor });
+  const { data, error } = await supabase.rpc("ponto_digital_iniciar_filial", { p_branch: b, p_leitor: leitor });
   if (error) return { ok: false, erro: mensagemBanco(error, "Não foi possível abrir a leitura da digital.") };
   return { ok: true, ...(data as LeituraDigital) };
+}
+
+/** Relógio da filial com digital, passo 2: o banco confere a assinatura do programa do leitor e diz quem é. */
+export async function identificarDigitalNoRelogio(desafio: string, employeeId: string, dedo: number, assinatura: string): Promise<Identificado> {
+  const id = lerUuid(desafio);
+  const pessoa = lerUuid(employeeId);
+  if (!id || !pessoa || !Number.isInteger(dedo) || !/^[0-9a-f]{64}$/.test(assinatura)) return { ok: false, erro: "A leitura da digital veio incompleta. Coloque o dedo de novo." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("ponto_digital_identificar", { p_desafio: id, p_employee: pessoa, p_dedo: dedo, p_assinatura: assinatura });
+  if (error) return { ok: false, erro: mensagemBanco(error, "Não foi possível confirmar a digital.") };
+  const r = data as (PessoaDoBanco & { erro?: undefined }) | { erro: string };
+  if (r.erro !== undefined) return { ok: false, erro: r.erro };
+  return pessoaIdentificada(r);
 }
 
 /** Relógio da filial com digital, passo 3: tipo + assinatura do programa do leitor. */

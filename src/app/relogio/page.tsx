@@ -5,8 +5,9 @@ import { lerUuid } from "@/lib/data/ponto";
 import { podeAcessar } from "@/lib/nav";
 import { createClient } from "@/lib/supabase/server";
 import {
+  identificarDigitalNoRelogio,
   identificarNoRelogio,
-  iniciarDigitalNoRelogio,
+  iniciarLeituraNoRelogio,
   registrarDigitalNoRelogio,
   registrarNoRelogio,
 } from "../(app)/ponto/registrar/actions";
@@ -20,7 +21,7 @@ export const metadata = { title: "Relógio de ponto" };
 export const dynamic = "force-dynamic";
 
 /**
- * Relógio da filial em modo quiosque: fora do menu do sistema, só o teclado de matrícula e o dedo ou o PIN.
+ * Relógio da filial em modo quiosque: fora do menu do sistema, só o dedo no leitor ou a matrícula com o PIN.
  * O login do relógio (papel "relogio") só enxerga esta tela; gestor que abre daqui precisa da senha para sair.
  */
 export default async function RelogioQuiosquePage({
@@ -79,7 +80,8 @@ export default async function RelogioQuiosquePage({
             filial={filial}
             identificar={identificarNoRelogio}
             registrar={registrarNoRelogio}
-            iniciarDigital={iniciarDigitalNoRelogio}
+            iniciarLeitura={iniciarLeituraNoRelogio}
+            identificarDigital={identificarDigitalNoRelogio}
             registrarDigital={registrarDigitalNoRelogio}
             ativarLeitor={ativarLeitorNoRelogio}
           />
