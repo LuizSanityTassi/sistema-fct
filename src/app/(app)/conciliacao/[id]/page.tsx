@@ -142,7 +142,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
 
       {typeof sp.planilha === "string" && (
         <div role="status" className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-          <span>Planilha do Omie gerada com {sp.qtd ?? "?"} conta(s) e registrada como enviada.{Number(sp.fora) > 0 ? ` ${sp.fora} ficaram de fora porque já estão no Omie ou já foram enviadas.` : ""}</span>
+          <span>Planilha do Omie gerada com {sp.qtd ?? "?"} conta(s) e registrada como enviada.{Number(sp.fora) > 0 ? ` ${sp.fora} ficaram de fora porque já estão no Omie, já foram enviadas ou podem ser duplicidade.` : ""}</span>
           <a href={`/api/conciliacao/arquivo/${sp.planilha}`} className="font-medium underline">
             Baixar planilha
           </a>

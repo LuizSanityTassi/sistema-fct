@@ -46,6 +46,7 @@ type EnvioEmLotes = {
   jaNaOmie: number;
   vencidas: number;
   parecidas: number;
+  barradas: { nome: string; filial: number | null; valor: number; venc: string | null; motivo: string }[];
   qtdErros: number;
   motivos: Record<string, number>;
   filas: Record<string, { total: number; etapa: string }>;
@@ -133,7 +134,7 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grup
       if (fila) fila.push(c);
       else filas.set(emp, [c]);
     }
-    setLote({ total: chaves.length, lancadas: 0, jaNaOmie: 0, vencidas: 0, parecidas: 0, qtdErros: 0, motivos: {}, filas: Object.fromEntries([...filas].map(([e, f]) => [e, { total: f.length, etapa: "aguardando" }])), rodando: true });
+    setLote({ total: chaves.length, lancadas: 0, jaNaOmie: 0, vencidas: 0, parecidas: 0, barradas: [], qtdErros: 0, motivos: {}, filas: Object.fromEntries([...filas].map(([e, f]) => [e, { total: f.length, etapa: "aguardando" }])), rodando: true });
     const etapa = (emp: string, texto: string) => setLote((l) => (l ? { ...l, filas: { ...l.filas, [emp]: { ...l.filas[emp], etapa: texto } } } : l));
     const avisar = (emp: string, texto: string) => setLote((l) => (l ? { ...l, aviso: [l.aviso, `${ROTULO_FILA[emp] ?? emp}: ${texto}`].filter(Boolean).join(" · ") } : l));
     const postar = async <T,>(url: string, corpo: unknown): Promise<T> => {
@@ -174,10 +175,16 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grup
         );
         const ja = conferencia.bloqueadas.filter((b) => b.tipo === "ja_na_omie" && b.codigoOmie).map((b) => ({ chave: b.chave, codigo: b.codigoOmie! }));
         const parecidas = conferencia.bloqueadas.length - ja.length;
+        const barradas = conferencia.bloqueadas
+          .filter((b) => !(b.tipo === "ja_na_omie" && b.codigoOmie))
+          .map((b) => {
+            const c = porChave.get(b.chave);
+            return { nome: c?.nome ?? b.chave, filial: c?.filial ?? null, valor: c?.valor ?? 0, venc: c?.vencimento ?? null, motivo: b.motivo };
+          });
         const vencimento = new Map(lista.map((c) => [c.chave, c.vencimento]));
         const novas = conferencia.liberadas.filter((k) => !(vencimento.get(k) && vencimento.get(k)! < hoje));
         const vencidas = conferencia.liberadas.length - novas.length;
-        setLote((l) => (l ? { ...l, vencidas: l.vencidas + vencidas, parecidas: l.parecidas + parecidas } : l));
+        setLote((l) => (l ? { ...l, vencidas: l.vencidas + vencidas, parecidas: l.parecidas + parecidas, barradas: [...l.barradas, ...barradas] } : l));
         // 3) quem já está lá sai de "a enviar", sem mexer no título da Omie
         for (let i = 0; i < ja.length && !parar.current; i += 500) {
           etapa(emp, `marcando ${inteiro(ja.length)} que já estão na Omie`);
@@ -461,6 +468,19 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grup
                           <strong>{inteiro(q)}×</strong> {m}
                         </li>
                       ))}
+                  </ul>
+                </details>
+              )}
+              {lote.barradas.length > 0 && (
+                <details open>
+                  <summary className="cursor-pointer font-medium">Barradas por possível duplicidade ({inteiro(lote.barradas.length)}): confira no Omie, o portal não lança estas</summary>
+                  <ul className="mt-1 max-h-64 space-y-0.5 overflow-y-auto text-xs">
+                    {lote.barradas.slice(0, 500).map((b, i) => (
+                      <li key={i}>
+                        <span className="font-mono text-fct-tinta">{b.filial != null ? String(b.filial).padStart(3, "0") : "—"}</span> {b.nome} · {moeda(b.valor)} · {data(b.venc)} — <span className="text-muted-foreground">{b.motivo}</span>
+                      </li>
+                    ))}
+                    {lote.barradas.length > 500 && <li className="text-muted-foreground">… e mais {inteiro(lote.barradas.length - 500)}</li>}
                   </ul>
                 </details>
               )}
