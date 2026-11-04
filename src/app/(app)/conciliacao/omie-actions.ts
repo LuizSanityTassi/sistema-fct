@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { chavesOmie, ehEmpresaOmie, EMPRESAS_OMIE, OmieErro } from "@/lib/conciliacao/omie-api";
-import { atualizarCadastrosOmie, CONFIG_OMIE_PADRAO, contasDaConciliacao, desfazerEnvio, gerarPlanilhaOmie, lancarPorApi, validarEnvio, type ResultadoApi, type Validacao } from "@/lib/conciliacao/omie-envio";
+import { atualizarCadastrosOmie, CONFIG_OMIE_PADRAO, contasDaConciliacao, desfazerEnvio, gerarPlanilhaOmie, validarEnvio, type Validacao } from "@/lib/conciliacao/omie-envio";
 import { podeConciliar, podeConfigurarConciliacao } from "@/lib/conciliacao/permissoes";
 import { obterConciliacao, obterConfig } from "@/lib/data/conciliacao";
 import { ehUuid } from "@/lib/data/filiais";
@@ -13,7 +13,6 @@ import { createClient } from "@/lib/supabase/server";
 import type { ConfigOmie } from "@/lib/conciliacao/omie";
 
 export type EstadoValidacao = { erro?: string; validacao?: Validacao; verbo?: "planilha" | "api"; chaves?: string[] };
-export type EstadoLancamentoApi = { erro?: string; resultado?: ResultadoApi };
 export type EstadoConfigOmie = { erro?: string; ok?: string };
 
 function texto(fd: FormData, nome: string) {
@@ -67,28 +66,7 @@ export async function enviarPlanilhaOmie(_prev: EstadoValidacao, fd: FormData): 
   revalidatePath(`/conciliacao/${conciliacaoId}`);
   revalidatePath("/conciliacao/omie");
   revalidatePath("/conciliacao/pendencias");
-  redirect(`/conciliacao/${conciliacaoId}?aba=omie&planilha=${r.arquivoId}&qtd=${r.qtd}`);
-}
-
-/** Passo 2 (API): lança na Omie da empresa certa (modo teste: 1 conta por empresa até liberar). */
-export async function lancarOmieApi(_prev: EstadoLancamentoApi, fd: FormData): Promise<EstadoLancamentoApi> {
-  const sessao = await exigirConciliar();
-  if (!sessao) return { erro: "Só Administrador e Financeiro enviam ao Omie." };
-  const conciliacaoId = texto(fd, "conciliacao") ?? "";
-  const chaves = chavesDe(fd);
-  const conc = await obterConciliacao(conciliacaoId);
-  if (!conc) return { erro: "Conciliação não encontrada." };
-  const cfg = await obterConfig<ConfigOmie>("omie", CONFIG_OMIE_PADRAO);
-  const supabase = await createClient();
-  try {
-    const resultado = await lancarPorApi(supabase, sessao.id, conc, chaves, cfg, fd.get("cadastrar_fornecedor") === "on");
-    revalidatePath(`/conciliacao/${conciliacaoId}`);
-    revalidatePath("/conciliacao/omie");
-    revalidatePath("/conciliacao/pendencias");
-    return { resultado };
-  } catch (e) {
-    return { erro: e instanceof Error ? e.message : "Não foi possível lançar na Omie." };
-  }
+  redirect(`/conciliacao/${conciliacaoId}?aba=omie&planilha=${r.arquivoId}&qtd=${r.qtd}&fora=${r.foraDaPlanilha}`);
 }
 
 // ---------- configuração / cadastros ----------

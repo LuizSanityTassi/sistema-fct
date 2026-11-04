@@ -10,8 +10,9 @@ import type { Linha } from "@/lib/tipos";
 import { Motor, type TituloDDA, type TituloTrierConciliado } from "./motor";
 import { Omie, type ConfigOmie, type ItemOmie, type LinhaOmie } from "./omie";
 import { mapaFiliais, obterConfig } from "@/lib/data/conciliacao";
+import { conferirDuplicidade, type Bloqueio, type ContaConferir } from "./duplicidade";
 import { LIMITE_LANCAMENTO_API } from "./rotulos";
-import { buscarCadastros, chavesOmie, EMPRESAS_OMIE, lancarContas, type CacheOmie, type Chaves, type ContaApi, type EmpresaOmie, type ResultadoLancamento } from "./omie-api";
+import { buscarCadastros, chavesOmie, EMPRESAS_OMIE, lancarContas, todosTitulosOmie, type CacheOmie, type Chaves, type ContaApi, type EmpresaOmie, type ResultadoLancamento } from "./omie-api";
 import { OMIE_MODELO_B64 } from "./omie-modelo";
 import { alvoDeLinha, aplicarNasLinhas, contarUso, gravarUso, regrasAtivas, regrasDaConta, regrasUsadas, type Regra, type RegrasDaConta, type Uso } from "./regras";
 import { BUCKET_CONCILIACAO } from "./servico";
@@ -310,7 +311,29 @@ function usoDasRegras(lista: RegrasDaConta[]): Uso {
 export async function gerarPlanilhaOmie(supabase: Cliente, userId: string, conc: Conciliacao, chaves: string[], cfg: ConfigOmie) {
   if (!chaves.length) throw new Error("Nenhuma conta selecionada.");
   if (chaves.length > 10_000) throw new Error("O modelo do Omie aceita até 10.000 linhas por planilha.");
-  const linhasItens = await itensPorChave(supabase, conc.id, chaves);
+  const enviadas = await jaEnviadas(supabase, chaves);
+  const todasLinhas = (await itensPorChave(supabase, conc.id, chaves)).filter((l) => !enviadas.has(l.chave));
+  const todosItens = todasLinhas.map((l) => itemDeLinha(l));
+  const prontas: LinhaOmie[] = Omie.montarLinhas(todosItens, cfg, Motor.ROTULO);
+  const porEmp: Record<EmpresaOmie, ContaConferir[]> = { nazario: [], varela: [] };
+  const semEmpresa = new Set<string>();
+  todasLinhas.forEach((linha, i) => {
+    const item = todosItens[i];
+    const emp = Omie.empresaDe(item);
+    const t = item.ts[0];
+    if (!emp) return void semEmpresa.add(linha.chave);
+    porEmp[emp].push({ chave: linha.chave, codigo: prontas[i].B, barra: item.d?.barra ?? null, doc: item.d ? String(item.d.doc).replace(/\D/g, "").slice(-14) : null, venc: Motor.dtxt(item.d ? item.d.venc : (t?.venc ?? null)), valor: prontas[i].F });
+  });
+  const livres = new Set<string>();
+  for (const emp of ["nazario", "varela"] as EmpresaOmie[]) {
+    if (!porEmp[emp].length) continue;
+    const ch = await chavesOmie(supabase, emp);
+    if (!ch) throw new Error(`Sem a chave da Omie da ${EMPRESAS_OMIE[emp]} não dá para conferir duplicidade: a planilha não foi gerada.`);
+    for (const k of (await conferirComOmie(ch, emp, porEmp[emp], PRAZO_CONFERIR_PLANILHA_MS)).liberadas) livres.add(k);
+  }
+  const linhasItens = todasLinhas.filter((l) => livres.has(l.chave));
+  const foraDaPlanilha = chaves.length - linhasItens.length;
+  if (!linhasItens.length) throw new Error("Nenhuma conta foi para a planilha: todas já estão no Omie, já foram enviadas ou não têm empresa definida.");
   const itens = linhasItens.map((l) => itemDeLinha(l));
   const linhas: LinhaOmie[] = Omie.montarLinhas(itens, cfg, Motor.ROTULO);
   const porRegra = aplicarNasLinhas(linhas, linhasItens.map(alvoDeLinha), await regrasAtivas(supabase));
@@ -359,12 +382,33 @@ export async function gerarPlanilhaOmie(supabase: Cliente, userId: string, conc:
     registroId: arq.id,
     novo: { via: "planilha", conciliacao: conc.id, contas: linhas.length, total, arquivo: nome, porRegra: [...uso.values()].reduce((s, n) => s + n, 0) },
   });
-  return { arquivoId: arq.id, nome, qtd: linhas.length, total };
+  return { arquivoId: arq.id, nome, qtd: linhas.length, total, foraDaPlanilha };
 }
 
 // ---------- API ----------
 
 const PRAZO_LANCAMENTO_MS = 220_000;
+const PRAZO_CONFERIR_LOTE_MS = 120_000;
+const PRAZO_CONFERIR_PLANILHA_MS = 200_000;
+
+/** Contas com envio registrado e não desfeito: nunca sobem de novo, nem com "mesmo assim". */
+async function jaEnviadas(supabase: Cliente, chaves: string[]) {
+  const out = new Set<string>();
+  for (let i = 0; i < chaves.length; i += 500) {
+    const { data, error } = await supabase.from("conc_enviados_omie").select("chave").in("chave", chaves.slice(i, i + 500)).is("desfeito_em", null);
+    if (error) throw new Error(`Não consegui conferir os envios: ${error.message}`);
+    for (const e of data) out.add(e.chave);
+  }
+  return out;
+}
+
+/** Trava contra duplicidade: confere com o que está na Omie agora. Se a consulta falhar, o erro sobe e nada é enviado. */
+async function conferirComOmie(ch: Chaves, emp: EmpresaOmie, contas: ContaConferir[], limiteMs: number) {
+  const isoDe = (br: string) => `${br.slice(6, 10)}-${br.slice(3, 5)}-${br.slice(0, 2)}`;
+  const vencs = contas.map((c) => c.venc).filter((v): v is string => !!v && /^\d{2}\/\d{2}\/\d{4}$/.test(v)).sort((a, b) => isoDe(a).localeCompare(isoDe(b)));
+  const titulos = vencs.length ? await todosTitulosOmie(ch, emp, vencs[0], vencs[vencs.length - 1], limiteMs) : [];
+  return conferirDuplicidade(contas, titulos);
+}
 
 /** Contas que a consulta achou na Omie: ficam como enviadas, com o código de lá, sem chamar a Omie. */
 export async function marcarJaNaOmie(supabase: Cliente, userId: string, conc: Conciliacao, contas: { chave: string; codigo: string }[]) {
@@ -382,13 +426,18 @@ export async function marcarJaNaOmie(supabase: Cliente, userId: string, conc: Co
 export type ResultadoApi = {
   resultados: (ResultadoLancamento & { nome: string; valor: number })[];
   fora: { chave: string; nome: string; motivo: string }[];
+  /** Barradas pela trava contra duplicidade, sem chamar a Omie para lançar. */
+  bloqueadas: Bloqueio[];
   modoTeste: EmpresaOmie[];
 };
 
 export async function lancarPorApi(supabase: Cliente, userId: string, conc: Conciliacao, chaves: string[], cfg: ConfigOmie, cadastrarFornecedor: boolean): Promise<ResultadoApi> {
   if (!chaves.length) throw new Error("Nenhuma conta selecionada.");
   if (chaves.length > LIMITE_LANCAMENTO_API) throw new Error(`Cada lote aceita até ${LIMITE_LANCAMENTO_API} contas.`);
-  const linhasItens = await itensPorChave(supabase, conc.id, chaves);
+  const bloqueadas: Bloqueio[] = [];
+  const enviadas = await jaEnviadas(supabase, chaves);
+  for (const chave of enviadas) bloqueadas.push({ chave, tipo: "ja_na_omie", motivo: "já foi enviada ao Omie", codigoOmie: null });
+  const linhasItens = (await itensPorChave(supabase, conc.id, chaves)).filter((l) => !enviadas.has(l.chave));
   const itens = linhasItens.map((l) => itemDeLinha(l));
   const linhas = Omie.montarLinhas(itens, cfg, Motor.ROTULO);
   const porRegra = aplicarNasLinhas(linhas, linhasItens.map(alvoDeLinha), await regrasAtivas(supabase));
@@ -450,6 +499,12 @@ export async function lancarPorApi(supabase: Cliente, userId: string, conc: Conc
   for (const emp of ["nazario", "varela"] as EmpresaOmie[]) {
     let lista = porEmpresa[emp];
     if (!lista.length) continue;
+    // a trava: o que já está na Omie não sobe. Sem conseguir conferir, o erro sobe e nada é lançado.
+    const conferencia = await conferirComOmie(credOmie[emp]!, emp, lista.map((x) => ({ chave: x.linha.chave, codigo: x.conta.codigo, barra: x.conta.barra, doc: x.conta.cnpj, venc: x.conta.venc, valor: x.conta.valor })), PRAZO_CONFERIR_LOTE_MS);
+    bloqueadas.push(...conferencia.bloqueadas);
+    const livres = new Set(conferencia.liberadas);
+    lista = lista.filter((x) => livres.has(x.linha.chave));
+    if (!lista.length) continue;
     if (!testado(emp)) {
       modoTeste.push(emp);
       lista = lista.slice(0, 1); // 1ª conta de cada empresa é teste: a pessoa confere na Omie e libera o lote
@@ -471,7 +526,7 @@ export async function lancarPorApi(supabase: Cliente, userId: string, conc: Conc
     }
     await registrarAuditoria(supabase, { userId, acao: "criar", entidade: "conc_enviados_omie", novo: { via: "api", empresa: emp, conciliacao: conc.id, enviadas: ok.length, erros: res.length - ok.length, teste: !testado(emp) } });
   }
-  return { resultados, fora, modoTeste };
+  return { resultados, fora, bloqueadas, modoTeste };
 }
 
 // ---------- envios (lotes) e desfazer ----------

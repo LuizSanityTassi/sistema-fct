@@ -8,6 +8,7 @@ import { ErroFormulario, SelectNativo } from "@/components/form/campo";
 import { Ponto } from "@/components/layout/status";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { conferirDuplicidade, type TituloOmie } from "@/lib/conciliacao/duplicidade";
 import type { ContaEnvio } from "@/lib/conciliacao/omie-envio";
 import { CATEGORIA_LABEL, LIMITE_LANCAMENTO_API } from "@/lib/conciliacao/rotulos";
 import type { Tom } from "@/lib/tons";
@@ -51,7 +52,7 @@ type EnvioEmLotes = {
   rodando: boolean;
   aviso?: string;
 };
-type RespostaLote = { lancadas: number; adiadas: string[]; parada: string | null; erros: { nome: string; valor: number; erro: string }[]; modoTeste: string[] };
+type RespostaLote = { lancadas: number; adiadas: string[]; parada: string | null; bloqueadas: number; erros: { nome: string; valor: number; erro: string }[]; modoTeste: string[] };
 const ROTULO_FILA: Record<string, string> = { nazario: "Nazário", varela: "Varela", sem: "Sem empresa" };
 const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const data = (iso: string | null) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : "—");
@@ -155,35 +156,27 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grup
     const rodarFila = async (emp: string, lista: ContaEnvio[]) => {
       try {
         // 1) o que já está na Omie, pelo código de integração ou pelo código de barras
-        const existentes = new Map<string, string>();
-        // título da Omie sem código de barras (lançado à mão, por exemplo): só dá para comparar por fornecedor, vencimento e valor
-        const semBarra = new Map<string, number[]>();
+        const titulos: TituloOmie[] = [];
         if (emp !== "sem") {
           const vencs = lista.map((c) => c.vencimento).filter((v): v is string => !!v).sort();
           for (let pagina = 1, paginas = 1; pagina <= paginas && !parar.current; pagina++) {
             etapa(emp, `consultando a Omie, página ${inteiro(pagina)}${paginas > 1 ? ` de ${inteiro(paginas)}` : ""}`);
             const r = await postar<{ paginas: number; titulos: [string, string, string, string, string, number][] }>("/api/conciliacao/omie-existentes", { empresa: emp, de: vencs[0], ate: vencs[vencs.length - 1], pagina });
             paginas = r.paginas;
-            for (const [codigo, barra, omie, doc, venc, valor] of r.titulos) {
-              if (codigo) existentes.set(codigo, omie);
-              if (barra) existentes.set(barra, omie);
-              else if (doc) semBarra.set(`${doc}|${venc}`, [...(semBarra.get(`${doc}|${venc}`) ?? []), valor]);
-            }
+            for (const [codigo, barra, omie, doc, venc, valor] of r.titulos) titulos.push({ codigo, barra, omie, doc, venc, valor });
           }
         }
         if (parar.current) return;
         // 2) separa: já está lá, vencida (a Omie pede vencimento a partir de hoje) ou nova
-        const ja: { chave: string; codigo: string }[] = [];
-        const novas: string[] = [];
-        let vencidas = 0;
-        let parecidas = 0;
-        for (const c of lista) {
-          const achado = existentes.get(c.chave.split("|")[0]) ?? (c.barra ? existentes.get(c.barra) : undefined);
-          if (achado) ja.push({ chave: c.chave, codigo: achado });
-          else if (c.vencimento && c.vencimento < hoje) vencidas += 1;
-          else if ((semBarra.get(`${(c.cnpj ?? "").replace(/\D/g, "")}|${data(c.vencimento)}`) ?? []).some((v) => Math.abs(v - c.valor) <= 2)) parecidas += 1;
-          else novas.push(c.chave);
-        }
+        const conferencia = conferirDuplicidade(
+          lista.map((c) => ({ chave: c.chave, codigo: c.chave.split("|")[0], barra: c.barra, doc: c.cnpj, venc: c.vencimento ? data(c.vencimento) : null, valor: c.valor })),
+          titulos,
+        );
+        const ja = conferencia.bloqueadas.filter((b) => b.tipo === "ja_na_omie" && b.codigoOmie).map((b) => ({ chave: b.chave, codigo: b.codigoOmie! }));
+        const parecidas = conferencia.bloqueadas.length - ja.length;
+        const vencimento = new Map(lista.map((c) => [c.chave, c.vencimento]));
+        const novas = conferencia.liberadas.filter((k) => !(vencimento.get(k) && vencimento.get(k)! < hoje));
+        const vencidas = conferencia.liberadas.length - novas.length;
         setLote((l) => (l ? { ...l, vencidas: l.vencidas + vencidas, parecidas: l.parecidas + parecidas } : l));
         // 3) quem já está lá sai de "a enviar", sem mexer no título da Omie
         for (let i = 0; i < ja.length && !parar.current; i += 500) {
@@ -205,10 +198,10 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grup
             if (!l) return l;
             const motivos = { ...l.motivos };
             for (const x of r.erros) motivos[x.erro] = (motivos[x.erro] ?? 0) + 1;
-            return { ...l, lancadas: l.lancadas + r.lancadas, qtdErros: l.qtdErros + r.erros.length, motivos };
+            return { ...l, lancadas: l.lancadas + r.lancadas, qtdErros: l.qtdErros + r.erros.length, parecidas: l.parecidas + r.bloqueadas, motivos };
           });
           if (r.parada) throw new Error(r.parada);
-          if (!r.lancadas && !r.erros.length) throw new Error("nenhuma conta foi processada neste lote");
+          if (!r.lancadas && !r.erros.length && !r.bloqueadas) throw new Error("nenhuma conta foi processada neste lote");
         }
         etapa(emp, parar.current ? "parada" : "terminou");
       } catch (e) {
@@ -438,7 +431,7 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grup
           {lote && (
             <div className="mt-4 space-y-2 border-t pt-3 text-sm">
               <p className="font-medium" aria-live="polite">
-                {lote.rodando ? "Enviando ao Omie" : "Envio parado"}: {inteiro(lote.jaNaOmie)} já estavam lá, {inteiro(lote.lancadas)} lançada(s), {inteiro(lote.qtdErros)} com erro, {inteiro(lote.vencidas)} vencida(s) e {inteiro(lote.parecidas)} parecida(s) com título sem código de barras (não lançadas), de {inteiro(lote.total)}
+                {lote.rodando ? "Enviando ao Omie" : "Envio parado"}: {inteiro(lote.jaNaOmie)} já estavam lá, {inteiro(lote.lancadas)} lançada(s), {inteiro(lote.qtdErros)} com erro, {inteiro(lote.vencidas)} vencida(s) e {inteiro(lote.parecidas)} barrada(s) por possível duplicidade (não lançadas), de {inteiro(lote.total)}
               </p>
               <div className="h-2 overflow-hidden rounded-full bg-muted">
                 <div className="h-full bg-fct-tinta" style={{ width: `${Math.min(100, ((lote.jaNaOmie + lote.lancadas + lote.qtdErros + lote.vencidas + lote.parecidas) / Math.max(1, lote.total)) * 100)}%` }} />

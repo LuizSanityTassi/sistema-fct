@@ -90,6 +90,19 @@ async function todas<T = Resposta>(ch: Chaves, emp: EmpresaOmie, caminho: string
   return out;
 }
 
+/** Todos os títulos a pagar com vencimento no período. Sem conseguir ler tudo, dá erro: nada sobe sem conferir. */
+export async function todosTitulosOmie(ch: Chaves, emp: EmpresaOmie, de: string, ate: string, limiteMs: number) {
+  const prazo = Date.now() + limiteMs;
+  const titulos: { codigo: string; barra: string; omie: string; doc: string; venc: string; valor: number }[] = [];
+  for (let pagina = 1, paginas = 1; pagina <= paginas; pagina++) {
+    if (Date.now() > prazo) throw new OmieErro(`Não deu tempo de conferir tudo com a Omie da ${EMPRESAS_OMIE[emp]}: filtre por um período menor.`);
+    const r = await listarTitulosOmie(ch, emp, de, ate, pagina);
+    paginas = r.paginas;
+    for (const [codigo, barra, omie, doc, venc, valor] of r.titulos) titulos.push({ codigo, barra, omie, doc, venc, valor });
+  }
+  return titulos;
+}
+
 export function normOmie(s: unknown) {
   return String(s ?? "")
     .normalize("NFD")
