@@ -13,7 +13,7 @@ type Props = {
   grupo: string;
   /** Quantas contas a lista tem com os filtros atuais, quando elas não cabem numa página só. */
   totalDaLista: number | null;
-  filtros: { q?: string; filial?: number; categoria?: string; anomalias?: boolean };
+  filtros: { q?: string; filial?: number; categoria?: string; anomalias?: boolean; vencDe?: string; vencAte?: string };
 };
 
 /** Barra embaixo da lista: conta os marcados, marca/desmarca a página ou a lista inteira e envia para a aba do Omie. */
@@ -60,6 +60,8 @@ export function BarraMarcarOmie({ grupo, totalDaLista, filtros }: Props) {
           {filtros.filial !== undefined && <input type="hidden" name="filial" value={filtros.filial} />}
           {filtros.categoria && <input type="hidden" name="categoria" value={filtros.categoria} />}
           {filtros.anomalias && <input type="hidden" name="anomalias" value="1" />}
+          {filtros.vencDe && <input type="hidden" name="venc_de" value={filtros.vencDe} />}
+          {filtros.vencAte && <input type="hidden" name="venc_ate" value={filtros.vencAte} />}
         </>
       )}
       <span className="text-sm font-medium">{todos && totalDaLista != null ? `Todos os ${totalDaLista.toLocaleString("pt-BR")} desta lista marcados` : `${qtd} marcado(s) nesta página`}</span>

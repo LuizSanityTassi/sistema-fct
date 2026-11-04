@@ -58,7 +58,7 @@ export default async function PendenciasPage({ searchParams }: PageProps<"/conci
         </div>
       )}
 
-      <form method="get" className="mb-4 grid gap-2 rounded-xl border bg-card p-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+      <form method="get" className="mb-4 grid items-end gap-2 rounded-xl border bg-card p-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
         <SelectNativo name="status" defaultValue={filtros.status} aria-label="Situação">
           <option value="abertas">Abertas (pendente + em análise)</option>
           {STATUS_PENDENCIA.map((s) => (

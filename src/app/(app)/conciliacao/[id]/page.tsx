@@ -114,7 +114,9 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
           return { contas, config, api: { nazario: status("nazario"), varela: status("varela") } };
         })()
       : null;
-  const paramsLista = { aba: filtros.grupo, q: filtros.q, filial: filtros.filial !== undefined ? String(filtros.filial) : undefined, categoria: filtros.categoria, anomalias: filtros.anomalias ? "1" : undefined };
+  const paramsLista = { aba: filtros.grupo, q: filtros.q, filial: filtros.filial !== undefined ? String(filtros.filial) : undefined, categoria: filtros.categoria, anomalias: filtros.anomalias ? "1" : undefined, venc_de: filtros.vencDe, venc_ate: filtros.vencAte };
+  // as datas valem em todas as abas: dá para olhar o mesmo período em Exatos, Só no Trier e Só no DDA
+  const sufixoDatas = `${filtros.vencDe ? `&venc_de=${filtros.vencDe}` : ""}${filtros.vencAte ? `&venc_ate=${filtros.vencAte}` : ""}`;
   const categoriasDaAba = Object.entries(r.porCategoria ?? {}).filter(([, v]) => v.qtd > 0);
   const kpis: [string, string, string | null, string?][] = [
     ["Bateram", pct(c.pct_bateu), `${r.bateu ?? 0} de ${c.qtd_trier} títulos · ${pct(c.pct_valor_bateu)} do valor`, "text-emerald-700"],
@@ -241,7 +243,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
                         : (r.soDDA ?? 0);
           const ativa = aba === a.chave;
           return (
-            <Link key={a.chave} href={`${base}?aba=${a.chave}`} aria-current={ativa ? "page" : undefined} className={`rounded-full border px-3 py-1 text-sm ${ativa ? "border-primary bg-primary text-primary-foreground" : a.chave === "omie" ? "border-fct-yellow bg-fct-yellow/20 hover:border-primary/40" : "bg-card hover:border-primary/40"}`}>
+            <Link key={a.chave} href={`${base}?aba=${a.chave}${sufixoDatas}`} aria-current={ativa ? "page" : undefined} className={`rounded-full border px-3 py-1 text-sm ${ativa ? "border-primary bg-primary text-primary-foreground" : a.chave === "omie" ? "border-fct-yellow bg-fct-yellow/20 hover:border-primary/40" : "bg-card hover:border-primary/40"}`}>
               {a.rotulo} {qtd !== null && <span className={ativa ? "opacity-80" : "text-muted-foreground"}>({qtd})</span>}
             </Link>
           );
@@ -323,13 +325,23 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
             <Button type="submit" variant="outline">
               Filtrar
             </Button>
-            {filtros.q || filtros.filial !== undefined || filtros.categoria || filtros.anomalias ? (
+            {filtros.q || filtros.filial !== undefined || filtros.categoria || filtros.anomalias || filtros.vencDe || filtros.vencAte ? (
               <Button type="button" variant="ghost" nativeButton={false} render={<Link href={`${base}?aba=${filtros.grupo}`} />}>
                 Limpar
               </Button>
             ) : (
               <span />
             )}
+            <div className="flex flex-wrap items-center gap-3 lg:col-span-5">
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                Vencimento de
+                <Input name="venc_de" type="date" defaultValue={filtros.vencDe ?? ""} className="w-40" />
+              </label>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                até
+                <Input name="venc_ate" type="date" defaultValue={filtros.vencAte ?? ""} className="w-40" />
+              </label>
+            </div>
             {(r.anomalias ?? 0) > 0 && filtros.grupo !== "descontos" && (
               <p className="text-xs lg:col-span-5">
                 <Link href={`${base}?aba=${filtros.grupo}&anomalias=${filtros.anomalias ? "" : "1"}`} className={`rounded-full border px-2 py-0.5 ${filtros.anomalias ? "border-orange-400 bg-orange-100 text-orange-900" : "text-orange-800 hover:border-orange-300"}`}>
@@ -453,7 +465,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
             <BarraMarcarOmie
               grupo={filtros.grupo}
               totalDaLista={resultado && resultado.paginas > 1 ? resultado.total : null}
-              filtros={{ q: filtros.q, filial: filtros.filial, categoria: filtros.categoria, anomalias: filtros.anomalias }}
+              filtros={{ q: filtros.q, filial: filtros.filial, categoria: filtros.categoria, anomalias: filtros.anomalias, vencDe: filtros.vencDe, vencAte: filtros.vencAte }}
             />
           )}
         </>

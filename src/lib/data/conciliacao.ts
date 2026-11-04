@@ -125,7 +125,10 @@ export const obterConciliacao = cache(async (id: string) => {
   return data;
 });
 
-export type FiltrosItens = { grupo: GrupoItem | "descontos"; q?: string; filial?: number; categoria?: string; anomalias?: boolean; pagina: number };
+/** Data (aaaa-mm-dd) vinda do endereço; o resto é ignorado. */
+const diaDoParametro = (v: string) => (/^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined);
+
+export type FiltrosItens = { grupo: GrupoItem | "descontos"; q?: string; filial?: number; categoria?: string; anomalias?: boolean; vencDe?: string; vencAte?: string; pagina: number };
 
 export function lerFiltrosItens(sp: Record<string, string | string[] | undefined>): FiltrosItens {
   const s = (k: string) => (typeof sp[k] === "string" ? sp[k].trim() : "");
@@ -138,6 +141,8 @@ export function lerFiltrosItens(sp: Record<string, string | string[] | undefined
     filial: Number.isFinite(filial) ? filial : undefined,
     categoria: s("categoria") || undefined,
     anomalias: s("anomalias") === "1" || undefined,
+    vencDe: diaDoParametro(s("venc_de")),
+    vencAte: diaDoParametro(s("venc_ate")),
     pagina: Number.isFinite(pagina) && pagina > 0 ? pagina : 1,
   };
 }
@@ -149,6 +154,8 @@ function consultaItens<C extends string>(supabase: Awaited<ReturnType<typeof cre
   if (f.filial !== undefined) consulta = consulta.eq("filial", f.filial);
   if (f.categoria) consulta = consulta.eq("categoria", f.categoria);
   if (f.anomalias) consulta = consulta.not("dados->anomalias", "is", null);
+  if (f.vencDe) consulta = consulta.gte("vencimento", f.vencDe);
+  if (f.vencAte) consulta = consulta.lte("vencimento", f.vencAte);
   if (f.q) {
     const termo = f.q.replace(/[%_,().\\]/g, " ").trim();
     if (termo) {
@@ -226,10 +233,9 @@ export function lerFiltrosPendencias(sp: Record<string, string | string[] | unde
   const filial = Number.parseInt(s("filial"), 10);
   const ordem = s("ordem");
   const problema = s("problema");
-  const dia = (k: string) => (/^\d{4}-\d{2}-\d{2}$/.test(s(k)) ? s(k) : undefined);
   return {
-    vencDe: dia("venc_de"),
-    vencAte: dia("venc_ate"),
+    vencDe: diaDoParametro(s("venc_de")),
+    vencAte: diaDoParametro(s("venc_ate")),
     status: status === "todas" || ehStatusPendencia(status) ? status : "abertas",
     prioridade: pri === 1 || pri === 2 || pri === 3 ? pri : undefined,
     problema: ehProblema(problema) ? problema : undefined,
