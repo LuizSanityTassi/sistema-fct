@@ -1,6 +1,8 @@
 // Vendas (telas): somas por filial e por período das tabelas vendas_* (preenchidas pelo robô do Trier) e as contas
 // das colunas (ticket, unidades por atendimento, % premium, % genérico + similar, CMV). Quem vê cada loja é a regra
 // das tabelas (admin, financeiro e coordenador todas; gerente as dele).
+import { unstable_cache } from "next/cache";
+import { getSessao } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 
 /** Regionais das vendas (decisão de 28/10/2026): Sul F001–F099, Serra F101–F199, Oeste F301–F422. */
@@ -55,11 +57,27 @@ export type LinhaFilialVendas = MetricasVendas & { branchId: string; codigo: str
 
 /** Vendas de cada filial no período (só as das regionais de venda), sem a venda da equipe de televendas, mais a linha
  * Televendas (só para quem vê a rede). */
+/** Somar meses de vendas leva segundos e o que já fechou quase não muda: guarda por 6 horas. */
+const GUARDAR_PASSADO_S = 6 * 60 * 60;
+/** Os últimos dias ainda podem ser relidos pelo robô do Trier. */
+const periodoFechado = (ate: string) => ate < somarDias(hojeNoBrasil(), -3);
+
+async function guardarPassado<T>(chave: string[], ler: () => Promise<T>) {
+  const sessao = await getSessao();
+  // admin, financeiro e coordenador veem a rede toda (mesma regra das tabelas); os outros só o que é deles, guardado por pessoa
+  const escopo = sessao.papel === "admin" || sessao.papel === "financeiro" || sessao.papel === "coordenador" ? "rede" : sessao.id;
+  return unstable_cache(ler, ["vendas", escopo, ...chave], { revalidate: GUARDAR_PASSADO_S })();
+}
+
 export async function vendasPorFilial(de: string, ate: string): Promise<LinhaFilialVendas[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("vendas_filiais", { p_de: de, p_ate: ate });
-  if (error) throw new Error(error.message);
-  return (data ?? []).flatMap((r) =>
+  const ler = async () => {
+    const { data, error } = await supabase.rpc("vendas_filiais", { p_de: de, p_ate: ate });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  };
+  const linhas = periodoFechado(ate) ? await guardarPassado(["filiais", de, ate], ler) : await ler();
+  return linhas.flatMap((r) =>
     ehRegionalOuTele(r.regional)
       ? [
           {
@@ -80,9 +98,20 @@ export type PontoSerie = MetricasVendas & { periodo: string; regional: RegionalO
 /** Vendas por dia ou por mês (periodo = 1º dia do mês) e regional. */
 export async function serieVendas(de: string, ate: string, por: "dia" | "mes"): Promise<PontoSerie[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("vendas_serie", { p_de: de, p_ate: ate, p_por: por });
-  if (error) throw new Error(error.message);
-  return (data ?? []).flatMap((r) =>
+  const ler = (inicio: string, fim: string) => async () => {
+    const { data, error } = await supabase.rpc("vendas_serie", { p_de: inicio, p_ate: fim, p_por: por });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  };
+  const fimMesPassado = somarDias(`${hojeNoBrasil().slice(0, 7)}-01`, -1);
+  let linhas: Awaited<ReturnType<ReturnType<typeof ler>>>;
+  if (periodoFechado(ate)) linhas = await guardarPassado(["serie", de, ate, por], ler(de, ate));
+  else if (por === "mes" && de <= fimMesPassado && periodoFechado(fimMesPassado)) {
+    // só o mês atual muda: junta os meses fechados, guardados, com ele
+    const [passado, atual] = await Promise.all([guardarPassado(["serie", de, fimMesPassado, por], ler(de, fimMesPassado)), ler(somarDias(fimMesPassado, 1), ate)()]);
+    linhas = [...passado, ...atual];
+  } else linhas = await ler(de, ate)();
+  return linhas.flatMap((r) =>
     ehRegionalOuTele(r.regional)
       ? [{ ...metricas({ venda: n(r.venda), atendimentos: n(r.atendimentos), itens: 0, unidades: n(r.unidades), vendaGrupos: n(r.venda_grupos), custo: n(r.custo), premium: n(r.premium), generico: n(r.generico), similares: n(r.similares), referencia: n(r.referencia), fortvigor: 0 }), periodo: r.periodo, regional: r.regional }]
       : [],

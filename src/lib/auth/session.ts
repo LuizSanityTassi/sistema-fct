@@ -26,10 +26,10 @@ export type Sessao = {
 /** Usuário logado + perfil. Memoizado por requisição: layout e página compartilham a mesma leitura. */
 export const getSessao = cache(async (): Promise<Sessao> => {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  // confere a assinatura do token sem ir ao servidor de login (quem foi desativado cai logo abaixo, pelo perfil)
+  const { data: login } = await supabase.auth.getClaims();
+  if (!login?.claims) redirect("/login");
+  const user = { id: login.claims.sub, email: login.claims.email };
 
   const [{ data: profile }, { data: extras }] = await Promise.all([
     supabase.from("profiles").select("nome, papel, branch_id, ativo, ultimo_acesso, regional, admin_sistema, modulos_bloqueados").eq("id", user.id).maybeSingle(),

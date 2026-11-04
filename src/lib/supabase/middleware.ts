@@ -31,9 +31,9 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // confere a assinatura do token aqui mesmo, sem ir ao servidor de login a cada requisição; se o token venceu, renova
+  const { data } = await supabase.auth.getClaims();
+  const user = data?.claims ?? null;
 
   const path = request.nextUrl.pathname;
   const publica = ROTAS_PUBLICAS.some((r) => path === r || path.startsWith(r + "/"));

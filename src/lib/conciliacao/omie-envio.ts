@@ -159,17 +159,44 @@ export function contaDeLinha(l: ItemConciliacao, enviado: { enviado_em: string; 
 }
 
 /** Todas as contas de uma conciliação (uma por chave), com situação de envio e pendência, para a tela "Enviar ao Omie". */
-export async function contasDaConciliacao(supabase: Cliente, conciliacaoId: string, somenteChaves?: string[]): Promise<ContaEnvio[]> {
-  const linhas: ItemConciliacao[] = [];
-  for (let inicio = 0; ; inicio += 1000) {
-    const { data, error } = await supabase.from("conc_itens").select("*").eq("conciliacao_id", conciliacaoId).order("vencimento").order("id").range(inicio, inicio + 999);
-    if (error) throw new Error(error.message);
-    linhas.push(...data);
-    if (data.length < 1000) break;
+/** O que a aba do Omie mostra: as contas de um grupo que ainda não foram enviadas. */
+export async function contasAEnviar(supabase: Cliente, conciliacaoId: string, grupo: string): Promise<ContaEnvio[]> {
+  const ler = (inicio: number) =>
+    supabase
+      .from("conc_itens")
+      .select("*", { count: inicio === 0 ? "exact" : undefined })
+      .eq("conciliacao_id", conciliacaoId)
+      .eq("grupo", grupo)
+      .is("enviado_em", null)
+      .order("vencimento")
+      .order("beneficiario")
+      .order("id")
+      .range(inicio, inicio + 999);
+  const primeiro = await ler(0);
+  if (primeiro.error) throw new Error(primeiro.error.message);
+  const faltam = Math.max(0, Math.ceil((primeiro.count ?? 0) / 1000) - 1);
+  const resto = await Promise.all(Array.from({ length: faltam }, (_, i) => ler((i + 1) * 1000)));
+  const linhas: ItemConciliacao[] = [...primeiro.data];
+  for (const r of resto) {
+    if (r.error) throw new Error(r.error.message);
+    linhas.push(...r.data);
   }
-  const quer = somenteChaves ? new Set(somenteChaves) : null;
   const vistos = new Set<string>();
-  const unicos = linhas.filter((l) => (quer && !quer.has(l.chave)) || vistos.has(l.chave) ? false : (vistos.add(l.chave), true));
+  const unicos = linhas.filter((l) => (vistos.has(l.chave) ? false : (vistos.add(l.chave), true)));
+  const lotes = Array.from({ length: Math.ceil(unicos.length / 500) }, (_, i) => unicos.slice(i * 500, (i + 1) * 500).map((l) => l.chave));
+  const pendencias = new Map<string, { status: string; motivo: string | null }>();
+  const respostas = await Promise.all(lotes.map((lote) => supabase.from("conc_pendencias").select("chave, status, motivo").in("chave", lote)));
+  for (const { data, error } of respostas) {
+    if (error) throw new Error(error.message);
+    for (const p of data) pendencias.set(p.chave, { status: p.status, motivo: p.motivo });
+  }
+  const regras = await regrasAtivas(supabase);
+  return unicos.map((l) => contaDeLinha(l, undefined, pendencias.get(l.chave), regras));
+}
+
+/** As contas selecionadas, para validar e enviar. */
+export async function contasDaConciliacao(supabase: Cliente, conciliacaoId: string, somenteChaves: string[]): Promise<ContaEnvio[]> {
+  const unicos = await itensPorChave(supabase, conciliacaoId, somenteChaves);
   const chaves = unicos.map((l) => l.chave);
   const enviados = new Map<string, { enviado_em: string; via: string }>();
   const pendencias = new Map<string, { status: string; motivo: string | null }>();

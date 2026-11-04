@@ -3,7 +3,7 @@
 import Link from "next/link";
 import * as React from "react";
 import { useActionState } from "react";
-import { CheckCircle2, CirclePause, FileSpreadsheet, Send } from "lucide-react";
+import { CirclePause, FileSpreadsheet, Send } from "lucide-react";
 import { ErroFormulario, SelectNativo } from "@/components/form/campo";
 import { Ponto } from "@/components/layout/status";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,11 @@ type Props = {
   api: Record<"nazario" | "varela", StatusEmpresa>;
   config: { categoria: string; conta: string };
   podeEnviar: boolean;
-  /** Grupo que abre selecionado (vindo da lista: ?grupo=so_dda). */
+  /** Grupo carregado em `contas`: a página traz um grupo por vez, só o que falta enviar. */
+  grupo: string;
+  /** Quantas contas faltam enviar em cada grupo. */
+  contagem: Record<string, number>;
+  /** Grupo que veio no endereço (da lista: ?grupo=so_dda). Sem ele, os exatos já abrem marcados. */
   grupoInicial?: string;
   /** Contas marcadas na lista; com elas, a seleção começa só com essas. */
   marcadas?: string[];
@@ -58,18 +62,16 @@ const ROTULO_FILA: Record<string, string> = { nazario: "Nazário", varela: "Vare
 const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const data = (iso: string | null) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : "—");
 
-export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grupoInicial, marcadas, validar, enviarPlanilha }: Props) {
-  const [grupo, setGrupo] = React.useState(() => (GRUPOS.some((g) => g.chave === grupoInicial) ? grupoInicial! : "exato"));
-  const [env, setEnv] = React.useState<"faltam" | "enviados" | "todos">("faltam");
+export function EnvioOmie({ conciliacaoId, contas, grupo, contagem, api, config, podeEnviar, grupoInicial, marcadas, validar, enviarPlanilha }: Props) {
   const [filial, setFilial] = React.useState("");
   const [q, setQ] = React.useState("");
   // sem marcação vinda da lista, começa com os exatos que faltam (o caso comum); vindo da lista, só o que foi marcado
   const [sel, setSel] = React.useState<Set<string>>(() => {
     if (marcadas?.length) {
       const quer = new Set(marcadas);
-      return new Set(contas.filter((c) => quer.has(c.chave) && !c.enviadoEm).map((c) => c.chave));
+      return new Set(contas.filter((c) => quer.has(c.chave)).map((c) => c.chave));
     }
-    return grupoInicial ? new Set() : new Set(contas.filter((c) => c.grupo === "exato" && !c.enviadoEm).map((c) => c.chave));
+    return grupoInicial ? new Set() : new Set(contas.map((c) => c.chave));
   });
   const [cadastrar, setCadastrar] = React.useState(true);
   const [validacao, acaoValidar, validando] = useActionState(validar, {});
@@ -88,12 +90,9 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grup
   const termo = q.trim().toUpperCase();
   const visiveis = contas.filter(
     (c) =>
-      c.grupo === grupo &&
-      (env === "todos" || (env === "enviados" ? !!c.enviadoEm : !c.enviadoEm)) &&
       (!filial || String(c.filial) === filial) &&
       (!termo || `${c.nome} ${c.fornecedor ?? ""} ${c.cnpj ?? ""} ${c.fornecedorReal ?? ""}`.toUpperCase().includes(termo)),
   );
-  const contagem = (g: string) => contas.filter((c) => c.grupo === g && !c.enviadoEm).length;
   const selecionadas = contas.filter((c) => sel.has(c.chave));
   const marcadasNo = (g: string) => selecionadas.filter((c) => c.grupo === g).length;
   const totalSel = selecionadas.reduce((s, c) => s + c.valor, 0);
@@ -109,8 +108,8 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grup
   const marcarVisiveis = (marcar: boolean) =>
     setSel((s) => {
       const n = new Set(s);
-      for (const c of visiveis) if (marcar && !c.enviadoEm) n.add(c.chave);
-      else if (!marcar) n.delete(c.chave);
+      for (const c of visiveis) if (marcar) n.add(c.chave);
+      else n.delete(c.chave);
       return n;
     });
 
@@ -249,24 +248,19 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grup
 
       <nav aria-label="Grupos" className="flex flex-wrap gap-2">
         {GRUPOS.map((g) => (
-          <button
+          <Link
             key={g.chave}
-            type="button"
-            onClick={() => setGrupo(g.chave)}
+            href={`/conciliacao/${conciliacaoId}?aba=omie&grupo=${g.chave}`}
             title={g.dica}
-            className={`rounded-full border px-3 py-1 text-sm ${grupo === g.chave ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary/40"}`}
+            aria-current={grupo === g.chave ? "true" : undefined}
+            className={`rounded-full border px-3 py-1 text-sm ${grupo === g.chave ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary/40"} ${emLotes ? "pointer-events-none opacity-60" : ""}`}
           >
-            {g.rotulo} <span className={grupo === g.chave ? "opacity-80" : "text-muted-foreground"}>({contagem(g.chave)} a enviar{marcadasNo(g.chave) ? ` · ${marcadasNo(g.chave)} marcada(s)` : ""})</span>
-          </button>
+            {g.rotulo} <span className={grupo === g.chave ? "opacity-80" : "text-muted-foreground"}>({contagem[g.chave] ?? 0} a enviar{marcadasNo(g.chave) ? ` · ${marcadasNo(g.chave)} marcada(s)` : ""})</span>
+          </Link>
         ))}
       </nav>
 
       <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card p-3 text-sm">
-        <SelectNativo value={env} onChange={(e) => setEnv(e.target.value as typeof env)} aria-label="Enviados" className="w-48">
-          <option value="faltam">Só os que faltam enviar</option>
-          <option value="enviados">Só os já enviados</option>
-          <option value="todos">Todos</option>
-        </SelectNativo>
         <SelectNativo value={filial} onChange={(e) => setFilial(e.target.value)} aria-label="Filial" className="w-36">
           <option value="">Todas as filiais</option>
           {filiais.map((f) => (
@@ -309,7 +303,7 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grup
               visiveis.slice(0, 800).map((c) => (
                 <tr key={c.chave} className="border-b last:border-0">
                   <td className="p-2">
-                    <input type="checkbox" checked={sel.has(c.chave)} disabled={!!c.enviadoEm || !podeEnviar} onChange={(e) => alternar(c.chave, e.target.checked)} className="size-4 accent-fct-tinta" aria-label={`Selecionar ${c.nome}`} />
+                    <input type="checkbox" checked={sel.has(c.chave)} disabled={!podeEnviar} onChange={(e) => alternar(c.chave, e.target.checked)} className="size-4 accent-fct-tinta" aria-label={`Selecionar ${c.nome}`} />
                   </td>
                   <td className="p-2 font-mono text-xs text-fct-tinta">{c.filial != null ? String(c.filial).padStart(3, "0") : "—"}</td>
                   <td className="p-2 tabular-nums">{data(c.vencimento)}</td>
@@ -333,7 +327,6 @@ export function EnvioOmie({ conciliacaoId, contas, api, config, podeEnviar, grup
                   <td className="p-2 text-right tabular-nums">{moeda(c.valor)}</td>
                   <td className="hidden p-2 text-xs md:table-cell">
                     <span className="text-muted-foreground">{CATEGORIA_LABEL[c.categoria] ?? c.categoria}</span>
-                    {c.enviadoEm && <p className="text-emerald-700"><CheckCircle2 className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />enviado {data(c.enviadoEm.slice(0, 10))} ({c.enviadoVia})</p>}
                     {c.pendencia && c.pendencia.status !== "pendente" && <p className="text-amber-800">pendência {c.pendencia.status}{c.pendencia.motivo ? `: ${c.pendencia.motivo}` : ""}</p>}
                   </td>
                 </tr>

@@ -11,11 +11,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { exigirAcesso } from "@/lib/auth/session";
 import type { ConfigOmie } from "@/lib/conciliacao/omie";
 import { statusChaves, type CacheOmie, type EmpresaOmie } from "@/lib/conciliacao/omie-api";
-import { CONFIG_OMIE_PADRAO, contasDaConciliacao } from "@/lib/conciliacao/omie-envio";
+import { CONFIG_OMIE_PADRAO, contasAEnviar } from "@/lib/conciliacao/omie-envio";
 import { podeConciliar } from "@/lib/conciliacao/permissoes";
 import { CATEGORIA_LABEL, GRUPO_LABEL, type GrupoItem } from "@/lib/conciliacao/rotulos";
 import { anomaliaGrave, type ResumoAnomalia } from "@/lib/conciliacao/servico";
-import { chavesDoFiltro, chavesEnviadas, lerFiltrosItens, listarItens, mapaFiliais, obterConciliacao, obterConfig, TAMANHO_PAGINA_ITENS } from "@/lib/data/conciliacao";
+import { chavesDoFiltro, contagemAbas, lerFiltrosItens, listarItens, mapaFiliais, obterConciliacao, obterConfig, TAMANHO_PAGINA_ITENS } from "@/lib/data/conciliacao";
 import { formatarData, formatarDataHora, formatarMoeda, pluralizar } from "@/lib/formatos";
 import { createClient } from "@/lib/supabase/server";
 import { BadgeCategoria, BadgeStatusPendencia, Filial } from "../badges-conc";
@@ -53,7 +53,7 @@ type Resumo = {
 };
 const raizDe = (cnpj: string) => cnpj.replace(/\D/g, "").padStart(14, "0").slice(0, 8);
 
-const ABAS: { chave: GrupoItem | "descontos" | "filiais" | "omie"; rotulo: string }[] = [
+const ABAS: { chave: GrupoItem | "descontos" | "enviados" | "filiais" | "omie"; rotulo: string }[] = [
   { chave: "exato", rotulo: "Bateram" },
   { chave: "aproximado", rotulo: "Para conferir" },
   { chave: "so_trier", rotulo: "Só no Trier" },
@@ -61,6 +61,7 @@ const ABAS: { chave: GrupoItem | "descontos" | "filiais" | "omie"; rotulo: strin
   { chave: "descontos", rotulo: "Descontos" },
   { chave: "filiais", rotulo: "Por filial" },
   { chave: "omie", rotulo: "Enviar ao Omie" },
+  { chave: "enviados", rotulo: "Enviados ao Omie" },
 ];
 
 export default async function ConciliacaoDetalhePage({ params, searchParams }: PageProps<"/conciliacao/[id]">) {
@@ -71,21 +72,20 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
   const abaPedida = typeof sp.aba === "string" ? sp.aba : "";
   const aba = abaPedida === "filiais" || abaPedida === "omie" ? abaPedida : lerFiltrosItens(sp).grupo;
   const filtros = lerFiltrosItens(sp);
-  const [filiais, resultado] = await Promise.all([mapaFiliais(), aba === "filiais" || aba === "omie" ? null : listarItens(c.id, filtros)]);
+  const [filiais, resultado, contagem] = await Promise.all([mapaFiliais(), aba === "filiais" || aba === "omie" ? null : listarItens(c.id, filtros), contagemAbas(c.id)]);
   const itens = resultado?.itens ?? [];
-  const [enviados, pendencias] = await Promise.all([
-    chavesEnviadas(itens.map((i) => i.chave)),
-    (async () => {
-      if (!itens.length) return new Map<string, { status: "pendente" | "em_analise" | "resolvido" | "justificado"; auto: boolean; motivo: string | null }>();
-      const supabase = await createClient();
-      const { data } = await supabase.from("conc_pendencias").select("chave, status, auto, motivo").in("chave", itens.map((i) => i.chave));
-      return new Map((data ?? []).map((p) => [p.chave, p]));
-    })(),
-  ]);
+  const pendencias = await (async () => {
+    if (!itens.length) return new Map<string, { status: "pendente" | "em_analise" | "resolvido" | "justificado"; auto: boolean; motivo: string | null }>();
+    const supabase = await createClient();
+    const { data } = await supabase.from("conc_pendencias").select("chave, status, auto, motivo").in("chave", itens.map((i) => i.chave));
+    return new Map((data ?? []).map((p) => [p.chave, p]));
+  })();
   const base = `/conciliacao/${c.id}`;
   // marcados na lista (Só no DDA etc.) chegam aqui pela barra "Enviar marcados ao Omie"
   // "marcar todos desta lista" chega pelos filtros: não cabem milhares de contas no endereço
   const grupoOmie = typeof sp.grupo === "string" ? sp.grupo : undefined;
+  // a aba do Omie carrega um grupo por vez, só o que falta enviar: mandar tudo deixava a página com 19 MB
+  const grupoAberto = grupoOmie === "aproximado" || grupoOmie === "so_trier" || grupoOmie === "so_dda" ? grupoOmie : "exato";
   const marcadas =
     aba === "omie" && sp.todos === "1"
       ? await chavesDoFiltro(c.id, lerFiltrosItens({ ...sp, aba: grupoOmie }))
@@ -96,7 +96,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
       ? await (async () => {
           const supabase = await createClient();
           const [contas, config, { data: cfgs }] = await Promise.all([
-            contasDaConciliacao(supabase, c.id),
+            contasAEnviar(supabase, c.id, grupoAberto),
             obterConfig<ConfigOmie>("omie", CONFIG_OMIE_PADRAO),
             supabase.from("conc_config").select("chave, valor").in("chave", ["omie_cache_nazario", "omie_cache_varela", "omie_nazario", "omie_varela"]),
           ]);
@@ -227,20 +227,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
 
       <nav aria-label="Abas" className="mb-4 flex flex-wrap gap-2">
         {ABAS.map((a) => {
-          const qtd =
-            a.chave === "omie"
-              ? null
-              : a.chave === "descontos"
-                ? (r.descontos?.noVencimento.qtd ?? 0) + (r.descontos?.soAntecipado.qtd ?? 0) + (r.descontos?.semData.qtd ?? 0)
-                : a.chave === "filiais"
-                  ? (r.porFilial?.length ?? 0)
-                  : a.chave === "exato"
-                    ? (r.bateu ?? 0)
-                    : a.chave === "aproximado"
-                      ? (r.conferir ?? 0)
-                      : a.chave === "so_trier"
-                        ? (r.soTrier ?? 0) + (r.semArquivo ?? 0)
-                        : (r.soDDA ?? 0);
+          const qtd = a.chave === "omie" ? null : a.chave === "filiais" ? (r.porFilial?.length ?? 0) : contagem[a.chave];
           const ativa = aba === a.chave;
           return (
             <Link key={a.chave} href={`${base}?aba=${a.chave}${sufixoDatas}`} aria-current={ativa ? "page" : undefined} className={`rounded-full border px-3 py-1 text-sm ${ativa ? "border-primary bg-primary text-primary-foreground" : a.chave === "omie" ? "border-fct-yellow bg-fct-yellow/20 hover:border-primary/40" : "bg-card hover:border-primary/40"}`}>
@@ -252,8 +239,11 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
 
       {aba === "omie" && omie ? (
         <EnvioOmie
+          key={`${grupoAberto}-${grupoOmie ?? ""}`}
           conciliacaoId={c.id}
           contas={omie.contas}
+          grupo={grupoAberto}
+          contagem={contagem}
           api={omie.api}
           config={omie.config}
           podeEnviar={podeConciliar(sessao.papel)}
@@ -351,6 +341,15 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
             )}
           </form>
 
+          {filtros.grupo !== "enviados" && contagem.enviados > 0 && (
+            <p className="mb-2 text-xs text-muted-foreground">
+              Esta lista mostra só o que ainda não foi enviado.{" "}
+              <Link href={`${base}?aba=enviados${sufixoDatas}`} className="underline">
+                {pluralizar(contagem.enviados, "conta enviada ao Omie", "contas enviadas ao Omie")}
+              </Link>{" "}
+              {contagem.enviados === 1 ? "está" : "estão"} na aba própria.
+            </p>
+          )}
           <div className="rounded-xl border bg-card">
             <Table>
               <TableHeader>
@@ -368,13 +367,13 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
                 {itens.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={marcavel ? 7 : 6} className="vazio">
-                      Nada em “{GRUPO_LABEL[filtros.grupo as GrupoItem] ?? "Descontos"}” com esses filtros.
+                      Nada em “{filtros.grupo === "enviados" ? "Enviados ao Omie" : (GRUPO_LABEL[filtros.grupo as GrupoItem] ?? "Descontos")}” com esses filtros.
                     </TableCell>
                   </TableRow>
                 ) : (
                   itens.map((it) => {
                     const pd = pendencias.get(it.chave);
-                    const env = enviados.get(it.chave);
+                    const env = it.enviado_em;
                     const desc = it.desconto as { valor: number; ate: string | null; noVencimento: boolean | null } | null;
                     const dados = it.dados as { filTrier?: number | null; anomalias?: string[] } | null;
                     const anomalias = Array.isArray(dados?.anomalias) ? dados!.anomalias! : [];
@@ -445,7 +444,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
                           <div className="flex flex-col items-start gap-1">
                             <BadgeCategoria categoria={it.categoria} />
                             {pd && (pd.status !== "pendente" || pd.auto) && <BadgeStatusPendencia status={pd.status} auto={pd.auto} />}
-                            {env && <span className="text-xs text-emerald-700"><CheckCircle2 className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />enviado ao Omie em {formatarData(env.enviado_em)}</span>}
+                            {env && <span className="text-xs text-emerald-700"><CheckCircle2 className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />enviado ao Omie em {formatarData(env)}</span>}
                           </div>
                         </TableCell>
                       </TableRow>

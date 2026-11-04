@@ -601,6 +601,7 @@ export type Database = {
       }
       conc_itens: {
         Row: {
+          enviado_em: string | null
           alerta: string | null
           barra: string | null
           beneficiario: string | null
@@ -625,6 +626,7 @@ export type Database = {
           vencimento: string | null
         }
         Insert: {
+          enviado_em?: string | null
           alerta?: string | null
           barra?: string | null
           beneficiario?: string | null
@@ -649,6 +651,7 @@ export type Database = {
           vencimento?: string | null
         }
         Update: {
+          enviado_em?: string | null
           alerta?: string | null
           barra?: string | null
           beneficiario?: string | null
@@ -6178,6 +6181,7 @@ export type Database = {
       }
       ponto_cadastrar_digital: { Args: { p_employee: string; p_dedo: number; p_template: string; p_leitor: string }; Returns: undefined }
       ponto_digitais_cadastradas: { Args: { p_employees: string[] }; Returns: { employee_id: string; dedo: number }[] }
+      conc_contagem_abas: { Args: { p_conciliacao: string }; Returns: Json }
       ponto_digital_identificar: { Args: { p_desafio: string; p_employee: string; p_dedo: number; p_assinatura: string }; Returns: Json }
       ponto_digital_iniciar_filial: { Args: { p_branch: string; p_leitor: string }; Returns: Json }
       ponto_leitor_ativar: { Args: { p_branch: string; p_codigo: string; p_nome: string }; Returns: Json }

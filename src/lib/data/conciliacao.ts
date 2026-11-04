@@ -17,7 +17,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export const TAMANHO_PAGINA_ITENS = 100;
 /** Igual ao máximo que as ações em lote da central aplicam de uma vez. */
-export const TAMANHO_PAGINA_PENDENCIAS = 500;
+export const TAMANHO_PAGINA_PENDENCIAS = 200;
 const LOTE = 1000;
 
 // ---------- filiais (código Trier ↔ unidade) ----------
@@ -128,7 +128,7 @@ export const obterConciliacao = cache(async (id: string) => {
 /** Data (aaaa-mm-dd) vinda do endereço; o resto é ignorado. */
 const diaDoParametro = (v: string) => (/^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined);
 
-export type FiltrosItens = { grupo: GrupoItem | "descontos"; q?: string; filial?: number; categoria?: string; anomalias?: boolean; vencDe?: string; vencAte?: string; pagina: number };
+export type FiltrosItens = { grupo: GrupoItem | "descontos" | "enviados"; q?: string; filial?: number; categoria?: string; anomalias?: boolean; vencDe?: string; vencAte?: string; pagina: number };
 
 export function lerFiltrosItens(sp: Record<string, string | string[] | undefined>): FiltrosItens {
   const s = (k: string) => (typeof sp[k] === "string" ? sp[k].trim() : "");
@@ -136,7 +136,7 @@ export function lerFiltrosItens(sp: Record<string, string | string[] | undefined
   const filial = Number.parseInt(s("filial"), 10);
   const pagina = Number.parseInt(s("pagina"), 10);
   return {
-    grupo: grupo === "aproximado" || grupo === "so_trier" || grupo === "so_dda" || grupo === "descontos" ? grupo : "exato",
+    grupo: grupo === "aproximado" || grupo === "so_trier" || grupo === "so_dda" || grupo === "descontos" || grupo === "enviados" ? grupo : "exato",
     q: s("q") || undefined,
     filial: Number.isFinite(filial) ? filial : undefined,
     categoria: s("categoria") || undefined,
@@ -149,8 +149,10 @@ export function lerFiltrosItens(sp: Record<string, string | string[] | undefined
 
 function consultaItens<C extends string>(supabase: Awaited<ReturnType<typeof createClient>>, conciliacaoId: string, f: FiltrosItens, colunas: C, opcoes?: { count: "exact" }) {
   let consulta = supabase.from("conc_itens").select(colunas, opcoes).eq("conciliacao_id", conciliacaoId);
+  // o que já foi enviado ao Omie sai das listas e fica só na aba Enviados
+  consulta = f.grupo === "enviados" ? consulta.not("enviado_em", "is", null) : consulta.is("enviado_em", null);
   if (f.grupo === "descontos") consulta = consulta.not("desconto", "is", null);
-  else consulta = consulta.eq("grupo", f.grupo);
+  else if (f.grupo !== "enviados") consulta = consulta.eq("grupo", f.grupo);
   if (f.filial !== undefined) consulta = consulta.eq("filial", f.filial);
   if (f.categoria) consulta = consulta.eq("categoria", f.categoria);
   if (f.anomalias) consulta = consulta.not("dados->anomalias", "is", null);
@@ -177,6 +179,14 @@ export async function chavesDoFiltro(conciliacaoId: string, f: FiltrosItens) {
     if (data.length < LOTE) break;
   }
   return [...chaves];
+}
+
+/** Quantas contas cada aba mostra agora, descontando as já enviadas ao Omie. */
+export async function contagemAbas(conciliacaoId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("conc_contagem_abas", { p_conciliacao: conciliacaoId });
+  if (error) throw error;
+  return data as Record<GrupoItem | "descontos" | "enviados", number>;
 }
 
 export async function listarItens(conciliacaoId: string, f: FiltrosItens) {
@@ -254,7 +264,8 @@ export async function listarPendencias(f: FiltrosPendencias, usuarioId: string) 
       .from("conc_pendencias")
       .select(
         "chave, problema, filial, beneficiario, cnpj, documento, valor, vencimento, detalhe, status, auto, motivo, decidido_em, criado_em, quem_resp:profiles!conc_pendencias_responsavel_fkey(nome), quem_dec:profiles!conc_pendencias_decidido_por_fkey(nome)",
-        { count: "exact" },
+        // só o primeiro lote precisa contar: contar em todos deixava a tela bem mais lenta
+        { count: inicio === 0 ? "exact" : undefined },
       );
     if (f.status === "abertas") consulta = consulta.in("status", ["pendente", "em_analise"]);
     else if (f.status !== "todas") consulta = consulta.eq("status", f.status);
