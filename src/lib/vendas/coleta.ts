@@ -141,13 +141,19 @@ export async function pedidosDoRoboVendas(admin: Cliente, agora = new Date()): P
  * última meia hora (um erro no Trier não vira um pedido a cada 10 minutos).
  */
 export async function receitaPendente(admin: Cliente, agora = new Date()): Promise<PedidoVendasTrier[]> {
-  const mes = mesAnteriorFechado(agora);
-  const pend = await pedidosPendentes(admin, [{ relatorio: "receita", ...mes }]);
+  // todos os meses fechados desde o primeiro da DRE pelo Trier, do mais recente para trás
+  const meses: { de: string; ate: string }[] = [];
+  for (let m = mesAnteriorFechado(agora); m.de >= INICIO_RECEITA_DRE; m = mesAnteriorFechado(new Date(`${m.de}T15:00:00Z`))) meses.push(m);
+  const pend = await pedidosPendentes(admin, meses.map((m) => ({ relatorio: "receita" as const, ...m })));
   if (!pend.length) return [];
-  const { data, error } = await admin.from("vendas_coletas").select("id").eq("relatorio", "receita").eq("de", mes.de).eq("ate", mes.ate).gt("coletado_em", new Date(agora.getTime() - 25 * 60_000).toISOString()).limit(1);
+  const { data, error } = await admin.from("vendas_coletas").select("de").eq("relatorio", "receita").gt("coletado_em", new Date(agora.getTime() - 25 * 60_000).toISOString());
   if (error) throw new Error(error.message);
-  return data?.length ? [] : pend;
+  const tentados = new Set((data ?? []).map((c) => c.de));
+  return pend.filter((p) => !tentados.has(p.de));
 }
+
+/** Primeiro mês com a receita da DRE vinda do Trier (pedido do Luiz em 05/11/2026: setembro e outubro de 2026). */
+export const INICIO_RECEITA_DRE = "2026-09-01";
 
 /** Receitas guardadas e ainda não lidas (leitor novo ou erro de leitura): lê de novo o Excel guardado, sem ir ao Trier. */
 export async function lerReceitasGuardadas(admin: Cliente) {
