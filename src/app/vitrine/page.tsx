@@ -55,9 +55,9 @@ async function celulaFicticia(fd: FormData) {
 
 // dados fictícios do painel geral
 const PENDENCIAS_VITRINE: Pendencia[] = [
-  { id: "a", severidade: "critico", area: "Conciliação", quantidade: 231, prazo: "vencido", total: 1078, href: "#t-botoes", titulo: "231 pendências de conciliação vencidas", detalhe: "1078 em aberto no total." },
+  { id: "a", severidade: "critico", area: "DDA x Trier", quantidade: 231, prazo: "vencido", total: 1078, href: "#t-botoes", titulo: "231 pendências de conciliação vencidas", detalhe: "1078 em aberto no total." },
   { id: "b", severidade: "alto", area: "Caixa", quantidade: 512, href: "#t-botoes", titulo: "512 quebras paradas há mais de 5 dias sem justificativa", detalhe: "Cobre o gestor da loja antes do fechamento da folha." },
-  { id: "c", severidade: "alto", area: "Conciliação", quantidade: 18, prazo: "vencendo", href: "#t-botoes", titulo: "18 pendências vencem em até 3 dias" },
+  { id: "c", severidade: "alto", area: "DDA x Trier", quantidade: 18, prazo: "vencendo", href: "#t-botoes", titulo: "18 pendências vencem em até 3 dias" },
   { id: "d", severidade: "atencao", area: "Caixa", quantidade: 4, minha: true, href: "#t-botoes", titulo: "4 sangrias a conferir com o extrato" },
 ];
 const filialVitrine = (codigo: string, nome: string, regional: string, status: LinhaFilialOperacao["status"], quebrasValor: number, quebrasAbertas: number, concVencidas: number, concPct: number | null, pendencias: string[]): LinhaFilialOperacao => ({
@@ -168,13 +168,13 @@ export default function VitrinePage() {
         filiais={{ contagem: { total: 44, critica: 20, atencao: 22, em_dia: 2 }, meta: "Nenhuma filial com meta de venda em novembro." }}
         metricas={[
           { chave: "q", rotulo: "Quebras em aberto", icone: Banknote, valor: "R$ 44.131", contexto: "782 quebras · 99,7% do total", variacao: { texto: "8%", direcao: "sobe", tom: "perigo" }, comparado: "novas em novembro: R$ 2.325", href: "#t-botoes" },
-          { chave: "c", rotulo: "Conciliação", icone: Scale, valor: "28,8%", tom: "perigo", contexto: "Varela 2,1% (29/10) · Nazário 90,3% (14/10)", variacao: { texto: "0,1 p.p.", direcao: "desce", tom: "perigo" }, comparado: "vs. as conciliações anteriores", href: "#t-botoes" },
+          { chave: "c", rotulo: "DDA x Trier", icone: Scale, valor: "28,8%", tom: "perigo", contexto: "Varela 2,1% (29/10) · Nazário 90,3% (14/10)", variacao: { texto: "0,1 p.p.", direcao: "desce", tom: "perigo" }, comparado: "vs. as conciliações anteriores", href: "#t-botoes" },
           { chave: "v", rotulo: "Pendências vencidas", icone: CalendarX2, valor: "231", tom: "perigo", contexto: "21,4% das 1.078 de conciliação em aberto", href: "#t-botoes" },
         ]}
       />
       <div className="mb-8 grid gap-4 lg:grid-cols-3">
         <Painel id="v-prioridades" titulo={<span className="text-base">Central de prioridades</span>} descricao="O que precisa da sua atenção. Clique em um nível para abrir a lista filtrada." acao={<LinkPainel href="#t-botoes">Ver todas (4)</LinkPainel>} className="lg:col-span-2">
-          <NiveisPrioridade resumo={resumirNiveis(PENDENCIAS_VITRINE, [{ area: "Caixa" }, { area: "Conciliação" }, { area: "Folha" }, { area: "Chamados" }, { area: "Ponto" }])} className="px-5 pb-4" />
+          <NiveisPrioridade resumo={resumirNiveis(PENDENCIAS_VITRINE, [{ area: "Caixa" }, { area: "DDA x Trier" }, { area: "Folha" }, { area: "Chamados" }, { area: "Ponto" }])} className="px-5 pb-4" />
           <ListaPrioridades pendencias={PENDENCIAS_VITRINE} />
         </Painel>
         <Painel id="v-sem-prioridades" titulo={<span className="text-base">Sem nada pendente</span>} descricao="Os níveis apagados, sem cor">

@@ -4,7 +4,7 @@ import { Emblema, Onda } from "@/components/layout/marca";
 
 const DESTAQUES = [
   { icone: Users, texto: "RH, folha e lançamentos para a contabilidade" },
-  { icone: ChartColumn, texto: "Financeiro, caixa contábil e conciliação bancária" },
+  { icone: ChartColumn, texto: "Financeiro, caixa contábil e DDA x Trier" },
   { icone: LifeBuoy, texto: "Chamados, TI e acessos" },
   { icone: Building2, texto: "Todas as filiais num lugar só" },
 ];

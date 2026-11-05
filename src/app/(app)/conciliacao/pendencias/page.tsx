@@ -41,7 +41,7 @@ export default async function PendenciasPage({ searchParams }: PageProps<"/conci
   return (
     <>
       <PageHeader
-        eyebrow="Conciliação"
+        eyebrow="DDA x Trier"
         titulo="Pendências"
         descricao="Divergências encontradas nas conciliações. Resolvem sozinhas quando conciliam ou são enviadas ao Omie; o resto é decidido aqui, com motivo."
       />

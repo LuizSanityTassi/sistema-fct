@@ -1,3 +1,4 @@
+import { normalizarBloqueios } from "@/lib/nav";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { exigirAcesso, semAcesso } from "@/lib/auth/session";
@@ -44,7 +45,7 @@ export default async function EditarUsuarioPage({ params }: PageProps<"/configur
           employee_id: usuario.employee_id,
           regional: usuario.regional,
           adminSistema: usuario.admin_sistema,
-          modulosBloqueados: usuario.modulos_bloqueados,
+          modulosBloqueados: normalizarBloqueios(usuario.modulos_bloqueados),
         }}
         funcionarios={opcoesFuncionario}
         ehProprioUsuario={usuario.id === sessao.id}

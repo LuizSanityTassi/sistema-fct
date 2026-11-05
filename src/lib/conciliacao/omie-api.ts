@@ -314,7 +314,7 @@ export async function lancarContas(ch: Chaves, emp: EmpresaOmie, cache: CacheOmi
           throw new OmieErro(
             cache.categorias
               ? `a categoria “${nome}” (regra automática) não existe na Omie da ${EMPRESAS_OMIE[emp]}; confira o nome na regra.`
-              : `busque os cadastros na Omie da ${EMPRESAS_OMIE[emp]} de novo (Conciliação → Omie) para o sistema conhecer as categorias das regras automáticas.`,
+              : `busque os cadastros na Omie da ${EMPRESAS_OMIE[emp]} de novo (DDA x Trier → Omie) para o sistema conhecer as categorias das regras automáticas.`,
           );
         codigoCategoria = cat.codigo;
       }

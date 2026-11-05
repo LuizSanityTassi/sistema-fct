@@ -12,7 +12,7 @@ export default async function NovoDeParaPage() {
   if (!podeConciliar(sessao.papel)) redirect("/conciliacao/de-para");
   return (
     <>
-      <PageHeader eyebrow="Conciliação" titulo="Novo de-para" descricao="Quando o boleto vem em nome de um terceiro (fundo, securitizadora, banco), diga qual é o fornecedor real." />
+      <PageHeader eyebrow="DDA x Trier" titulo="Novo de-para" descricao="Quando o boleto vem em nome de um terceiro (fundo, securitizadora, banco), diga qual é o fornecedor real." />
       <DeParaForm action={salvarDePara.bind(null, null)} modo="novo" />
     </>
   );

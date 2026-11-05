@@ -79,7 +79,7 @@ export default async function FilialPage({ params, searchParams }: PageProps<"/f
       ? [{ rotulo: `Resultado · ${rotuloCompetencia(ultimo.competencia)}`, valor: formatarMoeda(ultimo.resultado), nota: variacao(ultimo.resultado, anterior?.resultado) ? `${variacao(ultimo.resultado, anterior?.resultado)} vs mês anterior` : undefined, href: linkAba("financeiro"), icone: Wallet, tom: ultimo.resultado < 0 ? "text-red-700" : "text-emerald-700" }]
       : []),
     ...(d.ve.caixa ? [{ rotulo: "Quebras (30 dias)", valor: `${d.caixa.quebras}`, nota: d.caixa.abertas ? `${d.caixa.abertas} em aberto` : "nenhuma em aberto", href: linkAba("caixa"), icone: Coins, tom: d.caixa.abertas ? "text-orange-700" : "" }] : []),
-    ...(d.ve.conciliacao ? [{ rotulo: "Conciliação", valor: `${d.conciliacao.abertas} pendência(s)`, nota: d.conciliacao.vencidas ? `${d.conciliacao.vencidas} vencida(s)` : undefined, href: linkAba("financeiro"), icone: Scale, tom: d.conciliacao.vencidas ? "text-red-700" : "" }] : []),
+    ...(d.ve.conciliacao ? [{ rotulo: "DDA x Trier", valor: `${d.conciliacao.abertas} pendência(s)`, nota: d.conciliacao.vencidas ? `${d.conciliacao.vencidas} vencida(s)` : undefined, href: linkAba("financeiro"), icone: Scale, tom: d.conciliacao.vencidas ? "text-red-700" : "" }] : []),
     { rotulo: "Equipamentos", valor: String(d.ativos.length), href: linkAba("ti"), icone: Laptop, tom: d.ativos.length ? "" : "text-muted-foreground" },
     { rotulo: "Chamados abertos", valor: String(d.chamados.length), nota: d.chamados.some((c) => c.prioridade === "critica") ? "tem chamado crítico" : undefined, href: linkAba("ti"), icone: LifeBuoy, tom: d.chamados.some((c) => c.prioridade === "critica") ? "text-red-700" : "" },
   ];

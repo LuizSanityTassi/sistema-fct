@@ -26,7 +26,7 @@ export default async function DeParaPage({ searchParams }: PageProps<"/conciliac
   return (
     <>
       <PageHeader
-        eyebrow="Conciliação"
+        eyebrow="DDA x Trier"
         titulo="De-para de fornecedores"
         descricao="Boletos em nome de fundos/securitizadoras que na verdade são de um fornecedor, e as correspondências que o sistema aprendeu conciliando."
         acoes={

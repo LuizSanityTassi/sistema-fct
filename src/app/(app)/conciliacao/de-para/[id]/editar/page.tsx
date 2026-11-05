@@ -15,7 +15,7 @@ export default async function EditarDeParaPage({ params }: PageProps<"/conciliac
   if (!d) notFound();
   return (
     <>
-      <PageHeader eyebrow="Conciliação" titulo={`Editar “${d.dda}”`} />
+      <PageHeader eyebrow="DDA x Trier" titulo={`Editar “${d.dda}”`} />
       <DeParaForm action={salvarDePara.bind(null, d.id)} valores={{ dda: d.dda, fornecedores: d.fornecedores, alerta: d.alerta, ativo: d.ativo }} modo="edicao" />
     </>
   );

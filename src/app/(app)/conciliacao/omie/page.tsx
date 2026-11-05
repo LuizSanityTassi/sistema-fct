@@ -38,7 +38,7 @@ export default async function OmiePage({ searchParams }: PageProps<"/conciliacao
   return (
     <>
       <PageHeader
-        eyebrow="Conciliação"
+        eyebrow="DDA x Trier"
         titulo="Omie"
         descricao="Como as contas conciliadas chegam ao Omie: planilha de importação ou API. Filiais 300 em diante (e TRIO) são da Nazário; abaixo de 300, da Varela."
       />

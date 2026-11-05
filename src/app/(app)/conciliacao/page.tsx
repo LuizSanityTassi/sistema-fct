@@ -10,7 +10,7 @@ import { painelConciliacao } from "@/lib/data/conciliacao";
 import { formatarData, formatarDataHora, formatarMoeda, pluralizar } from "@/lib/formatos";
 import { BadgePrioridadePendencia } from "./badges-conc";
 
-export const metadata = { title: "Conciliação" };
+export const metadata = { title: "DDA x Trier" };
 
 const pct = (v: number | string | null | undefined) => (v == null ? "—" : `${(Number(v) * 100).toFixed(1).replace(".", ",")}%`);
 
@@ -42,7 +42,7 @@ export default async function ConciliacaoPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Conciliação"
+        eyebrow="DDA x Trier"
         titulo="DDA Itaú × Trier"
         descricao="Boletos que o banco vai cobrar (DDA) contra as contas a pagar lançadas no Trier. O que não bate vira pendência."
         acoes={

@@ -8,7 +8,7 @@ export const metadata = { title: "Perguntas prontas" };
 
 const ICONE_AREA: Record<AreaPergunta, LucideIcon> = {
   Caixa: Banknote,
-  Conciliação: Scale,
+  "DDA x Trier": Scale,
   Financeiro: Building2,
   Pessoas: Users,
   Chamados: LifeBuoy,

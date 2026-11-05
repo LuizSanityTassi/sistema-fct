@@ -19,7 +19,7 @@ export default async function FornecedoresPage({ searchParams }: PageProps<"/con
 
   return (
     <>
-      <PageHeader eyebrow="Conciliação" titulo="Fornecedores" descricao="Cada fornecedor pela raiz do CNPJ: quantos boletos já passaram pela conciliação, quanto bateu direto, faixa normal de valores, bancos e CNPJs usados. É daqui que saem os avisos de “fora do padrão”." />
+      <PageHeader eyebrow="DDA x Trier" titulo="Fornecedores" descricao="Cada fornecedor pela raiz do CNPJ: quantos boletos já passaram pela conciliação, quanto bateu direto, faixa normal de valores, bancos e CNPJs usados. É daqui que saem os avisos de “fora do padrão”." />
 
       <form method="get" className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border bg-card p-3">
         <div className="relative min-w-72 flex-1">

@@ -16,7 +16,7 @@ export default async function NovaRegraPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Conciliação"
+        eyebrow="DDA x Trier"
         titulo="Nova regra automática"
         descricao="Quando a conta bate com as condições, o sistema aplica a categoria/departamento na Omie e trata a pendência sozinho."
       />

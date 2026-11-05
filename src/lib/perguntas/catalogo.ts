@@ -5,7 +5,7 @@ import { podeAcessar } from "@/lib/nav";
 import type { AppRole } from "@/lib/roles";
 
 export type ParametroPergunta = "mes" | "filial";
-export type AreaPergunta = "Caixa" | "Conciliação" | "Financeiro" | "Pessoas" | "Chamados" | "Tecnologia";
+export type AreaPergunta = "Caixa" | "DDA x Trier" | "Financeiro" | "Pessoas" | "Chamados" | "Tecnologia";
 
 export type Pergunta = {
   id: string;
@@ -19,7 +19,7 @@ export type Pergunta = {
   parametros: ParametroPergunta[];
 };
 
-export const AREAS_PERGUNTA: AreaPergunta[] = ["Caixa", "Conciliação", "Financeiro", "Pessoas", "Chamados", "Tecnologia"];
+export const AREAS_PERGUNTA: AreaPergunta[] = ["Caixa", "DDA x Trier", "Financeiro", "Pessoas", "Chamados", "Tecnologia"];
 
 export const PERGUNTAS: Pergunta[] = [
   {
@@ -50,7 +50,7 @@ export const PERGUNTAS: Pergunta[] = [
   },
   {
     id: "pendencias-por-fornecedor",
-    area: "Conciliação",
+    area: "DDA x Trier",
     pergunta: "Quais fornecedores têm mais pendências em aberto?",
     descricao: "Pendências pendentes ou em análise agrupadas pelo beneficiário: quantidade, valor e vencimento mais antigo.",
     rota: "/conciliacao/pendencias",
@@ -58,7 +58,7 @@ export const PERGUNTAS: Pergunta[] = [
   },
   {
     id: "pendencias-vencendo",
-    area: "Conciliação",
+    area: "DDA x Trier",
     pergunta: "Quais pendências estão vencidas ou vencem nos próximos 7 dias?",
     descricao: "Boletos e títulos em aberto por data de vencimento, para tratar antes de virar juros.",
     rota: "/conciliacao/pendencias",
@@ -66,7 +66,7 @@ export const PERGUNTAS: Pergunta[] = [
   },
   {
     id: "enviado-omie",
-    area: "Conciliação",
+    area: "DDA x Trier",
     pergunta: "Quanto foi enviado ao Omie no mês?",
     descricao: "Contas enviadas por planilha ou pela API, por empresa (envios desfeitos não contam).",
     rota: "/conciliacao/omie",

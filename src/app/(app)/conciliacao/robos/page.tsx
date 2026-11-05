@@ -77,7 +77,7 @@ export default async function RobosPage() {
             ) : (
               "Peça ao administrador para cadastrar em Administração → Integrações."
             )}{" "}
-            Enquanto isso, o relatório pode ser enviado à mão em Conciliação → Arquivos.
+            Enquanto isso, o relatório pode ser enviado à mão em DDA x Trier → Arquivos.
           </p>
         ) : (
           <p className="mb-3 text-xs text-muted-foreground">

@@ -9,7 +9,7 @@ import { competenciaAtual, rotuloCompetencia } from "@/lib/rh/competencia";
 import { createClient } from "@/lib/supabase/server";
 
 export type Severidade = "critico" | "alto" | "atencao" | "info";
-export type AreaPendencia = "Caixa" | "Conciliação" | "DRE" | "Folha" | "RH" | "Ponto" | "Chamados" | "Denúncias" | "Acessos" | "Coordenação";
+export type AreaPendencia = "Caixa" | "DDA x Trier" | "DRE" | "Folha" | "RH" | "Ponto" | "Chamados" | "Denúncias" | "Acessos" | "Coordenação";
 
 export type Pendencia = {
   id: string;
@@ -39,7 +39,7 @@ export function modulosMonitorados(sessao: Sessao): { area: AreaPendencia; href:
   const financeiro = sessao.papel === "admin" || sessao.papel === "financeiro";
   const modulos: { area: AreaPendencia; href: string; ve: boolean }[] = [
     { area: "Caixa", href: financeiro ? "/financeiro/diferenca-caixa" : "/caixa", ve: (financeiro && pode("/financeiro/diferenca-caixa")) || pode("/caixa") },
-    { area: "Conciliação", href: "/conciliacao/pendencias", ve: pode("/conciliacao/pendencias") },
+    { area: "DDA x Trier", href: "/conciliacao/pendencias", ve: pode("/conciliacao/pendencias") },
     { area: "DRE", href: "/financeiro/dre", ve: pode("/financeiro/dre") && (financeiro || sessao.papel === "contador") },
     { area: "Folha", href: "/rh/lancamentos", ve: pode("/rh/lancamentos") },
     { area: "RH", href: "/rh/aso", ve: pode("/rh/aso") },
@@ -233,7 +233,7 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
           out.push({
             id: "conc-vencidas",
             severidade: "critico",
-            area: "Conciliação",
+            area: "DDA x Trier",
             quantidade: vencidas,
             prazo: "vencido",
             total,
@@ -245,7 +245,7 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
           out.push({
             id: "conc-a-vencer",
             severidade: "alto",
-            area: "Conciliação",
+            area: "DDA x Trier",
             quantidade: aVencer,
             prazo: "vencendo",
             total,
@@ -256,7 +256,7 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
           out.push({
             id: "conc-minhas",
             severidade: "alto",
-            area: "Conciliação",
+            area: "DDA x Trier",
             quantidade: minhas,
             minha: true,
             href: `/conciliacao/pendencias?responsavel=${sessao.id}`,
@@ -266,7 +266,7 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
           out.push({
             id: "conc-abertas",
             severidade: "atencao",
-            area: "Conciliação",
+            area: "DDA x Trier",
             quantidade: total,
             href: "/conciliacao/pendencias",
             titulo: `${total} ${plural(total, "pendência de conciliação", "pendências de conciliação")} em aberto`,

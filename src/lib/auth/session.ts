@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { podeAcessar } from "@/lib/nav";
+import { normalizarBloqueios, podeAcessar } from "@/lib/nav";
 import { ehPapel, type AppRole } from "@/lib/roles";
 
 export type Sessao = {
@@ -59,7 +59,7 @@ export const getSessao = cache(async (): Promise<Sessao> => {
     branchId: profile?.branch_id ?? null,
     regional: profile?.regional ?? null,
     telasExtras: (extras ?? []).map((e) => e.rota),
-    bloqueios: profile?.modulos_bloqueados ?? [],
+    bloqueios: normalizarBloqueios(profile?.modulos_bloqueados),
   };
 });
 

@@ -19,7 +19,7 @@ export default async function EditarRegraPage({ params }: PageProps<"/conciliaca
   return (
     <>
       <PageHeader
-        eyebrow="Conciliação"
+        eyebrow="DDA x Trier"
         titulo={`Editar “${r.nome}”`}
         descricao="A mudança vale a partir da próxima conciliação ou envio à Omie. Para tratar as pendências abertas agora, use “Aplicar nas pendências” na lista de regras."
       />

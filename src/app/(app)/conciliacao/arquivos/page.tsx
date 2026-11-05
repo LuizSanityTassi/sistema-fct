@@ -42,7 +42,7 @@ export default async function ArquivosPage({ searchParams }: PageProps<"/concili
 
   return (
     <>
-      <PageHeader eyebrow="Conciliação" titulo="Arquivos" descricao="Tudo que foi enviado fica guardado em armazenamento privado e pode ser reaproveitado em novas conciliações." />
+      <PageHeader eyebrow="DDA x Trier" titulo="Arquivos" descricao="Tudo que foi enviado fica guardado em armazenamento privado e pode ser reaproveitado em novas conciliações." />
 
       {ok && (
         <div className="mb-4">

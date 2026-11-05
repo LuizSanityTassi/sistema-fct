@@ -159,7 +159,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   if (cartaoConc)
     metricas.push({
       chave: "conciliacao",
-      rotulo: "Conciliação",
+      rotulo: "DDA x Trier",
       icone: Scale,
       valor: pctTexto(cartaoConc.atual),
       tom: cartaoConc.atual < 50 ? "perigo" : undefined,

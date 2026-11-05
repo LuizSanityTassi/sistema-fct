@@ -502,7 +502,7 @@ export const NAV: NavGrupo[] = [
     ],
   },
   {
-    titulo: "Conciliação Bancária",
+    titulo: "DDA x Trier",
     descricao: "DDA do Itaú × contas a pagar do Trier, pendências, de-para e envios ao Omie.",
     icone: Scale,
     itens: [
@@ -689,6 +689,10 @@ export function podeVerItem(item: NavItem, papel: AppRole) {
   if (papel === "relogio") return false;
   return !item.papeis || item.papeis.includes(papel);
 }
+
+/** Grupos do menu que mudaram de nome: o bloqueio guardado com o nome antigo continua valendo. */
+const NOMES_ANTIGOS: Record<string, string> = { "Conciliação Bancária": "DDA x Trier" };
+export const normalizarBloqueios = (lista: readonly string[] | null | undefined) => [...new Set((lista ?? []).map((m) => NOMES_ANTIGOS[m] ?? m))];
 
 /** Grupos do menu que dá para bloquear por pessoa (profiles.modulos_bloqueados guarda o título do grupo). */
 export const MODULOS_BLOQUEAVEIS = NAV.flatMap((g) => (g.titulo ? [g.titulo] : []));

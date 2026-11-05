@@ -38,7 +38,7 @@ export default async function RegrasPage({ searchParams }: PageProps<"/conciliac
   return (
     <>
       <PageHeader
-        eyebrow="Conciliação"
+        eyebrow="DDA x Trier"
         titulo="Regras automáticas"
         descricao="Regras do tipo “nome contém CLARO → categoria Telefonia”. Valem na conciliação (tratam pendências sozinhas) e no envio à Omie (categoria e departamento). Para cada ação vale a primeira regra ativa que casa, pela ordem."
         acoes={

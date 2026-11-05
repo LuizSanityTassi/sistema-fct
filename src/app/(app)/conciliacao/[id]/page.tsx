@@ -23,7 +23,7 @@ import { enviarPlanilhaOmie, validarEnvioOmie } from "../omie-actions";
 import { EnvioOmie } from "./envio-omie";
 import { BarraMarcarOmie, FORM_MARCAR_OMIE } from "./marcar-omie";
 
-export const metadata = { title: "Conciliação" };
+export const metadata = { title: "DDA x Trier" };
 // a aba do Omie lê todas as contas e o envio em lote leva minutos
 export const maxDuration = 300;
 
@@ -130,7 +130,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
   return (
     <>
       <PageHeader
-        eyebrow="Conciliação"
+        eyebrow="DDA x Trier"
         titulo={c.titulo || `Conciliação de ${formatarDataHora(c.criado_em)}`}
         descricao={`Filiais ${c.fil_min}–${c.fil_max} · ${pluralizar(c.qtd_trier, "título do Trier", "títulos do Trier")} (${formatarMoeda(c.total_trier)}) × ${pluralizar(c.qtd_dda, "boleto", "boletos")} (${formatarMoeda(c.total_dda)}) · vencimentos ${formatarData(c.venc_ini)} a ${formatarData(c.venc_fim)} · por ${c.quem?.nome ?? "robô"} em ${formatarDataHora(c.criado_em)}`}
         acoes={
@@ -216,7 +216,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
               </li>
             ))}
           </ul>
-          <p className="px-4 py-2 text-xs text-orange-900">Anomalias graves (valor EXTREMAMENTE acima, banco diferente) bloqueiam o envio ao Omie; as outras só avisam. A ficha de cada fornecedor está em Conciliação → Fornecedores.</p>
+          <p className="px-4 py-2 text-xs text-orange-900">Anomalias graves (valor EXTREMAMENTE acima, banco diferente) bloqueiam o envio ao Omie; as outras só avisam. A ficha de cada fornecedor está em DDA x Trier → Fornecedores.</p>
         </details>
       )}
 

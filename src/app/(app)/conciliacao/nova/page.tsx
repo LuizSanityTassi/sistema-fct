@@ -31,7 +31,7 @@ export default async function NovaConciliacaoPage() {
 
   return (
     <>
-      <PageHeader eyebrow="Conciliação" titulo="Nova conciliação" descricao="Escolha os arquivos do banco e do Trier e a faixa de filiais. O resultado fica guardado com as pendências." />
+      <PageHeader eyebrow="DDA x Trier" titulo="Nova conciliação" descricao="Escolha os arquivos do banco e do Trier e a faixa de filiais. O resultado fica guardado com as pendências." />
       <NovaConciliacaoForm action={conciliar} dda={arquivos.dda.map(opcao)} trier={arquivos.trier.map(opcao)} faixas={faixas} />
     </>
   );

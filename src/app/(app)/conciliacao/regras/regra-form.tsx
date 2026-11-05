@@ -98,7 +98,7 @@ export function RegraForm({ action, valores = {}, modo, opcoes }: Props) {
       <section className="rounded-xl border bg-card p-5">
         <h2 className="text-sm font-semibold">Então</h2>
         <p className="mb-4 text-xs text-muted-foreground">
-          Escolha pelo menos uma ação. {opcoes.buscou ? "Os nomes sugeridos vêm dos cadastros buscados da Omie." : "Busque os cadastros em Conciliação → Omie para o sistema sugerir os nomes exatos."}
+          Escolha pelo menos uma ação. {opcoes.buscou ? "Os nomes sugeridos vêm dos cadastros buscados da Omie." : "Busque os cadastros em DDA x Trier → Omie para o sistema sugerir os nomes exatos."}
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <Campo id="categoria_omie" label="Categoria na Omie" erro={erro("categoria_omie")} dica="No lugar da categoria padrão. Precisa ser igual à da Omie. Ex.: Telefonia">

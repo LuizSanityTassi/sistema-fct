@@ -197,7 +197,7 @@ export function EnvioOmie({ conciliacaoId, contas, grupo, contagem, api, config,
           etapa(emp, `lançando novas, faltam ${inteiro(novas.length)} de ${inteiro(inicioNovas)}`);
           const pedaco = novas.slice(0, LIMITE_LANCAMENTO_API);
           const r = await postar<RespostaLote>("/api/conciliacao/omie-lote", { conciliacao: conciliacaoId, chaves: pedaco, cadastrar });
-          if (r.modoTeste.length) throw new Error(`modo teste em ${r.modoTeste.join(", ")}: libere o lote em Conciliação → Omie`);
+          if (r.modoTeste.length) throw new Error(`modo teste em ${r.modoTeste.join(", ")}: libere o lote em DDA x Trier → Omie`);
           novas.splice(0, pedaco.length);
           novas.push(...r.adiadas);
           setLote((l) => {
