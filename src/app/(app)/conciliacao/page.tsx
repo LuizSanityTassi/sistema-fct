@@ -72,9 +72,9 @@ export default async function ConciliacaoPage() {
           <p className="mb-2 text-xs text-muted-foreground">Os números contam só o que vence de hoje em diante.</p>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
             <Kpi rotulo="Bateram" valor={pct(r.pctBateu)} nota={`${r.bateu} de ${r.qtdTrier} títulos · ${pct(r.pctValorBateu)} do valor`} href={`/conciliacao/${ultima.id}?aba=exato`} tom="text-emerald-700" />
-            <Kpi rotulo="Para conferir" valor={String(r.conferir)} nota="valor, data ou filial diferente" href={`/conciliacao/${ultima.id}?aba=aproximado`} tom={r.conferir > 0 ? "text-amber-700" : undefined} />
-            <Kpi rotulo="Só no Trier" valor={String(r.soTrier)} nota={`${formatarMoeda(r.valorSoTrier)} sem boleto no banco`} href={`/conciliacao/${ultima.id}?aba=so_trier`} tom={r.soTrier > 0 ? "text-red-700" : undefined} />
-            <Kpi rotulo="Só no DDA" valor={String(r.soDDA)} nota={`${formatarMoeda(r.valorSoDDA)} sem título no Trier`} href={`/conciliacao/${ultima.id}?aba=so_dda`} tom={r.soDDA > 0 ? "text-sky-700" : undefined} />
+            <Kpi rotulo="Para conferir" valor={String(r.aberto.conferir)} nota={`valor, data ou filial diferente${r.conferir > r.aberto.conferir ? ` · ${r.conferir - r.aberto.conferir} já enviada(s)` : ""}`} href={`/conciliacao/${ultima.id}?aba=aproximado`} tom={r.aberto.conferir > 0 ? "text-amber-700" : undefined} />
+            <Kpi rotulo="Só no Trier" valor={String(r.aberto.soTrier)} nota={`${formatarMoeda(r.aberto.valorSoTrier)} sem boleto no banco${r.soTrier > r.aberto.soTrier ? ` · ${r.soTrier - r.aberto.soTrier} já enviada(s)` : ""}`} href={`/conciliacao/${ultima.id}?aba=so_trier`} tom={r.aberto.soTrier > 0 ? "text-red-700" : undefined} />
+            <Kpi rotulo="Só no DDA" valor={String(r.aberto.soDDA)} nota={`${formatarMoeda(r.aberto.valorSoDDA)} sem título no Trier${r.soDDA > r.aberto.soDDA ? ` · ${r.soDDA - r.aberto.soDDA} já enviada(s)` : ""}`} href={`/conciliacao/${ultima.id}?aba=so_dda`} tom={r.aberto.soDDA > 0 ? "text-sky-700" : undefined} />
             <Kpi rotulo="Desconto no vencimento" valor={formatarMoeda(r.desconto.noVencimento.valor)} nota="pagando no dia" href={`/conciliacao/${ultima.id}?aba=descontos`} />
             <Kpi rotulo="Fora do padrão" valor={String(r.anomalias)} nota="comparado ao histórico do fornecedor" href={`/conciliacao/${ultima.id}#anomalias`} tom={r.anomalias > 0 ? "text-orange-700" : undefined} />
           </div>

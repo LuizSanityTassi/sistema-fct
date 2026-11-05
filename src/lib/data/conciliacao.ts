@@ -112,7 +112,7 @@ export async function resumoDoPeriodo(conciliacaoId: string) {
   ]);
   if (error) throw error;
   const linhas = data ?? [];
-  const total = (grupo: string, campo: "qtd" | "valor") => linhas.filter((l) => l.grupo === grupo).reduce((s, l) => s + Number(l[campo]), 0);
+  const total = (grupo: string, campo: "qtd" | "valor" | "qtd_aberto" | "valor_aberto") => linhas.filter((l) => l.grupo === grupo).reduce((s, l) => s + Number(l[campo]), 0);
   const bateu = total("exato", "qtd");
   const conferir = total("aproximado", "qtd");
   const soTrier = total("so_trier", "qtd");
@@ -137,16 +137,18 @@ export async function resumoDoPeriodo(conciliacaoId: string) {
     const chave = l.filial == null ? "—" : String(l.filial);
     const f = filiais.get(chave) ?? { filial: chave, titulos: 0, boletos: 0, exatos: 0, conferir: 0, soTrier: 0, soDDA: 0, valorSoTrier: 0, valorSoDDA: 0 };
     const qtd = Number(l.qtd);
+    const aberto = Number(l.qtd_aberto);
     if (l.grupo !== "so_dda") f.titulos += qtd;
     if (l.grupo !== "so_trier") f.boletos += qtd;
+    // títulos, boletos e exatos são o retrato do período; o resto é o que falta tratar, como nas abas
     if (l.grupo === "exato") f.exatos += qtd;
-    else if (l.grupo === "aproximado") f.conferir += qtd;
+    else if (l.grupo === "aproximado") f.conferir += aberto;
     else if (l.grupo === "so_trier") {
-      f.soTrier += qtd;
-      f.valorSoTrier += Number(l.valor);
+      f.soTrier += aberto;
+      f.valorSoTrier += Number(l.valor_aberto);
     } else {
-      f.soDDA += qtd;
-      f.valorSoDDA += Number(l.valor);
+      f.soDDA += aberto;
+      f.valorSoDDA += Number(l.valor_aberto);
     }
     filiais.set(chave, f);
   }
@@ -157,6 +159,14 @@ export async function resumoDoPeriodo(conciliacaoId: string) {
     soDDA,
     valorSoTrier,
     valorSoDDA,
+    /** O que falta tratar: sem o que já foi enviado ao Omie. É o mesmo número das abas. */
+    aberto: {
+      conferir: total("aproximado", "qtd_aberto"),
+      soTrier: total("so_trier", "qtd_aberto"),
+      soDDA: total("so_dda", "qtd_aberto"),
+      valorSoTrier: total("so_trier", "valor_aberto"),
+      valorSoDDA: total("so_dda", "valor_aberto"),
+    },
     qtdTrier,
     totalTrier,
     qtdDda: bateu + conferir + soDDA,

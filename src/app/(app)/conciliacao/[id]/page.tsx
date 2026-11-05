@@ -127,11 +127,13 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
   // as datas valem em todas as abas: dá para olhar o mesmo período em Exatos, Só no Trier e Só no DDA
   const sufixoDatas = `${filtros.vencDe ? `&venc_de=${filtros.vencDe}` : ""}${filtros.vencAte ? `&venc_ate=${filtros.vencAte}` : ""}`;
   const categoriasDaAba = Object.entries(r.porCategoria ?? {}).filter(([, v]) => v.qtd > 0);
+  const aberto = periodo.aberto;
+  const jaEnviadas = (total: number, falta: number) => (total > falta ? ` · ${pluralizar(total - falta, "já enviada", "já enviadas")}` : "");
   const kpis: [string, string, string | null, string?][] = [
     ["Bateram", pct(periodo.pctBateu), `${periodo.bateu} de ${periodo.qtdTrier} títulos · ${pct(periodo.pctValorBateu)} do valor`, "text-emerald-700"],
-    ["Para conferir", String(periodo.conferir), "valor, data, documento ou filial diferente", periodo.conferir > 0 ? "text-amber-700" : undefined],
-    ["Só no Trier", String(periodo.soTrier), formatarMoeda(periodo.valorSoTrier), periodo.soTrier > 0 ? "text-red-700" : undefined],
-    ["Só no DDA", String(periodo.soDDA), `${formatarMoeda(periodo.valorSoDDA)} de boletos sem título`, periodo.soDDA > 0 ? "text-sky-700" : undefined],
+    ["Para conferir", String(aberto.conferir), `valor, data, documento ou filial diferente${jaEnviadas(periodo.conferir, aberto.conferir)}`, aberto.conferir > 0 ? "text-amber-700" : undefined],
+    ["Só no Trier", String(aberto.soTrier), `${formatarMoeda(aberto.valorSoTrier)}${jaEnviadas(periodo.soTrier, aberto.soTrier)}`, aberto.soTrier > 0 ? "text-red-700" : undefined],
+    ["Só no DDA", String(aberto.soDDA), `${formatarMoeda(aberto.valorSoDDA)} de boletos sem título${jaEnviadas(periodo.soDDA, aberto.soDDA)}`, aberto.soDDA > 0 ? "text-sky-700" : undefined],
     ["Desconto no vencimento", formatarMoeda(periodo.desconto.noVencimento.valor), `${periodo.desconto.noVencimento.qtd} boleto(s) · antecipado ${formatarMoeda(periodo.desconto.soAntecipado.valor)}`],
     ["Fora do padrão", String(periodo.anomalias), anomaliasGraves > 0 ? `${anomaliasGraves} grave(s) · comparado ao histórico do fornecedor` : "comparado ao histórico do fornecedor", periodo.anomalias > 0 ? "text-orange-700" : undefined],
   ];
