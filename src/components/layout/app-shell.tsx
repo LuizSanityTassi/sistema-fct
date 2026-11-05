@@ -296,8 +296,8 @@ export function AppShell({ usuario, onSair, menuRecolhido = false, children }: A
   const grupo = grupoDaRota(pathname);
   const naInicial = pathname === "/portal";
   const hrefDoGrupo = inicioDoGrupo(grupo?.titulo, usuario.papel, usuario.telasExtras, usuario.bloqueios);
-  // numa tela de dentro (ex.: a ficha do funcionário), o último nível volta para a lista
-  const hrefDaTela = item && pathname !== item.href ? item.href : undefined;
+  // o último nível também é link: numa tela de dentro volta para a lista; na própria tela, limpa os filtros
+  const hrefDaTela = naInicial || !item ? "/portal" : item.href;
 
   return (
     <DicaProvider>
@@ -368,15 +368,9 @@ export function AppShell({ usuario, onSair, menuRecolhido = false, children }: A
                   <ChevronRight className="hidden size-3.5 shrink-0 text-muted-foreground/60 md:inline" aria-hidden />
                 </>
               )}
-              {hrefDaTela ? (
-                <Link href={hrefDaTela} className="truncate rounded px-1 font-medium underline-offset-4 hover:underline">
-                  {item?.label}
-                </Link>
-              ) : (
-                <span className="truncate px-1 font-medium" aria-current="page">
-                  {naInicial ? "Portal de Gestão" : (item?.label ?? "Portal de Gestão")}
-                </span>
-              )}
+              <Link href={hrefDaTela} aria-current={pathname === hrefDaTela ? "page" : undefined} className="truncate rounded px-1 font-medium underline-offset-4 hover:underline">
+                {naInicial ? "Portal de Gestão" : (item?.label ?? "Portal de Gestão")}
+              </Link>
             </nav>
 
             <BuscaRapida papel={usuario.papel} extras={usuario.telasExtras} bloqueios={usuario.bloqueios} />
