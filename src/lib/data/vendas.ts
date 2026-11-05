@@ -125,6 +125,30 @@ export function porPeriodo(pontos: PontoSerie[], regional?: RegionalVendas) {
   return new Map([...mapa].sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => [k, somar(v)]));
 }
 
+/**
+ * Venda de UMA filial por dia ou por mês (periodo = 1º dia do mês), sem a venda da equipe de televendas (mesma conta da
+ * série das regionais). Só a venda: é o que os gráficos e a projeção usam; o resto vem do total do período da filial.
+ */
+export async function serieVendasFilial(branchId: string, de: string, ate: string, por: "dia" | "mes"): Promise<Map<string, MetricasVendas>> {
+  const supabase = await createClient();
+  const chave = (d: string) => (por === "mes" ? `${d.slice(0, 7)}-01` : d);
+  const ler = async () => {
+    const soma = new Map<string, number>();
+    for (let desde = 0; ; desde += 1000) {
+      const { data, error } = await supabase.from("vendas_filial_dia").select("data, venda").eq("branch_id", branchId).gte("data", de).lte("data", ate).order("data").range(desde, desde + 999);
+      if (error) throw new Error(error.message);
+      for (const r of data ?? []) soma.set(chave(r.data), (soma.get(chave(r.data)) ?? 0) + n(r.venda));
+      if ((data?.length ?? 0) < 1000) break;
+    }
+    const { data: tele, error } = await supabase.rpc("vendas_tele_por_filial", { p_de: de, p_ate: ate, p_por: por });
+    if (error) throw new Error(error.message);
+    for (const t of tele ?? []) if (t.branch_id === branchId) soma.set(chave(t.periodo), (soma.get(chave(t.periodo)) ?? 0) - n(t.venda));
+    return [...soma].sort(([a], [b]) => a.localeCompare(b));
+  };
+  const linhas = periodoFechado(ate) ? await guardarPassado(["serie-filial", branchId, de, ate, por], ler) : await ler();
+  return new Map(linhas.map(([p, venda]) => [p, metricas({ ...VAZIO, venda: Math.round(venda * 100) / 100 })]));
+}
+
 // ---------- televendas (equipe de tele-vendas = uma "loja" à parte) ----------
 
 /** Venda de um vendedor da equipe de televendas numa filial (onde o Trier lançou a venda). */

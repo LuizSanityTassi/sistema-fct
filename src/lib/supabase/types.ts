@@ -6433,6 +6433,26 @@ export type Database = {
             venda_grupos: number
         }[]
       }
+      vendas_tele_por_filial: {
+        Args: {
+          p_ate: string
+          p_de: string
+          p_por: string
+        }
+        Returns: {
+            atendimentos: number
+            branch_id: string
+            central_id: string | null
+            custo: number
+            generico: number
+            periodo: string
+            premium: number
+            referencia: number
+            similares: number
+            unidades: number
+            venda: number
+        }[]
+      }
       vendas_vendedores_periodo: {
         Args: {
           p_ate: string

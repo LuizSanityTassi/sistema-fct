@@ -5,14 +5,16 @@ import { BarrasDuplas } from "@/components/graficos";
 import { PageHeader } from "@/components/layout/page-header";
 import { EstadoVazio, LinkPainel } from "@/components/layout/painel";
 import { exigirAcesso } from "@/lib/auth/session";
-import { chaveMetaFilial, DIAS_SEMANA, diaDaSemana, diasSemVendas, ehRegionalVendas, ehTele, faixasDeDias, hojeNoBrasil, horaNoBrasil, MESES, mesmoDia, metasDoMes, porPeriodo, REGIONAIS_VENDAS, resumirTelevendas, serieVendas, somar, somarDias, TELEVENDAS, televendasNoPeriodo, ultimoDia, ultimoDiaVendas, vendasPorFilial, type LinhaFilialVendas, type RegionalVendas } from "@/lib/data/vendas";
+import { chaveMetaFilial, DIAS_SEMANA, diaDaSemana, diasSemVendas, ehRegionalVendas, ehTele, faixasDeDias, hojeNoBrasil, horaNoBrasil, MESES, mesmoDia, metasDoMes, porPeriodo, REGIONAIS_VENDAS, resumirTelevendas, serieVendas, serieVendasFilial, somar, somarDias, TELEVENDAS, televendasNoPeriodo, ultimoDia, ultimoDiaVendas, vendasPorFilial, type LinhaFilialVendas, type RegionalVendas } from "@/lib/data/vendas";
 import { formatarData } from "@/lib/formatos";
 import { AtualizaSozinho } from "./atualiza-sozinho";
+import { EscolhaFilial } from "./escolha-filial";
 import { AbasVendas, AvisoDiasFaltando, decimal, inteiro, moeda, moedaCurta, pct } from "./comum";
 import { BarraProgresso, ColunasSemana, Comparacao, delta, EvolucaoMes, MiniKpi, Rosca, Secao, type FatiaComposicao } from "./painel-visual";
 
 export const metadata = { title: "Painel de vendas" };
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MES_CURTO = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 const MEDALHA = ["bg-amber-400 text-amber-950", "bg-slate-300 text-slate-900", "bg-orange-300 text-orange-950"];
 
@@ -22,7 +24,10 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
   const [sessao, sp] = await Promise.all([exigirAcesso("/vendas"), searchParams]);
   // gerente: só a(s) loja(s) dele (a RLS já filtra); sem regionais nem ranking de lojas
   const soLoja = sessao.papel === "gerente";
-  const regional: RegionalVendas | "" = !soLoja && typeof sp.regional === "string" && ehRegionalVendas(sp.regional) ? sp.regional : "";
+  // uma filial só (?filial=<id>): o painel inteiro passa a ser dela; a lista de escolha é a das lojas que a pessoa vê
+  const filial = typeof sp.filial === "string" && UUID.test(sp.filial) ? sp.filial : "";
+  const regional: RegionalVendas | "" = !soLoja && !filial && typeof sp.regional === "string" && ehRegionalVendas(sp.regional) ? sp.regional : "";
+  const r = regional || undefined;
   // o mês vai até o último dia lido: hoje (parcial, o robô de hoje lê a cada 10 min) ou ontem. Médias, projeção e a
   // semana usam só dias completos (até ontem).
   const ultimo = await ultimoDiaVendas();
@@ -34,14 +39,16 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
   const [anoAnt, mesAntNum] = inicioMesAnt.split("-").map(Number);
   const fimMesAnt = `${inicioMesAnt.slice(0, 7)}-${String(ultimoDia(anoAnt, mesAntNum)).padStart(2, "0")}`;
 
-  const [listaMes, listaMesAnt, listaAnoAnt, meses, diasDoMes, diasDoMesAnt, quinzena, faltamMes, faltamMesAnt, teleLinhas, teleLinhasAnt, metas] = await Promise.all([
+  // venda por dia/mês: da filial escolhida ou das regionais (rede ou uma regional)
+  const serie = (de: string, fim: string, por: "dia" | "mes") => (filial ? serieVendasFilial(filial, de, fim, por) : serieVendas(de, fim, por).then((p) => porPeriodo(p, r)));
+  const [listaMes, listaMesAnt, listaAnoAnt, porMes, porDia, porDiaAnt, porDia14, faltamMes, faltamMesAnt, teleLinhas, teleLinhasAnt, metas] = await Promise.all([
     vendasPorFilial(inicioMes, ate),
     vendasPorFilial(inicioMesAnt, mesmoDia(ate, 1)),
     vendasPorFilial(`${ano - 1}-01-01`, mesmoDia(ate, 12)),
-    serieVendas(`${ano - 1}-01-01`, ate, "mes"),
-    serieVendas(inicioMes, ate, "dia"),
-    serieVendas(inicioMesAnt, fimMesAnt, "dia"),
-    serieVendas(somarDias(ontem, -13), ate, "dia"),
+    serie(`${ano - 1}-01-01`, ate, "mes"),
+    serie(inicioMes, ate, "dia"),
+    serie(inicioMesAnt, fimMesAnt, "dia"),
+    serie(somarDias(ontem, -13), ate, "dia"),
     diasSemVendas(inicioMes, ate),
     diasSemVendas(inicioMesAnt, fimMesAnt),
     // televendas (equipe de tele-vendas): a RLS não devolve nada para o gerente
@@ -52,21 +59,23 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
   const tele = resumirTelevendas(teleLinhas);
   const teleAnt = resumirTelevendas(teleLinhasAnt);
 
-  const r = regional || undefined;
-  const filtra = <T extends { regional: string }>(xs: T[]) => (r ? xs.filter((x) => x.regional === r) : xs);
+  const filtra = <T extends { regional: string; branchId: string }>(xs: T[]) => (filial ? xs.filter((x) => x.branchId === filial) : r ? xs.filter((x) => x.regional === r) : xs);
   const lojasMes = filtra(listaMes);
   const lojasMesAnt = filtra(listaMesAnt);
   const tMes = somar(lojasMes);
   const tMesAnt = somar(lojasMesAnt);
-  const porMes = porPeriodo(meses, r);
   const vendaAno = [...porMes].filter(([p]) => p >= `${ano}-01-01`).reduce((s, [, v]) => s + v.venda, 0);
   const vendaAnoAnt = somar(filtra(listaAnoAnt)).venda;
-  const porDia = porPeriodo(diasDoMes, r);
-  const porDiaAnt = porPeriodo(diasDoMesAnt, r);
-  const porDia14 = porPeriodo(quinzena, r);
   const nomeMes = MESES[mes - 1];
   const nomeMesAnt = MESES[mesAntNum - 1].toLowerCase();
-  const escopo = soLoja ? (lojasMes.length === 1 ? `${lojasMes[0].codigo} ${lojasMes[0].nome}` : "suas lojas") : regional || "Rede";
+  // lojas para escolher (as que a pessoa vê, com venda neste mês ou no anterior), sem as centrais de televendas
+  const opcoesLojas = [...new Map([...listaMes, ...listaMesAnt].filter((l) => !ehTele(l)).map((l) => [l.branchId, l])).values()]
+    .sort((a, b) => a.codigo.localeCompare(b.codigo, "pt-BR", { numeric: true }))
+    .map((l) => ({ id: l.branchId, rotulo: `${l.codigo} ${l.nome}`, grupo: l.regional }));
+  const lojaEscolhida = filial ? opcoesLojas.find((o) => o.id === filial) : undefined;
+  // painel de uma loja só: a do gerente com uma loja ou a filial escolhida (sem regiões, ranking nem televendas)
+  const visaoLoja = soLoja || !!filial;
+  const escopo = filial ? (lojaEscolhida?.rotulo ?? "filial sem venda no período") : soLoja ? (lojasMes.length === 1 ? `${lojasMes[0].codigo} ${lojasMes[0].nome}` : "suas lojas") : regional || "Rede";
 
   if (!listaMes.length && !porMes.size) {
     return (
@@ -177,7 +186,7 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
   const temAnoAnterior = barrasAno.some((b) => b.a > 0);
 
   // ---------- destaques ----------
-  const ranking = soLoja ? [] : lojasMes;
+  const ranking = visaoLoja ? [] : lojasMes;
   const melhorLoja = [...ranking].sort((a, b) => b.venda - a.venda)[0] as LinhaFilialVendas | undefined;
   const anteriorDaLoja = new Map(lojasMesAnt.map((l) => [l.branchId, l.venda]));
   const variacoesLojas = ranking
@@ -194,7 +203,7 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
   const loja = (l: LinhaFilialVendas) => <strong className="font-semibold">{l.regional === TELEVENDAS ? "Televendas" : ehTele(l) ? l.nome : `${l.codigo} ${l.nome}`}</strong>;
   const destaques: Destaque[] = [];
   if (vMes !== null) destaques.push({ tipo: vMes >= 0 ? "bom" : "ruim", peso: 10, texto: <>Venda do mês {vMes >= 0 ? "acima" : "abaixo"} de {nomeMesAnt} em {decimal(Math.abs(vMes), 1)}% no mesmo período ({moedaCurta(tMes.venda - tMesAnt.venda).replace("-", "−")}).</> });
-  if (!soLoja && !regional && regioes.length) {
+  if (!visaoLoja && !regional && regioes.length) {
     const lider = regioes[0];
     destaques.push({ tipo: "info", peso: 9, texto: <><strong className="font-semibold">{lider.reg}</strong> lidera com {moedaCurta(lider.atual.venda)} ({pct((lider.atual.venda / totalRede) * 100, 1)} da rede).</> });
     const comVar = regioes.filter((x) => x.var !== null);
@@ -221,14 +230,22 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
         titulo="Painel de vendas"
         descricao={`${nomeMes} de ${ano}, ${ultimo.lidoEm ? `até hoje às ${horaNoBrasil(ultimo.lidoEm)} (o dia de hoje é parcial)` : `até ontem (${formatarData(ate)})`}. Números do Trier, lidos a cada 10 minutos das 7h às 23h50 e o dia inteiro de novo de madrugada.`}
         acoes={
-          soLoja ? undefined : (
-            <nav aria-label="Escopo" className="flex rounded-lg border bg-card p-0.5 text-sm">
-              {(["", ...REGIONAIS_VENDAS] as const).map((x) => (
-                <Link key={x || "rede"} href={x ? `/vendas?regional=${encodeURIComponent(x)}` : "/vendas"} aria-current={regional === x ? "page" : undefined} className={cn("rounded-md px-3 py-1", regional === x ? "bg-primary text-primary-foreground" : "hover:bg-muted")}>
-                  {x || "Rede"}
-                </Link>
-              ))}
-            </nav>
+          soLoja && opcoesLojas.length < 2 ? undefined : (
+            <div className="flex flex-wrap items-center gap-2">
+              {!soLoja && (
+                <nav aria-label="Escopo" className="flex rounded-lg border bg-card p-0.5 text-sm">
+                  {(["", ...REGIONAIS_VENDAS] as const).map((x) => {
+                    const ativo = !filial && regional === x;
+                    return (
+                      <Link key={x || "rede"} href={x ? `/vendas?regional=${encodeURIComponent(x)}` : "/vendas"} aria-current={ativo ? "page" : undefined} className={cn("rounded-md px-3 py-1", ativo ? "bg-primary text-primary-foreground" : "hover:bg-muted")}>
+                        {x || "Rede"}
+                      </Link>
+                    );
+                  })}
+                </nav>
+              )}
+              <EscolhaFilial lojas={opcoesLojas} atual={lojaEscolhida ? filial : ""} />
+            </div>
           )
         }
       />
@@ -265,7 +282,7 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
                   <Comparacao atual={mediaDia} anterior={mediaDiaAnt} rotulo="" />
                 </dd>
               </div>
-              {soLoja ? (
+              {visaoLoja ? (
                 <div>
                   <dt className="rotulo">Atendimentos</dt>
                   <dd className="mt-0.5 font-semibold tabular-nums">{inteiro(tMes.atendimentos)}</dd>
@@ -343,7 +360,7 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
                 </dl>
               </div>
             )}
-            <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground">A projeção soma ao realizado a média de cada dia da semana no mês (domingo vende diferente de segunda){ultimo.parcial ? "; para hoje, só o que falta para a média do dia" : ""}.{metaMes > 0 ? " A meta é a soma das metas cadastradas das lojas mostradas." : soLoja ? "" : " Cadastre a meta em Comercial → Metas e ela aparece aqui."}</p>
+            <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground">A projeção soma ao realizado a média de cada dia da semana no mês (domingo vende diferente de segunda){ultimo.parcial ? "; para hoje, só o que falta para a média do dia" : ""}.{metaMes > 0 ? " A meta é a soma das metas cadastradas das lojas mostradas." : visaoLoja ? "" : " Cadastre a meta em Comercial → Metas e ela aparece aqui."}</p>
           </div>
         </div>
       </section>
@@ -353,7 +370,7 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
         <MiniKpi rotulo={`Venda de ${ano}`} valor={moedaCurta(vendaAno)} comparacao={<Comparacao atual={vendaAno} anterior={vendaAnoAnt || null} rotulo={`vs ${ano - 1}`} />} detalhe={`1º/jan até ${formatarData(ate).slice(0, 5)}${ultimo.parcial ? " (hoje parcial)" : ""}`} />
         <MiniKpi rotulo={`Ontem (${DIAS_SEMANA[diaDaSemana(ontem)].toLowerCase()})`} valor={moedaCurta(vendaOntem)} comparacao={<Comparacao atual={vendaOntem} anterior={vendaSemanaPassada || null} rotulo="vs semana passada" />} />
         <MiniKpi rotulo="CMV do mês" valor={pct(tMes.cmv, 1)} comparacao={<Comparacao atual={tMes.cmv} anterior={tMesAnt.cmv} formato="pp" inverso rotulo={`vs ${nomeMesAnt}`} />} detalhe={`rentabilidade ${pct(tMes.rentab, 1)}`} />
-        {soLoja ? (
+        {visaoLoja ? (
           <MiniKpi rotulo="Ticket médio" valor={moeda(tMes.ticket)} comparacao={<Comparacao atual={tMes.ticket} anterior={tMesAnt.ticket || null} rotulo={`vs ${nomeMesAnt}`} />} detalhe={`${decimal(tMes.sacola, 2)} unidades por atendimento`} />
         ) : (
         <MiniKpi
@@ -401,8 +418,8 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
       )}
 
       {/* regiões + composição */}
-      <div className={cn("mb-4 grid gap-4", !soLoja && "xl:grid-cols-2")}>
-        {!soLoja && (
+      <div className={cn("mb-4 grid gap-4", !visaoLoja && "xl:grid-cols-2")}>
+        {!visaoLoja && (
         <Secao titulo="Performance por região" icone={MapPinned} subtitulo={`Venda de ${nomeMes.toLowerCase()} até o dia ${dia} e participação na rede`} acao={<LinkPainel href="/vendas/filiais">lojas</LinkPainel>}>
           <ol className="space-y-4">
             {regioes.map((x, i) => (
@@ -527,7 +544,7 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
 
       {/* gráficos */}
       <div className="mb-4 grid gap-4 xl:grid-cols-2">
-        <Secao titulo="Venda diária — últimos 7 dias" icone={CalendarDays} subtitulo="Cada dia comparado com o mesmo dia da semana anterior" acao={soLoja ? undefined : <LinkPainel href={`/vendas/filiais?ver=dia&de=${somarDias(ontem, -6)}&ate=${ontem}`}>por filial</LinkPainel>}>
+        <Secao titulo="Venda diária — últimos 7 dias" icone={CalendarDays} subtitulo="Cada dia comparado com o mesmo dia da semana anterior" acao={visaoLoja ? undefined : <LinkPainel href={`/vendas/filiais?ver=dia&de=${somarDias(ontem, -6)}&ate=${ontem}`}>por filial</LinkPainel>}>
           <ColunasSemana dias={semana} />
         </Secao>
         <Secao titulo="Evolução do mês" icone={ChartLine} subtitulo={`Venda acumulada dia a dia, ${nomeMesAnt} no mesmo dia e a projeção até o dia ${diasNoMes}`}>
