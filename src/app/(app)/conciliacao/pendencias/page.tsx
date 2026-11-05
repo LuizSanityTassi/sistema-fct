@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+import { COOKIE_VENC, comDatasGuardadas } from "@/lib/conciliacao/datas-filtro";
+import { GuardarDatas } from "../guardar-datas";
 import Link from "next/link";
 import { Search, TriangleAlert } from "lucide-react";
 import { AvisoSucesso, SelectNativo } from "@/components/form/campo";
@@ -18,7 +21,9 @@ import { AcoesPendencias } from "./acoes-pendencias";
 export const metadata = { title: "Pendências da conciliação" };
 
 export default async function PendenciasPage({ searchParams }: PageProps<"/conciliacao/pendencias">) {
-  const [sessao, sp] = await Promise.all([exigirAcesso("/conciliacao/pendencias"), searchParams]);
+  const [sessao, spEndereco, biscoitos] = await Promise.all([exigirAcesso("/conciliacao/pendencias"), searchParams, cookies()]);
+  // as datas do filtro continuam valendo ao voltar para esta tela
+  const sp = comDatasGuardadas(spEndereco, biscoitos.get(COOKIE_VENC)?.value);
   const filtros = lerFiltrosPendencias(sp);
   const [lista, responsaveis, filiais] = await Promise.all([listarPendencias(filtros, sessao.id), listarResponsaveis(), mapaFiliais()]);
   const escreve = podeConciliar(sessao.papel);
@@ -116,7 +121,8 @@ export default async function PendenciasPage({ searchParams }: PageProps<"/conci
           <Button type="submit" variant="outline">
             Filtrar
           </Button>
-          <Button type="button" variant="ghost" nativeButton={false} render={<Link href="/conciliacao/pendencias" />}>
+          <GuardarDatas de={filtros.vencDe} ate={filtros.vencAte} />
+          <Button type="button" variant="ghost" nativeButton={false} render={<Link href="/conciliacao/pendencias?venc_de=&venc_ate=" />}>
             Limpar
           </Button>
         </div>

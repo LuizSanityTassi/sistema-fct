@@ -17,7 +17,10 @@ import { CATEGORIA_LABEL, GRUPO_LABEL, type GrupoItem } from "@/lib/conciliacao/
 import { anomaliaGrave, type ResumoAnomalia } from "@/lib/conciliacao/servico";
 import { chavesDoFiltro, contagemAbas, resumoDoPeriodo, lerFiltrosItens, listarItens, mapaFiliais, obterConciliacao, obterConfig, TAMANHO_PAGINA_ITENS } from "@/lib/data/conciliacao";
 import { formatarData, formatarDataHora, formatarMoeda, pluralizar } from "@/lib/formatos";
+import { COOKIE_VENC, comDatasGuardadas } from "@/lib/conciliacao/datas-filtro";
 import { INICIO_OPERACAO } from "@/lib/operacao";
+import { cookies } from "next/headers";
+import { GuardarDatas } from "../guardar-datas";
 import { createClient } from "@/lib/supabase/server";
 import { BadgeCategoria, BadgeStatusPendencia, Filial } from "../badges-conc";
 import { enviarPlanilhaOmie, validarEnvioOmie } from "../omie-actions";
@@ -66,7 +69,9 @@ const ABAS: { chave: GrupoItem | "descontos" | "enviados" | "filiais" | "omie"; 
 ];
 
 export default async function ConciliacaoDetalhePage({ params, searchParams }: PageProps<"/conciliacao/[id]">) {
-  const [sessao, { id }, sp] = await Promise.all([exigirAcesso("/conciliacao"), params, searchParams]);
+  const [sessao, { id }, spEndereco, biscoitos] = await Promise.all([exigirAcesso("/conciliacao"), params, searchParams, cookies()]);
+  // as datas do filtro continuam valendo ao trocar de aba, de fornecedor ou voltar a esta tela
+  const sp = comDatasGuardadas(spEndereco, biscoitos.get(COOKIE_VENC)?.value);
   const c = await obterConciliacao(id);
   if (!c) notFound();
   const r = (c.resumo ?? {}) as Resumo;
@@ -319,7 +324,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
               Filtrar
             </Button>
             {filtros.q || filtros.filial !== undefined || filtros.categoria || filtros.anomalias || filtros.vencDe || filtros.vencAte ? (
-              <Button type="button" variant="ghost" nativeButton={false} render={<Link href={`${base}?aba=${filtros.grupo}`} />}>
+              <Button type="button" variant="ghost" nativeButton={false} render={<Link href={`${base}?aba=${filtros.grupo}&venc_de=&venc_ate=`} />}>
                 Limpar
               </Button>
             ) : (
@@ -334,6 +339,8 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
                 até
                 <Input name="venc_ate" type="date" defaultValue={filtros.vencAte ?? ""} className="w-40" />
               </label>
+              <GuardarDatas de={filtros.vencDe} ate={filtros.vencAte} />
+              {(filtros.vencDe || filtros.vencAte) && <span className="text-xs text-muted-foreground">As datas ficam guardadas até você trocar ou clicar em Limpar.</span>}
             </div>
             {(r.anomalias ?? 0) > 0 && filtros.grupo !== "descontos" && (
               <p className="text-xs lg:col-span-5">
