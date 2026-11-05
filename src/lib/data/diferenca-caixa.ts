@@ -1,6 +1,7 @@
 // Leituras da diferença de caixa (servidor). A RLS decide o que cada um vê: financeiro/admin tudo; colaborador,
 // responsável e gerente só as quebras do seu caixa ou da sua filial.
 import { cache } from "react";
+import { desdeOInicio, INICIO_OPERACAO } from "@/lib/operacao";
 import { createClient } from "@/lib/supabase/server";
 
 export const TAMANHO_PAGINA_CAIXA = 50;
@@ -22,8 +23,9 @@ export const ontemNoBrasil = () => isoDe(Date.now() - 27 * 3_600_000);
 
 export function lerFiltrosCaixa(sp: Record<string, string | string[] | undefined>): FiltrosCaixa {
   const t = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string).trim() : "");
-  const ate = DIA.test(t("ate")) ? t("ate") : ontemNoBrasil();
-  const de = DIA.test(t("de")) && t("de") <= ate ? t("de") : isoDe(Date.parse(`${ate}T12:00:00Z`) - 6 * 86_400_000);
+  // o que é anterior ao início da operação não aparece, nem pedindo a data
+  const ate = desdeOInicio(DIA.test(t("ate")) ? t("ate") : ontemNoBrasil());
+  const de = desdeOInicio(DIA.test(t("de")) && t("de") <= ate ? t("de") : isoDe(Date.parse(`${ate}T12:00:00Z`) - 6 * 86_400_000));
   const pagina = Math.max(1, Number.parseInt(t("pagina"), 10) || 1);
   return { de, ate, filial: UUID.test(t("filial")) ? t("filial") : null, situacao: t("situacao"), q: t("q") || null, pagina };
 }
@@ -128,7 +130,7 @@ export async function listarOperadores() {
 /** Quebras que a pessoa logada vê: as que ela justifica como gestor e, se for colaborador de caixa, as dela (só ver). */
 export async function minhasQuebras(abertas: boolean, soDoGestor?: string) {
   const supabase = await createClient();
-  let q = supabase.from("caixa_diferencas").select(`${COLUNAS}, justificativa, decisao_obs`).eq("classe", "quebra");
+  let q = supabase.from("caixa_diferencas").select(`${COLUNAS}, justificativa, decisao_obs`).eq("classe", "quebra").gte("dia", INICIO_OPERACAO);
   if (abertas) q = q.in("andamento", ["pendente", "justificada"]);
   // quem enxerga tudo pelo banco (administrador sem o Financeiro): só as quebras em que ele é o gestor
   if (soDoGestor) q = q.eq("gestor_id", soDoGestor);
@@ -159,7 +161,7 @@ export async function anexosDasQuebras(ids: string[]): Promise<Map<string, Anexo
 /** Quebras que o usuário enxerga (coordenador: as da regional), por loja e mês ou só as em aberto. */
 export async function quebrasVisiveis(f: { abertas: boolean; filial?: string | null; mes?: string | null }) {
   const supabase = await createClient();
-  let q = supabase.from("caixa_diferencas").select(`${COLUNAS}, justificativa, justificada_por_nome, decisao_obs, branch_id`).eq("classe", "quebra");
+  let q = supabase.from("caixa_diferencas").select(`${COLUNAS}, justificativa, justificada_por_nome, decisao_obs, branch_id`).eq("classe", "quebra").gte("dia", INICIO_OPERACAO);
   if (f.abertas) q = q.in("andamento", ["pendente", "justificada"]);
   if (f.filial && UUID.test(f.filial)) q = q.eq("branch_id", f.filial);
   if (f.mes && /^\d{4}-\d{2}$/.test(f.mes)) q = q.eq("competencia", `${f.mes}-01`);
@@ -205,6 +207,7 @@ export async function quebrasAbertasPorLoja() {
       .from("caixa_diferencas")
       .select("branch_id, gestor_id")
       .eq("classe", "quebra")
+      .gte("dia", INICIO_OPERACAO)
       .in("andamento", ["pendente", "justificada"])
       .order("id")
       .range(de, de + 999);

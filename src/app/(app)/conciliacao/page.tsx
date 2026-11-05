@@ -35,7 +35,7 @@ export default async function ConciliacaoPage() {
   const sessao = await exigirAcesso("/conciliacao");
   const painel = await painelConciliacao();
   const ultima = painel.ultimas[0];
-  const r = (ultima?.resumo ?? {}) as Record<string, number | undefined>;
+  const r = painel.periodo;
   const escreve = podeConciliar(sessao.papel);
   const pend = painel.pendencias;
 
@@ -61,7 +61,7 @@ export default async function ConciliacaoPage() {
         }
       />
 
-      {ultima ? (
+      {ultima && r ? (
         <section className="mb-6">
           <p className="mb-2 text-xs text-muted-foreground">
             Última conciliação: {formatarDataHora(ultima.criado_em)} · filiais {ultima.fil_min}–{ultima.fil_max} · por {ultima.quem?.nome ?? "robô"} ·{" "}
@@ -69,13 +69,14 @@ export default async function ConciliacaoPage() {
               abrir
             </Link>
           </p>
+          <p className="mb-2 text-xs text-muted-foreground">Os números contam só o que vence de hoje em diante.</p>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
-            <Kpi rotulo="Bateram" valor={pct(ultima.pct_bateu)} nota={`${r.bateu ?? 0} de ${ultima.qtd_trier} títulos · ${pct(ultima.pct_valor_bateu)} do valor`} href={`/conciliacao/${ultima.id}?aba=exato`} tom="text-emerald-700" />
-            <Kpi rotulo="Para conferir" valor={String(r.conferir ?? 0)} nota="valor, data ou filial diferente" href={`/conciliacao/${ultima.id}?aba=aproximado`} tom={(r.conferir ?? 0) > 0 ? "text-amber-700" : undefined} />
-            <Kpi rotulo="Só no Trier" valor={String(r.soTrier ?? 0)} nota={`${formatarMoeda(r.valorSoTrier ?? 0)} sem boleto no banco`} href={`/conciliacao/${ultima.id}?aba=so_trier`} tom={(r.soTrier ?? 0) > 0 ? "text-red-700" : undefined} />
-            <Kpi rotulo="Só no DDA" valor={String(r.soDDA ?? 0)} nota={`${formatarMoeda(r.valorSoDDA ?? 0)} sem título no Trier`} href={`/conciliacao/${ultima.id}?aba=so_dda`} tom={(r.soDDA ?? 0) > 0 ? "text-sky-700" : undefined} />
-            <Kpi rotulo="Desconto no vencimento" valor={formatarMoeda((r.descontos as unknown as { noVencimento?: { valor?: number } } | undefined)?.noVencimento?.valor ?? 0)} nota="pagando no dia" href={`/conciliacao/${ultima.id}?aba=descontos`} />
-            <Kpi rotulo="Fora do padrão" valor={r.anomalias === undefined ? "—" : String(r.anomalias)} nota={r.anomalias === undefined ? "sem detecção nesta rodada" : `${r.anomaliasGraves ?? 0} grave(s) · histórico do fornecedor`} href={`/conciliacao/${ultima.id}#anomalias`} tom={(r.anomalias ?? 0) > 0 ? "text-orange-700" : undefined} />
+            <Kpi rotulo="Bateram" valor={pct(r.pctBateu)} nota={`${r.bateu} de ${r.qtdTrier} títulos · ${pct(r.pctValorBateu)} do valor`} href={`/conciliacao/${ultima.id}?aba=exato`} tom="text-emerald-700" />
+            <Kpi rotulo="Para conferir" valor={String(r.conferir)} nota="valor, data ou filial diferente" href={`/conciliacao/${ultima.id}?aba=aproximado`} tom={r.conferir > 0 ? "text-amber-700" : undefined} />
+            <Kpi rotulo="Só no Trier" valor={String(r.soTrier)} nota={`${formatarMoeda(r.valorSoTrier)} sem boleto no banco`} href={`/conciliacao/${ultima.id}?aba=so_trier`} tom={r.soTrier > 0 ? "text-red-700" : undefined} />
+            <Kpi rotulo="Só no DDA" valor={String(r.soDDA)} nota={`${formatarMoeda(r.valorSoDDA)} sem título no Trier`} href={`/conciliacao/${ultima.id}?aba=so_dda`} tom={r.soDDA > 0 ? "text-sky-700" : undefined} />
+            <Kpi rotulo="Desconto no vencimento" valor={formatarMoeda(r.desconto.noVencimento.valor)} nota="pagando no dia" href={`/conciliacao/${ultima.id}?aba=descontos`} />
+            <Kpi rotulo="Fora do padrão" valor={String(r.anomalias)} nota="comparado ao histórico do fornecedor" href={`/conciliacao/${ultima.id}#anomalias`} tom={r.anomalias > 0 ? "text-orange-700" : undefined} />
           </div>
         </section>
       ) : (

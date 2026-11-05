@@ -15,8 +15,9 @@ import { CONFIG_OMIE_PADRAO, contasAEnviar } from "@/lib/conciliacao/omie-envio"
 import { podeConciliar } from "@/lib/conciliacao/permissoes";
 import { CATEGORIA_LABEL, GRUPO_LABEL, type GrupoItem } from "@/lib/conciliacao/rotulos";
 import { anomaliaGrave, type ResumoAnomalia } from "@/lib/conciliacao/servico";
-import { chavesDoFiltro, contagemAbas, lerFiltrosItens, listarItens, mapaFiliais, obterConciliacao, obterConfig, TAMANHO_PAGINA_ITENS } from "@/lib/data/conciliacao";
+import { chavesDoFiltro, contagemAbas, resumoDoPeriodo, lerFiltrosItens, listarItens, mapaFiliais, obterConciliacao, obterConfig, TAMANHO_PAGINA_ITENS } from "@/lib/data/conciliacao";
 import { formatarData, formatarDataHora, formatarMoeda, pluralizar } from "@/lib/formatos";
+import { INICIO_OPERACAO } from "@/lib/operacao";
 import { createClient } from "@/lib/supabase/server";
 import { BadgeCategoria, BadgeStatusPendencia, Filial } from "../badges-conc";
 import { enviarPlanilhaOmie, validarEnvioOmie } from "../omie-actions";
@@ -72,7 +73,10 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
   const abaPedida = typeof sp.aba === "string" ? sp.aba : "";
   const aba = abaPedida === "filiais" || abaPedida === "omie" ? abaPedida : lerFiltrosItens(sp).grupo;
   const filtros = lerFiltrosItens(sp);
-  const [filiais, resultado, contagem] = await Promise.all([mapaFiliais(), aba === "filiais" || aba === "omie" ? null : listarItens(c.id, filtros), contagemAbas(c.id)]);
+  const [filiais, resultado, contagem, periodo] = await Promise.all([mapaFiliais(), aba === "filiais" || aba === "omie" ? null : listarItens(c.id, filtros), contagemAbas(c.id), resumoDoPeriodo(c.id)]);
+  // a lista de boletos fora do padrão é a foto da conciliação: tira o que já venceu
+  const anomaliasLista = (r.anomaliasLista ?? []).filter((a) => (a.vencimento ?? "") >= INICIO_OPERACAO);
+  const anomaliasGraves = anomaliasLista.filter((a) => a.avisos.some(anomaliaGrave)).length;
   const itens = resultado?.itens ?? [];
   const pendencias = await (async () => {
     if (!itens.length) return new Map<string, { status: "pendente" | "em_analise" | "resolvido" | "justificado"; auto: boolean; motivo: string | null }>();
@@ -119,12 +123,12 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
   const sufixoDatas = `${filtros.vencDe ? `&venc_de=${filtros.vencDe}` : ""}${filtros.vencAte ? `&venc_ate=${filtros.vencAte}` : ""}`;
   const categoriasDaAba = Object.entries(r.porCategoria ?? {}).filter(([, v]) => v.qtd > 0);
   const kpis: [string, string, string | null, string?][] = [
-    ["Bateram", pct(c.pct_bateu), `${r.bateu ?? 0} de ${c.qtd_trier} títulos · ${pct(c.pct_valor_bateu)} do valor`, "text-emerald-700"],
-    ["Para conferir", String(r.conferir ?? 0), "valor, data, documento ou filial diferente", (r.conferir ?? 0) > 0 ? "text-amber-700" : undefined],
-    ["Só no Trier", String(r.soTrier ?? 0), `${formatarMoeda(r.valorSoTrier ?? 0)}${r.semArquivo ? ` · +${r.semArquivo} fora do período dos arquivos` : ""}`, (r.soTrier ?? 0) > 0 ? "text-red-700" : undefined],
-    ["Só no DDA", String(r.soDDA ?? 0), `${formatarMoeda(r.valorSoDDA ?? 0)} de boletos sem título`, (r.soDDA ?? 0) > 0 ? "text-sky-700" : undefined],
-    ["Desconto no vencimento", formatarMoeda(r.descontos?.noVencimento.valor ?? 0), `${r.descontos?.noVencimento.qtd ?? 0} boleto(s) · antecipado ${formatarMoeda(r.descontos?.soAntecipado.valor ?? 0)}`],
-    ["Fora do padrão", r.anomalias === undefined ? "—" : String(r.anomalias), r.anomalias === undefined ? "conciliação anterior à detecção" : (r.anomaliasGraves ?? 0) > 0 ? `${r.anomaliasGraves} grave(s) · comparado ao histórico do fornecedor` : "comparado ao histórico do fornecedor", (r.anomalias ?? 0) > 0 ? "text-orange-700" : undefined],
+    ["Bateram", pct(periodo.pctBateu), `${periodo.bateu} de ${periodo.qtdTrier} títulos · ${pct(periodo.pctValorBateu)} do valor`, "text-emerald-700"],
+    ["Para conferir", String(periodo.conferir), "valor, data, documento ou filial diferente", periodo.conferir > 0 ? "text-amber-700" : undefined],
+    ["Só no Trier", String(periodo.soTrier), formatarMoeda(periodo.valorSoTrier), periodo.soTrier > 0 ? "text-red-700" : undefined],
+    ["Só no DDA", String(periodo.soDDA), `${formatarMoeda(periodo.valorSoDDA)} de boletos sem título`, periodo.soDDA > 0 ? "text-sky-700" : undefined],
+    ["Desconto no vencimento", formatarMoeda(periodo.desconto.noVencimento.valor), `${periodo.desconto.noVencimento.qtd} boleto(s) · antecipado ${formatarMoeda(periodo.desconto.soAntecipado.valor)}`],
+    ["Fora do padrão", String(periodo.anomalias), anomaliasGraves > 0 ? `${anomaliasGraves} grave(s) · comparado ao histórico do fornecedor` : "comparado ao histórico do fornecedor", periodo.anomalias > 0 ? "text-orange-700" : undefined],
   ];
 
   return (
@@ -132,7 +136,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
       <PageHeader
         eyebrow="DDA x Trier"
         titulo={c.titulo || `Conciliação de ${formatarDataHora(c.criado_em)}`}
-        descricao={`Filiais ${c.fil_min}–${c.fil_max} · ${pluralizar(c.qtd_trier, "título do Trier", "títulos do Trier")} (${formatarMoeda(c.total_trier)}) × ${pluralizar(c.qtd_dda, "boleto", "boletos")} (${formatarMoeda(c.total_dda)}) · vencimentos ${formatarData(c.venc_ini)} a ${formatarData(c.venc_fim)} · por ${c.quem?.nome ?? "robô"} em ${formatarDataHora(c.criado_em)}`}
+        descricao={`Filiais ${c.fil_min}–${c.fil_max} · de ${formatarData(INICIO_OPERACAO)} em diante: ${pluralizar(periodo.qtdTrier, "título do Trier", "títulos do Trier")} (${formatarMoeda(periodo.totalTrier)}) × ${pluralizar(periodo.qtdDda, "boleto", "boletos")} (${formatarMoeda(periodo.totalDda)}) · vencimentos até ${formatarData(c.venc_fim)} · por ${c.quem?.nome ?? "robô"} em ${formatarDataHora(c.criado_em)}`}
         acoes={
           <Button variant="outline" nativeButton={false} render={<Link href="/conciliacao/pendencias" />}>
             Pendências
@@ -182,7 +186,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
       <p className="mb-4 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
         <Workflow className="size-3.5" aria-hidden />
         <span>
-          Motor: {pluralizar(r.bateu ?? 0, "título conciliado", "títulos conciliados")} automaticamente · {r.conferir ?? 0} sugerido(s) para conferir · {(r.soTrier ?? 0) + (r.soDDA ?? 0)} para análise
+          Motor: {pluralizar(periodo.bateu, "título conciliado", "títulos conciliados")} automaticamente · {periodo.conferir} sugerido(s) para conferir · {periodo.soTrier + periodo.soDDA} para análise
           {r.pendencias?.porRegra !== undefined ? ` · ${pluralizar(r.pendencias.porRegra, "pendência tratada", "pendências tratadas")} por regra` : ""} ·
         </span>
         <Link href="/conciliacao/regras" className="text-fct-tinta underline">
@@ -190,15 +194,15 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
         </Link>
       </p>
 
-      {(r.anomaliasLista ?? []).length > 0 && (
+      {anomaliasLista.length > 0 && (
         <details id="anomalias" className="mb-4 rounded-xl border border-orange-200 bg-orange-50/50">
           <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-orange-900">
             <TriangleAlert className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />
-            Fora do padrão: {pluralizar(r.anomalias ?? 0, "boleto", "boletos")} comparando com o histórico de cada fornecedor
-            {(r.anomalias ?? 0) > (r.anomaliasLista?.length ?? 0) ? ` (mostrando os ${r.anomaliasLista!.length} maiores)` : ""}
+            Fora do padrão: {pluralizar(periodo.anomalias, "boleto", "boletos")} comparando com o histórico de cada fornecedor
+            {periodo.anomalias > anomaliasLista.length ? ` (mostrando os ${anomaliasLista.length} maiores)` : ""}
           </summary>
           <ul className="divide-y border-t text-sm">
-            {r.anomaliasLista!.map((a) => (
+            {anomaliasLista.map((a) => (
               <li key={a.chave} className="flex flex-wrap items-start gap-x-3 px-4 py-2">
                 <span className="w-24 shrink-0 tabular-nums text-muted-foreground">{formatarData(a.vencimento)}</span>
                 <Filial filial={a.filial} />
@@ -227,7 +231,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
 
       <nav aria-label="Abas" className="mb-4 flex flex-wrap gap-2">
         {ABAS.map((a) => {
-          const qtd = a.chave === "omie" ? null : a.chave === "filiais" ? (r.porFilial?.length ?? 0) : contagem[a.chave];
+          const qtd = a.chave === "omie" ? null : a.chave === "filiais" ? periodo.porFilial.length : contagem[a.chave];
           const ativa = aba === a.chave;
           return (
             <Link key={a.chave} href={`${base}?aba=${a.chave}${sufixoDatas}`} aria-current={ativa ? "page" : undefined} className={`rounded-full border px-3 py-1 text-sm ${ativa ? "border-primary bg-primary text-primary-foreground" : a.chave === "omie" ? "border-fct-yellow bg-fct-yellow/20 hover:border-primary/40" : "bg-card hover:border-primary/40"}`}>
@@ -269,7 +273,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(r.porFilial ?? []).map((f) => {
+              {periodo.porFilial.map((f) => {
                 const fil = f.filial === "—" ? null : Number(f.filial);
                 return (
                   <TableRow key={String(f.filial)}>
@@ -304,9 +308,9 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
             <Input name="filial" type="number" min={1} max={9999} defaultValue={filtros.filial ?? ""} placeholder="Filial" aria-label="Filial" className="lg:w-32" />
             <SelectNativo name="categoria" defaultValue={filtros.categoria ?? ""} aria-label="Situação" className="lg:w-72">
               <option value="">Todas as situações</option>
-              {categoriasDaAba.map(([k, v]) => (
+              {categoriasDaAba.map(([k]) => (
                 <option key={k} value={k}>
-                  {CATEGORIA_LABEL[k] ?? k} ({v.qtd})
+                  {CATEGORIA_LABEL[k] ?? k}
                 </option>
               ))}
               {filtros.grupo === "so_dda" && <option value="SO_DDA">Só no DDA</option>}

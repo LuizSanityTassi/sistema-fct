@@ -6,6 +6,7 @@ import { situacaoSla } from "@/lib/chamados/sla";
 import { podeAcessar } from "@/lib/nav";
 import { horaNoBrasil, mesmoDia, metasDoMes, porPeriodo, serieVendas, ultimoDia, ultimoDiaVendas } from "@/lib/data/vendas";
 import { rotuloCompetencia } from "@/lib/rh/competencia";
+import { desdeOInicio, INICIO_OPERACAO } from "@/lib/operacao";
 import { createClient } from "@/lib/supabase/server";
 
 export type Comparativo = {
@@ -79,11 +80,11 @@ const diaDe = (ts: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "Amer
 
 async function quebrasDeCaixa(supabase: Cliente, p: Periodos, href: string): Promise<Comparativo[]> {
   const linhas = await todas<{ dia: string; valor_quebra: number; diferenca: number }>((de, ate) =>
-    supabase.from("caixa_diferencas").select("dia, valor_quebra, diferenca").eq("classe", "quebra").gte("dia", p.inicioAnt).lte("dia", p.hoje).order("dia").range(de, ate),
+    supabase.from("caixa_diferencas").select("dia, valor_quebra, diferenca").eq("classe", "quebra").gte("dia", desdeOInicio(p.inicioAnt)).lte("dia", p.hoje).order("dia").range(de, ate),
   );
   // a coleta começou em out/2026: antes do 1º dia coletado não há base para comparar
   const { data: primeira } = await supabase.from("caixa_coletas").select("dia").order("dia").limit(1).maybeSingle();
-  const temBase = !!primeira && primeira.dia <= p.fimAnt;
+  const temBase = !!primeira && primeira.dia <= p.fimAnt && p.fimAnt >= INICIO_OPERACAO;
   const soma = (f: (d: string) => boolean) => linhas.filter((l) => f(l.dia));
   const atual = soma((d) => noAtual(d, p));
   const ant = soma((d) => noAnterior(d, p));
@@ -183,8 +184,8 @@ async function chamados(supabase: Cliente, p: Periodos): Promise<Comparativo[]> 
 async function conciliacao(supabase: Cliente, p: Periodos): Promise<Comparativo[]> {
   const [{ data: concs }, novasPorDia, { count: abertas }, { data: primeira }] = await Promise.all([
     supabase.from("conc_conciliacoes").select("pct_bateu, qtd_trier, criado_em, fil_min").order("criado_em", { ascending: false }).limit(40),
-    supabase.rpc("conc_pendencias_novas", { p_de: `${p.inicioAnt}T00:00:00-03:00` }),
-    supabase.from("conc_pendencias").select("chave", { count: "exact", head: true }).in("status", ["pendente", "em_analise"]),
+    supabase.rpc("conc_pendencias_novas", { p_de: `${desdeOInicio(p.inicioAnt)}T00:00:00-03:00` }),
+    supabase.from("conc_pendencias").select("chave", { count: "exact", head: true }).in("status", ["pendente", "em_analise"]).gte("vencimento", INICIO_OPERACAO),
     supabase.from("conc_conciliacoes").select("criado_em").order("criado_em").limit(1).maybeSingle(),
   ]);
   if (novasPorDia.error) throw new Error(novasPorDia.error.message);
@@ -192,7 +193,7 @@ async function conciliacao(supabase: Cliente, p: Periodos): Promise<Comparativo[
   const novasEm = (noPeriodo: (dia: string) => boolean) => novas.filter((x) => noPeriodo(x.dia));
   const somaNovas = (linhas: typeof novas) => linhas.reduce((s, x) => s + x.valor, 0);
   // sem conciliação antes do fim do período anterior não há base (o módulo começou depois)
-  const temBase = !!primeira && diaDe(primeira.criado_em) <= p.fimAnt;
+  const temBase = !!primeira && diaDe(primeira.criado_em) <= p.fimAnt && p.fimAnt >= INICIO_OPERACAO;
   const cards: Comparativo[] = [];
   // cada empresa concilia à parte: a rede é a última de cada uma, pesada pelos títulos do Trier
   const lista = concs ?? [];

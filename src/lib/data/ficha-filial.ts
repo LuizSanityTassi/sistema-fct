@@ -1,5 +1,6 @@
 // Filial 360° (servidor): o que cada módulo sabe da loja — pessoas, financeiro, caixa, folha, conciliação e TI.
 // Cada parte só é consultada para quem pode abrir o módulo e passa pela RLS (gerente vê a própria loja).
+import { desdeOInicio, INICIO_OPERACAO } from "@/lib/operacao";
 import type { AppRole } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 
@@ -34,9 +35,9 @@ export async function carregarFicha360Filial(branchId: string, papel: AppRole) {
     ve.financeiro ? supabase.from("fin_lancamentos").select("tipo, valor, competencia, categoria_id").eq("branch_id", branchId).order("competencia", { ascending: false }).limit(3000) : vazio,
     ve.financeiro ? supabase.from("fin_categorias").select("id, nome, grupo") : vazio,
     ve.caixa
-      ? supabase.from("caixa_diferencas").select("id, dia, numero_caixa, origem, nome_operador, diferenca, valor_quebra, classe, andamento").eq("branch_id", branchId).gte("dia", ha30).order("dia", { ascending: false }).limit(1000)
+      ? supabase.from("caixa_diferencas").select("id, dia, numero_caixa, origem, nome_operador, diferenca, valor_quebra, classe, andamento").eq("branch_id", branchId).gte("dia", desdeOInicio(ha30)).order("dia", { ascending: false }).limit(1000)
       : vazio,
-    ve.conciliacao ? supabase.from("conc_pendencias").select("chave, problema, beneficiario, valor, vencimento, status").eq("branch_id", branchId).in("status", ["pendente", "em_analise"]).order("vencimento").limit(200) : vazio,
+    ve.conciliacao ? supabase.from("conc_pendencias").select("chave, problema, beneficiario, valor, vencimento, status").eq("branch_id", branchId).in("status", ["pendente", "em_analise"]).gte("vencimento", INICIO_OPERACAO).order("vencimento").limit(200) : vazio,
     ve.folha ? supabase.from("folha_lancamentos").select("competencia, employee_id, valor, evento:folha_eventos(nome, unidade, ordem)").eq("branch_id", branchId).in("competencia", [`${compAtual}-01`, `${competenciaAnterior(compAtual)}-01`]) : vazio,
     ve.folha ? supabase.from("folha_empresas_dominio").select("codigo_dominio").eq("branch_id", branchId).maybeSingle() : vazio,
     supabase.from("it_assets").select("id, tipo, descricao, patrimonio, status, responsavel:employees(nome)").eq("branch_id", branchId).eq("ativo", true).order("tipo"),

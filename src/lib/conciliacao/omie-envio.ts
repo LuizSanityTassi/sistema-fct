@@ -1,6 +1,7 @@
 // Envio das contas conciliadas ao Omie (só servidor): monta as contas a partir dos itens gravados,
 // valida (🟢/🟡/🔴), gera a planilha oficial de importação (JSZip sobre o modelo) ou lança pela API,
 // registra o que foi enviado (para não mandar duas vezes) e resolve as pendências correspondentes.
+import { INICIO_OPERACAO } from "@/lib/operacao";
 import JSZip from "jszip";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { registrarAuditoria } from "@/lib/auditoria";
@@ -168,6 +169,7 @@ export async function contasAEnviar(supabase: Cliente, conciliacaoId: string, gr
       .eq("conciliacao_id", conciliacaoId)
       .eq("grupo", grupo)
       .is("enviado_em", null)
+      .gte("vencimento", INICIO_OPERACAO)
       .order("vencimento")
       .order("beneficiario")
       .order("id")

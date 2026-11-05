@@ -2,6 +2,7 @@
 // Cada contagem passa pela RLS do banco (cada papel só conta o que pode ver) e cada item só aparece para quem pode
 // abrir a tela de destino (mesma regra do menu). O link já leva para a tela filtrada.
 import type { Sessao } from "@/lib/auth/session";
+import { INICIO_OPERACAO } from "@/lib/operacao";
 import { filtroSlaEstourado } from "@/lib/chamados/sla";
 import { CHAVE_LEMBRETE_DRE, lerLembreteDre, mesesAtrasadosDre } from "@/lib/financeiro/dre-lembrete";
 import { podeAcessar } from "@/lib/nav";
@@ -73,7 +74,7 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
     const r = await q;
     return r.error ? 0 : (r.count ?? 0);
   };
-  const quebras = () => supabase.from("caixa_diferencas").select("id", { count: "exact", head: true }).eq("classe", "quebra");
+  const quebras = () => supabase.from("caixa_diferencas").select("id", { count: "exact", head: true }).eq("classe", "quebra").gte("dia", INICIO_OPERACAO);
   const caixa = (extra: Record<string, string>) => `/financeiro/diferenca-caixa?${new URLSearchParams({ de: ha120dias, ate: hoje, ...extra })}`;
 
   const tarefas: Promise<void>[] = [];
@@ -222,7 +223,7 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
   if (pode("/conciliacao/pendencias")) {
     tarefas.push(
       (async () => {
-        const abertas = () => supabase.from("conc_pendencias").select("chave", { count: "exact", head: true }).in("status", ["pendente", "em_analise"]);
+        const abertas = () => supabase.from("conc_pendencias").select("chave", { count: "exact", head: true }).in("status", ["pendente", "em_analise"]).gte("vencimento", INICIO_OPERACAO);
         const [vencidas, aVencer, minhas, total] = await Promise.all([
           contar(abertas().lt("vencimento", hoje)),
           contar(abertas().gte("vencimento", hoje).lte("vencimento", em3dias)),

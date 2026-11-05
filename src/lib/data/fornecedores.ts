@@ -1,4 +1,5 @@
 // Ficha e histórico por fornecedor (raiz do CNPJ), em cima da view conc_boletos_vistos e das funções da migração 0022.
+import { INICIO_OPERACAO } from "@/lib/operacao";
 import { createClient } from "@/lib/supabase/server";
 
 export const ehRaiz = (v: string) => /^\d{8}$/.test(v);
@@ -85,6 +86,7 @@ export async function pendenciasDaRaiz(raiz: string) {
     .select("chave, problema, status, valor, vencimento, filial, detalhe, beneficiario")
     .ilike("cnpj", `${formatarRaiz(raiz)}/%`)
     .in("status", ["pendente", "em_analise"])
+    .gte("vencimento", INICIO_OPERACAO)
     .order("vencimento", { ascending: true })
     .limit(100);
   if (error) throw error;

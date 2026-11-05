@@ -13,6 +13,7 @@ import {
   type StatusPendencia,
   type TipoArquivoConc,
 } from "@/lib/conciliacao/rotulos";
+import { CONCILIACOES_DESDE, INICIO_OPERACAO } from "@/lib/operacao";
 import { createClient } from "@/lib/supabase/server";
 
 export const TAMANHO_PAGINA_ITENS = 100;
@@ -101,11 +102,79 @@ export async function arquivosParaConciliar() {
 
 // ---------- conciliações ----------
 
+/** Números do que vence de hoje em diante: o resumo gravado na conciliação é a foto inteira, de quando ela foi criada. */
+export async function resumoDoPeriodo(conciliacaoId: string) {
+  const supabase = await createClient();
+  const [{ data, error }, { data: comDesconto }, { count: anomalias }] = await Promise.all([
+    supabase.rpc("conc_resumo_periodo", { p_conciliacao: conciliacaoId }),
+    supabase.from("conc_itens").select("desconto").eq("conciliacao_id", conciliacaoId).gte("vencimento", INICIO_OPERACAO).not("desconto", "is", null),
+    supabase.from("conc_itens").select("id", { count: "exact", head: true }).eq("conciliacao_id", conciliacaoId).gte("vencimento", INICIO_OPERACAO).not("dados->anomalias", "is", null),
+  ]);
+  if (error) throw error;
+  const linhas = data ?? [];
+  const total = (grupo: string, campo: "qtd" | "valor") => linhas.filter((l) => l.grupo === grupo).reduce((s, l) => s + Number(l[campo]), 0);
+  const bateu = total("exato", "qtd");
+  const conferir = total("aproximado", "qtd");
+  const soTrier = total("so_trier", "qtd");
+  const soDDA = total("so_dda", "qtd");
+  const valorBateu = total("exato", "valor");
+  const valorConferir = total("aproximado", "valor");
+  const valorSoTrier = total("so_trier", "valor");
+  const valorSoDDA = total("so_dda", "valor");
+  const qtdTrier = bateu + conferir + soTrier;
+  const totalTrier = valorBateu + valorConferir + valorSoTrier;
+  const desconto = { noVencimento: { qtd: 0, valor: 0 }, soAntecipado: { qtd: 0, valor: 0 } };
+  for (const { desconto: d } of comDesconto ?? []) {
+    const item = d as { valor?: number; noVencimento?: boolean | null } | null;
+    const alvo = item?.noVencimento ? desconto.noVencimento : item?.noVencimento === false ? desconto.soAntecipado : null;
+    if (alvo) {
+      alvo.qtd += 1;
+      alvo.valor += Number(item?.valor ?? 0);
+    }
+  }
+  const filiais = new Map<string, { filial: string; titulos: number; boletos: number; exatos: number; conferir: number; soTrier: number; soDDA: number; valorSoTrier: number; valorSoDDA: number }>();
+  for (const l of linhas) {
+    const chave = l.filial == null ? "—" : String(l.filial);
+    const f = filiais.get(chave) ?? { filial: chave, titulos: 0, boletos: 0, exatos: 0, conferir: 0, soTrier: 0, soDDA: 0, valorSoTrier: 0, valorSoDDA: 0 };
+    const qtd = Number(l.qtd);
+    if (l.grupo !== "so_dda") f.titulos += qtd;
+    if (l.grupo !== "so_trier") f.boletos += qtd;
+    if (l.grupo === "exato") f.exatos += qtd;
+    else if (l.grupo === "aproximado") f.conferir += qtd;
+    else if (l.grupo === "so_trier") {
+      f.soTrier += qtd;
+      f.valorSoTrier += Number(l.valor);
+    } else {
+      f.soDDA += qtd;
+      f.valorSoDDA += Number(l.valor);
+    }
+    filiais.set(chave, f);
+  }
+  return {
+    bateu,
+    conferir,
+    soTrier,
+    soDDA,
+    valorSoTrier,
+    valorSoDDA,
+    qtdTrier,
+    totalTrier,
+    qtdDda: bateu + conferir + soDDA,
+    totalDda: valorBateu + valorConferir + valorSoDDA,
+    pctBateu: qtdTrier ? bateu / qtdTrier : 0,
+    pctValorBateu: totalTrier ? valorBateu / totalTrier : 0,
+    desconto,
+    anomalias: anomalias ?? 0,
+    porFilial: [...filiais.values()].sort((a, b) => (a.filial === "—" ? 1 : b.filial === "—" ? -1 : Number(a.filial) - Number(b.filial))),
+  };
+}
+
 export async function listarConciliacoes(limite = 30) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("conc_conciliacoes")
     .select("id, titulo, criado_em, fil_min, fil_max, qtd_trier, qtd_dda, total_trier, total_dda, total_so_dda, pct_bateu, pct_valor_bateu, venc_ini, venc_fim, resumo, quem:profiles!conc_conciliacoes_criado_por_fkey(nome)")
+    .gte("criado_em", CONCILIACOES_DESDE)
     .order("criado_em", { ascending: false })
     .limit(limite);
   if (error) throw error;
@@ -148,7 +217,7 @@ export function lerFiltrosItens(sp: Record<string, string | string[] | undefined
 }
 
 function consultaItens<C extends string>(supabase: Awaited<ReturnType<typeof createClient>>, conciliacaoId: string, f: FiltrosItens, colunas: C, opcoes?: { count: "exact" }) {
-  let consulta = supabase.from("conc_itens").select(colunas, opcoes).eq("conciliacao_id", conciliacaoId);
+  let consulta = supabase.from("conc_itens").select(colunas, opcoes).eq("conciliacao_id", conciliacaoId).gte("vencimento", INICIO_OPERACAO);
   // o que já foi enviado ao Omie sai das listas e fica só na aba Enviados
   consulta = f.grupo === "enviados" ? consulta.not("enviado_em", "is", null) : consulta.is("enviado_em", null);
   if (f.grupo === "descontos") consulta = consulta.not("desconto", "is", null);
@@ -267,6 +336,7 @@ export async function listarPendencias(f: FiltrosPendencias, usuarioId: string) 
         // só o primeiro lote precisa contar: contar em todos deixava a tela bem mais lenta
         { count: inicio === 0 ? "exact" : undefined },
       );
+    consulta = consulta.gte("vencimento", INICIO_OPERACAO);
     if (f.status === "abertas") consulta = consulta.in("status", ["pendente", "em_analise"]);
     else if (f.status !== "todas") consulta = consulta.eq("status", f.status);
     if (f.problema) consulta = consulta.eq("problema", f.problema);
@@ -320,7 +390,7 @@ export async function barrasDasPendencias(chaves: string[]) {
 
 export async function resumoPendencias() {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("conc_pendencias").select("chave, status, problema, valor, vencimento, filial").in("status", ["pendente", "em_analise"]);
+  const { data, error } = await supabase.from("conc_pendencias").select("chave, status, problema, valor, vencimento, filial").in("status", ["pendente", "em_analise"]).gte("vencimento", INICIO_OPERACAO);
   if (error) throw error;
   const porPrioridade: Record<Prioridade, { qtd: number; valor: number }> = { 3: { qtd: 0, valor: 0 }, 2: { qtd: 0, valor: 0 }, 1: { qtd: 0, valor: 0 } };
   const porFilial = new Map<number | null, { qtd: number; valor: number }>();
@@ -404,5 +474,6 @@ export async function painelConciliacao() {
   if (error) throw error;
   const porTipo: Record<string, number> = {};
   for (const a of arquivos) porTipo[a.tipo] = (porTipo[a.tipo] ?? 0) + 1;
-  return { ultimas, pendencias, arquivos: { total: arquivos.length, porTipo, ultimo: arquivos[0]?.enviado_em ?? null } };
+  const periodo = ultimas[0] ? await resumoDoPeriodo(ultimas[0].id) : null;
+  return { ultimas, periodo, pendencias, arquivos: { total: arquivos.length, porTipo, ultimo: arquivos[0]?.enviado_em ?? null } };
 }

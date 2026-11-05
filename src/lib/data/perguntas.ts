@@ -2,6 +2,7 @@
 // PostgREST não soma; o resultado é um Relatorio (mesma tabela e CSV dos Relatórios). `_href` em uma linha vira link
 // na tela e não vai para a planilha.
 import type { Sessao } from "@/lib/auth/session";
+import { INICIO_OPERACAO } from "@/lib/operacao";
 import { PRIORIDADE_LABEL } from "@/lib/chamados/rotulos";
 import { PROBLEMA_LABEL, type Problema } from "@/lib/conciliacao/rotulos";
 import { podeAcessar } from "@/lib/nav";
@@ -66,7 +67,7 @@ const totalDe = (linhas: Linha[], colunas: string[], rotulo: string, chaveRotulo
 async function quebrasPorLoja(supabase: Cliente, mes: string): Promise<Relatorio> {
   const un = await unidades(supabase);
   const linhas = await todas<{ branch_id: string; diferenca: number; valor_quebra: number }>((de, ate) =>
-    supabase.from("caixa_diferencas").select("branch_id, diferenca, valor_quebra").eq("classe", "quebra").gte("dia", `${mes}-01`).lte("dia", fimDoMes(mes)).range(de, ate),
+    supabase.from("caixa_diferencas").select("branch_id, diferenca, valor_quebra").eq("classe", "quebra").gte("dia", INICIO_OPERACAO).gte("dia", `${mes}-01`).lte("dia", fimDoMes(mes)).range(de, ate),
   );
   const out: Linha[] = [...somarPor(linhas, (l) => l.branch_id)].map(([id, ls]) => ({
     loja: un(id)?.codigo ?? "—",
@@ -95,7 +96,7 @@ async function quebrasPorLoja(supabase: Cliente, mes: string): Promise<Relatorio
 
 async function quebrasPorOperador(supabase: Cliente, mes: string, filial?: string): Promise<Relatorio> {
   const un = await unidades(supabase);
-  let q = supabase.from("caixa_diferencas").select("branch_id, cod_operador, nome_operador, diferenca, valor_quebra").eq("classe", "quebra").gte("dia", `${mes}-01`).lte("dia", fimDoMes(mes));
+  let q = supabase.from("caixa_diferencas").select("branch_id, cod_operador, nome_operador, diferenca, valor_quebra").eq("classe", "quebra").gte("dia", INICIO_OPERACAO).gte("dia", `${mes}-01`).lte("dia", fimDoMes(mes));
   if (filial) q = q.eq("branch_id", filial);
   const linhas = await todas<{ branch_id: string; cod_operador: number | null; nome_operador: string | null; diferenca: number; valor_quebra: number }>((de, ate) => q.range(de, ate));
   const out: Linha[] = [...somarPor(linhas, (l) => `${l.cod_operador ?? ""}|${l.nome_operador ?? "manual"}`)].map(([, ls]) => ({
@@ -127,7 +128,7 @@ async function quebrasPorOperador(supabase: Cliente, mes: string, filial?: strin
 async function quebrasSemJustificativa(supabase: Cliente, financeiro: boolean, filial?: string): Promise<Relatorio> {
   const un = await unidades(supabase);
   const hoje = hojeBr();
-  let q = supabase.from("caixa_diferencas").select("id, branch_id, dia, numero_caixa, nome_operador, diferenca, valor_quebra").eq("classe", "quebra").eq("andamento", "pendente").order("dia");
+  let q = supabase.from("caixa_diferencas").select("id, branch_id, dia, numero_caixa, nome_operador, diferenca, valor_quebra").eq("classe", "quebra").eq("andamento", "pendente").gte("dia", INICIO_OPERACAO).order("dia");
   if (filial) q = q.eq("branch_id", filial);
   const linhas = await todas<{ id: string; branch_id: string; dia: string; numero_caixa: number | null; nome_operador: string | null; diferenca: number; valor_quebra: number }>((de, ate) =>
     q.range(de, ate),
@@ -162,7 +163,7 @@ async function quebrasSemJustificativa(supabase: Cliente, financeiro: boolean, f
 
 async function pendenciasPorFornecedor(supabase: Cliente): Promise<Relatorio> {
   const linhas = await todas<{ beneficiario: string | null; cnpj: string | null; valor: number; vencimento: string | null }>((de, ate) =>
-    supabase.from("conc_pendencias").select("beneficiario, cnpj, valor, vencimento").in("status", ["pendente", "em_analise"]).range(de, ate),
+    supabase.from("conc_pendencias").select("beneficiario, cnpj, valor, vencimento").in("status", ["pendente", "em_analise"]).gte("vencimento", INICIO_OPERACAO).range(de, ate),
   );
   const out: Linha[] = [...somarPor(linhas, (l) => (l.beneficiario ?? "—").trim().toUpperCase())].map(([nome, ls]) => {
     const vencs = ls
@@ -199,6 +200,7 @@ async function pendenciasVencendo(supabase: Cliente, filial?: string): Promise<R
     .from("conc_pendencias")
     .select("beneficiario, documento, filial, problema, valor, vencimento, status")
     .in("status", ["pendente", "em_analise"])
+    .gte("vencimento", INICIO_OPERACAO)
     .lte("vencimento", somarDias(hoje, 7))
     .order("vencimento");
   if (filial) q = q.eq("branch_id", filial);

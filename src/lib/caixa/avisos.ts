@@ -6,6 +6,7 @@
 // Usa o cliente service_role porque roda também sem usuário logado (rotina da manhã); quem chama pela tela
 // confere o papel antes. A senha do e-mail fica no Vault (Administração → Integrações) e nunca vai para a tela.
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { INICIO_OPERACAO } from "@/lib/operacao";
 import { assuntoAviso, htmlAviso, textoAviso, type Destinatario, type QuebraAviso } from "@/lib/caixa/avisos-email";
 import { configSmtp, remetente, SITE, transporteSmtp } from "@/lib/email";
 import type { Database } from "@/lib/supabase/types";
@@ -69,6 +70,7 @@ async function quebrasPendentes(admin: Admin) {
       .select("id, branch_id, dia, numero_caixa, nome_operador, diferenca, valor_quebra, origem, gestor_id, employee_id, filial:branches!caixa_diferencas_branch_id_fkey(codigo, nome)")
       .eq("classe", "quebra")
       .eq("andamento", "pendente")
+      .gte("dia", INICIO_OPERACAO)
       .order("dia")
       .range(de, de + 999);
     if (error) throw new Error(error.message);

@@ -1,6 +1,7 @@
 // Ficha 360° do funcionário (servidor): junta o que os outros módulos sabem da pessoa — documentos, ASO, folha,
 // quebras de caixa, equipamentos, usuário do sistema e histórico. Cada leitura passa pela RLS: gerente vê só o que
 // a regra dele permite (sem salário, sem folha); admin e RH veem tudo.
+import { INICIO_OPERACAO } from "@/lib/operacao";
 import type { AppRole } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { listarAsoDoFuncionario, listarDocumentosDoFuncionario } from "./documentos";
@@ -26,6 +27,7 @@ export async function carregarFicha360(employeeId: string, papel: AppRole) {
       .select("id, dia, numero_caixa, origem, descricao, diferenca, valor_quebra, andamento, competencia, filial:branches!caixa_diferencas_branch_id_fkey(codigo)")
       .eq("employee_id", employeeId)
       .eq("classe", "quebra")
+      .gte("dia", INICIO_OPERACAO)
       .order("dia", { ascending: false })
       .limit(100),
     supabase.from("it_assets").select("id, tipo, descricao, patrimonio, numero_serie, status, filial:branches(codigo)").eq("responsavel_employee_id", employeeId).eq("ativo", true),
