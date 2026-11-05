@@ -275,6 +275,50 @@ export async function listarTitulosOmie(ch: Chaves, emp: EmpresaOmie, de: string
   }
 }
 
+/** Títulos em aberto pela lista oficial de contas a pagar (ListarContasPagar), que informa o total e ordena por código. Só leitura. */
+export async function listarContasPorStatus(ch: Chaves, emp: EmpresaOmie, status: "AVENCER" | "VENCEHOJE", pagina: number) {
+  type Conta = {
+    codigo_lancamento_omie?: number;
+    codigo_lancamento_integracao?: string;
+    codigo_barras_ficha_compensacao?: string;
+    cnab_integracao_bancaria?: { codigo_barras_boleto?: string };
+    codigo_cliente_fornecedor?: number;
+    codigo_categoria?: string;
+    data_vencimento?: string;
+    valor_documento?: number;
+    distribuicao?: { cCodDep?: string; nValDep?: number }[];
+    numero_parcela?: string;
+    numero_documento?: string;
+    numero_documento_fiscal?: string;
+    status_titulo?: string;
+    id_origem?: string;
+    info?: { dInc?: string; uInc?: string };
+  };
+  try {
+    const r = await chamar(ch, emp, "financas/contapagar/", "ListarContasPagar", { pagina, registros_por_pagina: 500, filtrar_por_status: status, ordenar_por: "CODIGO" });
+    const titulos = ((r.conta_pagar_cadastro as Conta[] | undefined) ?? []).map((c) => ({
+      id: String(c.codigo_lancamento_omie ?? ""),
+      codigo: c.codigo_lancamento_integracao ?? "",
+      barra: String(c.codigo_barras_ficha_compensacao || c.cnab_integracao_bancaria?.codigo_barras_boleto || "").trim(),
+      cliente: String(c.codigo_cliente_fornecedor ?? ""),
+      categoria: c.codigo_categoria ?? "",
+      venc: c.data_vencimento ?? "",
+      valor: Number(c.valor_documento ?? 0),
+      dep: (c.distribuicao ?? []).map((x) => x.cCodDep ?? "").join(","),
+      parcela: c.numero_parcela ?? "",
+      numDoc: c.numero_documento_fiscal ?? "",
+      numTitulo: c.numero_documento ?? "",
+      status: c.status_titulo ?? "",
+      origem: c.id_origem ?? "",
+      incluido: c.info?.dInc ?? "",
+    }));
+    return { paginas: Number(r.total_de_paginas ?? 1), total: Number(r.total_de_registros ?? 0), titulos };
+  } catch (e) {
+    if (e instanceof OmieErro && semRegistros(e.message)) return { paginas: 1, total: 0, titulos: [] };
+    throw e;
+  }
+}
+
 /** Para procurar duplicados: cada título com departamento (filial), parcela, documento, situação e série de repetição. Só leitura. */
 export async function listarTitulosDetalhados(ch: Chaves, emp: EmpresaOmie, de: string, ate: string, pagina: number) {
   type Mov = {
