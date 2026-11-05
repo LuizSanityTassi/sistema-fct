@@ -25,7 +25,7 @@ import { Emblema } from "@/components/layout/marca";
 import { SinoPendencias } from "@/components/layout/sino-pendencias";
 import { useTema } from "@/components/layout/tema";
 import { AvisoInstalarApp, useInstalarPeloMenu } from "@/components/layout/aviso-instalar";
-import { grupoDaRota, itemDaRota, navParaPapel } from "@/lib/nav";
+import { grupoDaRota, inicioDoGrupo, itemDaRota, navParaPapel } from "@/lib/nav";
 import { PAPEL_LABEL, type AppRole } from "@/lib/roles";
 import { COOKIE_MENU, type Tema } from "@/lib/tema";
 import { cn } from "@/lib/utils";
@@ -295,6 +295,9 @@ export function AppShell({ usuario, onSair, menuRecolhido = false, children }: A
   const item = itemDaRota(pathname);
   const grupo = grupoDaRota(pathname);
   const naInicial = pathname === "/portal";
+  const hrefDoGrupo = inicioDoGrupo(grupo?.titulo, usuario.papel, usuario.telasExtras, usuario.bloqueios);
+  // numa tela de dentro (ex.: a ficha do funcionário), o último nível volta para a lista
+  const hrefDaTela = item && pathname !== item.href ? item.href : undefined;
 
   return (
     <DicaProvider>
@@ -355,13 +358,25 @@ export function AppShell({ usuario, onSair, menuRecolhido = false, children }: A
               )}
               {grupo?.titulo && (
                 <>
-                  <span className="hidden px-1 text-muted-foreground md:inline">{grupo.titulo}</span>
+                  {hrefDoGrupo ? (
+                    <Link href={hrefDoGrupo} className="hidden rounded px-1 text-muted-foreground transition-colors hover:text-foreground md:inline">
+                      {grupo.titulo}
+                    </Link>
+                  ) : (
+                    <span className="hidden px-1 text-muted-foreground md:inline">{grupo.titulo}</span>
+                  )}
                   <ChevronRight className="hidden size-3.5 shrink-0 text-muted-foreground/60 md:inline" aria-hidden />
                 </>
               )}
-              <span className="truncate px-1 font-medium" aria-current="page">
-                {naInicial ? "Portal de Gestão" : (item?.label ?? "Portal de Gestão")}
-              </span>
+              {hrefDaTela ? (
+                <Link href={hrefDaTela} className="truncate rounded px-1 font-medium underline-offset-4 hover:underline">
+                  {item?.label}
+                </Link>
+              ) : (
+                <span className="truncate px-1 font-medium" aria-current="page">
+                  {naInicial ? "Portal de Gestão" : (item?.label ?? "Portal de Gestão")}
+                </span>
+              )}
             </nav>
 
             <BuscaRapida papel={usuario.papel} extras={usuario.telasExtras} bloqueios={usuario.bloqueios} />

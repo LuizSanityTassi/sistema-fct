@@ -711,8 +711,16 @@ export function itemDaRota(pathname: string): NavItem | undefined {
   )[0];
 }
 
+/** Grupo do item mais específico: /vendas/robo é Automações, não Comercial. */
 export function grupoDaRota(pathname: string): NavGrupo | undefined {
-  return NAV.find((g) => g.itens.some((i) => casaRota(i, pathname)));
+  const item = itemDaRota(pathname);
+  return item && NAV.find((g) => g.itens.includes(item));
+}
+
+/** Primeira tela do grupo que a pessoa pode abrir; sem nenhuma, undefined (não vira link). */
+export function inicioDoGrupo(titulo: string | undefined, papel: AppRole, extras: readonly string[] = [], bloqueios: readonly string[] = []): string | undefined {
+  if (!titulo) return undefined;
+  return navParaPapel(papel, extras, bloqueios).find((g) => g.titulo === titulo)?.itens[0]?.href;
 }
 
 /** Autorização de rota derivada do menu. Rotas fora do menu são liberadas (ex.: /dashboard/...). */
