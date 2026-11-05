@@ -149,6 +149,21 @@ export async function receitaPendente(admin: Cliente, agora = new Date()): Promi
   return data?.length ? [] : pend;
 }
 
+/** Receitas guardadas e ainda não lidas (leitor novo ou erro de leitura): lê de novo o Excel guardado, sem ir ao Trier. */
+export async function lerReceitasGuardadas(admin: Cliente) {
+  const { data, error } = await admin.from("vendas_coletas").select("id, relatorio, de, ate").eq("relatorio", "receita").eq("status", "ok").is("lido_em", null).not("arquivo_b64", "is", null).order("coletado_em").limit(3);
+  if (error) throw new Error(error.message);
+  if (!data?.length) return [];
+  const filiais = await mapaFiliaisTrier(admin);
+  const out: { de: string; erro: string | null }[] = [];
+  for (const c of data) {
+    const { data: arq } = await admin.from("vendas_coletas").select("arquivo_b64").eq("id", c.id).single();
+    const r = await lerColetaAnotando(admin, { ...c, arquivo_b64: arq?.arquivo_b64 ?? null }, filiais);
+    out.push({ de: c.de, erro: r.erro });
+  }
+  return out;
+}
+
 /** Relatórios de Excel grande (laboratórios, vendedor por grupo do mês): no robô de hoje entram uma vez por hora. */
 const PESADOS_DE_HOJE: RelatorioVendas[] = ["laboratorios", "vendedores"];
 

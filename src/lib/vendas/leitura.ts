@@ -162,8 +162,12 @@ export async function lerColeta(client: Cliente, coleta: ColetaParaLer, filiais:
     }
     linhas = rows.length;
   } else if (rel === "receita") {
-    // 1ª etapa: o Excel fica guardado; a leitura (receita por filial → DRE) entra depois de conferir o formato do relatório
-    throw new LeituraErro("receita: Excel guardado, leitura ainda não liberada");
+    // 1ª etapa: o Excel fica guardado; a leitura (receita por filial → DRE) entra depois de conferir o formato do relatório.
+    // Por ora deixa anotada uma amostra das linhas (começo e fim), para conferir o formato sem baixar o arquivo.
+    const cel = (v: unknown) => (v === null || v === undefined || v === "" ? "" : String(v).replace(/\s+/g, " ").trim().slice(0, 28));
+    const linhasTxt = m.map((l, i) => `${i}: ${(l ?? []).map(cel).join(" | ")}`).filter((t) => /\S/.test(t.replace(/^\d+: /, "").replace(/\|/g, "")));
+    const amostra = [...linhasTxt.slice(0, 30), "…", ...linhasTxt.slice(-12)].join("\n");
+    throw new LeituraErro(`receita: Excel guardado, leitura ainda não liberada; ${m.length} linhas; amostra:\n${amostra}`.slice(0, 7000));
   } else throw new LeituraErro(`relatório desconhecido: ${coleta.relatorio}`);
 
   checar(await client.from("vendas_coletas").update({ lido_em: new Date().toISOString(), linhas, erro: null }).eq("id", coleta.id));
