@@ -136,6 +136,19 @@ export async function pedidosDoRoboVendas(admin: Cliente, agora = new Date()): P
   return [...receita, ...recentes, ...mes, ...doisMeses, ...historico.filter((p) => !vistos.has(`${p.relatorio}|${p.de}|${p.ate}`))];
 }
 
+/**
+ * Receita do mês que fechou, para o robô de 10 em 10 minutos: só se ainda não foi guardada e se não houve tentativa na
+ * última hora (um erro no Trier não vira um pedido a cada 10 minutos).
+ */
+export async function receitaPendente(admin: Cliente, agora = new Date()): Promise<PedidoVendasTrier[]> {
+  const mes = mesAnteriorFechado(agora);
+  const pend = await pedidosPendentes(admin, [{ relatorio: "receita", ...mes }]);
+  if (!pend.length) return [];
+  const { data, error } = await admin.from("vendas_coletas").select("id").eq("relatorio", "receita").eq("de", mes.de).eq("ate", mes.ate).gt("coletado_em", new Date(agora.getTime() - 60 * 60_000).toISOString()).limit(1);
+  if (error) throw new Error(error.message);
+  return data?.length ? [] : pend;
+}
+
 /** Relatórios de Excel grande (laboratórios, vendedor por grupo do mês): no robô de hoje entram uma vez por hora. */
 const PESADOS_DE_HOJE: RelatorioVendas[] = ["laboratorios", "vendedores"];
 

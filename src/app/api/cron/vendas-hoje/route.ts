@@ -2,7 +2,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { after, NextResponse } from "next/server";
 import { credenciaisTrierServico } from "@/lib/integracoes/segredos";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { coletarVendas, pedidosDeHoje } from "@/lib/vendas/coleta";
+import { coletarVendas, pedidosDeHoje, receitaPendente } from "@/lib/vendas/coleta";
 
 // Robô das vendas de HOJE (a cada 10 minutos, das 7h às 23h50): quem chama é o banco (pg_cron + pg_net, migração 0105),
 // porque o cron da Vercel no plano Hobby roda só uma vez por dia. Senha: "Authorization: Bearer <token>", em que o
@@ -30,6 +30,13 @@ export async function GET(req: Request) {
   after(async () => {
     try {
       const agora = new Date();
+      // receita do mês que fechou (DRE) ainda não guardada: vai nesta rodada, sozinha; o dia de hoje volta na próxima
+      const receita = await receitaPendente(admin, agora);
+      if (receita.length) {
+        const r = await coletarVendas(admin, cred, receita, null, 240_000);
+        console.log("[cron vendas-hoje] receita", JSON.stringify({ mes: receita[0].de, ok: r.ok, vazios: r.vazios, erros: r.erros.map((e) => e.erro), ms: r.ms }));
+        return;
+      }
       const pedidos = await pedidosDeHoje(admin, agora);
       // leituras parciais de dias que já passaram: os números ficaram nas tabelas e a madrugada busca o dia inteiro
       await admin.from("vendas_coletas").delete().eq("parcial", true).lt("ate", pedidos[0].ate);
