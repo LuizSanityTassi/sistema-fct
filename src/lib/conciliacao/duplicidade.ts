@@ -16,14 +16,15 @@ export type TituloOmie = { codigo: string; barra: string; omie: string; doc: str
 export type ContaConferir = { chave: string; codigo: string; barra: string | null; doc: string | null; venc: string | null; valor: number };
 export type Bloqueio = { chave: string; tipo: "ja_na_omie" | "parecida" | "repetida"; motivo: string; codigoOmie: string | null };
 
-/** Título sem código de barras pode estar sem a tarifa do boleto; com código de barras, só o mesmo valor (boleto reemitido). */
+/** Título sem código de barras pode estar sem a tarifa do boleto; com código de barras, só o mesmo valor. */
 const DIFERENCA_SEM_BARRA = 2;
 const DIFERENCA_COM_BARRA = 0.005;
 const so = (s: string | null | undefined) => String(s ?? "").replace(/\D/g, "");
 
 /**
- * Separa o que pode subir. `venc` em dd/mm/aaaa, como a Omie devolve. Na dúvida, barra: mesmo fornecedor, vencimento e
- * valor também não sobe, porque pode ser o mesmo boleto reemitido; quem barrou fica na lista para alguém conferir.
+ * Separa o que pode subir. `venc` em dd/mm/aaaa, como a Omie devolve. Boleto com código de barras diferente não é duplicata,
+ * por decisão do financeiro, mesmo com fornecedor, vencimento e valor iguais. Fornecedor, vencimento e valor só barram quando
+ * um dos dois lados não tem código de barras para comparar; quem barrou fica na lista para alguém conferir.
  */
 export function conferirDuplicidade(contas: ContaConferir[], titulos: TituloOmie[]) {
   const porCodigo = new Map<string, string>();
@@ -41,7 +42,8 @@ export function conferirDuplicidade(contas: ContaConferir[], titulos: TituloOmie
   const liberadas: string[] = [];
   const bloqueadas: Bloqueio[] = [];
   const barrasVistas = new Set<string>();
-  const iguaisVistas = new Set<string>();
+  /** Fornecedor, vencimento e valor já vistos na seleção, e se algum deles veio sem código de barras. */
+  const iguaisVistas = new Map<string, boolean>();
   for (const c of contas) {
     const barra = normalizarBarra(c.barra);
     const noCodigo = porCodigo.get(c.codigo.slice(0, 20));
@@ -55,18 +57,20 @@ export function conferirDuplicidade(contas: ContaConferir[], titulos: TituloOmie
       continue;
     }
     const k = c.venc && so(c.doc) ? `${so(c.doc)}|${c.venc}` : null;
-    const igual = k ? (porFornecedor.get(k) ?? []).find((t) => Math.abs(t.valor - c.valor) <= (t.temBarra ? DIFERENCA_COM_BARRA : DIFERENCA_SEM_BARRA)) : undefined;
+    // os dois com código de barras, e diferentes (o igual já foi barrado acima): não é duplicata
+    const igual = k ? (porFornecedor.get(k) ?? []).find((t) => !(barra && t.temBarra) && Math.abs(t.valor - c.valor) <= (t.temBarra ? DIFERENCA_COM_BARRA : DIFERENCA_SEM_BARRA)) : undefined;
     if (igual) {
-      bloqueadas.push({ chave: c.chave, tipo: "parecida", motivo: igual.temBarra ? "já existe título no Omie com mesmo fornecedor, vencimento e valor, e outro código de barras" : "já existe título sem código de barras no Omie com mesmo fornecedor e vencimento, e valor igual ou muito próximo", codigoOmie: igual.omie });
+      bloqueadas.push({ chave: c.chave, tipo: "parecida", motivo: igual.temBarra ? "conta sem código de barras, e já existe título no Omie com mesmo fornecedor, vencimento e valor" : "já existe título sem código de barras no Omie com mesmo fornecedor e vencimento, e valor igual ou muito próximo", codigoOmie: igual.omie });
       continue;
     }
     const kIgual = k ? `${k}|${Math.round(c.valor * 100)}` : null;
-    if (kIgual && iguaisVistas.has(kIgual)) {
-      bloqueadas.push({ chave: c.chave, tipo: "parecida", motivo: "mesmo fornecedor, vencimento e valor repetido na seleção", codigoOmie: null });
+    const vistaSemBarra = kIgual ? iguaisVistas.get(kIgual) : undefined;
+    if (vistaSemBarra !== undefined && (vistaSemBarra || !barra)) {
+      bloqueadas.push({ chave: c.chave, tipo: "parecida", motivo: "mesmo fornecedor, vencimento e valor repetido na seleção, sem código de barras para comparar", codigoOmie: null });
       continue;
     }
     if (barra) barrasVistas.add(barra);
-    if (kIgual) iguaisVistas.add(kIgual);
+    if (kIgual) iguaisVistas.set(kIgual, !!vistaSemBarra || !barra);
     liberadas.push(c.chave);
   }
   return { liberadas, bloqueadas };

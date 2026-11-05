@@ -247,7 +247,8 @@ export function validarEnvio(contas: ContaEnvio[], verbo: "planilha" | "api"): V
     if (CONFERIR.has(c.categoria)) add(atencao, c, `para conferir: ${Motor.ROTULO[c.categoria] ?? c.categoria}`);
   }
   for (const l of porBarra.values()) if (l.length > 1) l.forEach((c) => add(grave, c, `mesmo código de barras ${l.length}× na seleção`));
-  for (const l of porTrio.values()) if (l.length > 1) l.forEach((c) => add(atencao, c, `mesmo fornecedor, valor e vencimento ${l.length}× (possível duplicidade)`));
+  // boletos com códigos de barras diferentes não são duplicata: só avisa quando algum não tem código para comparar
+  for (const l of porTrio.values()) if (l.length > 1 && l.some((c) => !c.barra)) l.forEach((c) => add(atencao, c, `mesmo fornecedor, valor e vencimento ${l.length}× (possível duplicidade)`));
   const porChave = new Map(contas.map((c) => [c.chave, c]));
   const lista = (m: Map<string, string[]>) =>
     [...m.entries()].map(([chave, motivos]) => {
