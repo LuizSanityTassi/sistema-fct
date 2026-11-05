@@ -744,7 +744,8 @@ export const RELATORIOS_VENDAS = {
     // como a tela faz: trocar a Seleção I avisa o servidor; o grupo 61 só sai se o Trier devolver o nome dele
     antes: [
       { acao: "onChangeSelecaoI" },
-      { acao: "addGrupo", campos: { cod_grupoEntrada: "61", cod_grupo: "61" }, confere: /SERVI(?:C|Ç|&#199;|\\u00c7)O/i, falha: "o Trier não confirmou a retirada do grupo 61 SERVICO" },
+      // a tela consulta o grupo antes (o nome vem da consulta); aqui o nome vai junto e a conferência é o código 61 na lista
+      { acao: "addGrupo", campos: { cod_grupoEntrada: "61", cod_grupo: "61", cadgrpro_grupo_nom_grupo: "SERVICO" }, confere: /createSelectOption\('61 - [^']*',\s*'61'\)/, falha: "o Trier não confirmou a retirada do grupo 61 SERVICO" },
     ],
   },
 } as const;
