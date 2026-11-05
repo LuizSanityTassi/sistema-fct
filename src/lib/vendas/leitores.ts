@@ -202,3 +202,50 @@ export function totalGeral(m: Matriz, coluna: (cabecalho: unknown[]) => number):
   const c = coluna(m[ih]);
   return c >= 0 ? cent(num(l[c])) : null;
 }
+
+// ---------- Rel_0024 Vendas Produtos, totais por data, agrupado por filial (receita do mês para a DRE) ----------
+
+export type ReceitaFilial = { filial: number; nome: string; venda: number; custo: number; dias: number };
+
+/**
+ * Cabeçalho "Data | … | Qtd. Vendid | Total Vlr. Custo | Total Vlr. Bruto | Total Vlr. Descto | % Descto | Total Vlr. Vend.
+ * | Part. %"; cada filial abre com "Filial: | 1 | F001 - FRETTA - …", segue uma linha por dia (data em número de série) e
+ * fecha com "Total Filial:"; no fim, "Total Geral:". Confere: os dias somam o total de cada filial e as filiais somam o
+ * Total Geral; qualquer diferença acima de 5 centavos é erro (nada é gravado).
+ */
+export function lerReceitaPorFilial(m: Matriz): { filiais: ReceitaFilial[]; totalGeral: number } {
+  const iCab = m.findIndex((r) => (r ?? []).some((c) => /vlr\.?\s*vend/i.test(txt(c))));
+  if (iCab < 0) throw new LeituraErro('não achei a coluna "Total Vlr. Vend." no relatório');
+  const cVenda = indice(m[iCab], (t) => /vlr\.?\s*vend/i.test(t));
+  const cCusto = indice(m[iCab], (t) => /vlr\.?\s*custo/i.test(t));
+  const filiais: ReceitaFilial[] = [];
+  let atual: (ReceitaFilial & { somaDias: number }) | null = null;
+  let totalGeral: number | null = null;
+  for (let i = iCab + 1; i < m.length; i++) {
+    const r = m[i] ?? [];
+    const a = txt(r[0]);
+    if (/^filial:?$/i.test(a)) {
+      if (atual) throw new LeituraErro(`a filial ${atual.filial} não fechou com "Total Filial"`);
+      const n = inteiro(r[1]) ? Number(r[1]) : filialDoTexto(txt(r[2]));
+      if (n === null || !Number.isFinite(n)) throw new LeituraErro(`linha ${i + 1}: não entendi o número da filial`);
+      atual = { filial: n, nome: txt(r[2]), venda: 0, custo: 0, dias: 0, somaDias: 0 };
+    } else if (/^total filial/i.test(a)) {
+      if (!atual) throw new LeituraErro(`linha ${i + 1}: "Total Filial" sem filial aberta`);
+      const venda = cent(num(r[cVenda]));
+      if (Math.abs(cent(atual.somaDias) - venda) > 0.05) throw new LeituraErro(`filial ${atual.filial}: os dias somam ${cent(atual.somaDias)} e o total da filial é ${venda}`);
+      filiais.push({ filial: atual.filial, nome: atual.nome, venda, custo: cent(num(r[cCusto])), dias: atual.dias });
+      atual = null;
+    } else if (/^total geral/i.test(a)) {
+      totalGeral = cent(num(r[cVenda]));
+    } else if (atual && (typeof r[0] === "number" || /^\d{2}\/\d{2}\/\d{4}$/.test(a))) {
+      atual.somaDias += num(r[cVenda]);
+      atual.dias += 1;
+    }
+  }
+  if (atual) throw new LeituraErro(`a filial ${atual.filial} não fechou com "Total Filial"`);
+  if (totalGeral === null) throw new LeituraErro('o relatório não trouxe o "Total Geral"');
+  if (!filiais.length) throw new LeituraErro("o relatório não trouxe nenhuma filial");
+  const soma = cent(filiais.reduce((s, f) => s + f.venda, 0));
+  if (Math.abs(soma - totalGeral) > 0.05) throw new LeituraErro(`as filiais somam ${soma} e o Total Geral é ${totalGeral}`);
+  return { filiais, totalGeral };
+}

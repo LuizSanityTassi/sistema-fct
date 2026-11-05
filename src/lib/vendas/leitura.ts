@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import * as XLSX from "xlsx";
 import type { RelatorioVendas } from "@/lib/conciliacao/trier-robo";
 import type { Database } from "@/lib/supabase/types";
-import { lerCmvAgrupado, lerVendasEcommerce, lerVendasPorData, lerVendasPorVendedor, lerVendedorGrupo, LeituraErro, type Matriz } from "./leitores";
+import { lerCmvAgrupado, lerReceitaPorFilial, lerVendasEcommerce, lerVendasPorData, lerVendasPorVendedor, lerVendedorGrupo, LeituraErro, type Matriz } from "./leitores";
 
 type Cliente = SupabaseClient<Database>;
 
@@ -162,12 +162,18 @@ export async function lerColeta(client: Cliente, coleta: ColetaParaLer, filiais:
     }
     linhas = rows.length;
   } else if (rel === "receita") {
-    // 1ª etapa: o Excel fica guardado; a leitura (receita por filial → DRE) entra depois de conferir o formato do relatório.
-    // Por ora deixa anotada uma amostra das linhas (começo e fim), para conferir o formato sem baixar o arquivo.
-    const cel = (v: unknown) => (v === null || v === undefined || v === "" ? "" : String(v).replace(/\s+/g, " ").trim().slice(0, 28));
-    const linhasTxt = m.map((l, i) => `${i}: ${(l ?? []).map(cel).join(" | ")}`).filter((t) => /\S/.test(t.replace(/^\d+: /, "").replace(/\|/g, "")));
-    const amostra = [...linhasTxt.slice(0, 30), "…", ...linhasTxt.slice(-12)].join("\n");
-    throw new LeituraErro(`receita: Excel guardado, leitura ainda não liberada; ${m.length} linhas; amostra:\n${amostra}`.slice(0, 7000));
+    // receita do mês fechado → "Vendas de mercadorias" da DRE, uma linha por filial, na empresa de cada filial. Só grava
+    // se o mês for inteiro, as contas do relatório baterem e toda filial do Trier existir no portal (nada pela metade).
+    const [a, mm] = coleta.de.split("-").map(Number);
+    const fimMes = new Date(Date.UTC(a, mm, 0)).toISOString().slice(0, 10);
+    if (!coleta.de.endsWith("-01") || coleta.ate !== fimMes) throw new LeituraErro("a receita da DRE precisa ser do mês inteiro (dia 1 ao último dia)");
+    const { filiais: lidas, totalGeral } = lerReceitaPorFilial(m);
+    const semCadastro = lidas.filter((f) => !filiais.get(f.filial));
+    if (semCadastro.length) throw new LeituraErro(`filial do Trier sem cadastro no portal: ${semCadastro.map((f) => `${f.filial} ${f.nome}`).join(", ")}; nada foi gravado na DRE`);
+    const valores = lidas.map((f) => ({ branch_id: filiais.get(f.filial)!, valor: f.venda }));
+    const { error } = await client.rpc("dre_receita_trier_gravar", { p_competencia: coleta.de, p_valores: valores, p_arquivo: `Trier: Vendas Produtos ${coleta.de.slice(0, 7)} (robô, total ${totalGeral.toFixed(2)})` });
+    if (error) throw new LeituraErro(`DRE: ${error.message}`);
+    linhas = valores.length;
   } else throw new LeituraErro(`relatório desconhecido: ${coleta.relatorio}`);
 
   checar(await client.from("vendas_coletas").update({ lido_em: new Date().toISOString(), linhas, erro: null }).eq("id", coleta.id));
