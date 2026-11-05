@@ -19,7 +19,8 @@ function anexo(nome: string) {
 
 export async function GET(req: Request) {
   const sessao = await getSessao();
-  if (!podeAcessar(sessao.papel, "/rh/lancamentos", sessao.telasExtras, sessao.bloqueios)) semAcesso("/rh/lancamentos");
+  // a planilha da contabilidade é do RH: o gerente só consulta os lançamentos na tela
+  if (sessao.papel === "gerente" || !podeAcessar(sessao.papel, "/rh/lancamentos", sessao.telasExtras, sessao.bloqueios)) semAcesso("/rh/lancamentos");
 
   const url = new URL(req.url);
   const competencia = url.searchParams.get("competencia");

@@ -10,6 +10,7 @@ import { competenciaAtual, competenciaValida, rotuloCompetencia, somarMeses } fr
 import { normalizarNome } from "@/lib/rh/lancamentos";
 import { createClient } from "@/lib/supabase/server";
 import { GradeLancamentos, LinkBaixarPlanilha, type GrupoGrade } from "./grade";
+import { GradeConsulta } from "./grade-consulta";
 
 export const metadata = { title: "Lançamentos da folha" };
 
@@ -25,9 +26,14 @@ function assinatura(valores: Map<string, Record<string, number>>, obs: Map<strin
 }
 
 const SITUACOES = { "": "Todos", valores: "Com lançamento", pendentes: "Com pendência", vazios: "Sem lançamento" } as const;
+// "pendência" vem da observação do mês, que é do RH
+const SITUACOES_CONSULTA = { "": "Todos", valores: "Com lançamento", vazios: "Sem lançamento" } as const;
 
 export default async function LancamentosFolhaPage({ searchParams }: PageProps<"/rh/lancamentos">) {
-  const [, sp] = await Promise.all([exigirAcesso("/rh/lancamentos"), searchParams]);
+  const [sessao, sp] = await Promise.all([exigirAcesso("/rh/lancamentos"), searchParams]);
+  // admin e RH lançam; os outros só consultam, e quem limita às filiais da pessoa é a RLS do banco
+  const podeLancar = sessao.papel === "admin" || sessao.papel === "rh";
+  const situacoes: Record<string, string> = podeLancar ? SITUACOES : SITUACOES_CONSULTA;
   const txt = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : "");
   const competencia = competenciaValida(txt("competencia")) ? txt("competencia") : competenciaAtual();
   const supabase = await createClient();
@@ -48,7 +54,7 @@ export default async function LancamentosFolhaPage({ searchParams }: PageProps<"
   const filiaisDaEmpresa = dados.filiais.filter((f) => f.raiz === empresa && dados.funcionarios.some((x) => x.branchPlanilha === f.id));
   const filial = filiaisDaEmpresa.some((f) => f.id === txt("filial")) ? txt("filial") : "";
   const q = normalizarNome(txt("q"));
-  const situacao = (txt("so") in SITUACOES ? txt("so") : "") as keyof typeof SITUACOES;
+  const situacao = (Object.hasOwn(situacoes, txt("so")) ? txt("so") : "") as keyof typeof SITUACOES;
 
   const eventos = dados.eventos.filter((e) => e.ativo);
   const daEmpresa = dados.funcionarios.filter((f) => filialPorId.get(f.branchPlanilha)?.raiz === empresa);
@@ -80,6 +86,7 @@ export default async function LancamentosFolhaPage({ searchParams }: PageProps<"
   const pendencias = daEmpresa.filter((f) => pendente(f.id)).length;
   const semCodigo = filiaisDaEmpresa.filter((f) => codigoEmpresaDaPlanilha(f).provisorio).length;
   const versao = assinatura(dados.valores, dados.observacoes);
+  const colunas = eventos.map((e) => ({ id: e.id, chave: e.chave, nome: e.nome, codigo: e.codigo, unidade: e.unidade, naPlanilha: e.naPlanilha && e.codigo !== null }));
   const params = (extra: Record<string, string>) => new URLSearchParams({ competencia, empresa, ...(filial ? { filial } : {}), ...extra }).toString();
 
   return (
@@ -87,18 +94,24 @@ export default async function LancamentosFolhaPage({ searchParams }: PageProps<"
       <PageHeader
         eyebrow="Pessoas"
         titulo="Lançamentos da folha"
-        descricao="Horas extras, adicional noturno, quebra de caixa e os demais eventos do mês por funcionário. No fechamento, gera a planilha da contabilidade (Domínio), um arquivo por CNPJ."
+        descricao={
+          podeLancar
+            ? "Horas extras, adicional noturno, quebra de caixa e os demais eventos do mês por funcionário. No fechamento, gera a planilha da contabilidade (Domínio), um arquivo por CNPJ."
+            : "Horas extras, adicional noturno, quebra de caixa e os demais eventos do mês dos funcionários da sua filial. Só consulta: quem lança é o RH."
+        }
         acoes={
-          <>
-            <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/rh/lancamentos/importar?competencia=${competencia}`} />}>
-              <FileSpreadsheet data-icon="inline-start" />
-              Importar planilha do RH
-            </Button>
-            <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/rh/lancamentos/configuracao" />}>
-              <Settings2 data-icon="inline-start" />
-              Configurar
-            </Button>
-          </>
+          podeLancar ? (
+            <>
+              <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/rh/lancamentos/importar?competencia=${competencia}`} />}>
+                <FileSpreadsheet data-icon="inline-start" />
+                Importar planilha do RH
+              </Button>
+              <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/rh/lancamentos/configuracao" />}>
+                <Settings2 data-icon="inline-start" />
+                Configurar
+              </Button>
+            </>
+          ) : undefined
         }
       />
 
@@ -118,13 +131,15 @@ export default async function LancamentosFolhaPage({ searchParams }: PageProps<"
           <Button variant="ghost" size="icon" nativeButton={false} render={<Link href={`/rh/lancamentos?${new URLSearchParams({ competencia: somarMeses(competencia, 1), empresa })}`} aria-label="Próximo mês" />}>
             <ChevronRight />
           </Button>
-          <SelectNativo name="empresa" defaultValue={empresa} aria-label="Empresa" className="w-44">
-            {empresas.map(([raiz, e]) => (
-              <option key={raiz} value={raiz}>
-                {e.nome} ({e.qtd})
-              </option>
-            ))}
-          </SelectNativo>
+          {(podeLancar || empresas.length > 1) && (
+            <SelectNativo name="empresa" defaultValue={empresa} aria-label="Empresa" className="w-44">
+              {empresas.map(([raiz, e]) => (
+                <option key={raiz} value={raiz}>
+                  {e.nome} ({e.qtd})
+                </option>
+              ))}
+            </SelectNativo>
+          )}
           <SelectNativo name="filial" defaultValue={filial} aria-label="Filial" className="w-52">
             <option value="">Todas as filiais</option>
             {filiaisDaEmpresa.map((f) => (
@@ -134,7 +149,7 @@ export default async function LancamentosFolhaPage({ searchParams }: PageProps<"
             ))}
           </SelectNativo>
           <SelectNativo name="so" defaultValue={situacao} aria-label="Situação" className="w-44">
-            {Object.entries(SITUACOES).map(([v, r]) => (
+            {Object.entries(situacoes).map(([v, r]) => (
               <option key={v} value={v}>
                 {r}
               </option>
@@ -146,7 +161,7 @@ export default async function LancamentosFolhaPage({ searchParams }: PageProps<"
             Filtrar
           </Button>
         </form>
-        {empresa && (
+        {podeLancar && empresa && (
           <Button size="sm" nativeButton={false} render={<LinkBaixarPlanilha href={`/api/folha-lancamentos/planilha?${params({})}`} />}>
             <Download data-icon="inline-start" />
             {filial ? "Baixar planilha da filial" : "Baixar todas (.zip)"}
@@ -158,8 +173,12 @@ export default async function LancamentosFolhaPage({ searchParams }: PageProps<"
         {[
           { rotulo: `Funcionários · ${rotuloCompetencia(competencia)}`, valor: daEmpresa.length },
           { rotulo: "Com lançamento", valor: comValor },
-          { rotulo: "Com pendência", valor: pendencias, alerta: pendencias > 0 },
-          { rotulo: "CNPJs com código provisório", valor: semCodigo, alerta: semCodigo > 0 },
+          ...(podeLancar
+            ? [
+                { rotulo: "Com pendência", valor: pendencias, alerta: pendencias > 0 },
+                { rotulo: "CNPJs com código provisório", valor: semCodigo, alerta: semCodigo > 0 },
+              ]
+            : []),
         ].map((k) => (
           <div key={k.rotulo} className="rounded-xl border bg-card p-4">
             <dt className="text-xs text-muted-foreground">{k.rotulo}</dt>
@@ -168,13 +187,11 @@ export default async function LancamentosFolhaPage({ searchParams }: PageProps<"
         ))}
       </dl>
 
-      <GradeLancamentos
-        key={`${competencia}|${empresa}|${filial}|${q}|${situacao}`}
-        competencia={competencia}
-        eventos={eventos.map((e) => ({ id: e.id, chave: e.chave, nome: e.nome, codigo: e.codigo, unidade: e.unidade, naPlanilha: e.naPlanilha && e.codigo !== null }))}
-        grupos={grupos}
-        versao={versao}
-      />
+      {podeLancar ? (
+        <GradeLancamentos key={`${competencia}|${empresa}|${filial}|${q}|${situacao}`} competencia={competencia} eventos={colunas} grupos={grupos} versao={versao} />
+      ) : (
+        <GradeConsulta eventos={colunas} grupos={grupos} />
+      )}
     </>
   );
 }

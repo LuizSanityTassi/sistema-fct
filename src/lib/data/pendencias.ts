@@ -42,7 +42,7 @@ export function modulosMonitorados(sessao: Sessao): { area: AreaPendencia; href:
     { area: "Caixa", href: financeiro ? "/financeiro/diferenca-caixa" : "/caixa", ve: (financeiro && pode("/financeiro/diferenca-caixa")) || pode("/caixa") },
     { area: "DDA x Trier", href: "/conciliacao/pendencias", ve: pode("/conciliacao/pendencias") },
     { area: "DRE", href: "/financeiro/dre", ve: pode("/financeiro/dre") && (financeiro || sessao.papel === "contador") },
-    { area: "Folha", href: "/rh/lancamentos", ve: pode("/rh/lancamentos") },
+    { area: "Folha", href: "/rh/lancamentos", ve: pode("/rh/lancamentos/importar") },
     { area: "RH", href: "/rh/aso", ve: pode("/rh/aso") },
     { area: "Ponto", href: "/ponto/ajustes", ve: pode("/ponto/ajustes") },
     { area: "Chamados", href: "/chamados", ve: pode("/chamados") },
@@ -276,8 +276,8 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
     );
   }
 
-  // ---------- Folha (lançamentos para a contabilidade) ----------
-  if (pode("/rh/lancamentos")) {
+  // ---------- Folha (lançamentos para a contabilidade): só para quem lança, o gerente só consulta ----------
+  if (pode("/rh/lancamentos/importar")) {
     tarefas.push(
       (async () => {
         const [obsAtual, obsAnterior] = await Promise.all([
