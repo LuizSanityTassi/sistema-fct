@@ -30,17 +30,23 @@ export async function GET(req: Request) {
   after(async () => {
     try {
       const agora = new Date();
-      // receita do mês que fechou (DRE) ainda não guardada: vai nesta rodada, sozinha; o dia de hoje volta na próxima
-      const receita = await receitaPendente(admin, agora);
-      if (receita.length) {
-        const r = await coletarVendas(admin, cred, receita, null, 240_000);
-        console.log("[cron vendas-hoje] receita", JSON.stringify({ mes: receita[0].de, ok: r.ok, vazios: r.vazios, erros: r.erros.map((e) => e.erro), ms: r.ms }));
-        return;
+      // receita do mês que fechou (DRE) ainda não guardada: vai antes, com no máximo 2 minutos; o dia de hoje vem depois
+      // com o tempo que sobrar (e na rodada seguinte, se não couber). Erro na receita não para o dia de hoje.
+      let prazo = 240_000;
+      try {
+        const receita = await receitaPendente(admin, agora);
+        if (receita.length) {
+          const r = await coletarVendas(admin, cred, receita, null, 120_000);
+          prazo = Math.max(60_000, prazo - r.ms);
+          console.log("[cron vendas-hoje] receita", JSON.stringify({ mes: receita[0].de, ok: r.ok, vazios: r.vazios, erros: r.erros.map((e) => e.erro), ms: r.ms }));
+        }
+      } catch (e) {
+        console.error("[cron vendas-hoje] receita", e instanceof Error ? e.message : String(e));
       }
       const pedidos = await pedidosDeHoje(admin, agora);
       // leituras parciais de dias que já passaram: os números ficaram nas tabelas e a madrugada busca o dia inteiro
       await admin.from("vendas_coletas").delete().eq("parcial", true).lt("ate", pedidos[0].ate);
-      const r = await coletarVendas(admin, cred, pedidos, null, 240_000, true);
+      const r = await coletarVendas(admin, cred, pedidos, null, prazo, true);
       console.log("[cron vendas-hoje]", JSON.stringify({ pedidos: pedidos.map((p) => p.relatorio), ok: r.ok, vazios: r.vazios, erros: r.erros.map((e) => `${e.relatorio}: ${e.erro}`), faltam: r.restantes.length, ms: r.ms }));
     } catch (e) {
       console.error("[cron vendas-hoje]", e instanceof Error ? e.message : String(e));
