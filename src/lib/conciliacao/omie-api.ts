@@ -275,6 +275,41 @@ export async function listarTitulosOmie(ch: Chaves, emp: EmpresaOmie, de: string
   }
 }
 
+/** Para procurar duplicados: cada título com departamento (filial), parcela, documento, situação e série de repetição. Só leitura. */
+export async function listarTitulosDetalhados(ch: Chaves, emp: EmpresaOmie, de: string, ate: string, pagina: number) {
+  type Mov = {
+    departamentos?: { cCodDepartamento?: string }[];
+    detalhes?: { cCodIntTitulo?: string; cCodigoBarras?: string; nCodTitulo?: number; cCPFCNPJCliente?: string; dDtVenc?: string; nValorTitulo?: number; cNumParcela?: string; cNumDocFiscal?: string; cNumTitulo?: string; cStatus?: string; cOrigem?: string; nCodTitRepet?: number; nCodCliente?: number; dDtRegistro?: string };
+  };
+  try {
+    const r = await chamar(ch, emp, "financas/mf/", "ListarMovimentos", { nPagina: pagina, nRegPorPagina: 100, dDtVencDe: de, dDtVencAte: ate, cNatureza: "P", cExibirDepartamentos: "S" });
+    const titulos = ((r.movimentos as Mov[] | undefined) ?? []).map((m) => {
+      const d = m.detalhes;
+      return {
+        id: String(d?.nCodTitulo ?? ""),
+        codigo: d?.cCodIntTitulo ?? "",
+        barra: String(d?.cCodigoBarras ?? "").trim(),
+        doc: String(d?.cCPFCNPJCliente ?? "").replace(/\D/g, ""),
+        venc: d?.dDtVenc ?? "",
+        valor: Number(d?.nValorTitulo ?? 0),
+        dep: (m.departamentos ?? []).map((x) => x.cCodDepartamento ?? "").join(","),
+        parcela: d?.cNumParcela ?? "",
+        numDoc: d?.cNumDocFiscal ?? "",
+        numTitulo: d?.cNumTitulo ?? "",
+        status: d?.cStatus ?? "",
+        origem: d?.cOrigem ?? "",
+        repet: String(d?.nCodTitRepet ?? ""),
+        cliente: String(d?.nCodCliente ?? ""),
+        registro: d?.dDtRegistro ?? "",
+      };
+    });
+    return { paginas: Number(r.nTotPaginas ?? 1), titulos };
+  } catch (e) {
+    if (e instanceof OmieErro && semRegistros(e.message)) return { paginas: 1, titulos: [] };
+    throw e;
+  }
+}
+
 /** Lança contas a pagar de UMA empresa (UpsertContaPagar), uma a uma, sem atropelar o limite da Omie. */
 export async function lancarContas(ch: Chaves, emp: EmpresaOmie, cache: CacheOmie, contas: ContaApi[], cadastrarFornecedor: boolean, prazo = Infinity): Promise<ResultadoLancamento[]> {
   if (!cache.conta?.id || !cache.categoria?.codigo) {
