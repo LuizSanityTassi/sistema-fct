@@ -308,13 +308,18 @@ const RECEITAS_RATEIO = new Set<LinhaRateio>(["receita_financeira", "outras_rece
 /** O valor vai digitado sem sinal; na DRE, receita entra positiva e despesa/dedução negativa. */
 export const comSinalDaConta = (linha: LinhaRateio, valor: number) => (RECEITAS_RATEIO.has(linha) ? Math.abs(valor) : -Math.abs(valor));
 
-// ---------- contas lançadas à mão (setembro/2026) ----------
+// ---------- contas lançadas à mão (setembro e outubro/2026) ----------
 
 /**
- * Mês em que as contas "amarelas" da planilha (deduções sem imposto, despesas e o financeiro) são digitadas pelo
- * contador na aba "Lançar setembro"; a importação da planilha não mexe nelas (private.dre_manual no banco).
+ * Meses em que as contas "amarelas" da planilha (deduções sem imposto, despesas e o financeiro) vêm do Omie ou são
+ * digitadas pelo contador na aba "Lançar mês"; a importação da planilha não mexe nelas. Um mês novo entra aqui e em
+ * private.dre_manual, no banco.
  */
-export const MES_MANUAL = "2026-09";
+export const MESES_MANUAIS = ["2026-09", "2026-10"] as const;
+export type MesManual = (typeof MESES_MANUAIS)[number];
+export const ehMesManual = (v: unknown): v is MesManual => typeof v === "string" && (MESES_MANUAIS as readonly string[]).includes(v);
+/** Setembro lista só as filiais que têm valor, porque Itajaí e Blumenau foram tiradas dele; os outros meses abrem com todas. */
+export const MES_SO_COM_VALOR: MesManual = "2026-09";
 export const LINHAS_MANUAIS = [
   "devolucoes",
   "comissoes",

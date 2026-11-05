@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
 import { contas, distribuirRateios, empresasDre, juntarMapas, lancamentosDre, somar, temLancamento, valoresGravados, type MapaDre } from "@/lib/data/dre-contabil";
-import { baseDoRateio, calcularDre, ehLinhaManual, LINHAS_DRE, LINHAS_MANUAIS, MES_MANUAL, ROTULO_LINHA, sinalManual, situacaoDoLucro, type Lancamentos, type LinhaDre, type LinhaManual } from "@/lib/financeiro/dre-contabil";
+import { baseDoRateio, calcularDre, ehLinhaManual, ehMesManual, LINHAS_DRE, LINHAS_MANUAIS, MES_SO_COM_VALOR, MESES_MANUAIS, ROTULO_LINHA, sinalManual, situacaoDoLucro, type Lancamentos, type LinhaDre, type LinhaManual, type MesManual } from "@/lib/financeiro/dre-contabil";
 import { moedaFin } from "@/lib/financeiro/formatos";
 import { formatarDataHora } from "@/lib/formatos";
 import { rotuloCompetencia } from "@/lib/rh/competencia";
@@ -172,19 +172,22 @@ const ROTULO_MANUAL: Record<LinhaManual, string> = {
   despesas_financeiras: "Despesas financeira",
 };
 
-/** Setembro/2026: o contador digita as contas amarelas de cada filial (a importação não mexe nelas). */
-async function Lancar({ base, empresas, todas, mapa, filiais }: Props) {
+/** Meses liberados: o contador digita as contas amarelas de cada filial (a importação não mexe nelas). */
+async function Lancar({ s, base, empresas, todas, mapa, filiais }: Props) {
+  const pedido = s("mes");
+  const mes: MesManual = ehMesManual(pedido) ? pedido : MESES_MANUAIS[MESES_MANUAIS.length - 1];
+  const rotuloMes = rotuloCompetencia(mes).toLowerCase();
   if (todas) {
     return (
       <section className="rounded-xl border bg-card">
         <EstadoVazio
           icone={ScrollText}
           titulo="O lançamento é de cada empresa"
-          descricao="Escolha a empresa para digitar setembro (Itajaí está na Varela e Blumenau na Nazário):"
+          descricao={`Escolha a empresa para digitar ${rotuloMes} (Itajaí está na Varela e Blumenau na Nazário):`}
           acao={
             <div className="flex flex-wrap justify-center gap-2">
               {empresas.map((e) => (
-                <Button key={e} variant="outline" size="sm" nativeButton={false} render={<Link href={`/financeiro/dre?${query({ empresa: e, ano: base.ano, ver: "lancar" })}`} />}>
+                <Button key={e} variant="outline" size="sm" nativeButton={false} render={<Link href={`/financeiro/dre?${query({ empresa: e, ano: base.ano, ver: "lancar", mes })}`} />}>
                   {e}
                 </Button>
               ))}
@@ -195,13 +198,14 @@ async function Lancar({ base, empresas, todas, mapa, filiais }: Props) {
     );
   }
   const empresa = base.empresa;
-  const gravados = await valoresGravados(empresa, [MES_MANUAL]);
+  const gravados = await valoresGravados(empresa, [mes]);
   const atuais = new Map([...gravados].filter(([k]) => ehLinhaManual(k.split("|")[2])).map(([k, v]) => [`${k.split("|")[0]}|${k.split("|")[2]}`, v]));
   const comValor = new Set([...atuais.keys()].map((k) => k.split("|")[0]));
-  const lista = filiais
-    .filter((f) => temLancamento(mapa, f.id, MES_MANUAL) || comValor.has(f.id))
-    .map((f) => ({ chave: f.id, codigo: f.codigo, nome: f.nome }));
-  if (comValor.has("") || temLancamento(mapa, "", MES_MANUAL)) lista.push({ chave: "empresa", codigo: empresa, nome: "valor da empresa (sem filial)" });
+  const temValor = (filial: string) => temLancamento(mapa, filial, mes) || comValor.has(filial);
+  // fora de setembro, a grade abre com todas as filiais da empresa, para digitar mesmo antes de importar a planilha
+  const todasAsFiliais = mes !== MES_SO_COM_VALOR;
+  const lista = filiais.filter((f) => todasAsFiliais || temValor(f.id)).map((f) => ({ chave: f.id, codigo: f.codigo, nome: f.nome }));
+  if (temValor("") || (todasAsFiliais && mapa.has(""))) lista.push({ chave: "empresa", codigo: empresa, nome: "valor da empresa (sem filial)" });
   const iniciais: Record<string, string> = {};
   for (const [k, v] of atuais) {
     const [filial, linha] = k.split("|");
@@ -212,31 +216,39 @@ async function Lancar({ base, empresas, todas, mapa, filiais }: Props) {
   return (
     <>
       <div className="mb-3 flex flex-wrap items-center gap-2">
+        {MESES_MANUAIS.map((m) => (
+          <Button key={m} variant={m === mes ? "default" : "outline"} size="sm" nativeButton={false} aria-current={m === mes ? "true" : undefined} render={<Link href={`/financeiro/dre?${query({ empresa, ano: base.ano, ver: "lancar", mes: m })}`} />}>
+            {rotuloCompetencia(m)}
+          </Button>
+        ))}
+      </div>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         {empresas.map((e) => (
-          <Button key={e} variant={e === empresa ? "default" : "outline"} size="sm" nativeButton={false} render={<Link href={`/financeiro/dre?${query({ empresa: e, ano: base.ano, ver: "lancar" })}`} />}>
+          <Button key={e} variant={e === empresa ? "default" : "outline"} size="sm" nativeButton={false} render={<Link href={`/financeiro/dre?${query({ empresa: e, ano: base.ano, ver: "lancar", mes })}`} />}>
             {e}
           </Button>
         ))}
         <div className="ml-auto">
           <ConfirmarAcao
             titulo="Preencher pelo Omie"
-            descricao="Refaz Devolução OFX, Comissões (Premiação), Outras receitas, Receita financeira e as despesas (pessoal, administrativa, comerciais, outras e financeira) de setembro, nas duas empresas, a partir dos lançamentos do Omie e do plano de contas. O que foi digitado nessas contas é substituído; a Depreciação fica como está."
+            descricao={`Refaz Devolução OFX, Comissões (Premiação), Outras receitas, Receita financeira e as despesas (pessoal, administrativa, comerciais, outras e financeira) de ${rotuloMes}, nas duas empresas, a partir dos lançamentos do Omie e do plano de contas. O que foi digitado nessas contas é substituído; a Depreciação fica como está.`}
             rotuloBotao="Preencher pelo Omie"
             rotuloConfirmar="Preencher"
             action={preencherOmie}
+            campos={{ mes }}
           />
         </div>
         <p className="w-full text-sm text-muted-foreground">
-          {rotuloCompetencia(MES_MANUAL)}: as contas em amarelo vêm do Omie pelo plano de contas (categoria → conta da DRE), filial por filial, e podem ser corrigidas aqui; a
+          {rotuloCompetencia(mes)}: as contas em amarelo vêm do Omie pelo plano de contas (categoria → conta da DRE), filial por filial, e podem ser corrigidas aqui; a
           importação da planilha não mexe nelas. Comissões vêm da categoria Premiação; a Depreciação é digitada. Digite sem sinal, como na planilha (despesas e deduções entram negativas, receitas
           positivas); um “-” na frente inverte (estorno). Itajaí está na Varela, Blumenau na Nazário e as terceirizadas em TERC.
         </p>
       </div>
       {lista.length ? (
-        <LancarForm action={lancarManual} empresa={empresa} filiais={lista} contas={LINHAS_MANUAIS.map((linha) => ({ linha, rotulo: ROTULO_MANUAL[linha] }))} iniciais={iniciais} />
+        <LancarForm key={`${empresa}|${mes}`} action={lancarManual} empresa={empresa} mes={mes} rotuloMes={rotuloMes} filiais={lista} contas={LINHAS_MANUAIS.map((linha) => ({ linha, rotulo: ROTULO_MANUAL[linha] }))} iniciais={iniciais} />
       ) : (
         <section className="rounded-xl border bg-card">
-          <EstadoVazio icone={ScrollText} titulo={`A ${empresa} não tem ${rotuloCompetencia(MES_MANUAL).toLowerCase()} importado`} descricao="Importe o mês na aba Importar novo mês para aparecerem as filiais." />
+          <EstadoVazio icone={ScrollText} titulo={`A ${empresa} não tem ${rotuloMes} importado`} descricao="Importe o mês na aba Importar novo mês para aparecerem as filiais." />
         </section>
       )}
     </>

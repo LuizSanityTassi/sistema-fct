@@ -12,6 +12,9 @@ const reais = (n: number) => n.toLocaleString("pt-BR", { style: "currency", curr
 type Props = {
   action: (prev: EstadoManual, fd: FormData) => Promise<EstadoManual>;
   empresa: string;
+  /** mês lançado, em aaaa-mm, e como ele aparece no botão de salvar */
+  mes: string;
+  rotuloMes: string;
   /** chave = id da filial ou "empresa" (valor da empresa, sem filial) */
   filiais: { chave: string; codigo: string; nome: string }[];
   contas: { linha: string; rotulo: string }[];
@@ -23,7 +26,7 @@ type Props = {
 const numero = (t: string) => (t.trim() ? (lerConta(t)?.valor ?? 0) : 0);
 
 /** Grade do lançamento à mão: filiais nas linhas, contas amarelas nas colunas, total de cada conta no rodapé. */
-export function LancarForm({ action, empresa, filiais, contas, iniciais }: Props) {
+export function LancarForm({ action, empresa, mes, rotuloMes, filiais, contas, iniciais }: Props) {
   const [estado, enviar] = useActionState(action, {});
   const [valores, setValores] = React.useState(iniciais);
   const total = (linha: string) => filiais.reduce((t, f) => t + numero(valores[`${f.chave}:${linha}`] ?? ""), 0);
@@ -55,7 +58,7 @@ export function LancarForm({ action, empresa, filiais, contas, iniciais }: Props
                   return (
                     <td key={c.linha} className="px-1 py-1">
                       <input
-                        name={`v:${nome}`}
+                        name={`v:${nome}:${mes}`}
                         value={valores[nome] ?? ""}
                         onChange={(e) => setValores((v) => ({ ...v, [nome]: e.target.value }))}
                         inputMode="decimal"
@@ -83,7 +86,9 @@ export function LancarForm({ action, empresa, filiais, contas, iniciais }: Props
         </table>
       </div>
       <div className="flex justify-end">
-        <BotaoSalvar rotuloPendente="Salvando…">Salvar setembro da {empresa}</BotaoSalvar>
+        <BotaoSalvar rotuloPendente="Salvando…">
+          Salvar {rotuloMes} da {empresa}
+        </BotaoSalvar>
       </div>
     </form>
   );

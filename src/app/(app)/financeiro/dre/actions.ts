@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { valoresGravados } from "@/lib/data/dre-contabil";
-import { comSinalDaConta, ehLinhaDre, ehLinhaRateio, MES_MANUAL, ROTULO_LINHA, sinalManual, type LinhaDre } from "@/lib/financeiro/dre-contabil";
+import { comSinalDaConta, ehLinhaDre, ehLinhaRateio, ehMesManual, ROTULO_LINHA, sinalManual, type LinhaDre } from "@/lib/financeiro/dre-contabil";
 import { lerConta } from "@/lib/financeiro/conta";
 import { CHAVE_LEMBRETE_DRE } from "@/lib/financeiro/dre-lembrete";
 import { lerValor } from "@/lib/sangrias/rotulos";
@@ -58,9 +58,8 @@ export async function excluirRateio(fd: FormData) {
 export type EstadoManual = { erro?: string; ok?: string };
 
 /**
- * O contador digita valores da DRE: campos "v:<filial ou empresa>:<conta>" (setembro, aba Lançar setembro) ou
- * "v:<filial ou empresa>:<conta>:<aaaa-mm>" (qualquer mês, no demonstrativo). Grava só o que mudou, marcado como
- * digitado (a importação da planilha não passa por cima).
+ * O contador digita valores da DRE: campos "v:<filial ou empresa>:<conta>:<aaaa-mm>" (aba Lançar mês e demonstrativo).
+ * Grava só o que mudou, marcado como digitado (a importação da planilha não passa por cima).
  */
 export async function lancarManual(_prev: EstadoManual, fd: FormData): Promise<EstadoManual> {
   const sessao = await getSessao();
@@ -69,10 +68,9 @@ export async function lancarManual(_prev: EstadoManual, fd: FormData): Promise<E
   if (!empresa) return { erro: "Escolha a empresa." };
   const pedidos: { branch: string | null; linha: LinhaDre; mes: string; valor: number; formula: string | null }[] = [];
   for (const [nome, bruto] of fd.entries()) {
-    const m = /^v:([0-9a-f-]{36}|empresa):([a-z_]+)(?::(\d{4}-\d{2}))?$/i.exec(nome);
+    const m = /^v:([0-9a-f-]{36}|empresa):([a-z_]+):(\d{4}-\d{2})$/i.exec(nome);
     if (!m || typeof bruto !== "string") continue;
-    const [, filial, linha, mesCampo] = m;
-    const mes = mesCampo ?? MES_MANUAL;
+    const [, filial, linha, mes] = m;
     if (!ehLinhaDre(linha) || !MES.test(mes) || (filial !== "empresa" && !UUID.test(filial))) return { erro: "Campo inválido." };
     // número ou conta ("1.200+350-80"), sem sinal como na planilha; a conta fica guardada (memória de cálculo)
     const lido = bruto.trim() ? lerConta(bruto.slice(0, 500)) : { valor: 0, conta: null };
@@ -116,16 +114,18 @@ export async function salvarCelulaDre(fd: FormData): Promise<{ ok?: true; erro?:
 
 /**
  * Refaz as contas do plano (devoluções, comissões = Premiação, outras receitas, receita financeira, despesas de pessoal,
- * administrativas, comerciais, outras e financeiras) do mês liberado a partir dos lançamentos do Omie, filial por
+ * administrativas, comerciais, outras e financeiras) de um mês liberado a partir dos lançamentos do Omie, filial por
  * filial. A depreciação fica como está.
  */
-export async function preencherOmie() {
+export async function preencherOmie(fd: FormData) {
   const sessao = await getSessao();
   if (!podeEditar(sessao.papel)) return;
+  const mes = texto(fd, "mes");
+  if (!ehMesManual(mes)) return;
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("dre_contabil_preencher_omie", { p_competencia: `${MES_MANUAL}-01` });
+  const { data, error } = await supabase.rpc("dre_contabil_preencher_omie", { p_competencia: `${mes}-01` });
   if (error) throw new Error(error.message);
-  await registrarAuditoria(supabase, { userId: sessao.id, acao: "editar", entidade: "dre_contabil", novo: { competencia: MES_MANUAL, preenchido_pelo_omie: data } });
+  await registrarAuditoria(supabase, { userId: sessao.id, acao: "editar", entidade: "dre_contabil", novo: { competencia: mes, preenchido_pelo_omie: data } });
   revalidatePath("/financeiro/dre");
 }
 

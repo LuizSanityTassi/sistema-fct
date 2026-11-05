@@ -39,7 +39,7 @@ export const VISOES_DRE = [
   ["demonstrativo", "Demonstrativo"],
   ["comparativo", "Comparativo"],
   ["rateio", "Rateio por faturamento"],
-  ["lancar", "Lançar setembro"],
+  ["lancar", "Lançar mês"],
 ] as const;
 export type VisaoDre = (typeof VISOES_DRE)[number][0];
 
