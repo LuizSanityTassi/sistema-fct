@@ -3,6 +3,9 @@
 import type { Pendencia, Severidade } from "@/lib/data/pendencias";
 import { TOM, type Tom } from "@/lib/tons";
 
+/** Disparado por uma tela que acabou de gerar um aviso: o sino busca de novo na hora. */
+export const EVENTO_SINO = "fct:sino-atualizar";
+
 export const ROTULO_SEVERIDADE: Record<Severidade, string> = {
   critico: "Crítico",
   alto: "Pendente",

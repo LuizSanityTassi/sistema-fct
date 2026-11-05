@@ -8,9 +8,11 @@ import { ErroFormulario, SelectNativo } from "@/components/form/campo";
 import { Ponto } from "@/components/layout/status";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MAX_CONTAS_NO_AVISO } from "@/lib/conciliacao/aviso-envio";
 import { conferirDuplicidade, type TituloOmie } from "@/lib/conciliacao/duplicidade";
 import type { ContaEnvio } from "@/lib/conciliacao/omie-envio";
 import { CATEGORIA_LABEL, LIMITE_LANCAMENTO_API } from "@/lib/conciliacao/rotulos";
+import { EVENTO_SINO } from "@/lib/pendencias-visual";
 import type { Tom } from "@/lib/tons";
 import type { EstadoValidacao } from "../omie-actions";
 
@@ -57,7 +59,7 @@ type EnvioEmLotes = {
   rodando: boolean;
   aviso?: string;
 };
-type RespostaLote = { lancadas: number; adiadas: string[]; parada: string | null; bloqueadas: number; erros: { nome: string; valor: number; erro: string }[]; modoTeste: string[] };
+type RespostaLote = { lancadas: number; adiadas: string[]; parada: string | null; bloqueadas: number; barradas: { chave: string; motivo: string }[]; erros: { nome: string; valor: number; erro: string }[]; modoTeste: string[] };
 const ROTULO_FILA: Record<string, string> = { nazario: "Nazário", varela: "Varela", sem: "Sem empresa" };
 const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const data = (iso: string | null) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : "—");
@@ -133,6 +135,8 @@ export function EnvioOmie({ conciliacaoId, contas, grupo, contagem, api, config,
       if (fila) fila.push(c);
       else filas.set(emp, [c]);
     }
+    // o que vai no aviso do sino ao terminar
+    const fim = { lancadas: 0, jaNaOmie: 0, vencidas: 0, erros: [] as RespostaLote["erros"], barradas: [] as { nome: string; valor: number; motivo: string }[], falhas: [] as string[] };
     setLote({ total: chaves.length, lancadas: 0, jaNaOmie: 0, vencidas: 0, parecidas: 0, barradas: [], qtdErros: 0, motivos: {}, filas: Object.fromEntries([...filas].map(([e, f]) => [e, { total: f.length, etapa: "aguardando" }])), rodando: true });
     const etapa = (emp: string, texto: string) => setLote((l) => (l ? { ...l, filas: { ...l.filas, [emp]: { ...l.filas[emp], etapa: texto } } } : l));
     const avisar = (emp: string, texto: string) => setLote((l) => (l ? { ...l, aviso: [l.aviso, `${ROTULO_FILA[emp] ?? emp}: ${texto}`].filter(Boolean).join(" · ") } : l));
@@ -183,12 +187,15 @@ export function EnvioOmie({ conciliacaoId, contas, grupo, contagem, api, config,
         const vencimento = new Map(lista.map((c) => [c.chave, c.vencimento]));
         const novas = conferencia.liberadas.filter((k) => !(vencimento.get(k) && vencimento.get(k)! < hoje));
         const vencidas = conferencia.liberadas.length - novas.length;
+        fim.vencidas += vencidas;
+        fim.barradas.push(...barradas);
         setLote((l) => (l ? { ...l, vencidas: l.vencidas + vencidas, parecidas: l.parecidas + parecidas, barradas: [...l.barradas, ...barradas] } : l));
         // 3) quem já está lá sai de "a enviar", sem mexer no título da Omie
         for (let i = 0; i < ja.length && !parar.current; i += 500) {
           etapa(emp, `marcando ${inteiro(ja.length)} que já estão na Omie`);
           const pedaco = ja.slice(i, i + 500);
           await postar("/api/conciliacao/omie-marcar", { conciliacao: conciliacaoId, contas: pedaco });
+          fim.jaNaOmie += pedaco.length;
           setLote((l) => (l ? { ...l, jaNaOmie: l.jaNaOmie + pedaco.length } : l));
         }
         // 4) lança só as novas
@@ -200,6 +207,9 @@ export function EnvioOmie({ conciliacaoId, contas, grupo, contagem, api, config,
           if (r.modoTeste.length) throw new Error(`modo teste em ${r.modoTeste.join(", ")}: libere o lote em DDA x Trier → Omie`);
           novas.splice(0, pedaco.length);
           novas.push(...r.adiadas);
+          fim.lancadas += r.lancadas;
+          fim.erros.push(...r.erros);
+          for (const b of r.barradas) fim.barradas.push({ nome: porChave.get(b.chave)?.nome ?? b.chave, valor: porChave.get(b.chave)?.valor ?? 0, motivo: b.motivo });
           setLote((l) => {
             if (!l) return l;
             const motivos = { ...l.motivos };
@@ -212,10 +222,35 @@ export function EnvioOmie({ conciliacaoId, contas, grupo, contagem, api, config,
         etapa(emp, parar.current ? "parada" : "terminou");
       } catch (e) {
         etapa(emp, "parou");
-        avisar(emp, `${e instanceof Error ? e.message : "falha"}. O que já foi feito está marcado; recarregue e marque de novo para continuar.`);
+        const motivo = e instanceof Error ? e.message : "falha";
+        fim.falhas.push(`${ROTULO_FILA[emp] ?? emp}: ${motivo}`);
+        avisar(emp, `${motivo}. O que já foi feito está marcado; recarregue e marque de novo para continuar.`);
       }
     };
     await Promise.all([...filas].map(([emp, lista]) => rodarFila(emp, lista)));
+    try {
+      const resp = await fetch("/api/conciliacao/omie-aviso", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conciliacao: conciliacaoId,
+          total: chaves.length,
+          lancadas: fim.lancadas,
+          jaNaOmie: fim.jaNaOmie,
+          vencidas: fim.vencidas,
+          qtdErros: fim.erros.length,
+          erros: fim.erros.slice(0, MAX_CONTAS_NO_AVISO),
+          qtdBarradas: fim.barradas.length,
+          barradas: fim.barradas.slice(0, MAX_CONTAS_NO_AVISO),
+          falhas: fim.falhas,
+          parado: parar.current,
+        }),
+      });
+      if (!resp.ok) throw new Error();
+      window.dispatchEvent(new Event(EVENTO_SINO));
+    } catch {
+      setLote((l) => (l ? { ...l, aviso: [l.aviso, "O envio terminou, mas o aviso não chegou ao sino; confira o resultado aqui."].filter(Boolean).join(" · ") } : l));
+    }
     setLote((l) => (l ? { ...l, rodando: false } : l));
   };
   const executar = (chaves: string[]) => {

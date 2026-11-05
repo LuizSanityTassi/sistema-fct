@@ -159,6 +159,50 @@ export type Database = {
           },
         ]
       }
+      avisos: {
+        Row: {
+          created_at: string
+          detalhe: string | null
+          href: string | null
+          id: string
+          lida_em: string | null
+          severidade: string
+          tipo: string
+          titulo: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          detalhe?: string | null
+          href?: string | null
+          id?: string
+          lida_em?: string | null
+          severidade?: string
+          tipo: string
+          titulo: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          detalhe?: string | null
+          href?: string | null
+          id?: string
+          lida_em?: string | null
+          severidade?: string
+          tipo?: string
+          titulo?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "avisos_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       branches: {
         Row: {
           ativo: boolean
