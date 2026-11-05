@@ -6233,6 +6233,7 @@ export type Database = {
       ponto_digitais_cadastradas: { Args: { p_employees: string[] }; Returns: { employee_id: string; dedo: number }[] }
       conc_contagem_abas: { Args: { p_conciliacao: string }; Returns: Json }
       conc_pendencias_novas: { Args: { p_de: string }; Returns: { dia: string; qtd: number }[] }
+      folha_equipe: { Args: { p_competencia: string }; Returns: Json }
       conc_resumo_periodo: { Args: { p_conciliacao: string }; Returns: { filial: number | null; grupo: string; qtd: number; valor: number; qtd_aberto: number; valor_aberto: number }[] }
       ponto_digital_identificar: { Args: { p_desafio: string; p_employee: string; p_dedo: number; p_assinatura: string }; Returns: Json }
       ponto_digital_iniciar_filial: { Args: { p_branch: string; p_leitor: string }; Returns: Json }

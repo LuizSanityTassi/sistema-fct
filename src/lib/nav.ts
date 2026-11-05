@@ -71,6 +71,9 @@ export type NavGrupo = {
   itens: NavItem[];
 };
 
+/** Folha da equipe: além do papel Gerente, abre para quem é o responsável no cadastro da filial (getSessao). */
+export const ROTA_FOLHA_EQUIPE = "/folha-equipe";
+
 // Fonte única de verdade do menu E da autorização de rota (ver `podeAcessar`).
 // O que cada papel enxerga nos dados continua sendo decidido pelo RLS no banco.
 export const NAV: NavGrupo[] = [
@@ -103,6 +106,20 @@ export const NAV: NavGrupo[] = [
         icon: Sparkles,
         papeis: ["admin", "financeiro", "rh"],
         descricao: "Pergunte em português sobre vendas, quebras, conciliação, pendências, DRE, RH, folha e ponto; a IA responde com os dados que você já pode ver.",
+      },
+    ],
+  },
+  {
+    titulo: "Folha",
+    descricao: "Lançamentos do mês dos colaboradores vinculados ao gerente, só para consulta.",
+    icone: Wallet,
+    itens: [
+      {
+        label: "Folha da equipe",
+        href: ROTA_FOLHA_EQUIPE,
+        icon: Wallet,
+        papeis: ["admin", "gerente"],
+        descricao: "Horas extras, quebra de caixa e demais eventos do mês dos colaboradores vinculados a você. Só consulta.",
       },
     ],
   },
@@ -150,24 +167,8 @@ export const NAV: NavGrupo[] = [
         label: "Lançamentos da folha",
         href: "/rh/lancamentos",
         icon: ClipboardList,
-        papeis: ["admin", "rh", "gerente"],
-        descricao: "Horas extras, quebra de caixa e eventos do mês; gera a planilha da contabilidade (Domínio) por CNPJ. O gerente só consulta as filiais dele.",
-      },
-      {
-        label: "Importar planilha do RH",
-        href: "/rh/lancamentos/importar",
-        icon: ClipboardList,
         papeis: ["admin", "rh"],
-        descricao: "Traz os lançamentos do mês de uma planilha do RH.",
-        oculto: true,
-      },
-      {
-        label: "Configurar lançamentos",
-        href: "/rh/lancamentos/configuracao",
-        icon: ClipboardList,
-        papeis: ["admin", "rh"],
-        descricao: "Eventos da folha e códigos da Domínio de cada CNPJ.",
-        oculto: true,
+        descricao: "Horas extras, quebra de caixa e eventos do mês; gera a planilha da contabilidade (Domínio) por CNPJ.",
       },
       {
         label: "Canal de denúncias",

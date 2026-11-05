@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { normalizarBloqueios, podeAcessar } from "@/lib/nav";
+import { normalizarBloqueios, podeAcessar, ROTA_FOLHA_EQUIPE } from "@/lib/nav";
 import { ehPapel, type AppRole } from "@/lib/roles";
 
 export type Sessao = {
@@ -32,7 +32,7 @@ export const getSessao = cache(async (): Promise<Sessao> => {
   const user = { id: login.claims.sub, email: login.claims.email };
 
   const [{ data: profile }, { data: extras }] = await Promise.all([
-    supabase.from("profiles").select("nome, papel, branch_id, ativo, ultimo_acesso, regional, admin_sistema, modulos_bloqueados").eq("id", user.id).maybeSingle(),
+    supabase.from("profiles").select("nome, papel, branch_id, employee_id, ativo, ultimo_acesso, regional, admin_sistema, modulos_bloqueados").eq("id", user.id).maybeSingle(),
     supabase.from("acesso_telas").select("rota").eq("user_id", user.id),
   ]);
 
@@ -49,6 +49,12 @@ export const getSessao = cache(async (): Promise<Sessao> => {
 
   const cargo: AppRole = ehPapel(profile?.papel) ? profile.papel : "usuario";
   const adminSistema = !!profile?.admin_sistema && cargo !== "admin";
+  // responsável no cadastro da filial também é gerente, mesmo sem esse papel: vê a Folha da equipe (o papel e o admin já veem)
+  let responsavel = false;
+  if (profile?.employee_id && !adminSistema && cargo !== "admin" && cargo !== "gerente" && cargo !== "relogio") {
+    const { count } = await supabase.from("branches").select("id", { count: "exact", head: true }).eq("responsavel_employee_id", profile.employee_id);
+    responsavel = !!count;
+  }
   return {
     id: user.id,
     email: user.email ?? "",
@@ -58,7 +64,7 @@ export const getSessao = cache(async (): Promise<Sessao> => {
     adminSistema,
     branchId: profile?.branch_id ?? null,
     regional: profile?.regional ?? null,
-    telasExtras: (extras ?? []).map((e) => e.rota),
+    telasExtras: [...(extras ?? []).map((e) => e.rota), ...(responsavel ? [ROTA_FOLHA_EQUIPE] : [])],
     bloqueios: normalizarBloqueios(profile?.modulos_bloqueados),
   };
 });

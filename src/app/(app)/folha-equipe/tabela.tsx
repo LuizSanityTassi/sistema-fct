@@ -1,9 +1,12 @@
 import { Fragment } from "react";
-import { CHAVE_QUEBRA_CAIXA, formatarValorGrade } from "@/lib/rh/lancamentos";
-import type { EventoGrade, GrupoGrade } from "./grade";
+import { formatarValorGrade } from "@/lib/rh/lancamentos";
 
-/** Os lançamentos do mês só para ver, sem nenhum campo: é o que o gerente recebe. Quem lança é o RH. */
-export function GradeConsulta({ eventos, grupos }: { eventos: EventoGrade[]; grupos: GrupoGrade[] }) {
+export type EventoEquipe = { id: string; nome: string; unidade: string };
+export type FuncionarioEquipe = { id: string; nome: string; matricula: string | null; funcao: string; noMes: boolean; valores: Record<string, number> };
+export type GrupoEquipe = { filial: { id: string; codigo: string; nome: string }; funcionarios: FuncionarioEquipe[] };
+
+/** Os lançamentos do mês só para ver, sem nenhum campo: quem lança é o RH. */
+export function TabelaEquipe({ eventos, grupos }: { eventos: EventoEquipe[]; grupos: GrupoEquipe[] }) {
   const total = grupos.reduce((s, g) => s + g.funcionarios.length, 0);
   return (
     <div className="rounded-xl border bg-card">
@@ -12,7 +15,7 @@ export function GradeConsulta({ eventos, grupos }: { eventos: EventoGrade[]; gru
           <thead className="sticky top-0 z-20 bg-muted">
             <tr className="border-b text-left text-xs">
               <th scope="col" className="sticky left-0 z-30 bg-muted px-3 py-2 font-semibold">
-                Funcionário
+                Colaborador
               </th>
               {eventos.map((e) => (
                 <th key={e.id} scope="col" className="px-2 py-2 text-right font-semibold">
@@ -31,7 +34,7 @@ export function GradeConsulta({ eventos, grupos }: { eventos: EventoGrade[]; gru
                       <span className="font-semibold text-fct-tinta">
                         {g.filial.codigo} · {g.filial.nome}
                       </span>
-                      <span className="text-muted-foreground">{g.funcionarios.length} funcionário(s)</span>
+                      <span className="text-muted-foreground">{g.funcionarios.length === 1 ? "1 colaborador" : `${g.funcionarios.length} colaboradores`}</span>
                     </div>
                   </td>
                 </tr>
@@ -43,15 +46,14 @@ export function GradeConsulta({ eventos, grupos }: { eventos: EventoGrade[]; gru
                       </div>
                       <div className="text-[11px] text-muted-foreground">
                         {f.matricula ? `Matr. ${f.matricula}` : "sem matrícula"} · {f.funcao || "—"}
-                        {!f.ativoNoMes && <span className="ml-1 text-amber-700">· fora do mês</span>}
+                        {!f.noMes && <span className="ml-1 text-amber-700">· fora do mês</span>}
                       </div>
                     </td>
                     {eventos.map((e) => {
                       const valor = f.valores[e.id];
-                      const naoSeAplica = e.chave === CHAVE_QUEBRA_CAIXA && f.semQuebra;
                       return (
-                        <td key={e.id} className="px-2 py-1.5 text-right tabular-nums" title={naoSeAplica ? "Farmacêutico da Varela não tem quebra de caixa" : undefined}>
-                          {naoSeAplica ? <span className="text-xs text-muted-foreground">n/a</span> : valor ? formatarValorGrade(valor) : <span className="text-muted-foreground/50">—</span>}
+                        <td key={e.id} className="px-2 py-1.5 text-right tabular-nums">
+                          {valor ? formatarValorGrade(valor) : <span className="text-muted-foreground/50">—</span>}
                         </td>
                       );
                     })}
@@ -62,7 +64,7 @@ export function GradeConsulta({ eventos, grupos }: { eventos: EventoGrade[]; gru
             {total === 0 && (
               <tr>
                 <td colSpan={eventos.length + 1} className="vazio">
-                  Nenhum funcionário com esses filtros.
+                  Nenhum colaborador com esses filtros.
                 </td>
               </tr>
             )}
