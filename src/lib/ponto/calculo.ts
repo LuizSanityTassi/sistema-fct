@@ -13,22 +13,23 @@
 //   • trabalho em folga ou feriado sem escala: extra a 100%.
 // Horário de Brasília sem horário de verão (desde 2019): UTC−3 fixo.
 
-export const TIPOS_MARCACAO = ["entrada", "intervalo_inicio", "intervalo_fim", "saida"] as const;
+/** As 4 batidas do dia, livres para todos. Os códigos são os antigos; os nomes na tela é que são 1ª/2ª entrada e saída. */
+export const TIPOS_NORMAIS = ["entrada", "intervalo_inicio", "intervalo_fim", "saida"] as const;
+/** Só com liberação do RH/DP, a partir de um chamado. */
+export const TIPOS_EXTRA = ["entrada_extra", "saida_extra"] as const;
+export const TIPOS_MARCACAO = [...TIPOS_NORMAIS, ...TIPOS_EXTRA] as const;
 export type TipoMarcacao = (typeof TIPOS_MARCACAO)[number];
 
 export const TIPO_MARCACAO_LABEL: Record<TipoMarcacao, string> = {
-  entrada: "Entrada",
-  intervalo_inicio: "Saída para intervalo",
-  intervalo_fim: "Volta do intervalo",
-  saida: "Saída",
+  entrada: "1ª entrada",
+  intervalo_inicio: "1ª saída",
+  intervalo_fim: "2ª entrada",
+  saida: "2ª saída",
+  entrada_extra: "Entrada extra",
+  saida_extra: "Saída extra",
 };
 /** Rótulo curto (tabelas e espelho). */
-export const TIPO_MARCACAO_CURTO: Record<TipoMarcacao, string> = {
-  entrada: "Entrada",
-  intervalo_inicio: "Intervalo",
-  intervalo_fim: "Retorno",
-  saida: "Saída",
-};
+export const TIPO_MARCACAO_CURTO: Record<TipoMarcacao, string> = TIPO_MARCACAO_LABEL;
 
 export const TIPOS_AUSENCIA = ["ferias", "afastamento", "atestado", "licenca", "abono", "folga_compensatoria"] as const;
 export type TipoAusencia = (typeof TIPOS_AUSENCIA)[number];
@@ -293,7 +294,7 @@ export function agruparPorDia(marcacoes: Marcacao[]): Map<string, Marcacao[]> {
   for (const m of validas) {
     const t = minutosAbs(m.momento);
     let data: string;
-    if (turno && m.tipo !== "entrada" && turno.ultimo !== "saida" && t - turno.inicio <= 16 * 60) data = turno.data;
+    if (turno && m.tipo !== "entrada" && turno.ultimo !== "saida" && turno.ultimo !== "saida_extra" && t - turno.inicio <= 16 * 60) data = turno.data;
     else {
       data = local(m.momento).data;
       turno = { data, inicio: t, ultimo: m.tipo };
@@ -383,8 +384,8 @@ export function minutosNoturnos(a: number, b: number) {
 }
 
 const ORDEM_ESPERADA: TipoMarcacao[][] = [
-  ["entrada", "intervalo_fim"],
-  ["intervalo_inicio", "saida"],
+  ["entrada", "intervalo_fim", "entrada_extra"],
+  ["intervalo_inicio", "saida", "saida_extra"],
 ];
 
 /**
@@ -558,5 +559,5 @@ export function apurarPeriodo(ctx: ContextoFuncionario, marcacoes: Marcacao[], d
 
 /** Próxima marcação esperada do dia, pela quantidade já feita. */
 export function proximoTipo(qtdNoDia: number): TipoMarcacao {
-  return TIPOS_MARCACAO[qtdNoDia % 4];
+  return TIPOS_NORMAIS[qtdNoDia % 4];
 }

@@ -48,7 +48,7 @@ export function EscalaForm({ action, de, ate }: Props) {
         </label>
         {(["entrada", "intervalo_inicio", "intervalo_fim", "saida"] as const).map((c) => (
           <label key={c} className={cn("grid gap-1 text-xs text-muted-foreground", folga && "opacity-40")}>
-            {{ entrada: "Entrada", intervalo_inicio: "Intervalo", intervalo_fim: "Retorno", saida: "Saída" }[c]}
+            {{ entrada: "1ª entrada", intervalo_inicio: "1ª saída", intervalo_fim: "2ª entrada", saida: "2ª saída" }[c]}
             <Input type="time" name={c} disabled={folga} className="h-9 w-28" />
           </label>
         ))}

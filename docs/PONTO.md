@@ -77,6 +77,20 @@ servidor não ter de confiar no navegador:
 A matrícula com o PIN continua valendo: é a saída quando o leitor falha ou a pessoa não tem digital. O portal só usa o dedo com
 o programa na versão 2 ou maior (`versao` em GET `/status`); com a versão antiga, o relógio abre no teclado.
 
+### Batidas normais e extras
+
+As 4 batidas (1ª entrada, 1ª saída, 2ª entrada, 2ª saída) são livres. Os códigos no banco continuam `entrada`,
+`intervalo_inicio`, `intervalo_fim` e `saida`; só os nomes na tela mudaram.
+
+Entrada e saída extra (`entrada_extra`, `saida_extra`) dependem de liberação do RH/DP:
+
+1. Alguém abre um chamado de RH/DP do tipo "Liberação de entrada/saída extra" (`subcategoria = liberacao_extra`).
+2. O RH/DP clica em "Liberar extra" no funcionário (ficha, aba Ponto, ou `/ponto/equipe`), escolhe o dia e o chamado. O chamado
+   recebe um comentário e continua aberto até o RH/DP resolver: um pedido pode valer para mais de uma pessoa.
+3. No dia liberado, o relógio mostra "Entrada extra". Depois dela, só "Saída extra". Cada liberação vale uma entrada extra.
+
+`private.ponto_tipo_valido` confere isso nas duas formas de bater o ponto (PIN e dedo). Incluir extra por ajuste é só do RH/DP.
+
 ## Cálculo (`src/lib/ponto/calculo.ts`)
 
 Funções puras usadas pelo espelho, banco, painel, relatórios e fechamento (as mesmas regras em todo lugar):

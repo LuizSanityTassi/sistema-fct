@@ -2,10 +2,11 @@ import Link from "next/link";
 import { CalendarClock, FileClock, Hourglass } from "lucide-react";
 import { Indicador, LinkPainel, Painel } from "@/components/layout/painel";
 import { Status } from "@/components/layout/status";
-import { definirPin } from "@/app/(app)/ponto/equipe/actions";
+import { cancelarExtra, definirPin, liberarExtra } from "@/app/(app)/ponto/equipe/actions";
+import { LiberarExtra } from "@/app/(app)/ponto/_ui/liberar-extra";
 import { PinForm } from "@/app/(app)/ponto/_ui/pin-form";
 import { ResumoJornada } from "@/app/(app)/ponto/_ui/resumo-jornada";
-import { apurar, bancoDeHoras, listarJornadas, listarVinculos, obterFuncPonto } from "@/lib/data/ponto";
+import { apurar, bancoDeHoras, chamadosDeExtraAbertos, extrasLiberadas, listarJornadas, listarVinculos, obterFuncPonto } from "@/lib/data/ponto";
 import { formatarData } from "@/lib/formatos";
 import { duracao, hojeLocal, saldoTexto } from "@/lib/ponto/calculo";
 import { situacaoAgora } from "@/lib/ponto/situacao";
@@ -30,6 +31,8 @@ export async function PontoDaFicha({ employeeId, podeEditar }: { employeeId: str
   const atual = vinculos.find((v) => v.inicio <= hoje && (!v.fim || v.fim >= hoje));
   const jornada = jornadas.find((j) => j.id === atual?.jornada_id) ?? (ap.jornadaAtual ? jornadas.find((j) => j.nome === ap.jornadaAtual) : undefined);
   const temPin = (comPin ?? []).includes(func.id);
+  // a ficha só deixa editar para RH/DP e admin, os mesmos que liberam extra
+  const [chamadosExtra, extras] = podeEditar ? await Promise.all([chamadosDeExtraAbertos(), extrasLiberadas([func.id])]) : [[], new Map<string, { id: string; dia: string; numero: number | null }[]>()];
 
   return (
     <div className="space-y-4">
@@ -67,6 +70,12 @@ export async function PontoDaFicha({ employeeId, podeEditar }: { employeeId: str
                 {podeEditar && <PinForm action={definirPin.bind(null, func.id)} nome={func.nome} temPin={temPin} compacto />}
               </span>
             </p>
+            {podeEditar && (
+              <p className="flex items-center justify-between gap-2">
+                <span>Entrada e saída extra</span>
+                <LiberarExtra action={liberarExtra.bind(null, func.id)} cancelar={cancelarExtra.bind(null, func.id)} nome={func.nome} hoje={hoje} chamados={chamadosExtra} liberadas={extras.get(func.id) ?? []} />
+              </p>
+            )}
             <p className="text-muted-foreground">No relógio da loja: matrícula {func.matricula ?? "(sem matrícula — cadastre na edição da ficha)"} + PIN.</p>
             <p className="flex flex-wrap gap-3">
               <Link href={`/ponto/espelho?funcionario=${func.id}`} className="text-fct-tinta underline">

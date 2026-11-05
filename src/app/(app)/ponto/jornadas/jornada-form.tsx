@@ -142,10 +142,10 @@ export function JornadaForm({ action, inicial, filiais }: Props) {
               <tr className="border-b text-left text-xs text-muted-foreground">
                 <th className="px-4 py-2 font-medium">Dia</th>
                 <th className="px-2 py-2 font-medium">Folga</th>
-                <th className="px-2 py-2 font-medium">Entrada</th>
-                <th className="px-2 py-2 font-medium">Saída p/ intervalo</th>
-                <th className="px-2 py-2 font-medium">Volta</th>
-                <th className="px-2 py-2 font-medium">Saída</th>
+                <th className="px-2 py-2 font-medium">1ª entrada</th>
+                <th className="px-2 py-2 font-medium">1ª saída</th>
+                <th className="px-2 py-2 font-medium">2ª entrada</th>
+                <th className="px-2 py-2 font-medium">2ª saída</th>
                 <th className="px-4 py-2 text-right font-medium">Horas</th>
               </tr>
             </thead>

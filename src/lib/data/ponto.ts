@@ -101,6 +101,41 @@ export const meuFuncionario = cache(async (): Promise<FuncPonto | null> => {
 });
 
 /** Quem gere o ponto (vê equipe, aprova, configura): admin, RH, gerente, coordenador. */
+/** Chamados abertos de liberação de extra (o RH/DP escolhe um para liberar). */
+export async function chamadosDeExtraAbertos() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("tickets")
+    .select("id, numero, titulo")
+    .eq("categoria", "rh")
+    .eq("subcategoria", "liberacao_extra")
+    .not("status", "in", "(resolvido,cancelado)")
+    .order("created_at", { ascending: false })
+    .limit(200);
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Extras liberadas de hoje em diante, por funcionário, com o número do chamado. */
+export async function extrasLiberadas(employeeIds: string[]) {
+  const mapa = new Map<string, { id: string; dia: string; numero: number | null }[]>();
+  if (!employeeIds.length) return mapa;
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("ponto_extras_liberadas")
+    .select("id, employee_id, dia, ticket_id")
+    .in("employee_id", employeeIds)
+    .is("cancelado_em", null)
+    .gte("dia", hojeLocal())
+    .order("dia");
+  if (error) throw error;
+  const ids = [...new Set((data ?? []).map((l) => l.ticket_id))];
+  const { data: tickets } = ids.length ? await supabase.from("tickets").select("id, numero").in("id", ids) : { data: [] };
+  const numero = new Map((tickets ?? []).map((t) => [t.id, t.numero]));
+  for (const l of data ?? []) mapa.set(l.employee_id, [...(mapa.get(l.employee_id) ?? []), { id: l.id, dia: l.dia, numero: numero.get(l.ticket_id) ?? null }]);
+  return mapa;
+}
+
 export function gerePonto(s: Pick<Sessao, "papel">) {
   return ["admin", "rh", "gerente", "coordenador"].includes(s.papel);
 }

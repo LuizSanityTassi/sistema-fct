@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { BotaoSalvar } from "@/components/form/botao-salvar";
 import { Campo, ErroFormulario, SelectNativo } from "@/components/form/campo";
 import { Input } from "@/components/ui/input";
-import { MOTIVO_AJUSTE_LABEL, TIPO_MARCACAO_LABEL, TIPOS_MARCACAO, type TipoMarcacao } from "@/lib/ponto/calculo";
+import { MOTIVO_AJUSTE_LABEL, TIPO_MARCACAO_LABEL, TIPOS_MARCACAO, TIPOS_NORMAIS, type TipoMarcacao } from "@/lib/ponto/calculo";
 import type { EstadoPonto } from "@/lib/ponto/form";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +14,8 @@ type Props = {
   data: string;
   marcacoes: { id: string; hora: string; tipo: TipoMarcacao; metodo: string }[];
   sugestaoTipo: TipoMarcacao;
+  /** Incluir entrada ou saída extra por ajuste é só do RH/DP. */
+  podeExtra: boolean;
 };
 
 const ACOES = [
@@ -22,7 +24,7 @@ const ACOES = [
   { v: "anular", r: "Anular uma marcação", d: "Marcação feita por engano (duplicada, outro dia…)" },
 ] as const;
 
-export function NovoAjusteForm({ action, employeeId, data, marcacoes, sugestaoTipo }: Props) {
+export function NovoAjusteForm({ action, employeeId, data, marcacoes, sugestaoTipo, podeExtra }: Props) {
   const [estado, formAction] = useActionState(action, {});
   const [acao, setAcao] = useState<"incluir" | "alterar" | "anular">("incluir");
   const erro = (c: string) => estado.erros?.[c];
@@ -61,7 +63,7 @@ export function NovoAjusteForm({ action, employeeId, data, marcacoes, sugestaoTi
         {acao === "incluir" && (
           <Campo id="aj-tipo" label="Tipo" obrigatorio erro={erro("tipo_marcacao")}>
             <SelectNativo id="aj-tipo" name="tipo_marcacao" defaultValue={sugestaoTipo}>
-              {TIPOS_MARCACAO.map((t) => (
+              {(podeExtra ? TIPOS_MARCACAO : TIPOS_NORMAIS).map((t) => (
                 <option key={t} value={t}>
                   {TIPO_MARCACAO_LABEL[t]}
                 </option>

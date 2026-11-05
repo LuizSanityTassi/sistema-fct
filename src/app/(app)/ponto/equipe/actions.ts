@@ -47,6 +47,32 @@ export async function aplicarJornada(_prev: EstadoPonto, fd: FormData): Promise<
   return { ok: `Jornada aplicada a ${ids.length} funcionário(s) a partir de ${inicio.split("-").reverse().join("/")}.` };
 }
 
+/** Botão "Liberar extra": entrada e saída extra para um dia, a partir de um chamado aberto. Quem pode é conferido no banco (RH/DP e admin). */
+export async function liberarExtra(employeeId: string, _prev: EstadoPonto, fd: FormData): Promise<EstadoPonto> {
+  const dia = texto(fd, "dia") ?? "";
+  const chamado = lerUuid(texto(fd, "chamado"));
+  if (!DATA_RE.test(dia)) return { erro: "Escolha o dia." };
+  if (!chamado) return { erro: "Escolha o chamado." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("ponto_extra_liberar", { p_employee: employeeId, p_dia: dia, p_ticket: chamado });
+  if (error) return { erro: mensagemBanco(error) };
+  revalidatePath("/ponto/equipe");
+  revalidatePath(`/rh/funcionarios/${employeeId}`);
+  revalidatePath(`/chamados/${chamado}`);
+  return { ok: "Extra liberada. Vale só no dia escolhido." };
+}
+
+export async function cancelarExtra(employeeId: string, id: string): Promise<EstadoPonto> {
+  const liberacao = lerUuid(id);
+  if (!liberacao) return { erro: "Liberação inválida." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("ponto_extra_cancelar", { p_id: liberacao });
+  if (error) return { erro: mensagemBanco(error) };
+  revalidatePath("/ponto/equipe");
+  revalidatePath(`/rh/funcionarios/${employeeId}`);
+  return { ok: "Liberação cancelada." };
+}
+
 /** PIN do relógio da filial (4 a 6 números). O próprio funcionário ou o gestor da filial. */
 export async function definirPin(employeeId: string, _prev: EstadoPonto, fd: FormData): Promise<EstadoPonto> {
   const pin = texto(fd, "pin") ?? "";

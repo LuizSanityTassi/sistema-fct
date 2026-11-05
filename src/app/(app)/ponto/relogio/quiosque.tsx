@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useTransition, type FormEvent } from "react";
 import { CircleCheck, Delete, Expand, Fingerprint, Shrink, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { TIPO_MARCACAO_LABEL, TIPOS_MARCACAO, type TipoMarcacao } from "@/lib/ponto/calculo";
+import { TIPO_MARCACAO_LABEL, TIPOS_NORMAIS, type TipoMarcacao } from "@/lib/ponto/calculo";
 import { esperarDedo, identificarDigital as identificarNoLeitor, parearLeitor, verLeitor, VERSAO_SO_DEDO } from "@/lib/ponto/leitor-digital";
 import { cn } from "@/lib/utils";
 import { ICONE_TIPO_CLIENTE } from "../_ui/icones-tipo";
@@ -338,7 +338,7 @@ export function Quiosque({ filial, identificar, registrar, iniciarLeitura, ident
           </p>
           {pessoa.ultima && <p className="text-center text-xs text-muted-foreground">Última hoje: {pessoa.ultima}</p>}
           <div className="grid grid-cols-2 gap-2">
-            {TIPOS_MARCACAO.map((t) => {
+            {[...TIPOS_NORMAIS, ...pessoa.tiposExtra].map((t) => {
               const Icone = ICONE_TIPO_CLIENTE[t];
               const sugerido = t === pessoa.sugestao;
               return (

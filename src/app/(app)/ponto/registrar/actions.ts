@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { lerUuid } from "@/lib/data/ponto";
-import { local, TIPO_MARCACAO_LABEL, TIPOS_MARCACAO, type TipoMarcacao } from "@/lib/ponto/calculo";
+import { local, TIPO_MARCACAO_LABEL, TIPOS_MARCACAO, TIPOS_NORMAIS, type TipoMarcacao } from "@/lib/ponto/calculo";
 import { mensagemBanco } from "@/lib/ponto/form";
 import type { LeituraDigital } from "@/lib/ponto/leitor-digital";
 import { createClient } from "@/lib/supabase/server";
@@ -23,14 +23,17 @@ function textoConfirmacao(tipo: TipoMarcacao, momento: string) {
   return `${TIPO_MARCACAO_LABEL[tipo]} registrada às ${String(Math.floor(l.min / 60)).padStart(2, "0")}:${String(l.min % 60).padStart(2, "0")}`;
 }
 
-export type Identificado = { ok: true; id: string; nome: string; temPin: boolean; temDigital: boolean; sugestao: TipoMarcacao; ultima: string | null } | { ok: false; erro: string };
+export type Identificado = { ok: true; id: string; nome: string; temPin: boolean; temDigital: boolean; sugestao: TipoMarcacao; tiposExtra: TipoMarcacao[]; ultima: string | null } | { ok: false; erro: string };
 
-type PessoaDoBanco = { id: string; nome: string; tem_pin: boolean; tem_digital?: boolean; qtd_hoje?: number; ultima?: { tipo: TipoMarcacao; momento: string } | null };
+type PessoaDoBanco = { id: string; nome: string; tem_pin: boolean; tem_digital?: boolean; qtd_hoje?: number; extra_liberada?: boolean; em_extra?: boolean; ultima?: { tipo: TipoMarcacao; momento: string } | null };
 
 /** Sugestão do próximo tipo pelas marcações de hoje (vêm do próprio banco: o login do relógio não lê as marcações). */
 function pessoaIdentificada(f: PessoaDoBanco): Identificado {
   const qtd = f.qtd_hoje ?? 0;
-  return { ok: true, id: f.id, nome: f.nome, temPin: f.tem_pin, temDigital: f.tem_digital === true, sugestao: TIPOS_MARCACAO[qtd % 4], ultima: f.ultima ? textoConfirmacao(f.ultima.tipo, f.ultima.momento) : null };
+  // a extra só aparece para quem o RH/DP liberou; quem está nela, só pode sair
+  const tiposExtra: TipoMarcacao[] = f.em_extra ? ["saida_extra"] : f.extra_liberada ? ["entrada_extra"] : [];
+  const sugestao: TipoMarcacao = f.em_extra ? "saida_extra" : f.extra_liberada && qtd > 0 && qtd % 4 === 0 ? "entrada_extra" : TIPOS_NORMAIS[qtd % 4];
+  return { ok: true, id: f.id, nome: f.nome, temPin: f.tem_pin, temDigital: f.tem_digital === true, sugestao, tiposExtra, ultima: f.ultima ? textoConfirmacao(f.ultima.tipo, f.ultima.momento) : null };
 }
 
 /** Relógio da filial, passo 1: matrícula → funcionário (só filiais que o usuário do relógio atende). */

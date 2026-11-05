@@ -24,6 +24,7 @@ const LISTA: TipoChamado[] = [
   { valor: "inventario", rotulo: "Inventário", categoria: "compras", dica: "Contagem de estoque, ajustes, diferenças." },
   { valor: "quebra_caixa", rotulo: "Quebra de Caixa", categoria: "financeiro", dica: "Dúvida sobre diferença de caixa ou desconto." },
   { valor: "rh_dp", rotulo: "RH/DP", categoria: "rh", dica: "Departamento pessoal em geral." },
+  { valor: "liberacao_extra", rotulo: "Liberação de entrada/saída extra", categoria: "rh", dica: "Pedido para bater entrada e saída além das 4 batidas: diga quem, o dia e o motivo." },
   { valor: "vencidos", rotulo: "Vencidos", categoria: "compras", dica: "Produtos vencidos ou perto de vencer." },
   { valor: "marketing", rotulo: "Solicitações de Marketing", categoria: "marketing", dica: "Cartaz, encarte, ação na loja, redes sociais." },
   { valor: "advertencia_suspensao", rotulo: "Solicitação advertência / suspensão", categoria: "rh", dica: "Pedido de medida disciplinar." },

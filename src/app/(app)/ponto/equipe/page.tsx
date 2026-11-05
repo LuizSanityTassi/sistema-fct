@@ -7,14 +7,15 @@ import { EstadoVazio, Painel } from "@/components/layout/painel";
 import { Status } from "@/components/layout/status";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
-import { apurar, listarEquipe, listarJornadas } from "@/lib/data/ponto";
+import { apurar, chamadosDeExtraAbertos, extrasLiberadas, listarEquipe, listarJornadas } from "@/lib/data/ponto";
 import { hojeLocal } from "@/lib/ponto/calculo";
 import { situacaoAgora } from "@/lib/ponto/situacao";
 import { createClient } from "@/lib/supabase/server";
 import { BarraFiltrosPonto, lerFiltrosPonto } from "../_ui/filtros";
 import { DigitalForm } from "../_ui/digital-form";
+import { LiberarExtra } from "../_ui/liberar-extra";
 import { PinForm } from "../_ui/pin-form";
-import { aplicarJornada, cadastrarDigital, definirPin, removerDigital } from "./actions";
+import { aplicarJornada, cadastrarDigital, cancelarExtra, definirPin, liberarExtra, removerDigital } from "./actions";
 import { ID_FORM_LOTE, LoteJornadaForm, MarcarTodos } from "./lote-form";
 
 export const metadata = { title: "Equipe e jornadas" };
@@ -40,6 +41,9 @@ export default async function EquipePage({ searchParams }: PageProps<"/ponto/equ
   const pag = filtradas.slice((pagina - 1) * TAMANHO, pagina * TAMANHO);
   const [{ data: comPin }, { data: comDigital }] = await Promise.all([supabase.rpc("ponto_tem_pin", { p_employees: pag.map((l) => l.func.id) }), supabase.rpc("ponto_digitais_cadastradas", { p_employees: pag.map((l) => l.func.id) })]);
   const temPin = new Set(comPin ?? []);
+  // liberar extra é do RH/DP
+  const podeLiberar = sessao.papel === "admin" || sessao.papel === "rh";
+  const [chamadosExtra, extras] = podeLiberar ? await Promise.all([chamadosDeExtraAbertos(), extrasLiberadas(pag.map((l) => l.func.id))]) : [[], new Map<string, { id: string; dia: string; numero: number | null }[]>()];
   const dedosDe = (id: string) => (comDigital ?? []).filter((d) => d.employee_id === id).map((d) => d.dedo);
   const contar = (c: string) => linhas.filter((l) => l.agora.codigo === c).length;
   const semJornada = linhas.filter((l) => !l.jornadaAtual).length;
@@ -144,6 +148,7 @@ export default async function EquipePage({ searchParams }: PageProps<"/ponto/equ
                           </Link>
                           {podeEditar && <PinForm action={definirPin.bind(null, f.id)} nome={f.nome} temPin={temPin.has(f.id)} compacto />}
                           {podeEditar && <DigitalForm cadastrar={cadastrarDigital.bind(null, f.id)} remover={removerDigital.bind(null, f.id)} nome={f.nome} dedos={dedosDe(f.id)} />}
+                          {podeLiberar && <LiberarExtra action={liberarExtra.bind(null, f.id)} cancelar={cancelarExtra.bind(null, f.id)} nome={f.nome} hoje={hoje} chamados={chamadosExtra} liberadas={extras.get(f.id) ?? []} />}
                         </div>
                       </TableCell>
                     </TableRow>

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSessao } from "@/lib/auth/session";
 import { lerUuid, meuFuncionario, obterFuncPonto } from "@/lib/data/ponto";
-import { MOTIVOS_AJUSTE, momentoDe, somarDias, TIPOS_MARCACAO } from "@/lib/ponto/calculo";
+import { MOTIVOS_AJUSTE, momentoDe, somarDias, TIPOS_MARCACAO, TIPOS_NORMAIS } from "@/lib/ponto/calculo";
 import { lerHorario, mensagemBanco, texto, type EstadoPonto } from "@/lib/ponto/form";
 import { createClient } from "@/lib/supabase/server";
 
@@ -45,7 +45,9 @@ export async function solicitarAjuste(_prev: EstadoPonto, fd: FormData): Promise
     if (horario && Date.parse(horario) > Date.now()) erros.horario = "O horário não pode estar no futuro.";
   }
   const tipo = texto(fd, "tipo_marcacao");
-  if (acao === "incluir" && (!tipo || !(TIPOS_MARCACAO as readonly string[]).includes(tipo))) erros.tipo_marcacao = "Escolha o tipo da marcação.";
+  // incluir entrada ou saída extra por ajuste é só do RH/DP: para os outros, a extra sempre passa pelo chamado
+  const tiposPermitidos: readonly string[] = sessao.papel === "admin" || sessao.papel === "rh" ? TIPOS_MARCACAO : TIPOS_NORMAIS;
+  if (acao === "incluir" && (!tipo || !tiposPermitidos.includes(tipo))) erros.tipo_marcacao = "Escolha o tipo da marcação.";
   if (Object.keys(erros).length) return { erro: "Confira os campos destacados.", erros };
 
   const emp = await obterFuncPonto(employeeId);

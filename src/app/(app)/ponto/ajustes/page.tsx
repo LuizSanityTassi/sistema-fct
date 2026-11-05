@@ -89,6 +89,7 @@ export default async function AjustesPage({ searchParams }: PageProps<"/ponto/aj
               data={dia.data}
               marcacoes={dia.marcacoes.map((m) => ({ id: m.id, hora: horaLocal(m.momento), tipo: m.tipo, metodo: m.metodo }))}
               sugestaoTipo={proximoTipo(dia.marcacoes.length)}
+              podeExtra={sessao.papel === "admin" || sessao.papel === "rh"}
             />
           </>
         ) : (

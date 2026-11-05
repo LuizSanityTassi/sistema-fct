@@ -15,7 +15,7 @@ export function situacaoAgora(dia: ApuracaoDia, agora = new Date()): { codigo: A
   if (ms.length) {
     const ultima = ms[ms.length - 1];
     if (ultima.tipo === "intervalo_inicio") return { codigo: "intervalo", texto: `Em intervalo desde ${h(ultima.momento)}`, tom: "info" };
-    if (ultima.tipo === "saida") return { codigo: "saiu", texto: `Saiu às ${h(ultima.momento)}`, tom: "neutro" };
+    if (ultima.tipo === "saida" || ultima.tipo === "saida_extra") return { codigo: "saiu", texto: `Saiu às ${h(ultima.momento)}`, tom: "neutro" };
     return { codigo: "trabalhando", texto: `Trabalhando desde ${h(ms[0].momento)}`, tom: "sucesso" };
   }
   if (p.origem === "fora_contrato") return { codigo: "fora", texto: "Fora do controle", tom: "neutro" };
