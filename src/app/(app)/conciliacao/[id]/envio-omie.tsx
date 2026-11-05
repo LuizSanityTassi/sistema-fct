@@ -3,6 +3,7 @@
 import Link from "next/link";
 import * as React from "react";
 import { useActionState } from "react";
+import { useRouter } from "next/navigation";
 import { CirclePause, FileSpreadsheet, Send } from "lucide-react";
 import { ErroFormulario, SelectNativo } from "@/components/form/campo";
 import { Ponto } from "@/components/layout/status";
@@ -57,6 +58,8 @@ type EnvioEmLotes = {
   motivos: Record<string, number>;
   filas: Record<string, { total: number; etapa: string }>;
   rodando: boolean;
+  /** Terminou porque a pessoa parou ou porque uma das filas falhou. */
+  parou?: boolean;
   aviso?: string;
 };
 type RespostaLote = { lancadas: number; adiadas: string[]; parada: string | null; bloqueadas: number; barradas: { chave: string; motivo: string }[]; erros: { nome: string; valor: number; erro: string }[]; modoTeste: string[] };
@@ -80,6 +83,9 @@ export function EnvioOmie({ conciliacaoId, contas, grupo, contagem, api, config,
   const [planilha, acaoPlanilha, gerando] = useActionState(enviarPlanilha, {});
   const [lote, setLote] = React.useState<EnvioEmLotes | null>(null);
   const parar = React.useRef(false);
+  const router = useRouter();
+  // a conferência feita antes do envio deixa de valer quando ele começa: as contas dela já foram tratadas
+  const [validacaoVencida, setValidacaoVencida] = React.useState(false);
   const emLotes = !!lote?.rodando;
   React.useEffect(() => {
     if (!emLotes) return;
@@ -122,9 +128,13 @@ export function EnvioOmie({ conciliacaoId, contas, grupo, contagem, api, config,
     for (const [k, v] of Object.entries(extras)) fd.set(k, v);
     return fd;
   };
-  const pedirValidacao = (verbo: "planilha" | "api") => React.startTransition(() => acaoValidar(fdCom([...sel], { verbo })));
+  const pedirValidacao = (verbo: "planilha" | "api") => {
+    setValidacaoVencida(false);
+    React.startTransition(() => acaoValidar(fdCom([...sel], { verbo })));
+  };
   const lancarEmLotes = async (chaves: string[]) => {
     parar.current = false;
+    setValidacaoVencida(true);
     const porChave = new Map(contas.map((c) => [c.chave, c]));
     const filas = new Map<string, ContaEnvio[]>();
     for (const k of chaves) {
@@ -251,7 +261,9 @@ export function EnvioOmie({ conciliacaoId, contas, grupo, contagem, api, config,
     } catch {
       setLote((l) => (l ? { ...l, aviso: [l.aviso, "O envio terminou, mas o aviso não chegou ao sino; confira o resultado aqui."].filter(Boolean).join(" · ") } : l));
     }
-    setLote((l) => (l ? { ...l, rodando: false } : l));
+    setLote((l) => (l ? { ...l, rodando: false, parou: parar.current || fim.falhas.length > 0 } : l));
+    // o que foi enviado sai da lista e os números das abas baixam, sem precisar recarregar
+    React.startTransition(() => router.refresh());
   };
   const executar = (chaves: string[]) => {
     if (!validacao.verbo) return;
@@ -406,7 +418,7 @@ export function EnvioOmie({ conciliacaoId, contas, grupo, contagem, api, config,
             )}
           </div>
 
-          {v && validacao.verbo && (
+          {v && validacao.verbo && !validacaoVencida && (
             <div className="mt-4 space-y-3 border-t pt-3 text-sm">
               <div className="grid grid-cols-3 gap-2">
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
@@ -466,7 +478,7 @@ export function EnvioOmie({ conciliacaoId, contas, grupo, contagem, api, config,
           {lote && (
             <div className="mt-4 space-y-2 border-t pt-3 text-sm">
               <p className="font-medium" aria-live="polite">
-                {lote.rodando ? "Enviando ao Omie" : "Envio parado"}: {inteiro(lote.jaNaOmie)} já estavam lá, {inteiro(lote.lancadas)} lançada(s), {inteiro(lote.qtdErros)} com erro, {inteiro(lote.vencidas)} vencida(s) e {inteiro(lote.parecidas)} barrada(s) por possível duplicidade (não lançadas), de {inteiro(lote.total)}
+                {lote.rodando ? "Enviando ao Omie" : lote.parou ? "Envio parado" : "Envio concluído"}: {inteiro(lote.jaNaOmie)} já estavam lá, {inteiro(lote.lancadas)} lançada(s), {inteiro(lote.qtdErros)} com erro, {inteiro(lote.vencidas)} vencida(s) e {inteiro(lote.parecidas)} barrada(s) por possível duplicidade (não lançadas), de {inteiro(lote.total)}
               </p>
               <div className="h-2 overflow-hidden rounded-full bg-muted">
                 <div className="h-full bg-fct-tinta" style={{ width: `${Math.min(100, ((lote.jaNaOmie + lote.lancadas + lote.qtdErros + lote.vencidas + lote.parecidas) / Math.max(1, lote.total)) * 100)}%` }} />
@@ -512,7 +524,7 @@ export function EnvioOmie({ conciliacaoId, contas, grupo, contagem, api, config,
                   </ul>
                 </details>
               )}
-              {!lote.rodando && <p className="text-xs text-muted-foreground">Recarregue a página para ver as contas marcadas como enviadas.</p>}
+              {!lote.rodando && <p className="text-xs text-muted-foreground">O que foi enviado já saiu desta lista e está na aba Enviados ao Omie; os números das abas foram atualizados.</p>}
             </div>
           )}
         </section>
