@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { CircleCheck, Delete, Expand, Fingerprint, Shrink, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TIPO_MARCACAO_LABEL, TIPOS_NORMAIS, type TipoMarcacao } from "@/lib/ponto/calculo";
@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { ICONE_TIPO_CLIENTE } from "../_ui/icones-tipo";
 import { RelogioDigital } from "../_ui/relogio-digital";
 import type { Identificado, LeituraAberta, ResultadoRegistro } from "../registrar/actions";
-import type { LeitorAtivado } from "./actions";
+import type { LeitorGarantido } from "./actions";
 
 type Props = {
   filial: { id: string; codigo: string; nome: string };
@@ -18,7 +18,7 @@ type Props = {
   iniciarLeitura: (filial: string, leitorId: string) => Promise<LeituraAberta>;
   identificarDigital: (desafio: string, employeeId: string, dedo: number, assinatura: string) => Promise<Identificado>;
   registrarDigital: (desafio: string, dedo: number, assinatura: string, tipo: string | null) => Promise<ResultadoRegistro>;
-  ativarLeitor: (filial: string, codigo: string) => Promise<LeitorAtivado>;
+  garantirLeitor: (filial: string, leitorId: string | null) => Promise<LeitorGarantido>;
 };
 
 type Etapa = "dedo" | "matricula" | "pin" | "tipo" | "ok";
@@ -44,54 +44,8 @@ function AvisoErro({ texto }: { texto: string }) {
   );
 }
 
-/** Aparece quando o programa do leitor está no computador e ainda não foi ativado: o código vem de Ponto > Relógio da filial. */
-function AtivarLeitor({ filial, ativar, ativado }: { filial: string; ativar: Props["ativarLeitor"]; ativado: (id: string) => void }) {
-  const [aberto, setAberto] = useState(false);
-  const [codigo, setCodigo] = useState("");
-  const [erro, setErro] = useState<string | null>(null);
-  const [pendente, iniciar] = useTransition();
-
-  if (!aberto)
-    return (
-      <Button type="button" size="xs" variant="ghost" onClick={() => setAberto(true)}>
-        <Fingerprint aria-hidden /> Ativar leitor de digital
-      </Button>
-    );
-  const enviar = (e: FormEvent) => {
-    e.preventDefault();
-    setErro(null);
-    iniciar(async () => {
-      const r = await ativar(filial, codigo);
-      if (!r.ok) {
-        setErro(r.erro);
-        return;
-      }
-      try {
-        await parearLeitor(r.id, r.segredo);
-        ativado(r.id);
-      } catch (falha) {
-        setErro(falha instanceof Error ? falha.message : "Não consegui ativar o leitor neste computador.");
-      }
-    });
-  };
-  return (
-    <form onSubmit={enviar} className="w-full space-y-2 rounded-lg border bg-background p-3">
-      <label htmlFor="codigo-leitor" className="block text-sm font-medium">
-        Código de ativação do leitor
-      </label>
-      <div className="flex gap-2">
-        <input id="codigo-leitor" value={codigo} onChange={(e) => setCodigo(e.target.value.toUpperCase())} autoComplete="off" autoFocus className="h-9 min-w-0 flex-1 rounded-md border bg-background px-3 font-mono text-sm tracking-widest select-text" />
-        <Button type="submit" disabled={pendente || !codigo.trim()}>
-          {pendente ? "Ativando…" : "Ativar"}
-        </Button>
-      </div>
-      {erro && <AvisoErro texto={erro} />}
-    </form>
-  );
-}
-
 /** Relógio da filial: dedo → tipo → confirmação. Sem leitor pronto, ou por escolha da pessoa: matrícula → PIN → tipo. Volta ao início sozinho. */
-export function Quiosque({ filial, identificar, registrar, iniciarLeitura, identificarDigital, registrarDigital, ativarLeitor }: Props) {
+export function Quiosque({ filial, identificar, registrar, iniciarLeitura, identificarDigital, registrarDigital, garantirLeitor }: Props) {
   const [etapa, setEtapa] = useState<Etapa>("matricula");
   const [digitos, setDigitos] = useState("");
   const [pessoa, setPessoa] = useState<Pessoa | null>(null);
@@ -101,6 +55,7 @@ export function Quiosque({ filial, identificar, registrar, iniciarLeitura, ident
   const [pendente, iniciar] = useTransition();
   const [telaCheia, setTelaCheia] = useState(false);
   const [leitor, setLeitor] = useState<EstadoLeitor | null>(null);
+  const [avisoLeitor, setAvisoLeitor] = useState<string | null>(null);
   const [conferindo, setConferindo] = useState(false);
   const [prova, setProva] = useState<Prova | null>(null);
   const ocioso = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -118,23 +73,47 @@ export function Quiosque({ filial, identificar, registrar, iniciarLeitura, ident
     setResultado(null);
   }, [inicio]);
 
-  // o computador pode ligar antes do programa ou do leitor: sem leitor pronto, confere de tempos em tempos
+  // o computador pode ligar antes do programa ou do leitor: sem leitor pronto, confere de tempos em tempos.
+  // Com o programa no ar, o leitor se ativa sozinho para esta filial, sem código.
   useEffect(() => {
     if (leitorDoDedo) return;
     let vale = true;
-    const conferir = () =>
-      verLeitor().then((r) => {
+    const conferir = async () => {
+      const r = await verLeitor();
+      if (!vale) return;
+      if (!r.leitor) {
+        setLeitor(null);
+        return;
+      }
+      const versao = r.versao ?? 1;
+      if (versao < VERSAO_SO_DEDO) {
+        setLeitor({ id: r.leitorId ?? null, versao });
+        return;
+      }
+      try {
+        const g = await garantirLeitor(filial.id, r.leitorId ?? null);
         if (!vale) return;
-        setLeitor(r.leitor ? { id: r.leitorId ?? null, versao: r.versao ?? 1 } : null);
-        if (r.leitor && r.leitorId && (r.versao ?? 1) >= VERSAO_SO_DEDO) setEtapa((e) => (e === "matricula" ? "dedo" : e));
-      });
+        if (!g.ok) {
+          setAvisoLeitor(g.erro);
+          setLeitor({ id: null, versao });
+          return;
+        }
+        if (g.segredo) await parearLeitor(g.id, g.segredo);
+        if (!vale) return;
+        setAvisoLeitor(null);
+        setLeitor({ id: g.id, versao });
+        setEtapa((e) => (e === "matricula" ? "dedo" : e));
+      } catch (falha) {
+        if (vale) setAvisoLeitor(falha instanceof Error ? falha.message : "Não consegui ativar o leitor neste computador.");
+      }
+    };
     void conferir();
     const t = setInterval(conferir, CONFERIR_LEITOR_MS);
     return () => {
       vale = false;
       clearInterval(t);
     };
-  }, [leitorDoDedo]);
+  }, [leitorDoDedo, filial.id, garantirLeitor]);
 
   // fica esperando o dedo enquanto esta tela estiver aberta; a espera é só com o programa do leitor, o servidor entra quando há dedo
   useEffect(() => {
@@ -290,12 +269,6 @@ export function Quiosque({ filial, identificar, registrar, iniciarLeitura, ident
     else void document.documentElement.requestFullscreen?.();
   };
 
-  const leitorAtivado = (id: string) => {
-    const versao = leitor?.versao ?? 1;
-    setLeitor({ id, versao });
-    if (versao >= VERSAO_SO_DEDO) setEtapa("dedo");
-  };
-
   const primeiroNome = pessoa?.nome.split(" ")[0];
 
   return (
@@ -390,7 +363,7 @@ export function Quiosque({ filial, identificar, registrar, iniciarLeitura, ident
           )}
         </div>
       )}
-      {etapa === "matricula" && leitor && !leitor.id && <AtivarLeitor filial={filial.id} ativar={ativarLeitor} ativado={leitorAtivado} />}
+      {etapa === "matricula" && avisoLeitor && <p className="text-center text-xs text-amber-700">{avisoLeitor}</p>}
       {etapa === "matricula" && leitor?.id && !leitorDoDedo && <p className="text-center text-xs text-amber-700">O programa do leitor deste computador está desatualizado: instale a versão nova para bater o ponto só com o dedo.</p>}
       <p className="text-center text-xs text-muted-foreground">Data, hora, filial e aparelho ficam gravados. 5 PINs errados bloqueiam por 15 minutos.</p>
     </div>

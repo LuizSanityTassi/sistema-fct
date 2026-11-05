@@ -17,9 +17,8 @@ import { lerUuid } from "@/lib/data/ponto";
 import { formatarDataHora } from "@/lib/formatos";
 import { createClient } from "@/lib/supabase/server";
 import { FormAcessoRelogio } from "./acessos-relogio";
-import { gerarCodigoLeitor, revogarLeitor, salvarAcessoRelogio } from "./actions";
+import { revogarLeitor, salvarAcessoRelogio } from "./actions";
 import { filiaisDoRelogio } from "./filiais";
-import { FormCodigoLeitor } from "./leitores-relogio";
 
 export const metadata = { title: "Relógio da filial" };
 
@@ -50,7 +49,6 @@ export default async function RelogioPage({
     branch_id: string;
     ativo: boolean;
     ativado_em: string | null;
-    codigo_expira: string | null;
     ultimo_uso: string | null;
   }[] = [];
   if (admin) {
@@ -74,7 +72,7 @@ export default async function RelogioPage({
       <PageHeader
         eyebrow="Ponto"
         titulo="Relógio da filial"
-        descricao="O relógio abre em tela cheia, sem o menu do sistema: o funcionário só consegue digitar a matrícula e o PIN. Para sair, pede a senha."
+        descricao="O relógio abre em tela cheia, sem o menu do sistema: o funcionário só coloca o dedo ou digita a matrícula e o PIN. Para sair, pede a senha."
         acoes={
           opcoes.length > 1 && (
             <form method="get" className="flex gap-2">
@@ -207,16 +205,8 @@ export default async function RelogioPage({
           className="mt-6"
           icone={Fingerprint}
           titulo="Leitor de digital de cada filial"
-          descricao="Com o leitor ativado, quem tem digital cadastrada digita a matrícula e coloca o dedo; o PIN continua valendo como reserva. Instale o programa do leitor no computador da loja e ative com o código de uma vez."
+          descricao="Instale o programa do leitor no computador da loja e abra o relógio: o leitor se ativa sozinho. A pessoa só coloca o dedo; a matrícula com o PIN fica de reserva. Um computador novo em filial que já tem leitor precisa que o RH, a TI ou um administrador abra o relógio nele uma vez."
         >
-          <FormCodigoLeitor
-            acao={gerarCodigoLeitor}
-            filiais={opcoes.map((u) => ({
-              id: u.id,
-              codigo: u.codigo,
-              nome: u.nome,
-            }))}
-          />
           {leitores.length > 0 && (
             <div className="border-t">
               <Table>
@@ -244,11 +234,9 @@ export default async function RelogioPage({
                           )}
                         </TableCell>
                         <TableCell className="text-sm">
-                          {!l.ativo
-                            ? "Desativado"
-                            : l.ativado_em
-                              ? `Ativo desde ${formatarDataHora(l.ativado_em)}`
-                              : `Aguardando o código, até ${formatarDataHora(l.codigo_expira ?? "")}`}
+                          {l.ativo
+                            ? `Ativo desde ${formatarDataHora(l.ativado_em ?? "")}`
+                            : "Desativado"}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {l.ultimo_uso

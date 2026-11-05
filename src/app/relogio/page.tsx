@@ -11,7 +11,7 @@ import {
   registrarDigitalNoRelogio,
   registrarNoRelogio,
 } from "../(app)/ponto/registrar/actions";
-import { ativarLeitorNoRelogio } from "../(app)/ponto/relogio/actions";
+import { garantirLeitorNoRelogio } from "../(app)/ponto/relogio/actions";
 import { filiaisDoRelogio } from "../(app)/ponto/relogio/filiais";
 import { Quiosque } from "../(app)/ponto/relogio/quiosque";
 import { sairDoRelogio } from "./actions";
@@ -83,7 +83,7 @@ export default async function RelogioQuiosquePage({
             iniciarLeitura={iniciarLeituraNoRelogio}
             identificarDigital={identificarDigitalNoRelogio}
             registrarDigital={registrarDigitalNoRelogio}
-            ativarLeitor={ativarLeitorNoRelogio}
+            garantirLeitor={garantirLeitorNoRelogio}
           />
         ) : (
           <p className="max-w-sm rounded-xl border bg-card px-5 py-6 text-center text-sm text-muted-foreground">

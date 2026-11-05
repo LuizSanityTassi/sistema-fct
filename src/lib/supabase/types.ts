@@ -6193,8 +6193,7 @@ export type Database = {
       ponto_digital_iniciar_filial: { Args: { p_branch: string; p_leitor: string }; Returns: Json }
       ponto_extra_cancelar: { Args: { p_id: string }; Returns: undefined }
       ponto_extra_liberar: { Args: { p_employee: string; p_dia: string; p_ticket: string }; Returns: string }
-      ponto_leitor_ativar: { Args: { p_branch: string; p_codigo: string; p_nome: string }; Returns: Json }
-      ponto_leitor_gerar_codigo: { Args: { p_branch: string }; Returns: string }
+      ponto_leitor_garantir: { Args: { p_branch: string; p_leitor: string | null; p_nome: string }; Returns: Json }
       ponto_leitor_revogar: { Args: { p_leitor: string }; Returns: undefined }
       ponto_leitores_lista: { Args: never; Returns: { id: string; branch_id: string; nome: string | null; ativo: boolean; ativado_em: string | null; codigo_expira: string | null; ultimo_uso: string | null }[] }
       ponto_registrar_digital: { Args: { p_desafio: string; p_dedo: number; p_assinatura: string; p_tipo: string | null; p_dispositivo: string | null; p_ip: string | null }; Returns: Json }

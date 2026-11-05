@@ -202,7 +202,7 @@ export const NAV: NavGrupo[] = [
         href: "/ponto/relogio",
         icon: Clock,
         papeis: ["admin", "rh", "gerente", "coordenador"],
-        descricao: "Relógio da loja em tela cheia, sem menu (o funcionário só digita matrícula e PIN), e o login de relógio de cada filial.",
+        descricao: "Relógio da loja em tela cheia, sem menu (o funcionário só coloca o dedo ou digita matrícula e PIN), e o login de relógio de cada filial.",
       },
       {
         label: "Equipe e jornadas",

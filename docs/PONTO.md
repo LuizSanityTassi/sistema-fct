@@ -62,8 +62,10 @@ QR Code e reconhecimento facial entram como novos valores de `p_metodo` em `pont
 A biblioteca do leitor (Hamster DX) só roda no Windows da loja, então a comparação do dedo não acontece no servidor. Para o
 servidor não ter de confiar no navegador:
 
-1. O administrador gera um código em `/ponto/relogio` (uso único, 30 minutos). Digitado no relógio, ele vira um segredo que
-   fica cifrado no banco e, no computador, protegido pelo Windows (`leitor.dat`, DPAPI). Cada computador tem o seu.
+1. O leitor se ativa sozinho ao abrir o relógio (`ponto_leitor_garantir`): nasce um segredo que fica cifrado no banco e, no
+   computador, protegido pelo Windows (`leitor.dat`, DPAPI). Cada computador tem o seu. Administrador, TI e RH ativam em qualquer
+   filial; o login do relógio, o gerente e o coordenador só no primeiro computador da filial. Leitor desativado só volta por um dos
+   três primeiros.
 2. A tela do relógio fica esperando o dedo no programa do leitor (`Desktop\agente-digital`, POST `/esperar`), sem passar pelo
    servidor. Só quando há dedo lido, `ponto_digital_iniciar_filial` devolve as digitais da filial do leitor, cada uma cifrada
    com uma chave que depende do segredo, da leitura e do dono da digital. O navegador só repassa: se trocar o dono de uma
