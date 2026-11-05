@@ -29,8 +29,10 @@ const esquema = z.object({
   tipo: z.string().refine(ehTipoConta, "Escolha o tipo."),
   grupo: z.string().refine(ehGrupoFinanceiro, "Empresa inválida.").optional(),
   observacao: z.string().max(500, "Máximo de 500 caracteres.").optional(),
+  omie_varela: z.string().regex(/^\d{5,15}$/, "Só os números do código da conta no Omie.").optional(),
+  omie_nazario: z.string().regex(/^\d{5,15}$/, "Só os números do código da conta no Omie.").optional(),
 });
-const CAMPOS = ["apelido", "banco", "agencia", "conta", "tipo", "grupo", "observacao"] as const;
+const CAMPOS = ["apelido", "banco", "agencia", "conta", "tipo", "grupo", "observacao", "omie_varela", "omie_nazario"] as const;
 
 /** Cadastra (id null) ou altera uma conta da carteira. */
 export async function salvarConta(id: string | null, _prev: EstadoConta, fd: FormData): Promise<EstadoConta> {
@@ -53,12 +55,14 @@ export async function salvarConta(id: string | null, _prev: EstadoConta, fd: For
     observacao: d.observacao ?? null,
     ativa: id ? fd.get("ativa") === "on" : true,
     aceita_sangria: fd.get("aceita_sangria") === "on",
+    omie_varela: d.omie_varela ? Number(d.omie_varela) : null,
+    omie_nazario: d.omie_nazario ? Number(d.omie_nazario) : null,
   };
 
   const supabase = await createClient();
   const repetido = (codigo?: string) => (codigo === "23505" ? "Já existe uma conta com esse apelido." : null);
   if (id) {
-    const { data: atual } = await supabase.from("fin_contas_bancarias").select("apelido, banco, agencia, conta, tipo, grupo, observacao, ativa, aceita_sangria").eq("id", id).maybeSingle();
+    const { data: atual } = await supabase.from("fin_contas_bancarias").select("apelido, banco, agencia, conta, tipo, grupo, observacao, ativa, aceita_sangria, omie_varela, omie_nazario").eq("id", id).maybeSingle();
     if (!atual) return { erro: "Conta não encontrada." };
     const { error } = await supabase.from("fin_contas_bancarias").update(registro).eq("id", id);
     if (error) return { erro: repetido(error.code) ?? `Não foi possível salvar: ${error.message}` };

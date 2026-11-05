@@ -8,14 +8,17 @@ import { Status } from "@/components/layout/status";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { exigirAcesso } from "@/lib/auth/session";
-import { lerFiltrosSangrias, listarSangrias, opcoesDeCadastro, TAMANHO_PAGINA_SANGRIAS } from "@/lib/data/sangrias";
+import { contarSangriasParaOmie, lerFiltrosSangrias, listarSangrias, opcoesDeCadastro, TAMANHO_PAGINA_SANGRIAS } from "@/lib/data/sangrias";
 import { formatarData, formatarMoeda } from "@/lib/formatos";
-import { ehSituacaoSangria, SITUACOES_SANGRIA, TOM_SANGRIA, type SituacaoSangria } from "@/lib/sangrias/rotulos";
+import { ehSituacaoSangria, SITUACOES_SANGRIA, situacaoNoOmie, TOM_SANGRIA, type SituacaoSangria } from "@/lib/sangrias/rotulos";
 import { createClient } from "@/lib/supabase/server";
-import { conferirSangrias } from "../../sangrias/actions";
+import { conferirSangrias, enviarPendentesAoOmie } from "../../sangrias/actions";
+import { EnviarPendentes } from "./[id]/acoes-omie";
 import { ConferenciaLista } from "./conferencia-lista";
 
 export const metadata = { title: "Conferência de sangrias" };
+// conferir em lote já lança no Omie, uma a uma
+export const maxDuration = 300;
 
 const diasAtras = (n: number) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(Date.now() - n * 86_400_000));
 
@@ -29,10 +32,11 @@ export default async function ConferenciaSangriasPage({ searchParams }: PageProp
   filtros.situacao = ehSituacaoSangria(situacaoParam) ? situacaoParam : undefined;
 
   const supabase = await createClient();
-  const [{ itens, total, somas, qtdAnexos }, { contas }, { data: lojas }] = await Promise.all([
+  const [{ itens, total, somas, qtdAnexos }, { contas }, { data: lojas }, paraOmie] = await Promise.all([
     listarSangrias(filtros),
     opcoesDeCadastro(),
     supabase.from("branches").select("id, codigo, nome").eq("ativo", true).order("codigo"),
+    podeConferir ? contarSangriasParaOmie() : Promise.resolve(0),
   ]);
   const paginas = Math.max(1, Math.ceil(total / TAMANHO_PAGINA_SANGRIAS));
   const params = { filial: filtros.filial, conta: filtros.conta, de: filtros.de, ate: filtros.ate, situacao: filtros.situacao ?? "todas" };
@@ -51,6 +55,7 @@ export default async function ConferenciaSangriasPage({ searchParams }: PageProp
       anexos: qtdAnexos.get(s.id) ?? 0,
       situacao: s.situacao,
       cadastro: s.criada_por_nome ?? "—",
+      omie: situacaoNoOmie(s),
     };
   });
 
@@ -122,6 +127,19 @@ export default async function ConferenciaSangriasPage({ searchParams }: PageProp
           </Link>
         ))}
       </div>
+
+      {podeConferir && (
+        <section className="mb-4 flex flex-col gap-3 rounded-xl border bg-card p-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="text-sm">
+            <p className="font-medium">Omie</p>
+            <p className="text-muted-foreground">
+              Conferida, a sangria vai sozinha para o Omie (no lugar da Zanini), depois de o portal conferir que ela não está lá.{" "}
+              {paraOmie ? `${paraOmie === 1 ? "1 conferida ainda não foi" : `${paraOmie} conferidas ainda não foram`}: mande agora.` : "Nenhuma conferida esperando envio."}
+            </p>
+          </div>
+          <EnviarPendentes action={enviarPendentesAoOmie} quantidade={paraOmie} />
+        </section>
+      )}
 
       <section className="rounded-xl border bg-card">
         {linhas.length === 0 ? (

@@ -60,12 +60,18 @@ export function ContaForm({ action, conta }: { action: (prev: EstadoConta, fd: F
           <Campo id="conta" label="Conta" erro={erro("conta")} dica="Com o dígito, como no extrato">
             <Input id="conta" name="conta" defaultValue={conta?.conta ?? ""} maxLength={30} className="font-mono" />
           </Campo>
+          <Campo id="omie_varela" label="Conta no Omie da Varela" erro={erro("omie_varela")} dica="Código da conta corrente no Omie (as sangrias da Varela vão para ela)">
+            <Input id="omie_varela" name="omie_varela" defaultValue={conta?.omie_varela ?? ""} maxLength={15} inputMode="numeric" className="font-mono" aria-invalid={!!erro("omie_varela")} />
+          </Campo>
+          <Campo id="omie_nazario" label="Conta no Omie da Nazário" erro={erro("omie_nazario")} dica="Código da conta corrente no Omie (as sangrias da Nazário vão para ela)">
+            <Input id="omie_nazario" name="omie_nazario" defaultValue={conta?.omie_nazario ?? ""} maxLength={15} inputMode="numeric" className="font-mono" aria-invalid={!!erro("omie_nazario")} />
+          </Campo>
           <Campo id="observacao" label="Observação" erro={erro("observacao")} className="sm:col-span-2">
             <Input id="observacao" name="observacao" defaultValue={conta?.observacao ?? ""} maxLength={500} />
           </Campo>
           <label className="flex items-center gap-2 text-sm sm:col-span-2">
             <input type="checkbox" name="aceita_sangria" defaultChecked={conta?.aceita_sangria ?? true} className="size-4" />
-            Aparece nas sangrias <span className="text-muted-foreground">(a loja pode escolher esta conta como banco do depósito)</span>
+            Aparece nas sangrias <span className="text-muted-foreground">(a loja da empresa que tem a conta no Omie pode escolher esta conta como banco do depósito)</span>
           </label>
           {conta && (
             <label className="flex items-center gap-2 text-sm sm:col-span-2">

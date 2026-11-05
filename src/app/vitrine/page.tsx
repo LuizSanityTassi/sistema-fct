@@ -378,10 +378,10 @@ export default function VitrinePage() {
           action={conferirSangriasExemplo}
           podeConferir
           linhas={[
-            { id: "a1", loja: "F001", lojaNome: "FRETTA", deposito: "19/10/2026", retirada: "18/10/2026", banco: "ITAU VARELA 2025", numero: "000123", valor: "R$ 2.530,00", anexos: 1, situacao: "pendente", cadastro: "Maria Exemplo" },
-            { id: "a2", loja: "F101", lojaNome: "LAGES DOM PEDRO", deposito: "18/10/2026", retirada: "18/10/2026", banco: "SICREDI 2025", numero: "88771", valor: "R$ 1.140,50", anexos: 2, situacao: "pendente", cadastro: "João Teste" },
-            { id: "a3", loja: "F108", lojaNome: "BAIRRO", deposito: "17/10/2026", retirada: "16/10/2026", banco: "BRADESCO", numero: null, valor: "R$ 640,00", anexos: 0, situacao: "pendente", cadastro: "Ana Modelo" },
-            { id: "a4", loja: "F002", lojaNome: "CENTRO", deposito: "15/10/2026", retirada: "15/10/2026", banco: "ITAU FILIAL", numero: "77654", valor: "R$ 3.010,00", anexos: 1, situacao: "conferida", cadastro: "Carlos Exemplo" },
+            { id: "a1", loja: "F001", lojaNome: "FRETTA", deposito: "19/10/2026", retirada: "18/10/2026", banco: "ITAU VARELA 2025", numero: "000123", valor: "R$ 2.530,00", anexos: 1, situacao: "pendente", cadastro: "Maria Exemplo", omie: null },
+            { id: "a2", loja: "F101", lojaNome: "LAGES DOM PEDRO", deposito: "18/10/2026", retirada: "18/10/2026", banco: "SICREDI 2025", numero: "88771", valor: "R$ 1.140,50", anexos: 2, situacao: "pendente", cadastro: "João Teste", omie: null },
+            { id: "a3", loja: "F108", lojaNome: "BAIRRO", deposito: "17/10/2026", retirada: "16/10/2026", banco: "BRADESCO", numero: null, valor: "R$ 640,00", anexos: 0, situacao: "pendente", cadastro: "Ana Modelo", omie: null },
+            { id: "a4", loja: "F002", lojaNome: "CENTRO", deposito: "15/10/2026", retirada: "15/10/2026", banco: "ITAU FILIAL", numero: "77654", valor: "R$ 3.010,00", anexos: 1, situacao: "conferida", cadastro: "Carlos Exemplo", omie: { rotulo: "No Omie", tom: "sucesso" } },
           ]}
         />
       </section>
@@ -391,10 +391,10 @@ export default function VitrinePage() {
           Cadastro de sangria (exemplo: não grava)
         </h2>
         <SangriaForm
-          lojas={[{ id: "00000000-0000-0000-0000-000000000001", codigo: "F001", nome: "FRETTA" }]}
+          lojas={[{ id: "00000000-0000-0000-0000-000000000001", codigo: "F001", nome: "FRETTA", empresa: "varela" }]}
           contas={[
-            { id: "00000000-0000-0000-0000-000000000002", apelido: "ITAU VARELA 2025" },
-            { id: "00000000-0000-0000-0000-000000000003", apelido: "SICREDI 2025" },
+            { id: "00000000-0000-0000-0000-000000000002", apelido: "ITAU VARELA 2025", empresas: ["varela"] },
+            { id: "00000000-0000-0000-0000-000000000003", apelido: "SICREDI 2025", empresas: ["varela"] },
           ]}
           hoje="2026-10-19"
         />

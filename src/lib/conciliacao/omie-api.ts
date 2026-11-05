@@ -443,3 +443,63 @@ export async function lancarContas(ch: Chaves, emp: EmpresaOmie, cache: CacheOmi
   }
   return resultados;
 }
+
+// ---------- contas a receber (sangrias) ----------
+
+/** Departamentos ativos da empresa (para achar o da filial pelo código). Só leitura. */
+export async function listarDepartamentosOmie(ch: Chaves, emp: EmpresaOmie): Promise<Departamento[]> {
+  type Dep = { codigo: string | number; descricao: string; inativo?: string };
+  return (await todas<Dep>(ch, emp, "geral/departamentos/", "ListarDepartamentos", {}, "departamentos"))
+    .filter((d) => d.inativo !== "S")
+    .map((d) => ({ codigo: String(d.codigo), descricao: String(d.descricao ?? "") }));
+}
+
+/** Contas a receber de um cliente registradas no período (dd/mm/aaaa), de qualquer situação. Só leitura. */
+export async function listarContasReceberDoCliente(ch: Chaves, emp: EmpresaOmie, cliente: number, registroDe: string, registroAte: string) {
+  type Cr = {
+    codigo_lancamento_omie: number;
+    codigo_lancamento_integracao?: string;
+    data_vencimento: string;
+    valor_documento: number;
+    status_titulo?: string;
+    distribuicao?: { cCodDep?: string }[];
+  };
+  const lista = await todas<Cr>(
+    ch,
+    emp,
+    "financas/contareceber/",
+    "ListarContasReceber",
+    { apenas_importado_api: "N", filtrar_cliente: cliente, filtrar_por_registro_de: registroDe, filtrar_por_registro_ate: registroAte },
+    "conta_receber_cadastro",
+  );
+  return lista.map((c) => ({
+    codigo: String(c.codigo_lancamento_omie),
+    integracao: String(c.codigo_lancamento_integracao ?? ""),
+    vencimento: String(c.data_vencimento ?? ""),
+    valor: Number(c.valor_documento),
+    departamento: String(c.distribuicao?.[0]?.cCodDep ?? ""),
+    status: String(c.status_titulo ?? ""),
+  }));
+}
+
+/** Uma conta a receber (pelo código do Omie), para conferir antes de ligar uma sangria a ela. Só leitura. */
+export async function consultarContaReceber(ch: Chaves, emp: EmpresaOmie, codigo: number) {
+  const r = await chamar(ch, emp, "financas/contareceber/", "ConsultarContaReceber", { codigo_lancamento_omie: codigo });
+  const dist = (r.distribuicao as { cCodDep?: string }[] | undefined) ?? [];
+  return {
+    codigo: String(r.codigo_lancamento_omie ?? codigo),
+    cliente: Number(r.codigo_cliente_fornecedor),
+    vencimento: String(r.data_vencimento ?? ""),
+    valor: Number(r.valor_documento),
+    departamento: String(dist[0]?.cCodDep ?? ""),
+    status: String(r.status_titulo ?? ""),
+  };
+}
+
+/** Grava a conta a receber (UpsertContaReceber: o mesmo código de integração atualiza em vez de criar outra). */
+export async function gravarContaReceber(ch: Chaves, emp: EmpresaOmie, lancamento: Record<string, unknown>) {
+  const x = await chamar(ch, emp, "financas/contareceber/", "UpsertContaReceber", lancamento);
+  if (x.codigo_status !== undefined && String(x.codigo_status) !== "0") throw new OmieErro(String(x.descricao_status ?? "recusado pela Omie"));
+  if (x.codigo_lancamento_omie == null) throw new OmieErro("a Omie não devolveu o código do lançamento");
+  return String(x.codigo_lancamento_omie);
+}

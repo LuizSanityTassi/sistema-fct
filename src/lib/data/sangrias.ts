@@ -1,6 +1,7 @@
 // Consultas das sangrias (servidor). O RLS decide o que cada um vê: loja vê as suas; financeiro, contador e
 // administrador veem todas.
 import { createClient } from "@/lib/supabase/server";
+import { INICIO_SANGRIAS_NO_OMIE } from "@/lib/sangrias/envio-omie";
 import { ehSituacaoSangria, type SituacaoSangria } from "@/lib/sangrias/rotulos";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -27,7 +28,7 @@ export function lerFiltrosSangrias(sp: Record<string, string | string[] | undefi
 }
 
 const COLUNAS =
-  "id, branch_id, conta_id, conta_apelido, data_retirada, data_deposito, numero_deposito, valor, observacao, situacao, criada_por, criada_por_nome, criada_em, conferida_por_nome, conferida_em, conferencia_obs, cancelada_por_nome, cancelada_em, motivo_cancelamento, filial:branches!caixa_sangrias_branch_id_fkey(codigo, nome)";
+  "id, branch_id, conta_id, conta_apelido, data_retirada, data_deposito, numero_deposito, valor, observacao, situacao, criada_por, criada_por_nome, criada_em, conferida_por_nome, conferida_em, conferencia_obs, cancelada_por_nome, cancelada_em, motivo_cancelamento, omie_empresa, omie_codigo, omie_vinculada, omie_enviado_em, omie_enviado_por_nome, omie_situacao, omie_mensagem, omie_sugerido, filial:branches!caixa_sangrias_branch_id_fkey(codigo, nome)";
 
 export async function listarSangrias(f: FiltrosSangrias) {
   const supabase = await createClient();
@@ -74,6 +75,19 @@ export async function obterSangria(id: string) {
     supabase.from("sangria_anexos").select("id, nome, mime, tamanho, enviado_por_nome, criado_em, storage_path").eq("sangria_id", id).order("criado_em"),
   ]);
   return data ? { ...data, anexos: anexos ?? [] } : null;
+}
+
+/** Conferidas que ainda não estão no Omie e podem ir na próxima leva (sem as barradas e as parecidas, que esperam decisão). */
+export async function contarSangriasParaOmie() {
+  const supabase = await createClient();
+  const { count } = await supabase
+    .from("caixa_sangrias")
+    .select("id", { count: "exact", head: true })
+    .eq("situacao", "conferida")
+    .is("omie_codigo", null)
+    .or("omie_situacao.is.null,omie_situacao.eq.erro")
+    .gte("criada_em", INICIO_SANGRIAS_NO_OMIE);
+  return count ?? 0;
 }
 
 /** Lojas em que a pessoa pode cadastrar e contas da Carteira para escolher (pelas funções do banco). */

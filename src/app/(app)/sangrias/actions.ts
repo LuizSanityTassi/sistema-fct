@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { BUCKET_ANEXOS_CAIXA, MAX_ANEXOS_POR_ENVIO, TAMANHO_MAXIMO_ANEXO, TIPOS_ANEXO, type AnexoEnviado } from "@/lib/caixa/anexos";
+import { enviarSangriasAoOmie, INICIO_SANGRIAS_NO_OMIE, MAX_SANGRIAS_POR_ENVIO, resumoDoEnvio, vincularSangriaAoOmie, type ResultadoSangria } from "@/lib/sangrias/envio-omie";
 import { caminhoDaSangria, lerValor } from "@/lib/sangrias/rotulos";
 import { createClient } from "@/lib/supabase/server";
 
@@ -114,8 +115,71 @@ export async function mudarSituacao(id: string, _prev: EstadoAcao, fd: FormData)
   if (error) return { erro: error.message };
   if (!data) return { erro: "Você não pode mudar esta sangria (ou ela já mudou)." };
   await registrarAuditoria(supabase, { userId: sessao.id, acao: acao === "cancelar" ? "inativar" : "editar", entidade: "caixa_sangrias", registroId: id, novo: { situacao: data.situacao, nota: nota || null } });
+  if (acao === "conferir" && ehFinanceiro(sessao.papel)) {
+    // conferida, vai para o Omie (no lugar da Zanini); se não for, a conferência continua valendo e dá para reenviar
+    const r = (await enviarSangriasAoOmie(supabase, [id], { id: sessao.id, nome: sessao.nome })).get(id);
+    await auditarEnvio(supabase, sessao.id, new Map(r ? [[id, r]] : []));
+    revalidar(id);
+    return r?.tipo === "lancada" || r?.tipo === "ja_estava" ? { ok: `Sangria conferida e lançada no Omie (lançamento ${r.codigo}).` } : { erro: `Sangria conferida, mas não foi ao Omie: ${r && "motivo" in r ? r.motivo : "veja o quadro Omie"}.` };
+  }
   revalidar(id);
   return { ok: acao === "conferir" ? "Sangria conferida." : acao === "desfazer" ? "Conferência desfeita: voltou para a conferir." : "Sangria cancelada." };
+}
+
+const ehFinanceiro = (papel: string) => papel === "admin" || papel === "financeiro";
+
+async function auditarEnvio(supabase: Awaited<ReturnType<typeof createClient>>, userId: string, porId: Map<string, ResultadoSangria>) {
+  if (!porId.size) return;
+  await registrarAuditoria(supabase, { userId, acao: "editar", entidade: "caixa_sangrias", novo: { omie: Object.fromEntries([...porId].map(([id, r]) => [id, r])) } });
+}
+
+/** Lança no Omie uma sangria conferida que ainda não foi (de novo, ou "mesmo assim" quando era só parecida com outra de lá). */
+export async function enviarSangriaAoOmie(id: string, _prev: EstadoAcao, fd: FormData): Promise<EstadoAcao> {
+  const sessao = await getSessao();
+  if (!ehFinanceiro(sessao.papel)) return { erro: "Só o financeiro lança sangria no Omie." };
+  if (!UUID.test(id)) return { erro: "Sangria inválida." };
+  const supabase = await createClient();
+  const porId = await enviarSangriasAoOmie(supabase, [id], { id: sessao.id, nome: sessao.nome }, { mesmoParecida: texto(fd, "mesmo_assim") === "sim" });
+  await auditarEnvio(supabase, sessao.id, porId);
+  revalidar(id);
+  const r = porId.get(id);
+  if (!r) return { erro: "Ela não está conferida ou já está no Omie." };
+  return r.tipo === "lancada" || r.tipo === "ja_estava" ? { ok: r.tipo === "lancada" ? `Lançada no Omie (lançamento ${r.codigo}).` : `Já estava no Omie (lançamento ${r.codigo}): só marquei.` } : { erro: `Não foi ao Omie: ${r.motivo}.` };
+}
+
+/** Liga a sangria ao lançamento igual que já estava no Omie (da Zanini ou de alguém), sem lançar outro. */
+export async function vincularSangriaOmie(id: string): Promise<EstadoAcao> {
+  const sessao = await getSessao();
+  if (!ehFinanceiro(sessao.papel)) return { erro: "Só o financeiro mexe no Omie das sangrias." };
+  if (!UUID.test(id)) return { erro: "Sangria inválida." };
+  const supabase = await createClient();
+  const r = await vincularSangriaAoOmie(supabase, id, { id: sessao.id, nome: sessao.nome });
+  await auditarEnvio(supabase, sessao.id, new Map([[id, r]]));
+  revalidar(id);
+  return r.tipo === "erro" ? { erro: `Não liguei: ${r.motivo}.` } : { ok: `Ligada ao lançamento ${r.tipo === "ja_estava" ? r.codigo : ""} que já estava no Omie.` };
+}
+
+/** Conferidas que ainda não estão no Omie (sem as barradas e as parecidas, que esperam decisão na sangria): manda a leva. */
+export async function enviarPendentesAoOmie(): Promise<EstadoAcao> {
+  const sessao = await getSessao();
+  if (!ehFinanceiro(sessao.papel)) return { erro: "Só o financeiro lança sangria no Omie." };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("caixa_sangrias")
+    .select("id")
+    .eq("situacao", "conferida")
+    .is("omie_codigo", null)
+    .or("omie_situacao.is.null,omie_situacao.eq.erro")
+    .gte("criada_em", INICIO_SANGRIAS_NO_OMIE)
+    .order("data_deposito")
+    .limit(MAX_SANGRIAS_POR_ENVIO);
+  if (error) return { erro: error.message };
+  if (!data.length) return { ok: "Nada para enviar: as conferidas já estão no Omie (ou esperam decisão na própria sangria)." };
+  const porId = await enviarSangriasAoOmie(supabase, data.map((s) => s.id), { id: sessao.id, nome: sessao.nome });
+  await auditarEnvio(supabase, sessao.id, porId);
+  revalidar();
+  const { texto, problemas } = resumoDoEnvio(porId);
+  return problemas ? { erro: `${texto}. Abra as marcadas na coluna Omie para ver o motivo.` } : { ok: `${texto}.` };
 }
 
 /** Conferência em lote (Financeiro → Conferência de sangrias): marca as escolhidas que ainda estão a conferir. */
@@ -130,6 +194,20 @@ export async function conferirSangrias(_prev: EstadoAcao, fd: FormData): Promise
   if (error) return { erro: error.message };
   const n = data?.length ?? 0;
   await registrarAuditoria(supabase, { userId: sessao.id, acao: "editar", entidade: "caixa_sangrias", novo: { conferidas_em_lote: n } });
+  const conferidas = n === 1 ? "1 sangria conferida" : `${n} sangrias conferidas`;
+  if (!n) {
+    revalidar();
+    return { ok: `${conferidas}.` };
+  }
+  // conferidas vão para o Omie; passando do limite de uma leva, o resto sai no botão "Enviar ao Omie"
+  const porId = await enviarSangriasAoOmie(
+    supabase,
+    data.map((s) => s.id),
+    { id: sessao.id, nome: sessao.nome },
+  );
+  await auditarEnvio(supabase, sessao.id, porId);
   revalidar();
-  return { ok: n === 1 ? "1 sangria conferida." : `${n} sangrias conferidas.` };
+  const { texto, problemas } = resumoDoEnvio(porId);
+  const fora = n > MAX_SANGRIAS_POR_ENVIO ? ` · ${n - MAX_SANGRIAS_POR_ENVIO} ficaram para o próximo "Enviar ao Omie"` : "";
+  return problemas ? { erro: `${conferidas}: ${texto}${fora}. Veja a coluna Omie.` } : { ok: `${conferidas}: ${texto}${fora}.` };
 }

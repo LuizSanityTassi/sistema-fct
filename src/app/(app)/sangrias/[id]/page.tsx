@@ -28,7 +28,7 @@ export default async function SangriaPage({ params, searchParams }: PageProps<"/
   // poderes do financeiro só para quem abre o Financeiro (administrador com o Financeiro bloqueado age como a loja)
   const financeiro = (sessao.papel === "admin" || sessao.papel === "financeiro") && veConferencia;
   const minha = s.criada_por === sessao.id;
-  const podeCancelar = situacao === "pendente" && (minha || financeiro);
+  const podeCancelar = situacao === "pendente" && s.omie_codigo == null && (minha || financeiro);
   const podeAnexar = situacao === "pendente" && (financeiro || minha || sessao.papel === "gerente" || sessao.papel === "usuario");
 
   return (

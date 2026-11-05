@@ -37,4 +37,7 @@ export type ContaBancaria = {
   aceita_sangria: boolean;
   observacao: string | null;
   atualizado_em: string;
+  /** Código da conta corrente no Omie da Varela e no da Nazário (as sangrias vão para lá). */
+  omie_varela: number | null;
+  omie_nazario: number | null;
 };

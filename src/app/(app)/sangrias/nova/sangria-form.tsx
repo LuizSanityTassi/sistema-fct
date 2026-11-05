@@ -11,8 +11,9 @@ import { cadastrarSangria, registrarComprovantes } from "../actions";
 import { enviarComprovantes, EscolherComprovantes } from "../comprovantes";
 
 type Props = {
-  lojas: { id: string; codigo: string; nome: string }[];
-  contas: { id: string; apelido: string }[];
+  lojas: { id: string; codigo: string; nome: string; empresa: string | null }[];
+  /** empresas = em que Omie a conta existe (a loja só vê os bancos da empresa dela) */
+  contas: { id: string; apelido: string; empresas: string[] }[];
   hoje: string;
 };
 
@@ -27,7 +28,10 @@ export function SangriaForm({ lojas, contas, hoje }: Props) {
   const [erros, setErros] = React.useState<Record<string, string>>({});
   const [arquivos, setArquivos] = React.useState<File[]>([]);
   const [etapa, setEtapa] = React.useState<"" | "gravando" | "enviando">("");
+  const [loja, setLoja] = React.useState(lojas.length === 1 ? lojas[0].id : "");
   const ocupado = etapa !== "";
+  const empresaDaLoja = lojas.find((l) => l.id === loja)?.empresa ?? null;
+  const contasDaLoja = loja ? contas.filter((c) => !empresaDaLoja || c.empresas.includes(empresaDaLoja)) : [];
 
   const enviar = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -60,7 +64,7 @@ export function SangriaForm({ lojas, contas, hoje }: Props) {
       <section className="rounded-xl border bg-card p-5">
         <div className="grid gap-4 sm:grid-cols-2">
           <Campo id="branch_id" label="Filial" obrigatorio erro={erroDe("branch_id")} className="sm:col-span-2">
-            <SelectNativo id="branch_id" name="branch_id" defaultValue={lojas.length === 1 ? lojas[0].id : ""} aria-invalid={!!erroDe("branch_id")}>
+            <SelectNativo id="branch_id" name="branch_id" value={loja} onChange={(e) => setLoja(e.target.value)} aria-invalid={!!erroDe("branch_id")}>
               {lojas.length !== 1 && <option value="">Escolha a filial…</option>}
               {lojas.map((l) => (
                 <option key={l.id} value={l.id}>
@@ -70,9 +74,9 @@ export function SangriaForm({ lojas, contas, hoje }: Props) {
             </SelectNativo>
           </Campo>
           <Campo id="conta_id" label="Banco" obrigatorio erro={erroDe("conta_id")} className="sm:col-span-2" dica="A conta da carteira onde o dinheiro foi depositado">
-            <SelectNativo id="conta_id" name="conta_id" defaultValue="" aria-invalid={!!erroDe("conta_id")}>
-              <option value="">Escolha o banco…</option>
-              {contas.map((c) => (
+            <SelectNativo key={loja} id="conta_id" name="conta_id" defaultValue="" aria-invalid={!!erroDe("conta_id")} disabled={!loja}>
+              <option value="">{loja ? "Escolha o banco…" : "Escolha a filial primeiro"}</option>
+              {contasDaLoja.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.apelido}
                 </option>

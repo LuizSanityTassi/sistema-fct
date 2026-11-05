@@ -3616,6 +3616,8 @@ export type Database = {
           grupo: string | null
           id: string
           observacao: string | null
+          omie_nazario: number | null
+          omie_varela: number | null
           tipo: string
         }
         Insert: {
@@ -3631,6 +3633,8 @@ export type Database = {
           grupo?: string | null
           id?: string
           observacao?: string | null
+          omie_nazario?: number | null
+          omie_varela?: number | null
           tipo?: string
         }
         Update: {
@@ -3646,6 +3650,8 @@ export type Database = {
           grupo?: string | null
           id?: string
           observacao?: string | null
+          omie_nazario?: number | null
+          omie_varela?: number | null
           tipo?: string
         }
         Relationships: [
@@ -4637,6 +4643,14 @@ export type Database = {
           motivo_cancelamento: string | null
           numero_deposito: string | null
           observacao: string | null
+          omie_codigo: number | null
+          omie_empresa: string | null
+          omie_enviado_em: string | null
+          omie_enviado_por_nome: string | null
+          omie_mensagem: string | null
+          omie_situacao: string | null
+          omie_sugerido: number | null
+          omie_vinculada: boolean
           situacao: string
           valor: number
         }
@@ -4660,6 +4674,14 @@ export type Database = {
           motivo_cancelamento?: string | null
           numero_deposito?: string | null
           observacao?: string | null
+          omie_codigo?: number | null
+          omie_empresa?: string | null
+          omie_enviado_em?: string | null
+          omie_enviado_por_nome?: string | null
+          omie_mensagem?: string | null
+          omie_situacao?: string | null
+          omie_sugerido?: number | null
+          omie_vinculada?: boolean
           situacao?: string
           valor: number
         }
@@ -4683,6 +4705,14 @@ export type Database = {
           motivo_cancelamento?: string | null
           numero_deposito?: string | null
           observacao?: string | null
+          omie_codigo?: number | null
+          omie_empresa?: string | null
+          omie_enviado_em?: string | null
+          omie_enviado_por_nome?: string | null
+          omie_mensagem?: string | null
+          omie_situacao?: string | null
+          omie_sugerido?: number | null
+          omie_vinculada?: boolean
           situacao?: string
           valor?: number
         }
@@ -6282,6 +6312,7 @@ export type Database = {
         Returns: {
           apelido: string
           banco: string
+          empresas: string[]
           id: string
           tipo: string
         }[]
@@ -6471,6 +6502,7 @@ export type Database = {
         Args: never
         Returns: {
           codigo: string
+          empresa: string | null
           id: string
           nome: string
         }[]

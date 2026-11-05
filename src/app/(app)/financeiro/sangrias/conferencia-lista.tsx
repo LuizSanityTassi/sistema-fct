@@ -9,6 +9,7 @@ import { Status } from "@/components/layout/status";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SITUACOES_SANGRIA, TOM_SANGRIA, type SituacaoSangria } from "@/lib/sangrias/rotulos";
+import type { Tom } from "@/lib/tons";
 import type { EstadoAcao } from "../../sangrias/actions";
 
 export type LinhaConferencia = {
@@ -23,6 +24,7 @@ export type LinhaConferencia = {
   anexos: number;
   situacao: string;
   cadastro: string;
+  omie: { rotulo: string; tom: Tom } | null;
 };
 
 /** Lista da conferência: marcar várias (com comprovante) e conferir de uma vez; cada linha abre a conferência dela. */
@@ -76,6 +78,7 @@ export function ConferenciaLista({ linhas, action, podeConferir }: { linhas: Lin
             <TableHead className="text-right">Valor</TableHead>
             <TableHead className="hidden xl:table-cell">Cadastro</TableHead>
             <TableHead>Situação</TableHead>
+            <TableHead>Omie</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -117,6 +120,15 @@ export function ConferenciaLista({ linhas, action, podeConferir }: { linhas: Lin
                 <TableCell className="hidden text-xs text-muted-foreground xl:table-cell">{l.cadastro}</TableCell>
                 <TableCell>
                   <Status tom={TOM_SANGRIA[l.situacao as SituacaoSangria] ?? "neutro"}>{SITUACOES_SANGRIA[l.situacao as SituacaoSangria] ?? l.situacao}</Status>
+                </TableCell>
+                <TableCell>
+                  {l.omie ? (
+                    <Link href={`/financeiro/sangrias/${l.id}`} className="hover:underline">
+                      <Status tom={l.omie.tom}>{l.omie.rotulo}</Status>
+                    </Link>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
                 </TableCell>
               </TableRow>
             );

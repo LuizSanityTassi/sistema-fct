@@ -41,6 +41,12 @@ export function DadosSangria({ s }: { s: SangriaDetalhe }) {
           {s.conferencia_obs ? ` · “${s.conferencia_obs}”` : ""}
         </p>
       )}
+      {s.omie_codigo != null && (
+        <p className="border-t px-5 py-3 text-sm text-emerald-800">
+          {s.omie_vinculada ? "Ligada ao lançamento" : "Lançada no Omie: lançamento"} <span className="font-mono">{s.omie_codigo}</span>
+          {s.omie_vinculada ? " que já estava no Omie" : ""} · {s.omie_enviado_por_nome ?? "—"} em {formatarDataHora(s.omie_enviado_em)}
+        </p>
+      )}
       {s.situacao === "cancelada" && (
         <p className="border-t px-5 py-3 text-sm text-red-800">
           Cancelada por {s.cancelada_por_nome ?? "—"} em {formatarDataHora(s.cancelada_em)}
