@@ -161,6 +161,9 @@ export async function lerColeta(client: Cliente, coleta: ColetaParaLer, filiais:
       if (!feitas?.length) checar(await client.from("vendas_vendedor_dia").insert({ branch_id: r.branch_id, data, vendedor_codigo: r.vendedor, vendedor_nome: `VENDEDOR ${r.vendedor}`, ecom_venda: r.venda, ecom_atendimentos: r.atendimentos, coleta_id: coleta.id }));
     }
     linhas = rows.length;
+  } else if (rel === "receita") {
+    // 1ª etapa: o Excel fica guardado; a leitura (receita por filial → DRE) entra depois de conferir o formato do relatório
+    throw new LeituraErro("receita: Excel guardado, leitura ainda não liberada");
   } else throw new LeituraErro(`relatório desconhecido: ${coleta.relatorio}`);
 
   checar(await client.from("vendas_coletas").update({ lido_em: new Date().toISOString(), linhas, erro: null }).eq("id", coleta.id));

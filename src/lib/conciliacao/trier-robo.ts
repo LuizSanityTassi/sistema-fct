@@ -694,8 +694,62 @@ export const RELATORIOS_VENDAS = {
   tele_entrega: { pagina: "Rel_0028.pod", rotulo: "Tele-entrega por vendedor, por filial", ajustes: { agrup_fil: "2", sel_relatorio: "0", sel_vendas: "2", chk_vendastel: "S" } },
   // só as vendas e-commerce (com a forma de pagamento): saem do televendas
   ecommerce: { pagina: "Rel_0027.pod", rotulo: "Vendas e-commerce (relação de vendas)", ajustes: { agrup_fil: "2", selecaoVendas: "2", agrupProduto: "0", chk_venda_ecommerce: "S", chk_impr_formapagto: "S" } },
+  // receita do mês fechado para a DRE (pedido do Luiz, 05/11/2026): Relatórios > Vendas > Produtos > Vendas Produtos,
+  // agrupado por filial, só vendas, desconsiderando o grupo 61 SERVICO, totais por data, custo gerencial.
+  // Rel_0024: agrup_fil 2 = Filiais; selecaoVendas 0 = Vendas; selecaoI 9 = TOTAIS POR DATA; selecaoII 2 = todos os
+  // produtos; selecaoCusto 3 = Custo Gerencial. O grupo desconsiderado entra na lista da tela pela ação addGrupo.
+  receita: {
+    pagina: "Rel_0024.pod",
+    rotulo: "Receita do mês por filial (Vendas Produtos sem o grupo 61 serviço)",
+    ajustes: {
+      agrup_fil: "2",
+      consid_grfil: "C",
+      consid_filial: "C",
+      consid_grupo: "D",
+      selecaoVendas: "0",
+      selecaoPeriodo: "0",
+      selecaoI: "9",
+      selecaoII: "2",
+      selecaoIII: "2",
+      selecaoVI: "0",
+      selecaoCusto: "3",
+      selecaoCustoII: "0",
+      agrup_rateio: "0",
+      hor_init: "00:00:00",
+      hor_fim: "23:59:59",
+      hor_init_entrada: "00:00:00",
+      hor_fim_entrada: "23:59:59",
+      chk_transf: "N",
+      chk_qtd_vendida_neg: "S",
+      chk_produ_svendas_vendaxcompas: "N",
+      chk_considerar_fornecedor: "N",
+      chk_imprimir_estoq: "N",
+      chk_mostraDescricaoProdutoCompleta: "N",
+      chk_arquivo_layout_febrafar: "N",
+      chk_imprimir_cod_barra: "N",
+      chk_novo_layout: "N",
+      chk_total_nota_compra: "N",
+      chk_venda_promo: "N",
+      chk_venda_itens_promo: "N",
+      chk_imprimir_contato_cliente: "N",
+      chk_venda_ecommerce: "N",
+      chk_venda_ifood: "N",
+      chk_venda_edelivery: "N",
+      chk_venda_farmaciasapp: "N",
+      chk_venda_pilotself: "N",
+      chk_venda_scanntech: "N",
+      chk_venda_promocao_importacao: "N",
+      chk_produtos_sem_venda_e_estoque: "N",
+    },
+    // como a tela faz: trocar a Seleção I avisa o servidor; o grupo 61 só sai se o Trier devolver o nome dele
+    antes: [
+      { acao: "onChangeSelecaoI" },
+      { acao: "addGrupo", campos: { cod_grupoEntrada: "61", cod_grupo: "61" }, confere: /SERVI(?:C|Ç|&#199;|\\u00c7)O/i, falha: "o Trier não confirmou a retirada do grupo 61 SERVICO" },
+    ],
+  },
 } as const;
 export type RelatorioVendas = keyof typeof RELATORIOS_VENDAS;
+type PassoAntes = { acao: string; campos?: Record<string, string>; confere?: RegExp; falha?: string };
 
 // campos de filial das telas de venda: vazios = todas as filiais
 const FILIAL_TODAS = ["cod_filial", "cod_filialEntrada", "id_cod_filial", "id_cod_filialEntrada", "sel_filial", "listFilial", "filial_sql_in"];
@@ -732,6 +786,15 @@ export async function buscarVendasTrier(cred: CredenciaisTrier, pedidos: PedidoV
             const campos = camposDaTela(p.html);
             const padroes = padroesDoInicio(inicio);
             tela = { serial: p.serial, formulario: camposTentativa(campos, padroes), datas: camposDeData(campos, padroes) };
+            // passos que a tela faz antes de gerar (escolhas que o servidor do Trier guarda); se um falhar, nada é gerado
+            const antes: readonly PassoAntes[] = "antes" in cfg ? cfg.antes : [];
+            for (const passo of antes) {
+              const r = await trierAcao(base, p.serial, passo.acao, { ...tela.formulario, ...cfg.ajustes, ...passo.campos }, ck, 30_000, cfg.pagina);
+              if (passo.confere && !passo.confere.test(r)) {
+                const msg = trierMsg(r);
+                throw new TrierErro(`${passo.falha ?? `o Trier recusou a etapa ${passo.acao}`}${msg ? `: ${msg}` : ""} [resposta: ${corta(semTags(r).replace(/\s+/g, " ").trim(), 240)}]`);
+              }
+            }
           }
           telas.set(cfg.pagina, tela);
         }

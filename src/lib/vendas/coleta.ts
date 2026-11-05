@@ -14,7 +14,9 @@ import { lerColetaAnotando, mapaFiliaisTrier } from "./leitura";
 type Cliente = SupabaseClient<Database>;
 
 export const RELATORIOS_COLETA = Object.keys(RELATORIOS_VENDAS) as RelatorioVendas[];
-export const RELATORIOS_DIARIOS = RELATORIOS_COLETA.filter((r) => r !== "vendedores");
+/** Relatórios de mês: vendedores por grupo (do dia 1 até a data) e a receita da DRE (só mês fechado). */
+const RELATORIOS_DE_MES: RelatorioVendas[] = ["vendedores", "receita"];
+export const RELATORIOS_DIARIOS = RELATORIOS_COLETA.filter((r) => !RELATORIOS_DE_MES.includes(r));
 export const ehRelatorioVendas = (v: string): v is RelatorioVendas => v in RELATORIOS_VENDAS;
 
 /** Primeiro dia do histórico (gráfico do ano contra o ano anterior). */
@@ -69,12 +71,26 @@ const fimDoMes = (dia: string) => {
   return new Date(Date.UTC(a, m, 0)).toISOString().slice(0, 10);
 };
 
-/** Pedidos de um período: os diários dia a dia (mais recente primeiro) e o de vendedores por grupo mês a mês. */
+/** Mês inteiro (dia 1 ao último dia) de cada mês do período que já fechou até `ate`: a receita da DRE é sempre do mês todo. */
+function mesesFechados(de: string, ate: string) {
+  return [...new Set(diasEntre(de, ate).map((d) => d.slice(0, 7)))].map((mes) => ({ de: `${mes}-01`, ate: fimDoMes(`${mes}-01`) })).filter((m) => m.ate <= ate).reverse();
+}
+
+/** Pedidos de um período: os diários dia a dia (mais recente primeiro), o de vendedores por grupo mês a mês e a receita
+ * de cada mês fechado. */
 export function pedidosDoPeriodo(de: string, ate: string, relatorios: RelatorioVendas[]): PedidoVendasTrier[] {
   const dias = diasEntre(de, ate).reverse();
-  const diarios = dias.flatMap((dia) => relatorios.filter((r) => r !== "vendedores").map((relatorio) => ({ relatorio, de: dia, ate: dia })));
+  const diarios = dias.flatMap((dia) => relatorios.filter((r) => !RELATORIOS_DE_MES.includes(r)).map((relatorio) => ({ relatorio, de: dia, ate: dia })));
   const meses = relatorios.includes("vendedores") ? [...new Set(dias.map((d) => d.slice(0, 7)))] : [];
-  return [...meses.map((mes) => ({ relatorio: "vendedores" as const, de: `${mes}-01`, ate: fimDoMes(`${mes}-01`) < ate ? fimDoMes(`${mes}-01`) : ate })), ...diarios];
+  const receita = relatorios.includes("receita") ? mesesFechados(de, ate).map((m) => ({ relatorio: "receita" as const, ...m })) : [];
+  return [...receita, ...meses.map((mes) => ({ relatorio: "vendedores" as const, de: `${mes}-01`, ate: fimDoMes(`${mes}-01`) < ate ? fimDoMes(`${mes}-01`) : ate })), ...diarios];
+}
+
+/** O mês que acabou de fechar (no Brasil): no dia 1º de novembro, outubro inteiro. */
+export function mesAnteriorFechado(agora = new Date()) {
+  const [a, m] = diaBrasil(agora, 0).split("-").map(Number);
+  const inicio = m === 1 ? `${a - 1}-12-01` : `${a}-${String(m - 1).padStart(2, "0")}-01`;
+  return { de: inicio, ate: fimDoMes(inicio) };
 }
 
 /** Tira os pedidos que já foram buscados (ok ou sem movimento) para o mesmo relatório e período. Erro de leitura se
@@ -96,7 +112,8 @@ export async function pedidosPendentes(client: Cliente, pedidos: PedidoVendasTri
 export const DIAS_CONFERIDOS = 7;
 
 /**
- * Pedidos do robô diário, em ordem de prioridade: os relatórios diários dos últimos dias que ainda não têm leitura,
+ * Pedidos do robô diário, em ordem de prioridade: a receita do mês que fechou (para a DRE: sai no dia 1º e, se falhar,
+ * tenta de novo nos dias seguintes até vir), os relatórios diários dos últimos dias que ainda não têm leitura,
  * o mês dos vendedores por grupo até ontem, o resto deste mês e do mês anterior (todos os relatórios: é a base das
  * telas e das comparações) e, no tempo que sobrar, o histórico (venda e grupos) desde INICIO_HISTORICO, do mais
  * recente para o mais antigo.
@@ -108,13 +125,15 @@ export async function pedidosDoRoboVendas(admin: Cliente, agora = new Date()): P
     const [a, m] = ontem.split("-").map(Number);
     return m === 1 ? `${a - 1}-12-01` : `${a}-${String(m - 1).padStart(2, "0")}-01`;
   })();
+  const receita = await pedidosPendentes(admin, [{ relatorio: "receita", ...mesAnteriorFechado(agora) }]);
   const recentes = await pedidosPendentes(admin, pedidosDoPeriodo(corte, ontem, RELATORIOS_DIARIOS));
   const mes = await pedidosPendentes(admin, [{ relatorio: "vendedores", de: `${ontem.slice(0, 7)}-01`, ate: ontem }]);
-  // (o mês corrente dos vendedores já vai acima, até ontem)
-  const doisMeses = corte > inicioMesAnt ? await pedidosPendentes(admin, pedidosDoPeriodo(inicioMesAnt, diaBrasil(agora, DIAS_CONFERIDOS + 1), RELATORIOS_COLETA).filter((p) => !(p.relatorio === "vendedores" && p.de === `${ontem.slice(0, 7)}-01`))) : [];
+  // (o mês corrente dos vendedores já vai acima, até ontem; a receita também)
+  const semReceita = RELATORIOS_COLETA.filter((r) => r !== "receita");
+  const doisMeses = corte > inicioMesAnt ? await pedidosPendentes(admin, pedidosDoPeriodo(inicioMesAnt, diaBrasil(agora, DIAS_CONFERIDOS + 1), semReceita).filter((p) => !(p.relatorio === "vendedores" && p.de === `${ontem.slice(0, 7)}-01`))) : [];
   const historico = await pedidosPendentes(admin, pedidosDoPeriodo(INICIO_HISTORICO, diaBrasil(agora, DIAS_CONFERIDOS + 1), RELATORIOS_HISTORICO));
-  const vistos = new Set([...recentes, ...mes, ...doisMeses].map((p) => `${p.relatorio}|${p.de}|${p.ate}`));
-  return [...recentes, ...mes, ...doisMeses, ...historico.filter((p) => !vistos.has(`${p.relatorio}|${p.de}|${p.ate}`))];
+  const vistos = new Set([...receita, ...recentes, ...mes, ...doisMeses].map((p) => `${p.relatorio}|${p.de}|${p.ate}`));
+  return [...receita, ...recentes, ...mes, ...doisMeses, ...historico.filter((p) => !vistos.has(`${p.relatorio}|${p.de}|${p.ate}`))];
 }
 
 /** Relatórios de Excel grande (laboratórios, vendedor por grupo do mês): no robô de hoje entram uma vez por hora. */
