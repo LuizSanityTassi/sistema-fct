@@ -3557,6 +3557,89 @@ export type Database = {
           },
         ]
       }
+      fin_caixa_omie: {
+        Row: {
+          branch_id: string | null
+          categoria_codigo: string
+          categoria_nome: string | null
+          coletado_em: string
+          data: string
+          departamento_codigo: string
+          departamento_nome: string | null
+          empresa: string
+          grupo: string
+          id: number
+          movimentos: number
+          natureza: string
+          valor: number
+        }
+        Insert: {
+          branch_id?: string | null
+          categoria_codigo?: string
+          categoria_nome?: string | null
+          coletado_em?: string
+          data: string
+          departamento_codigo?: string
+          departamento_nome?: string | null
+          empresa: string
+          grupo?: string
+          id?: never
+          movimentos?: number
+          natureza: string
+          valor: number
+        }
+        Update: {
+          branch_id?: string | null
+          categoria_codigo?: string
+          categoria_nome?: string | null
+          coletado_em?: string
+          data?: string
+          departamento_codigo?: string
+          departamento_nome?: string | null
+          empresa?: string
+          grupo?: string
+          id?: never
+          movimentos?: number
+          natureza?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_caixa_omie_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_caixa_omie_dias: {
+        Row: {
+          coletado_em: string
+          data: string
+          empresa: string
+          movimentos: number
+          total_pago: number | null
+          total_recebido: number | null
+        }
+        Insert: {
+          coletado_em?: string
+          data: string
+          empresa: string
+          movimentos: number
+          total_pago?: number | null
+          total_recebido?: number | null
+        }
+        Update: {
+          coletado_em?: string
+          data?: string
+          empresa?: string
+          movimentos?: number
+          total_pago?: number | null
+          total_recebido?: number | null
+        }
+        Relationships: []
+      }
       fin_categorias: {
         Row: {
           ativo: boolean
