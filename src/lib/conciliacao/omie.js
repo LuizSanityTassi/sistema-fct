@@ -70,12 +70,22 @@ const brl = v => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFr
 function hash36(s) { let h1 = 0x811c9dc5, h2 = 0x01000193; for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); h1 = Math.imul(h1 ^ c, 16777619) >>> 0; h2 = Math.imul(h2 ^ c, 2246822519) >>> 0; } return (h1.toString(36) + h2.toString(36)).toUpperCase().slice(0, 14); }
 const notaDe = doc => (/^(\d+)/.exec(doc || '') || [])[1] || '';
 
+/** Desconto do boleto que vale pagando no dia do vencimento (0 se não houver ou se não der para confirmar a data). */
+function descontoNoVencimento(d) {
+  if (!d || !d.desconto || d.desconto.noVencimento !== true) return 0;
+  const v = Math.round(Number(d.desconto.valor) * 100) / 100;
+  return v > 0 && v < d.valor ? v : 0;
+}
+
 function linha(item, cfg, rotulo) {
   const d = item.d, ts = item.ts, t0 = ts[0];
   const dep = departamento(filialDe(item), d ? (d.pagadorCnpj || d.pagador) : null);
   const obs = ['Conciliação DDA×Trier: ' + (rotulo[item.resultado] || (item.resultado === 'SO_DDA' ? 'Tem no DDA, não tem no Trier' : item.resultado))];
   if (ts.length) obs.push('Trier F' + t0.fil + ': ' + ts.map(t => t.doc + ' R$ ' + brl(t.valor)).join(', '));
-  if (d && d.desconto && d.desconto.noVencimento === true) obs.push('Desconto R$ ' + brl(d.desconto.valor) + ' pagando até ' + dtxt(d.desconto.ate));
+  // desconto que vale pagando no dia do vencimento: a conta vai com o valor já descontado (decisão do Luiz, 06/11/2026);
+  // desconto só antecipado ou sem data (planilha do portal) não entra no valor
+  const desc = descontoNoVencimento(d);
+  if (desc) obs.push('Valor já com desconto de R$ ' + brl(desc) + ' (boleto R$ ' + brl(d.valor) + '), válido pagando até ' + dtxt(d.desconto.ate));
   if (d && d.deParaFornecedor) obs.push('Fornecedor real: ' + d.deParaFornecedor);
   if (d && d.alerta) obs.push('ALERTA: ' + d.alerta);
   if (d) obs.push('DDA ' + d.nome + ' doc ' + d.numdoc);
@@ -84,7 +94,7 @@ function linha(item, cfg, rotulo) {
     B: d ? 'DDA' + hash36(d.barra) : ('TR' + t0.fil + '-' + t0.doc).slice(0, 20),
     C: d ? cnpjFmt(d.doc) : String(t0.forn).slice(0, 60),
     D: cfg.categoria, E: cfg.conta,
-    F: Math.round((d ? d.valor : t0.valor) * 100) / 100,
+    F: Math.round((d ? d.valor - desc : t0.valor) * 100) / 100,
     // regra do financeiro: emissão, registro, vencimento e previsão = vencimento do boleto (DDA); sem boleto, o do Trier
     I: serial(venc), J: serial(venc), K: serial(venc), L: serial(venc),
     S: obs.join(' | '),

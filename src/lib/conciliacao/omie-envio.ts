@@ -352,7 +352,7 @@ export async function gerarPlanilhaOmie(supabase: Cliente, userId: string, conc:
     const emp = Omie.empresaDe(item);
     const t = item.ts[0];
     if (!emp) return void semEmpresa.add(linha.chave);
-    porEmp[emp].push({ chave: linha.chave, codigo: prontas[i].B, barra: item.d?.barra ?? null, doc: item.d ? String(item.d.doc).replace(/\D/g, "").slice(-14) : null, venc: Motor.dtxt(item.d ? item.d.venc : (t?.venc ?? null)), valor: prontas[i].F });
+    porEmp[emp].push({ chave: linha.chave, codigo: prontas[i].B, barra: item.d?.barra ?? null, doc: item.d ? String(item.d.doc).replace(/\D/g, "").slice(-14) : null, venc: Motor.dtxt(item.d ? item.d.venc : (t?.venc ?? null)), valor: prontas[i].F, valorBoleto: item.d?.valor ?? null });
   });
   const livres = new Set<string>();
   for (const emp of ["nazario", "varela"] as EmpresaOmie[]) {
@@ -530,7 +530,7 @@ export async function lancarPorApi(supabase: Cliente, userId: string, conc: Conc
     let lista = porEmpresa[emp];
     if (!lista.length) continue;
     // a trava: o que já está na Omie não sobe. Sem conseguir conferir, o erro sobe e nada é lançado.
-    const conferencia = await conferirComOmie(credOmie[emp]!, emp, lista.map((x) => ({ chave: x.linha.chave, codigo: x.conta.codigo, barra: x.conta.barra, doc: x.conta.cnpj, venc: x.conta.venc, valor: x.conta.valor })), PRAZO_CONFERIR_LOTE_MS);
+    const conferencia = await conferirComOmie(credOmie[emp]!, emp, lista.map((x) => ({ chave: x.linha.chave, codigo: x.conta.codigo, barra: x.conta.barra, doc: x.conta.cnpj, venc: x.conta.venc, valor: x.conta.valor, valorBoleto: x.item.d?.valor ?? null })), PRAZO_CONFERIR_LOTE_MS);
     bloqueadas.push(...conferencia.bloqueadas);
     const livres = new Set(conferencia.liberadas);
     lista = lista.filter((x) => livres.has(x.linha.chave));

@@ -13,7 +13,8 @@ export function normalizarBarra(valor: string | null | undefined): string {
 }
 
 export type TituloOmie = { codigo: string; barra: string; omie: string; doc: string; venc: string; valor: number };
-export type ContaConferir = { chave: string; codigo: string; barra: string | null; doc: string | null; venc: string | null; valor: number };
+/** `valorBoleto`: valor cheio do boleto, quando a conta sobe com o desconto do vencimento (a trava compara com os dois). */
+export type ContaConferir = { chave: string; codigo: string; barra: string | null; doc: string | null; venc: string | null; valor: number; valorBoleto?: number | null };
 export type Bloqueio = { chave: string; tipo: "ja_na_omie" | "parecida" | "repetida"; motivo: string; codigoOmie: string | null };
 
 /** Título sem código de barras pode estar sem a tarifa do boleto; com código de barras, só o mesmo valor. */
@@ -58,7 +59,9 @@ export function conferirDuplicidade(contas: ContaConferir[], titulos: TituloOmie
     }
     const k = c.venc && so(c.doc) ? `${so(c.doc)}|${c.venc}` : null;
     // os dois com código de barras, e diferentes (o igual já foi barrado acima): não é duplicata
-    const igual = k ? (porFornecedor.get(k) ?? []).find((t) => !(barra && t.temBarra) && Math.abs(t.valor - c.valor) <= (t.temBarra ? DIFERENCA_COM_BARRA : DIFERENCA_SEM_BARRA)) : undefined;
+    // quem lançou à mão pode ter usado o valor cheio do boleto: compara com ele também
+    const valores = c.valorBoleto != null && Math.abs(c.valorBoleto - c.valor) > 0.004 ? [c.valor, c.valorBoleto] : [c.valor];
+    const igual = k ? (porFornecedor.get(k) ?? []).find((t) => !(barra && t.temBarra) && valores.some((v) => Math.abs(t.valor - v) <= (t.temBarra ? DIFERENCA_COM_BARRA : DIFERENCA_SEM_BARRA))) : undefined;
     if (igual) {
       bloqueadas.push({ chave: c.chave, tipo: "parecida", motivo: igual.temBarra ? "conta sem código de barras, e já existe título no Omie com mesmo fornecedor, vencimento e valor" : "já existe título sem código de barras no Omie com mesmo fornecedor e vencimento, e valor igual ou muito próximo", codigoOmie: igual.omie });
       continue;
