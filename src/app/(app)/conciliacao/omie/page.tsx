@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Download, FlaskConical, TriangleAlert } from "lucide-react";
+import { BotaoSalvar } from "@/components/form/botao-salvar";
 import { AvisoSucesso } from "@/components/form/campo";
 import { PageHeader } from "@/components/layout/page-header";
 import { Ponto } from "@/components/layout/status";
@@ -101,16 +102,16 @@ export default async function OmiePage({ searchParams }: PageProps<"/conciliacao
                 <div className="mt-3 flex flex-wrap gap-2">
                   <form action={buscarCadastrosOmie}>
                     <input type="hidden" name="empresa" value={e} />
-                    <Button type="submit" variant="outline" size="sm">
+                    <BotaoSalvar variant="outline" size="sm" rotuloPendente="Buscando na Omie…">
                       Buscar cadastros na Omie
-                    </Button>
+                    </BotaoSalvar>
                   </form>
                   {cache && !t?.testado && (
                     <form action={liberarLoteOmie}>
                       <input type="hidden" name="empresa" value={e} />
-                      <Button type="submit" size="sm">
+                      <BotaoSalvar size="sm" rotuloPendente="Liberando…">
                         Já conferi a conta de teste na Omie, liberar lote
-                      </Button>
+                      </BotaoSalvar>
                     </form>
                   )}
                 </div>

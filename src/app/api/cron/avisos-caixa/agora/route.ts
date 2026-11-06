@@ -11,7 +11,8 @@ const semCache = { "Cache-Control": "no-store" };
 const CHAVE = "aviso_quebra_agora";
 
 export async function POST(req: Request) {
-  const token = new URL(req.url).searchParams.get("token") ?? "";
+  // a senha vai no cabeçalho (Authorization: Bearer …) para não ficar gravada no log de acesso; ?token= ainda vale
+  const token = /^Bearer (.+)$/.exec(req.headers.get("authorization") ?? "")?.[1] ?? new URL(req.url).searchParams.get("token") ?? "";
   const admin = createAdminClient();
   if (!admin) return NextResponse.json({ erro: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." }, { status: 503, headers: semCache });
   const { data: cfg } = await admin.from("sistema_config").select("valor").eq("chave", CHAVE).maybeSingle();

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cronAutorizado } from "@/lib/seguranca/cron";
 import { avisosLigados, enviarAvisos } from "@/lib/caixa/avisos";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -10,7 +11,7 @@ const semCache = { "Cache-Control": "no-store" };
 export async function GET(req: Request) {
   const segredo = process.env.CRON_SECRET;
   if (!segredo) return NextResponse.json({ erro: "CRON_SECRET não configurado no servidor." }, { status: 503, headers: semCache });
-  if (req.headers.get("authorization") !== `Bearer ${segredo}`) return NextResponse.json({ erro: "Não autorizado." }, { status: 401, headers: semCache });
+  if (!cronAutorizado(req)) return NextResponse.json({ erro: "Não autorizado." }, { status: 401, headers: semCache });
 
   const admin = createAdminClient();
   if (!admin) return NextResponse.json({ erro: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." }, { status: 503, headers: semCache });
