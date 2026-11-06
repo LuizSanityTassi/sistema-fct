@@ -1,8 +1,11 @@
 // Segredos das integrações (Trier, Omie…) guardados no Supabase Vault (criptografado), gravados e lidos só por
-// funções SQL security definer (migração 0023): admin grava; admin e financeiro leem (quem opera as integrações).
+// funções SQL security definer (migração 0023): admin grava; admin e financeiro usam (quem opera as integrações).
+// Desde a migração 0130 a leitura em texto puro NÃO é mais liberada para o login do usuário pela API: o servidor
+// pergunta ao banco se a pessoa pode (integracao_posso_ler) e só então lê pela função de serviço (service_role).
 // Nunca vão para o navegador: as telas recebem só "configurado" e o final da chave. Variáveis de ambiente continuam
 // valendo como alternativa (quem já configurou na Vercel não precisa mudar nada).
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { Database } from "@/lib/supabase/types";
 
 type Cliente = SupabaseClient<Database>;
@@ -22,8 +25,15 @@ export const SEGREDOS = {
 } as const;
 export type NomeSegredo = (typeof SEGREDOS)[keyof typeof SEGREDOS];
 
+/** Lê segredos para quem está logado: o banco confere o papel (admin/financeiro, ativo) e a leitura em si é feita
+ *  no servidor com a service_role — o login do usuário nunca recebe a senha pela API. */
 export async function lerSegredos(supabase: Cliente, nomes: NomeSegredo[]): Promise<Partial<Record<NomeSegredo, string>>> {
-  const { data, error } = await supabase.rpc("integracao_ler_segredos", { p_nomes: nomes });
+  const { data: pode, error: e1 } = await supabase.rpc("integracao_posso_ler");
+  if (e1) throw new Error(`Não consegui conferir a permissão das integrações: ${e1.message}`);
+  if (!pode) throw new Error("Sem permissão para usar as integrações.");
+  const admin = createAdminClient();
+  if (!admin) throw new Error("SUPABASE_SERVICE_ROLE_KEY não configurada no servidor.");
+  const { data, error } = await admin.rpc("integracao_ler_segredos_servico", { p_nomes: nomes });
   if (error) throw new Error(`Não consegui ler as integrações: ${error.message}`);
   const out: Partial<Record<NomeSegredo, string>> = {};
   for (const r of data ?? []) if (r.valor) out[r.nome as NomeSegredo] = r.valor;

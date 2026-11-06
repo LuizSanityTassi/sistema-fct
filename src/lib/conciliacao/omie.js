@@ -67,6 +67,9 @@ const serial = n => n == null ? null : n + 25569; // dias desde 01/01/1970 -> se
 const cnpjFmt = s => { s = so14(s); return s.length === 14 ? s.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : s; };
 const dtxt = n => { const d = new Date(n * 86400000); return String(d.getUTCDate()).padStart(2, '0') + '/' + String(d.getUTCMonth() + 1).padStart(2, '0') + '/' + d.getUTCFullYear(); };
 const brl = v => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// código de barras sempre em 44 dígitos antes de virar código de integração/chave: a linha digitável (47/48) do mesmo
+// boleto daria outro código e o Upsert não reconheceria a conta (auditoria 06/11/2026, AL-14). Igual a normalizarBarra.
+function barra44(v) { const d = String(v == null ? '' : v).replace(/\D/g, ''); if (d.length === 47) return d.slice(0, 4) + d[32] + d.slice(33, 47) + d.slice(4, 9) + d.slice(10, 20) + d.slice(21, 31); if (d.length === 48) return d.slice(0, 11) + d.slice(12, 23) + d.slice(24, 35) + d.slice(36, 47); return d; }
 function hash36(s) { let h1 = 0x811c9dc5, h2 = 0x01000193; for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); h1 = Math.imul(h1 ^ c, 16777619) >>> 0; h2 = Math.imul(h2 ^ c, 2246822519) >>> 0; } return (h1.toString(36) + h2.toString(36)).toUpperCase().slice(0, 14); }
 const notaDe = doc => (/^(\d+)/.exec(doc || '') || [])[1] || '';
 
@@ -91,7 +94,7 @@ function linha(item, cfg, rotulo) {
   if (d) obs.push('DDA ' + d.nome + ' doc ' + d.numdoc);
   const venc = d ? d.venc : t0.venc;
   return {
-    B: d ? 'DDA' + hash36(d.barra) : ('TR' + t0.fil + '-' + t0.doc).slice(0, 20),
+    B: d ? 'DDA' + hash36(barra44(d.barra)) : ('TR' + t0.fil + '-' + t0.doc).slice(0, 20),
     C: d ? cnpjFmt(d.doc) : String(t0.forn).slice(0, 60),
     D: cfg.categoria, E: cfg.conta,
     F: Math.round((d ? d.valor - desc : t0.valor) * 100) / 100,
@@ -140,7 +143,7 @@ async function gerar(JSZip, modeloB64, linhas) {
 }
 
 // chave única de uma conta (para saber se já foi enviada ao Omie): boleto + filial pagadora, ou título do Trier
-function chave(item) { const d = item.d, t0 = item.ts && item.ts[0]; return (d ? 'DDA' + hash36(d.barra) : 'TR' + t0.fil + '-' + t0.doc) + '|' + (filialDe(item) ?? ''); }
+function chave(item) { const d = item.d, t0 = item.ts && item.ts[0]; return (d ? 'DDA' + hash36(barra44(d.barra)) : 'TR' + t0.fil + '-' + t0.doc) + '|' + (filialDe(item) ?? ''); }
 const API = { DEPARTAMENTOS, departamento, filialDe, empresaDe, chave, grupos, montarLinhas, gerar };
 export const Omie = API;
 export default API;

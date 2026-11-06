@@ -380,7 +380,16 @@ export async function listarTitulosDetalhados(ch: Chaves, emp: EmpresaOmie, de: 
 }
 
 /** Lança contas a pagar de UMA empresa (UpsertContaPagar), uma a uma, sem atropelar o limite da Omie. */
-export async function lancarContas(ch: Chaves, emp: EmpresaOmie, cache: CacheOmie, contas: ContaApi[], cadastrarFornecedor: boolean, prazo = Infinity): Promise<ResultadoLancamento[]> {
+export async function lancarContas(
+  ch: Chaves,
+  emp: EmpresaOmie,
+  cache: CacheOmie,
+  contas: ContaApi[],
+  cadastrarFornecedor: boolean,
+  prazo = Infinity,
+  /** Chamado logo depois que o Omie aceita cada conta (para registrar na hora o que já subiu). */
+  aoLancar?: (r: ResultadoLancamento) => Promise<void>,
+): Promise<ResultadoLancamento[]> {
   if (!cache.conta?.id || !cache.categoria?.codigo) {
     throw new OmieErro(`Antes de lançar na ${EMPRESAS_OMIE[emp]}, busque os cadastros na Omie (conta corrente e categoria não foram encontradas).`);
   }
@@ -459,6 +468,16 @@ export async function lancarContas(ch: Chaves, emp: EmpresaOmie, cache: CacheOmi
       r.msg = String(x.descricao_status ?? "");
     } catch (e) {
       r.erro = e instanceof Error ? e.message : String(e);
+    }
+    if (r.ok && aoLancar) {
+      try {
+        await aoLancar(r);
+      } catch (e) {
+        // a conta JÁ está no Omie: não vira erro (não pode ser relançada como nova); só avisa que o registro falhou
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error("[omie] registro do envio:", r.chave, msg);
+        r.msg = `${r.msg ? `${r.msg} · ` : ""}lançada no Omie, mas o registro no sistema falhou: ${msg}`;
+      }
     }
     seguidos = r.ok ? 0 : seguidos + 1;
     if (r.erro && /bloqueada/i.test(r.erro)) parou = r.erro;

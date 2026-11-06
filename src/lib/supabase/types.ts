@@ -560,6 +560,7 @@ export type Database = {
       conc_enviados_omie: {
         Row: {
           arquivo_id: string | null
+          barra: string | null
           beneficiario: string | null
           chave: string
           conciliacao_id: string | null
@@ -578,6 +579,7 @@ export type Database = {
         }
         Insert: {
           arquivo_id?: string | null
+          barra?: string | null
           beneficiario?: string | null
           chave: string
           conciliacao_id?: string | null
@@ -596,6 +598,7 @@ export type Database = {
         }
         Update: {
           arquivo_id?: string | null
+          barra?: string | null
           beneficiario?: string | null
           chave?: string
           conciliacao_id?: string | null
@@ -6047,6 +6050,8 @@ export type Database = {
         Args: { p_filiais: Json }
         Returns: number
       }
+      conc_reservar_envio: { Args: { p_ids: string[] }; Returns: string[] }
+      conc_liberar_envio: { Args: { p_ids: string[] }; Returns: undefined }
       conc_fornecedor_ficha: {
         Args: { p_raiz: string }
         Returns: {
@@ -6614,6 +6619,7 @@ export type Database = {
           nome: string
         }[]
       }
+      integracao_posso_ler: { Args: never; Returns: boolean }
       integracao_ler_segredos: {
         Args: { p_nomes: string[] }
         Returns: {

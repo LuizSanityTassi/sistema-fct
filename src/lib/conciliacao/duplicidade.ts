@@ -15,7 +15,7 @@ export function normalizarBarra(valor: string | null | undefined): string {
 export type TituloOmie = { codigo: string; barra: string; omie: string; doc: string; venc: string; valor: number };
 /** `valorBoleto`: valor cheio do boleto, quando a conta sobe com o desconto do vencimento (a trava compara com os dois). */
 export type ContaConferir = { chave: string; codigo: string; barra: string | null; doc: string | null; venc: string | null; valor: number; valorBoleto?: number | null };
-export type Bloqueio = { chave: string; tipo: "ja_na_omie" | "parecida" | "repetida"; motivo: string; codigoOmie: string | null };
+export type Bloqueio = { chave: string; tipo: "ja_na_omie" | "parecida" | "repetida" | "validacao" | "em_andamento"; motivo: string; codigoOmie: string | null };
 
 /** Título sem código de barras pode estar sem a tarifa do boleto; com código de barras, só o mesmo valor. */
 const DIFERENCA_SEM_BARRA = 2;

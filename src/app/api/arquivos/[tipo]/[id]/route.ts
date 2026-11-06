@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { obterArquivo } from "@/lib/data/documentos";
 import { BUCKET_DOCUMENTOS } from "@/lib/rh/arquivos";
+import { getSessao } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 
 // Download de documento/laudo: gera URL assinada de 60 s. O RLS (tabela + Storage) decide quem pode.
@@ -11,10 +12,8 @@ export async function GET(req: Request, ctx: RouteContext<"/api/arquivos/[tipo]/
   }
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.redirect(new URL("/login", req.url));
+  // getSessao: sem login vai para /login; usuário desativado tem a sessão encerrada (não basta ter um token válido)
+  await getSessao();
 
   const arquivo = await obterArquivo(tipo, id, { original: new URL(req.url).searchParams.get("original") === "1" });
   if (!arquivo) return new NextResponse("Arquivo não encontrado ou sem permissão.", { status: 404 });

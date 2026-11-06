@@ -1,16 +1,15 @@
 import { NextResponse } from "next/server";
 import { BUCKET_CONCILIACAO } from "@/lib/conciliacao-gi/servico";
 import { obterArquivo } from "@/lib/data/conciliacao-gi";
+import { getSessao } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 
 // Download de um arquivo da Conciliação GI (tabela gi_conc_arquivos): URL assinada de 60 s. O RLS (tabela + Storage) decide quem pode.
-export async function GET(req: Request, ctx: RouteContext<"/api/conciliacao-gi/arquivo/[id]">) {
+export async function GET(_req: Request, ctx: RouteContext<"/api/conciliacao-gi/arquivo/[id]">) {
   const { id } = await ctx.params;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.redirect(new URL("/login", req.url));
+  // getSessao: sem login vai para /login; usuário desativado tem a sessão encerrada (não basta ter um token válido)
+  await getSessao();
 
   const arquivo = await obterArquivo(id);
   if (!arquivo) return new NextResponse("Arquivo não encontrado ou sem permissão.", { status: 404 });
