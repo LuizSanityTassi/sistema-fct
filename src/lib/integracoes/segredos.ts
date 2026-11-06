@@ -88,6 +88,20 @@ function resolverTrier(s: Partial<Record<NomeSegredo, string>>): CredenciaisTrie
 
 export type ChavesOmie = { app_key: string; app_secret: string; origem: "sistema" | "ambiente" };
 
+/** Omie, para as rotinas automáticas (cron, sem usuário): lê pelo cliente service_role; sem chave gravada, o ambiente. */
+export async function chavesOmieServico(admin: Cliente, empresa: "nazario" | "varela"): Promise<ChavesOmie | null> {
+  const nomeKey = empresa === "nazario" ? SEGREDOS.omie_nazario_app_key : SEGREDOS.omie_varela_app_key;
+  const nomeSecret = empresa === "nazario" ? SEGREDOS.omie_nazario_app_secret : SEGREDOS.omie_varela_app_secret;
+  const { data } = await admin.rpc("integracao_ler_segredos_servico", { p_nomes: [nomeKey, nomeSecret] });
+  const s: Partial<Record<NomeSegredo, string>> = {};
+  for (const r of data ?? []) if (r.valor) s[r.nome as NomeSegredo] = r.valor;
+  if (s[nomeKey] && s[nomeSecret]) return { app_key: s[nomeKey]!, app_secret: s[nomeSecret]!, origem: "sistema" };
+  const prefixo = empresa === "nazario" ? "OMIE_NAZARIO" : "OMIE_VARELA";
+  const app_key = process.env[`${prefixo}_APP_KEY`]?.trim();
+  const app_secret = process.env[`${prefixo}_APP_SECRET`]?.trim();
+  return app_key && app_secret ? { app_key, app_secret, origem: "ambiente" } : null;
+}
+
 /** Omie: chaves gravadas na tela de Integrações ou, se não houver, OMIE_<EMPRESA>_APP_KEY/SECRET. */
 export async function chavesOmieDe(supabase: Cliente, empresa: "nazario" | "varela"): Promise<ChavesOmie | null> {
   const nomeKey = empresa === "nazario" ? SEGREDOS.omie_nazario_app_key : SEGREDOS.omie_varela_app_key;

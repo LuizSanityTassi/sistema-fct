@@ -90,6 +90,31 @@ async function todas<T = Resposta>(ch: Chaves, emp: EmpresaOmie, caminho: string
   return out;
 }
 
+/** Movimento de conta corrente do Omie (pagamento, recebimento ou lançamento direto no extrato), só o que o caixa usa. */
+export type MovimentoCaixaOmie = {
+  categorias?: { cCodCateg?: string; nDistrPercentual?: number }[];
+  departamentos?: { cCodDepartamento?: string; nDistrPercentual?: number }[];
+  detalhes?: { cCodCateg?: string; cGrupo?: string; cNatureza?: string; cOrigem?: string; nValorMovCC?: number; nCodMovCC?: number; nCodBaixa?: number; nCodTitulo?: number };
+  resumo?: { nValPago?: number };
+};
+
+/** Uma página dos movimentos de conta corrente de um dia (pela data de pagamento), com a distribuição por departamento. */
+export async function movimentosCaixaDoDia(ch: Chaves, emp: EmpresaOmie, diaBr: string, pagina: number) {
+  try {
+    const r = await chamar(ch, emp, "financas/mf/", "ListarMovimentos", { nPagina: pagina, nRegPorPagina: 100, dDtPagtoDe: diaBr, dDtPagtoAte: diaBr, cTpLancamento: "CC", cExibirDepartamentos: "S" });
+    return { movimentos: (r.movimentos as MovimentoCaixaOmie[] | undefined) ?? [], paginas: Number(r.nTotPaginas ?? 1), total: Number(r.nTotRegistros ?? 0) };
+  } catch (e) {
+    if (e instanceof OmieErro && semRegistros(e.message)) return { movimentos: [], paginas: 0, total: 0 };
+    throw e;
+  }
+}
+
+/** Todas as categorias da empresa (receita e despesa), código e nome. */
+export async function listarCategoriasOmie(ch: Chaves, emp: EmpresaOmie) {
+  const cats = await todas<{ codigo: string | number; descricao: string }>(ch, emp, "geral/categorias/", "ListarCategorias", {}, "categoria_cadastro");
+  return cats.map((c) => ({ codigo: String(c.codigo), nome: c.descricao }));
+}
+
 /** Todos os títulos a pagar com vencimento no período. Sem conseguir ler tudo, dá erro: nada sobe sem conferir. */
 export async function todosTitulosOmie(ch: Chaves, emp: EmpresaOmie, de: string, ate: string, limiteMs: number) {
   const prazo = Date.now() + limiteMs;
@@ -447,10 +472,10 @@ export async function lancarContas(ch: Chaves, emp: EmpresaOmie, cache: CacheOmi
 // ---------- contas a receber (sangrias) ----------
 
 /** Departamentos ativos da empresa (para achar o da filial pelo código). Só leitura. */
-export async function listarDepartamentosOmie(ch: Chaves, emp: EmpresaOmie): Promise<Departamento[]> {
+export async function listarDepartamentosOmie(ch: Chaves, emp: EmpresaOmie, incluirInativos = false): Promise<Departamento[]> {
   type Dep = { codigo: string | number; descricao: string; inativo?: string };
   return (await todas<Dep>(ch, emp, "geral/departamentos/", "ListarDepartamentos", {}, "departamentos"))
-    .filter((d) => d.inativo !== "S")
+    .filter((d) => incluirInativos || d.inativo !== "S")
     .map((d) => ({ codigo: String(d.codigo), descricao: String(d.descricao ?? "") }));
 }
 
@@ -502,4 +527,31 @@ export async function gravarContaReceber(ch: Chaves, emp: EmpresaOmie, lancament
   if (x.codigo_status !== undefined && String(x.codigo_status) !== "0") throw new OmieErro(String(x.descricao_status ?? "recusado pela Omie"));
   if (x.codigo_lancamento_omie == null) throw new OmieErro("a Omie não devolveu o código do lançamento");
   return String(x.codigo_lancamento_omie);
+}
+
+/** Conta a pagar como está na Omie, só o que a correção de valor confere e precisa. Só leitura. */
+export async function consultarContaPagar(ch: Chaves, emp: EmpresaOmie, codigo: number) {
+  const r = await chamar(ch, emp, "financas/contapagar/", "ConsultarContaPagar", { codigo_lancamento_omie: codigo });
+  return {
+    codigo: Number(r.codigo_lancamento_omie ?? codigo),
+    valor: Number(r.valor_documento),
+    status: String(r.status_titulo ?? ""),
+    barra: String(r.codigo_barras_ficha_compensacao ?? (r.cnab_integracao_bancaria as { codigo_barras_boleto?: string } | undefined)?.codigo_barras_boleto ?? ""),
+    observacao: String(r.observacao ?? ""),
+    categorias: ((r.categorias as { codigo_categoria?: string; percentual?: number }[] | undefined) ?? []).map((c) => ({ codigo: String(c.codigo_categoria ?? ""), percentual: Number(c.percentual ?? 0) })),
+    categoria: String(r.codigo_categoria ?? ""),
+    distribuicao: ((r.distribuicao as { cCodDep?: string; nPerDep?: number }[] | undefined) ?? []).map((d) => ({ codigo: String(d.cCodDep ?? ""), percentual: Number(d.nPerDep ?? 0) })),
+  };
+}
+
+/** Altera o valor de uma conta a pagar de categoria e departamento únicos (os rateios acompanham o valor) e a observação. */
+export async function alterarValorContaPagar(ch: Chaves, emp: EmpresaOmie, codigo: number, categoria: string, departamento: string, valor: number, observacao: string) {
+  const v = Math.round(valor * 100) / 100;
+  return chamar(ch, emp, "financas/contapagar/", "AlterarContaPagar", {
+    codigo_lancamento_omie: codigo,
+    valor_documento: v,
+    categorias: [{ codigo_categoria: categoria, percentual: 100, valor: v }],
+    distribuicao: [{ cCodDep: departamento, nPerDep: 100, nValDep: v }],
+    observacao: observacao.slice(0, 2000),
+  });
 }
