@@ -47,6 +47,14 @@ function metaDDA(a: ArquivoDDA): Record<string, Json> {
   };
 }
 
+/** Códigos do Trier que são, na verdade, outra filial (Luiz, 09/11/2026): 099 = 009 (V. Floresta) e 199 = 110
+ *  (Drogabel/Estoque). Sem isso os títulos ficavam "só no Trier", porque o boleto vem na planilha da filial real. */
+const FILIAL_TRIER_EQUIVALENTE: Record<number, number> = { 99: 9, 199: 110 };
+function filiaisReaisTrier(tr: ResultadoTrier): ResultadoTrier {
+  for (const t of tr.titulos) t.fil = FILIAL_TRIER_EQUIVALENTE[t.fil] ?? t.fil;
+  return tr;
+}
+
 function metaTrier(tr: ResultadoTrier): Record<string, Json> {
   const vencs = tr.titulos.map((t) => t.venc).filter((v): v is number => v != null);
   const { ini, fim } = minMax(vencs);
@@ -99,7 +107,7 @@ export async function guardarArquivo(
       }
       descricao = `${meta.qtd} boleto(s), ${moeda(Number(meta.total))}${meta.vencIni ? `, vencimentos ${dataBr(meta.vencIni)} a ${dataBr(meta.vencFim)}` : ""}${a.ignoradas ? ` · ${a.ignoradas} linha(s) danificada(s) ignorada(s)` : ""}`;
     } else if (tipo === "trier") {
-      const tr = await lerTrier(nome, buf);
+      const tr = filiaisReaisTrier(await lerTrier(nome, buf));
       meta = { ...meta, ...metaTrier(tr) };
       const fils = meta.filiais as number[];
       filial = fils.length === 1 ? fils[0] : null;
@@ -224,7 +232,7 @@ export async function executarConciliacao(supabase: Cliente, userId: string | nu
     if (eDown || !blob) throw new Error(`Não consegui ler "${a.nome}" do Storage.`);
     const buf = Buffer.from(await blob.arrayBuffer());
     if (a.tipo === "trier") {
-      const tr = await lerTrier(a.nome, buf);
+      const tr = filiaisReaisTrier(await lerTrier(a.nome, buf));
       for (const f of new Set(tr.titulos.map((t) => t.fil))) {
         const outro = filiaisTrier.get(f);
         if (outro && outro !== a.nome) avisos.push(`A filial ${f} aparece em "${outro}" e em "${a.nome}": os títulos foram somados. Confira se não é o mesmo relatório duas vezes.`);

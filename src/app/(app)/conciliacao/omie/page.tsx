@@ -4,7 +4,6 @@ import { BotaoSalvar } from "@/components/form/botao-salvar";
 import { AvisoSucesso } from "@/components/form/campo";
 import { PageHeader } from "@/components/layout/page-header";
 import { Ponto } from "@/components/layout/status";
-import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
 import { EMPRESAS_OMIE, statusChaves, type CacheOmie, type EmpresaOmie } from "@/lib/conciliacao/omie-api";
