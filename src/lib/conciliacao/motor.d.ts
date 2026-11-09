@@ -44,6 +44,11 @@ export interface ArquivoDDA {
   ignoradas?: number;
   planilha?: boolean;
   filial?: number | null;
+  /** .RET: hora (HHMMSS) e NSA do cabeçalho, desempate da ordem entre arquivos do mesmo dia. */
+  hora?: string;
+  nsa?: number;
+  /** Planilha do portal: dia (nº de dias desde 1970, UTC) em que entrou no sistema — ordena a foto entre os .RET. */
+  exportadoEm?: number | null;
 }
 
 export interface TituloTrier {

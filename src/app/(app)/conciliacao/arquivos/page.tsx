@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { exigirAcesso } from "@/lib/auth/session";
 import { podeConciliar } from "@/lib/conciliacao/permissoes";
 import { TIPO_ARQUIVO_LABEL } from "@/lib/conciliacao/rotulos";
-import { lerFiltrosArquivos, listarArquivos, mapaFiliais, type ArquivoLista } from "@/lib/data/conciliacao";
+import { lerFiltrosArquivos, listarArquivos, mapaFiliais, usosDeArquivos, type ArquivoLista } from "@/lib/data/conciliacao";
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formatos";
 import { arquivarArquivo, desarquivarArquivo, enviarArquivos } from "../actions";
 import { BadgeTipoArquivo, Filial } from "../badges-conc";
@@ -35,6 +35,8 @@ export default async function ArquivosPage({ searchParams }: PageProps<"/concili
   const [sessao, sp] = await Promise.all([exigirAcesso("/conciliacao/arquivos"), searchParams]);
   const filtros = lerFiltrosArquivos(sp);
   const [arquivos, filiais] = await Promise.all([listarArquivos(filtros), mapaFiliais()]);
+  const usos = await usosDeArquivos(arquivos.map((a) => a.id));
+  const vencFimDe = (a: ArquivoLista) => (a.tipo === "trier" || a.tipo === "omie" ? null : ((a.meta as { vencFim?: string | null } | null)?.vencFim ?? null));
   const escreve = podeConciliar(sessao.papel);
   const erro = typeof sp.erro === "string" ? sp.erro : null;
   const ok = sp.ok === "arquivado" ? "Arquivo arquivado." : sp.ok === "desarquivado" ? "Arquivo de volta à lista." : null;
@@ -117,6 +119,7 @@ export default async function ArquivosPage({ searchParams }: PageProps<"/concili
                     <p className="font-medium break-all">{a.nome}</p>
                     <p className="text-xs text-muted-foreground">{descreverMeta(a)}</p>
                     <p className="text-xs text-muted-foreground md:hidden">{TIPO_ARQUIVO_LABEL[a.tipo]}</p>
+                    {usos.has(a.id) && <p className="text-xs text-muted-foreground">Usado em {usos.get(a.id)} conciliação(ões)</p>}
                     {a.arquivado_em && <p className="text-xs text-amber-800">Arquivado em {formatarData(a.arquivado_em)}: {a.motivo_arquivo}</p>}
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
@@ -138,7 +141,7 @@ export default async function ArquivosPage({ searchParams }: PageProps<"/concili
                         <Download className="size-3.5" aria-hidden />
                         Baixar
                       </a>
-                      {escreve && !a.arquivado_em && <ArquivarForm id={a.id} nome={a.nome} action={arquivarArquivo} />}
+                      {escreve && !a.arquivado_em && <ArquivarForm id={a.id} nome={a.nome} usos={usos.get(a.id) ?? 0} vencFim={vencFimDe(a)} action={arquivarArquivo} />}
                       {escreve && a.arquivado_em && (
                         <form action={desarquivarArquivo}>
                           <input type="hidden" name="id" value={a.id} />

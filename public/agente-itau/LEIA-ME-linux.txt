@@ -1,20 +1,32 @@
-AGENTE FCT (Linux) – retornos do Itaú no servidor -> Sistema FCT (Conciliação)
-=============================================================================
-Para o servidor Linux onde o cliente SFTP do Itaú (ex.: 8vSshSftp) já salva os retornos de DDA
-(ex.: /var/www/html/sistemafct/itau/<CAIXA>/RETORNO/PROD). A cada 15 minutos manda para o Sistema FCT
+AGENTE FCT (Linux) – retornos do Itaú no servidor -> Sistema FCT (DDA x Trier)
+==============================================================================
+Para o servidor Linux onde o cliente SFTP do Itaú (ex.: Itaú Mailbox ou 8vSshSftp) já salva os retornos de DDA
+(ex.: /var/www/html/sistemafct/itau/<CAIXA>/RETORNO/PROD/025). A cada 15 minutos manda para o Sistema FCT
 os arquivos novos. Só LÊ: nunca apaga, move nem altera nada, e não conversa com o banco.
 NÃO instale outro cliente SFTP na mesma caixa do Itaú: o retorno sai do banco quando é baixado.
 
 INSTALAR
-1. No Sistema FCT: Conciliação > Robôs e agente > "Novo agente" > nome (ex.: Servidor Itaú) > Gerar chave > Copiar.
-2. Copie agente-itau.sh e instalar-linux.sh para uma pasta do servidor (ex.: ~/agente-fct).
+1. No Sistema FCT (como administrador): Automações > Robôs e agente > no card "Agente dos arquivos do Itaú",
+   Nome do agente (ex.: Servidor Itaú) > "Gerar chave do agente" > copie (a chave aparece UMA vez).
+2. Copie agente-itau.sh e instalar-linux.sh para uma pasta do servidor só do agente (ex.: ~/agente-fct).
 3. Nessa pasta: bash instalar-linux.sh
    Ele sugere as pastas de RETORNO que encontrar, pergunta o endereço (Enter) e a chave (não aparece na tela).
+   Aponte para a pasta de PRODUÇÃO do produto 025 (ex.: .../RETORNO/PROD/025), não para uma pasta acima.
 4. Pronto: roda agora e depois sozinho a cada 15 min (crontab do seu usuário, linha "# FCT Agente Itau").
 
 ACOMPANHAR
-- agente.log (na pasta): o que foi enviado/ignorado/erro. enviados.tsv: o que já foi mandado (não manda de novo).
-- No Sistema FCT: Conciliação > Robôs e agente (último contato, quantos enviou, última conciliação automática).
+- agente.log (na pasta): cada arquivo enviado, ignorado, recusado ou com falha. enviados.tsv: o que já foi
+  tratado (não manda de novo). Com a pasta vazia ele não escreve nada — normal.
+- No Sistema FCT: Automações > Robôs e agente (último contato, quantos enviou, arquivos recusados, última
+  conciliação automática) e DDA x Trier > Arquivos (os .RET entram com origem "agente").
+
+SE O agente.log DISSER...
+- "RECUSADO ...": o sistema não conseguiu ler aquele arquivo e ele NÃO é mandado de novo. Se o arquivo for
+  corrigido na pasta, ele muda e sobe sozinho. Para forçar o reenvio do mesmo arquivo, apague a linha dele
+  em enviados.tsv e rode o agente (./agente-itau.sh).
+- "FALHA ... (tento de novo na próxima rodada)": rede ou servidor fora do ar; resolve sozinho.
+- "ERRO: chave do agente recusada ... Parei.": gere outra chave no sistema e rode instalar-linux.sh de novo.
+- "ERRO: o servidor ainda não está com o agente habilitado": problema no servidor, não aqui.
 
 SEGURANÇA
 - A chave fica em config.env com permissão 600 (só o seu usuário lê) e não aparece na linha de comando.

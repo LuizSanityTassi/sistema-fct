@@ -60,11 +60,13 @@ export async function arquivarArquivo(fd: FormData) {
   if (!id || !ehUuid(id)) return;
   if (!motivo || motivo.length < 3) redirect("/conciliacao/arquivos?erro=" + encodeURIComponent("Informe o motivo para arquivar."));
   const supabase = await createClient();
+  // Arquivar não apaga nada: o arquivo sai da lista e das PRÓXIMAS conciliações (inclusive da automática), mas continua no
+  // Storage e pode ser desarquivado. As conciliações já feitas com ele não mudam (os itens ficam em conc_itens) — por isso
+  // dá para aposentar, por exemplo, a planilha do portal de um período que passou a chegar pelo .RET do agente do Itaú.
   const { count } = await supabase.from("conc_conciliacoes").select("id", { count: "exact", head: true }).contains("arquivos", [id]);
-  if (count) redirect("/conciliacao/arquivos?erro=" + encodeURIComponent(`Este arquivo foi usado em ${count} conciliação(ões) e fica guardado para auditoria.`));
   const { error } = await supabase.from("conc_arquivos").update({ arquivado_em: new Date().toISOString(), arquivado_por: sessao.id, motivo_arquivo: motivo.slice(0, 300) }).eq("id", id);
   if (error) redirect("/conciliacao/arquivos?erro=" + encodeURIComponent(error.message));
-  await registrarAuditoria(supabase, { userId: sessao.id, acao: "inativar", entidade: "conc_arquivos", registroId: id, novo: { motivo } });
+  await registrarAuditoria(supabase, { userId: sessao.id, acao: "inativar", entidade: "conc_arquivos", registroId: id, novo: { motivo, usadoEmConciliacoes: count ?? 0 } });
   revalidar();
   redirect("/conciliacao/arquivos?ok=arquivado");
 }

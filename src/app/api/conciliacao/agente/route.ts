@@ -47,9 +47,18 @@ export async function POST(req: Request) {
   const r = await guardarArquivo(admin, agente.criado_por, arq, "dda_ret", "agente", { filiais, meta: { agente: agente.nome } });
   if (!r.ok) {
     await marcar(false);
-    // .RET sem boletos (ou danificado) é ignorado, não é erro do agente
-    const semBoletos = /segmento G|sem boletos|não parece|CNAB/i.test(r.mensagem);
-    return semBoletos ? json({ ok: true, ignorado: true, motivo: r.mensagem }) : json({ erro: r.mensagem }, 422);
+    const m = r.mensagem;
+    // .RET só com cabeçalho (sem lote nem boleto) ou que não é retorno do Itaú: ignorado, não é erro do agente.
+    // (Um .RET com lote e sem boleto é guardado com "0 boleto(s)": registra que o banco mandou retorno naquele dia.)
+    if (/segmento G|sem boletos|nenhum (título|boleto)|não parece|CNAB/i.test(m)) return json({ ok: true, ignorado: true, motivo: m });
+    // conteúdo que o sistema não consegue ler: o agente anota como recusado e NÃO manda de novo; fica registrado para a tela Robôs e agente
+    if (/não encontrei|tipo (não permitido|de arquivo não reconhecido)|arquivo vazio|maior que/i.test(m)) {
+      const { error: eDiag } = await admin.from("integracao_diagnosticos").insert({ sistema: "agente", resumo: { agente: agente.nome, arquivo: nome, tamanho: arquivo.size, erro: m }, dados: {} });
+      if (eDiag) console.error("[agente] não consegui registrar o arquivo recusado (migração 0132 aplicada?):", eDiag.message);
+      return json({ erro: m }, 422);
+    }
+    // o resto é problema do servidor (Storage, banco): o agente tenta de novo na próxima rodada
+    return json({ erro: m }, 500);
   }
   await marcar(!r.repetido);
   return json({ ok: true, repetido: !!r.repetido, id: r.id, boletos: /^(\d+) boleto/.exec(r.mensagem)?.[1] ?? null, mensagem: r.mensagem });

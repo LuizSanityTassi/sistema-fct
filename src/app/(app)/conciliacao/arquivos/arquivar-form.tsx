@@ -5,12 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
-type Props = { id: string; nome: string; action: (fd: FormData) => Promise<void> };
+type Props = { id: string; nome: string; usos?: number; vencFim?: string | null; action: (fd: FormData) => Promise<void> };
 
-/** Arquivar = esconder da lista com motivo. Nada é apagado. */
-export function ArquivarForm({ id, nome, action }: Props) {
+const dataBr = (iso: string) => iso.slice(0, 10).split("-").reverse().join("/");
+
+/** Arquivar = tirar da lista e das próximas conciliações, com motivo. Nada é apagado; as conciliações já feitas não mudam. */
+export function ArquivarForm({ id, nome, usos = 0, vencFim = null, action }: Props) {
   const [aberto, setAberto] = React.useState(false);
   const [pendente, iniciar] = React.useTransition();
+  // arquivo do banco que ainda tem boleto vencendo: arquivar tira esses boletos das próximas rodadas
+  const aindaVence = Boolean(vencFim && vencFim.slice(0, 10) >= new Date().toISOString().slice(0, 10));
   return (
     <>
       <Button type="button" variant="ghost" size="sm" onClick={() => setAberto(true)}>
@@ -20,7 +24,17 @@ export function ArquivarForm({ id, nome, action }: Props) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Arquivar “{nome}”?</DialogTitle>
-            <DialogDescription>O arquivo sai da lista, mas continua guardado (dá para desarquivar). Arquivos usados em conciliações não podem ser arquivados.</DialogDescription>
+            <DialogDescription>
+              O arquivo sai da lista e das próximas conciliações (inclusive da automática), mas continua guardado e dá para desarquivar.
+              {usos > 0 ? ` Foi usado em ${usos} conciliação(ões): elas continuam como estão.` : ""}
+              {aindaVence && (
+                <span className="mt-2 block text-amber-800">
+                  Atenção: este arquivo ainda tem boletos vencendo até {dataBr(vencFim!)}. Se eles não estiverem em outro arquivo ativo (ex.: .RET do agente), somem da próxima
+                  conciliação automática e as pendências deles param de ser atualizadas. Normalmente não precisa arquivar: o sistema junta o mesmo boleto da planilha e do .RET e
+                  deixa o arquivo de lado sozinho quando os vencimentos passam.
+                </span>
+              )}
+            </DialogDescription>
           </DialogHeader>
           <form
             action={(fd) =>

@@ -110,7 +110,7 @@ export async function guardarArquivo(
     const { data: existente } = await supabase.from("conc_arquivos").select("id, vezes, arquivado_em").eq("sha256", sha).eq("tipo", tipo).maybeSingle();
     if (existente) {
       await supabase.from("conc_arquivos").update({ vezes: existente.vezes + 1 }).eq("id", existente.id);
-      return { nome, ok: true, repetido: true, id: existente.id, tipo, mensagem: existente.arquivado_em ? "já estava salvo (arquivado)" : "já estava salvo — nada a fazer" };
+      return { nome, ok: true, repetido: true, id: existente.id, tipo, mensagem: existente.arquivado_em ? "já estava salvo, mas está ARQUIVADO — para voltar a usar, clique em Desarquivar em DDA x Trier → Arquivos (marque \"Arquivados\")" : "já estava salvo — nada a fazer" };
     }
 
     const storagePath = `arquivos/${sha}.${ext}`;
@@ -210,6 +210,10 @@ export async function executarConciliacao(supabase: Cliente, userId: string | nu
   const { data: arquivos, error } = await supabase.from("conc_arquivos").select("*").in("id", ids);
   if (error) throw new Error(error.message);
   if (arquivos.length !== ids.length) throw new Error("Algum arquivo escolhido não foi encontrado.");
+  // na ordem em que entraram no sistema: desempate para o motor quando dois arquivos têm a mesma data de geração
+  arquivos.sort((a, b) => a.enviado_em.localeCompare(b.enviado_em));
+  const arquivado = arquivos.find((a) => a.arquivado_em);
+  if (arquivado) throw new Error(`"${arquivado.nome}" está arquivado${arquivado.motivo_arquivo ? ` (${arquivado.motivo_arquivo})` : ""}: desarquive em DDA x Trier → Arquivos (marque "Arquivados") ou escolha outro arquivo.`);
   const filiais = opcoes.filiais ?? (await mapaFiliais());
 
   const ddas: ArquivoDDA[] = [];
@@ -232,6 +236,8 @@ export async function executarConciliacao(supabase: Cliente, userId: string | nu
       if (d.planilha) {
         d.filial = a.filial ?? filialDaPlanilha(a.nome, d.empresaCnpj, filiais);
         for (const t of d.titulos) t.filialArquivo = d.filial;
+        // dia em que a planilha entrou no sistema: é o que ordena a foto do portal entre os .RET (o estado mais novo manda)
+        d.exportadoEm = Math.floor(Date.parse(a.enviado_em) / 86_400_000);
         if (d.filial == null) avisos.push(`"${a.nome}": não deu para saber a filial pelo nome do arquivo; os boletos valem para qualquer filial da faixa.`);
       }
       if (d.ignoradas) avisos.push(`"${a.nome}": ${d.ignoradas} linha(s) danificada(s) ignorada(s) (arquivo baixado pela metade?).`);

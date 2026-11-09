@@ -55,7 +55,17 @@ for pasta in "${pastas[@]}"; do
         ;;
       401) log "ERRO: chave do agente recusada (revogada ou errada). Parei."; parar=1; break ;;
       503) log "ERRO: o servidor ainda não está com o agente habilitado. Tento de novo depois."; parar=1; break ;;
-      *) falhas=$((falhas + 1)); log "FALHA $nome: HTTP $cod $corpo" ;;
+      400|413|422)
+        # recusa do SISTEMA (resposta JSON {erro}): ele leu o arquivo e não aceita; não adianta insistir. Fica anotado como
+        # recusado e, se o arquivo for corrigido na pasta, ele muda (outro hash) e sobe sozinho. Sem JSON (página de erro do
+        # provedor, proxy) é FALHA e tenta de novo.
+        motivo=$(printf '%s' "$corpo" | sed -n 's/.*"erro":"\(\([^"\\]\|\\.\)*\)".*/\1/p' | sed 's/\\"/"/g')
+        if [ -z "$motivo" ]; then falhas=$((falhas + 1)); log "FALHA $nome: HTTP $cod $corpo (tento de novo na próxima rodada)"; continue; fi
+        anotar "$h" "$nome" "recusado (HTTP $cod): $motivo"
+        falhas=$((falhas + 1))
+        log "RECUSADO $nome: HTTP $cod $motivo (não mando de novo; para reenviar, apague a linha dele em enviados.tsv)"
+        ;;
+      *) falhas=$((falhas + 1)); log "FALHA $nome: HTTP $cod $corpo (tento de novo na próxima rodada)" ;;
     esac
   done < <(find "$pasta" -type f -size +0 -size -4096k -mtime "-$DIAS" -printf '%T@ %p\0' | sort -zn | cut -z -d' ' -f2-)
 done

@@ -95,7 +95,9 @@ export async function rodarConciliacaoAutomatica(c: Cliente, cred: CredenciaisTr
   if (!opcoes.forcar) {
     const ultima = await ultimaAutomatica(c);
     const rodouHoje = ultima && !ultima.pulado && !ultima.erro && ultima.faixas.some((f) => f.id) && diaBrasil(new Date(ultima.quando)) === diaBrasil(agora);
-    if (rodouHoje && !dda.some((a) => a.enviado_em > ultima.quando)) {
+    // retorno novo = arquivo que chegou depois da última rodada e tem boleto (um .RET só com cabeçalho de lote não acorda o robô)
+    const temBoleto = (a: { meta: unknown }) => Number((a.meta as { qtd?: number | string } | null)?.qtd ?? 1) > 0;
+    if (rodouHoje && !dda.some((a) => a.enviado_em > ultima.quando && temBoleto(a))) {
       // nada novo: não sobrescreve o resultado da última rodada
       return fim({ pulado: `Nada novo do banco desde a rodada de ${horaBrasil(new Date(ultima.quando))}.` }, false);
     }

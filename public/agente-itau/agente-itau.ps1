@@ -41,17 +41,30 @@ try {
       $form = New-Object System.Net.Http.MultipartFormDataContent
       $conteudo = New-Object System.Net.Http.ByteArrayContent(,$bytes)
       $form.Add($conteudo, 'arquivo', $a.Name)
-      $r = $cli.PostAsync($url, $form).Result
-      $txt = $r.Content.ReadAsStringAsync().Result
-      if ([int]$r.StatusCode -eq 401) { Log "ERRO: chave do agente recusada (revogada ou errada). Parei."; break }
-      if ([int]$r.StatusCode -eq 503) { Log "ERRO: o servidor ainda não está com o agente habilitado. Tento de novo depois."; break }
-      if (-not $r.IsSuccessStatusCode) { $falhas++; Log "FALHA $($a.Name): HTTP $([int]$r.StatusCode) $txt"; continue }
+      # (.GetAwaiter().GetResult() em vez de .Result: com a rede fora, o .Result devolve nulo em silêncio e o erro vira ilegível)
+      $r = $cli.PostAsync($url, $form).GetAwaiter().GetResult()
+      $txt = $r.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+      $cod = [int]$r.StatusCode
+      if ($cod -eq 401) { Log "ERRO: chave do agente recusada (revogada ou errada). Parei."; break }
+      if ($cod -eq 503) { Log "ERRO: o servidor ainda não está com o agente habilitado. Tento de novo depois."; break }
+      # recusa do SISTEMA (400/413/422 com resposta JSON {erro}): ele leu o arquivo e não aceita; não adianta insistir. Fica anotado como
+      # recusado e, se o arquivo for corrigido na pasta, ele muda (outro hash) e sobe sozinho. Qualquer outro código (429, 404, 5xx, página
+      # de erro do provedor...) é FALHA e tenta de novo na próxima rodada.
+      $erroSistema = $null
+      if ($cod -eq 400 -or $cod -eq 413 -or $cod -eq 422) { try { $je = $txt | ConvertFrom-Json; if ($je.erro) { $erroSistema = [string]$je.erro } } catch { } }
+      if ($erroSistema) {
+        $est[$h] = @{ nome = $a.Name; quando = (Get-Date -Format 's'); resultado = "recusado (HTTP $cod): $erroSistema" }
+        $falhas++
+        Log "RECUSADO $($a.Name): HTTP $cod $erroSistema (não mando de novo; para reenviar, apague a linha dele em enviados.json)"
+        continue
+      }
+      if (-not $r.IsSuccessStatusCode) { $falhas++; Log "FALHA $($a.Name): HTTP $cod $txt (tento de novo na próxima rodada)"; continue }
       $j = $txt | ConvertFrom-Json
       $res = if ($j.ignorado) { 'ignorado: ' + $j.motivo } elseif ($j.repetido) { 'já estava no sistema' } else { "enviado ($($j.mensagem))" }
       $est[$h] = @{ nome = $a.Name; quando = (Get-Date -Format 's'); resultado = $res }
       $novos++
       Log "$($a.Name): $res"
-    } catch { $falhas++; Log "FALHA $($a.Name): $($_.Exception.Message)" }
+    } catch { $falhas++; Log "FALHA $($a.Name): $($_.Exception.GetBaseException().Message) (tento de novo na próxima rodada)" }
   }
   ($est | ConvertTo-Json -Depth 3) | Set-Content -Path $estF -Encoding UTF8
   if ($novos -or $falhas) { Log "fim: $novos arquivo(s) processado(s), $falhas falha(s)" }

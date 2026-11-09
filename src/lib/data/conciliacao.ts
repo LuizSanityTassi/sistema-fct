@@ -100,6 +100,21 @@ export async function arquivosParaConciliar() {
   return { dda: data.filter((a) => a.tipo !== "trier"), trier: data.filter((a) => a.tipo === "trier") };
 }
 
+/** Em quantas conciliações cada um destes arquivos entrou (aviso antes de arquivar; arquivar não muda as conciliações já feitas). */
+export async function usosDeArquivos(ids: string[]) {
+  const usos = new Map<string, number>();
+  if (!ids.length) return usos;
+  const supabase = await createClient();
+  // só as conciliações que tocam esses arquivos, em lotes (a API corta em 1000 linhas sem avisar)
+  for (let inicio = 0; ; inicio += LOTE) {
+    const { data, error } = await supabase.from("conc_conciliacoes").select("arquivos").overlaps("arquivos", ids).order("id").range(inicio, inicio + LOTE - 1);
+    if (error) throw error;
+    for (const c of data) for (const id of c.arquivos) usos.set(id, (usos.get(id) ?? 0) + 1);
+    if (data.length < LOTE) break;
+  }
+  return usos;
+}
+
 // ---------- conciliações ----------
 
 /** Números do que vence de hoje em diante: o resumo gravado na conciliação é a foto inteira, de quando ela foi criada. */

@@ -30,10 +30,12 @@ export default async function RobosPage() {
   const sessao = await exigirAcesso("/conciliacao/robos");
   const supabase = await createClient();
   const admin = podeConfigurarConciliacao(sessao.papel);
-  const [cfg, { data: buscas }, { data: recebidos }, cred, ultima] = await Promise.all([
+  const [cfg, { data: buscas }, { data: recebidos }, { data: recusados }, cred, ultima] = await Promise.all([
     obterConfig<ConfigTrier>("trier", CONFIG_TRIER_PADRAO),
     supabase.from("conc_arquivos").select("id, nome, enviado_em, meta, quem:profiles!conc_arquivos_enviado_por_fkey(nome)").eq("origem", "robo_trier").order("enviado_em", { ascending: false }).limit(5),
     supabase.from("conc_arquivos").select("id, nome, enviado_em, meta").eq("origem", "agente").order("enviado_em", { ascending: false }).limit(5),
+    // arquivos que o sistema não conseguiu ler (só o administrador enxerga; o agente não manda esses de novo)
+    supabase.from("integracao_diagnosticos").select("id, criado_em, resumo").eq("sistema", "agente").order("criado_em", { ascending: false }).limit(5),
     credenciaisTrier(supabase),
     ultimaAutomatica(supabase),
   ]);
@@ -42,6 +44,7 @@ export default async function RobosPage() {
   const agenteHabilitado = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
   const periodoDe = (meta: unknown) => (meta as { robo?: { periodo?: string } } | null)?.robo?.periodo ?? "";
   const agenteDe = (meta: unknown) => (meta as { agente?: string } | null)?.agente ?? "";
+  const recusa = (resumo: unknown) => (resumo ?? {}) as { agente?: string; arquivo?: string; erro?: string };
 
   return (
     <>
@@ -139,7 +142,10 @@ export default async function RobosPage() {
               {a}
             </a>
           ))}
-          <span className="text-xs text-muted-foreground">Baixe os 4 para uma pasta do PC do Itaú Mailbox e rode instalar.ps1 (botão direito → Executar com o PowerShell).</span>
+          <span className="text-xs text-muted-foreground">
+            Baixe os 4 para uma pasta nova do PC do Itaú Mailbox (ex.: C:\FCT\agente-itau — nunca dentro da pasta do próprio Itaú Mailbox) e rode instalar.ps1: botão direito → Executar com o PowerShell ou, se essa opção não aparecer, abra o terminal nessa pasta e digite{" "}
+            <code className="rounded bg-muted px-1 text-xs">powershell -ExecutionPolicy Bypass -File .\instalar.ps1</code>.
+          </span>
         </div>
         <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
           <span className="sobrescrito">Servidor Linux:</span>
@@ -218,6 +224,23 @@ export default async function RobosPage() {
                     {b.nome}
                   </Link>
                   {agenteDe(b.meta) && <span className="text-muted-foreground">agente {agenteDe(b.meta)}</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {(recusados ?? []).length > 0 && (
+          <div className="mt-4 border-t pt-3 text-sm">
+            <p className="mb-1 sobrescrito">Arquivos recusados</p>
+            <p className="mb-1 text-xs text-muted-foreground">O sistema não conseguiu ler estes arquivos; o agente não os manda de novo (se o arquivo for corrigido na pasta, ele muda e sobe sozinho).</p>
+            <ul className="space-y-0.5">
+              {recusados!.map((d) => (
+                <li key={d.id} className="flex flex-wrap items-center gap-x-2 text-xs">
+                  <span className="tabular-nums">{formatarDataHora(d.criado_em)}</span>
+                  <span className="font-medium">{recusa(d.resumo).arquivo}</span>
+                  <span className="text-red-700">{recusa(d.resumo).erro}</span>
+                  {recusa(d.resumo).agente && <span className="text-muted-foreground">agente {recusa(d.resumo).agente}</span>}
                 </li>
               ))}
             </ul>

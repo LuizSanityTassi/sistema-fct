@@ -1,15 +1,21 @@
-﻿# Instala o Agente FCT (Itaú Mailbox -> Sistema FCT / Conciliação). Rode com: botão direito > "Executar com o PowerShell".
+﻿# Instala o Agente FCT (Itaú Mailbox -> Sistema FCT / DDA x Trier). Rode com: botão direito > "Executar com o PowerShell"
+# ou, se essa opção não aparecer, abra o PowerShell nesta pasta e rode:  powershell -ExecutionPolicy Bypass -File .\instalar.ps1
 $ErrorActionPreference = 'Stop'
 $dir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Write-Host ''
-Write-Host '=== Agente FCT: Itaú Mailbox -> Sistema FCT (Conciliação) ===' -ForegroundColor Cyan
+Write-Host '=== Agente FCT: Itaú Mailbox -> Sistema FCT (DDA x Trier) ===' -ForegroundColor Cyan
 Write-Host ''
-$pasta = Read-Host 'Pasta onde o Itaú Mailbox salva os arquivos RECEBIDOS (ex.: C:\ItauMailbox\RETORNO)'
+# Nunca dentro da pasta do Itaú Mailbox: o agente grava o próprio config.json e estragaria o config.json do IMB (caixa, senha, chave).
+if ((Test-Path (Join-Path $dir 'imb.exe')) -or (Test-Path (Join-Path $dir 'Keys'))) {
+  Write-Host "Esta pasta ($dir) é a do Itaú Mailbox. Crie outra pasta só para o agente (ex.: C:\FCT\agente-itau), copie os 4 arquivos para lá e rode de novo." -ForegroundColor Red
+  Read-Host 'Enter para sair'; exit 1
+}
+$pasta = Read-Host 'Pasta onde o Itaú Mailbox salva os arquivos RECEBIDOS do produto 025 (ex.: C:\ItauMailbox\NJESCRITO\RETORNO\PROD\025)'
 $pasta = $pasta.Trim('"', ' ')
 if (-not (Test-Path $pasta)) { Write-Host "A pasta '$pasta' não existe. Confira e rode de novo." -ForegroundColor Red; Read-Host 'Enter para sair'; exit 1 }
 $url = Read-Host 'Endereço do sistema [Enter = https://portal.farmaciafct.com.br]'
 if (-not $url) { $url = 'https://portal.farmaciafct.com.br' }
-$tok = Read-Host 'Cole a CHAVE DO AGENTE (gerada em Conciliação > Robôs e agente)' -AsSecureString
+$tok = Read-Host 'Cole a CHAVE DO AGENTE (gerada em Automações > Robôs e agente)' -AsSecureString
 if ($tok.Length -lt 40) { Write-Host 'Chave muito curta. Confira e rode de novo.' -ForegroundColor Red; Read-Host 'Enter para sair'; exit 1 }
 # a chave fica criptografada pelo Windows (só este usuário, neste PC, consegue ler)
 $cfg = [ordered]@{ url = $url; pasta = $pasta; diasParaTras = 30; token = ($tok | ConvertFrom-SecureString) }

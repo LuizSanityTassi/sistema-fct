@@ -1,27 +1,59 @@
-AGENTE FCT – Itaú Mailbox -> Sistema FCT (Conciliação)
-======================================================
+AGENTE FCT – Itaú Mailbox -> Sistema FCT (DDA x Trier)
+=======================================================
 O que faz: a cada 15 minutos olha a pasta onde o Itaú Mailbox salva os arquivos RECEBIDOS
 e manda para o Sistema FCT os retornos de DDA novos. Nunca apaga nem altera nada da pasta.
 Só envia arquivos que começam com "341" (arquivos do Itaú); o resto é ignorado aqui mesmo.
 
 INSTALAR
-1. No Sistema FCT: Conciliação > Robôs e agente > "Novo agente" > dê um nome (ex.: PC do Luiz)
-   > Gerar chave > Copiar (a chave aparece UMA vez).
-2. Baixe os 4 arquivos desta pasta (agente-itau.ps1, instalar.ps1, desinstalar.ps1, LEIA-ME.txt)
-   para uma pasta do PC do Itaú Mailbox (ex.: C:\FCT\agente-itau).
-3. Botão direito em instalar.ps1 > "Executar com o PowerShell".
-4. Ele pergunta: a pasta dos arquivos recebidos do Itaú Mailbox, o endereço (Enter) e a chave
-   (cole; não aparece na tela).
+1. No Sistema FCT (como administrador): Automações > Robôs e agente > no card "Agente dos arquivos
+   do Itaú", escreva o Nome do agente (ex.: PC do Luiz) > "Gerar chave do agente" > copie.
+   A chave aparece UMA vez (formato ag_ + 48 caracteres).
+2. Crie uma pasta NOVA só para o agente (ex.: C:\FCT\agente-itau) e salve nela os 4 arquivos
+   (agente-itau.ps1, instalar.ps1, desinstalar.ps1, LEIA-ME.txt).
+   NUNCA dentro da pasta do Itaú Mailbox (ex.: C:\ItauMailbox): o agente grava um config.json com o
+   mesmo nome do config.json do Itaú Mailbox e estragaria a configuração da caixa. O instalador se
+   recusa a rodar se encontrar o imb.exe na pasta.
+3. Rode o instalar.ps1: botão direito > "Executar com o PowerShell". Se essa opção não aparecer,
+   abra a pasta no Explorador, botão direito num espaço vazio > "Abrir no Terminal" (ou digite
+   powershell na barra de endereço e Enter) e rode:
+       powershell -ExecutionPolicy Bypass -File .\instalar.ps1
+4. Ele pergunta três coisas:
+   - a pasta onde o Itaú Mailbox salva os RECEBIDOS: a pasta do produto 025 em produção, por exemplo
+     C:\ItauMailbox\NJESCRITO\RETORNO\PROD\025 (abra a pasta no Explorador e copie o caminho da barra
+     de endereço). Não aponte para uma pasta acima: o agente lê as subpastas e mandaria também os
+     arquivos de TESTE e de outros produtos;
+   - o endereço do sistema: só Enter;
+   - a chave do agente: cole (não aparece na tela).
 5. Pronto: roda agora e depois sozinho a cada 15 min (Agendador de Tarefas: "FCT Agente Itau").
+   Com a pasta ainda vazia ele só diz "Nenhum arquivo novo para enviar agora" — é normal.
 
 ACOMPANHAR
-- agente.log (nesta pasta): o que foi enviado/ignorado/erro.
-- No Sistema FCT: Conciliação > Robôs e agente (último contato, quantos enviou) e Conciliação > Arquivos.
+- agente.log (nesta pasta): cada arquivo enviado, ignorado, recusado ou com falha. Com a pasta vazia
+  ele não escreve nada; "Último contato: nunca" no sistema também é normal até chegar o 1º .RET.
+- Testar sem esperar 15 min: Agendador de Tarefas > "FCT Agente Itau" > botão direito > Executar
+  (ou no PowerShell: Start-ScheduledTask -TaskName 'FCT Agente Itau').
+- No Sistema FCT: Automações > Robôs e agente (último contato, quantos enviou, arquivos recusados)
+  e DDA x Trier > Arquivos (os .RET entram com origem "agente").
+- Só manda arquivos modificados nos últimos 30 dias ("diasParaTras" no config.json DESTA pasta).
+
+SE O agente.log DISSER...
+- "RECUSADO ...": o sistema não conseguiu ler aquele arquivo e ele NÃO é mandado de novo. Se o
+  arquivo for corrigido na pasta, ele muda e sobe sozinho. O motivo fica no agente.log e, no sistema,
+  em Automações > Robôs e agente ("Arquivos recusados"). Para forçar o reenvio do mesmo arquivo, abra
+  enviados.json (desta pasta) no Bloco de Notas, apague o bloco daquele arquivo, salve e execute a tarefa.
+- "FALHA ... (tento de novo na próxima rodada)": internet ou servidor fora do ar; resolve sozinho.
+- "ERRO: chave do agente recusada ... Parei.": chave revogada ou errada. Gere outra no sistema e rode
+  o instalar.ps1 de novo (pode rodar por cima: ele troca a chave e recria a tarefa).
+- "ERRO: o servidor ainda não está com o agente habilitado": problema no servidor, não no PC.
+- "ERRO: pasta não encontrada": a pasta do Itaú Mailbox mudou; rode o instalar.ps1 de novo.
 
 SEGURANÇA
-- A chave fica criptografada pelo Windows (só o seu usuário, neste PC, consegue ler).
+- A chave fica criptografada pelo Windows (só o seu usuário, neste PC, consegue ler). Por isso a
+  tarefa agendada tem que rodar com o MESMO usuário que rodou o instalar.ps1 (não troque para SYSTEM).
 - A chave só serve para ENVIAR arquivos de DDA; não entra no sistema nem lê nada.
 - Perdeu o PC / trocou de máquina: revogue a chave no Sistema FCT e gere outra.
 
-DESINSTALAR: botão direito em desinstalar.ps1 > Executar com o PowerShell (e revogue a chave no sistema).
-OBS.: só funciona com o PC ligado e o usuário logado. Arquivos não se perdem: ficam no Itaú/na pasta até ele rodar.
+DESINSTALAR: rode desinstalar.ps1 do mesmo jeito que o instalar.ps1 (e revogue a chave no sistema).
+OBS.: só funciona com o PC ligado e o usuário logado. Para rodar sem ninguém logado: Agendador de
+Tarefas > "FCT Agente Itau" > Propriedades > "Executar estando o usuário conectado ou não", mantendo
+o mesmo usuário e guardando a senha. Arquivos não se perdem: ficam no Itaú/na pasta até ele rodar.

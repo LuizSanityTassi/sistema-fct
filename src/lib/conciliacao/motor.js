@@ -24,7 +24,8 @@ function parseRET(texto, arquivo) {
   if (h.slice(0, 3) !== '341' || h[7] !== '0') throw new Error(arquivo + ': não parece um arquivo de retorno do Itaú (CNAB 240).');
   const out = {
     arquivo, empresaCnpj: h.slice(18, 32), empresaNome: h.slice(72, 102).trim(),
-    geracao: ddmmyyyy(h.slice(143, 151)), titulos: [], lotes: []
+    // data, hora e NSA (sequência) da geração: desempatam a ordem entre arquivos do mesmo dia
+    geracao: ddmmyyyy(h.slice(143, 151)), hora: h.slice(151, 157), nsa: parseInt(h.slice(157, 163), 10) || 0, titulos: [], lotes: []
   };
   for (const l of linhas) {
     if (l.length < 14) continue;
@@ -160,36 +161,63 @@ function conciliar(trierTit, ddaArquivos, opt) {
   if (!T.length) throw new Error('Nenhum título do Trier nas filiais ' + opt.filMin + ' a ' + opt.filMax + '.');
   const vmin = minDe(T.map(t => t.venc)), vmax = maxDe(T.map(t => t.venc));
 
-  // DDA: último estado de cada boleto (pelo código de barras), sem os baixados (mov 31)
-  const arqs = ddaArquivos.slice().sort((a, b) => (a.geracao || 0) - (b.geracao || 0));
+  // DDA: último estado de cada boleto, sem os baixados (mov 31). O boleto é identificado pelo código de barras + filial pagadora
+  // quando ela é "forte" (planilha do portal de UMA filial, ou lote do .RET com CNPJ de filial que não é a matriz /0001); sem
+  // filial forte (lote da matriz, CNPJ fora do cadastro, planilha sem filial no nome) ele entra "sem filial" e é juntado ao mesmo
+  // boleto com filial forte. Em todo caso fica o ESTADO MAIS NOVO: ordem = data de geração do .RET ou dia em que a planilha entrou
+  // no sistema; empate = .RET depois da planilha, depois NSA e hora do cabeçalho. Assim o mesmo boleto que chega pela planilha
+  // do portal e pelo .RET do agente conta uma vez só, e boleto igual em filiais diferentes continua contando em cada uma.
+  const ordemArq = a => (a.geracao != null ? a.geracao : (a.exportadoEm || 0));
+  const arqs = ddaArquivos.slice().sort((a, b) => ordemArq(a) - ordemArq(b) || (a.geracao != null) - (b.geracao != null) || (a.nsa || 0) - (b.nsa || 0) || String(a.hora || '').localeCompare(String(b.hora || '')));
+  const cnpjPagador = d => String(d.pagadorCnpj || d.pagador || '').replace(/\D/g, '').slice(-14);
+  const filialDe = d => d.filialArquivo || (opt.filialDeCnpj ? opt.filialDeCnpj(cnpjPagador(d)) : null) || null;
+  // a planilha traz sempre o CNPJ da matriz no cabeçalho: nela só vale a filial do arquivo; no .RET vale o lote fora da matriz
+  const filialForte = d => d.filialArquivo || (d.geracao != null && cnpjPagador(d).slice(8, 12) !== '0001' ? filialDe(d) : null) || null;
   const U = new Map();
-  for (const a of arqs) for (const d of a.titulos) U.set(d.barra + '|' + (d.filialArquivo || ''), d); // mesmo boleto em arquivos de filiais diferentes conta em cada uma
+  let ordem = 0;
+  for (const a of arqs) for (const d of a.titulos) U.set(d.barra + '|' + (filialForte(d) || ''), Object.assign({}, d, { _ordem: ++ordem }));
+  // o mesmo boleto visto sem filial forte e também com filial é um só: ficam a filial e o pagador do registro forte, com o estado mais novo
+  const fortesDa = new Map();
+  for (const k of U.keys()) if (!k.endsWith('|')) { const b = k.slice(0, k.indexOf('|')); let l = fortesDa.get(b); if (!l) fortesDa.set(b, l = []); l.push(k); }
+  for (const k of [...U.keys()]) {
+    if (!k.endsWith('|')) continue;
+    const fortes = fortesDa.get(k.slice(0, -1)); if (!fortes) continue;
+    const fraco = U.get(k); U.delete(k);
+    for (const kf of fortes) {
+      const forte = U.get(kf);
+      if (fraco._ordem > forte._ordem) U.set(kf, Object.assign({}, fraco, { filialArquivo: forte.filialArquivo, pagador: forte.pagador, pagadorCnpj: forte.pagadorCnpj }));
+    }
+  }
   const Dd = [...U.values()].filter(d => d.mov !== '31' && d.venc != null && d.venc >= vmin && d.venc <= vmax)
     .map((d, i) => Object.assign({}, d, { i }));
   Dd.forEach(d => {
-    const cnpjPag = String(d.pagadorCnpj || d.pagador || '').replace(/\D/g, '').slice(-14);
-    d.fil = d.filialArquivo || (opt.filialDeCnpj ? opt.filialDeCnpj(cnpjPag) : null) || null;
+    const cnpjPag = cnpjPagador(d);
+    d.fil = filialDe(d);
     // boleto de arquivo de UMA filial só pode bater com título da mesma filial; o da matriz (/0001) costuma trazer as filiais juntas
     d.filForte = d.fil != null && (!!d.filialArquivo || (cnpjPag.length === 14 && cnpjPag.slice(8, 12) !== '0001'));
   });
   const filOk = (i, fil) => !Dd[i].filForte || fil == null || Dd[i].fil === fil;
-  // primeiro vencimento que o banco listou (ex.: relatório do portal só traz a partir de hoje)
-  const vencsBanco = [...U.values()].filter(d => d.mov !== '31' && d.venc != null).map(d => d.venc);
-  const bancoVencIni = vencsBanco.length ? minDe(vencsBanco) : null;
-  const geracoes = arqs.map(a => a.geracao).filter(x => x != null);
   // a planilha do portal é uma foto de TODOS os boletos em aberto: com ela, não existe "fora do período" por data de emissão
   const temPlanilha = arqs.some(a => a.geracao == null);
+  // os vencimentos que o banco listou: o estado atual dos boletos mais tudo o que cada planilha trouxe (a baixa que chega depois
+  // pelo .RET não encolhe o período que a foto do portal cobriu)
+  const titulosPlanilha = temPlanilha ? arqs.filter(a => a.geracao == null).flatMap(a => a.titulos) : [];
+  const vencsBanco = [...U.values()].filter(d => d.mov !== '31' && d.venc != null).map(d => d.venc).concat(titulosPlanilha.filter(d => d.venc != null).map(d => d.venc));
+  // primeiro vencimento que o banco listou (ex.: relatório do portal só traz a partir de hoje)
+  const bancoVencIni = vencsBanco.length ? minDe(vencsBanco) : null;
+  const geracoes = arqs.map(a => a.geracao).filter(x => x != null);
   // ...mas a foto é do período de vencimento pedido no portal: título que vence depois do último boleto dela está fora
   const bancoVencFim = temPlanilha && vencsBanco.length ? maxDe(vencsBanco) : null;
   const cobIni = geracoes.length && !temPlanilha ? minDe(geracoes) - 1 : null;
   const cobFim = geracoes.length ? maxDe(geracoes) - 8 : null;
   // cada planilha é a foto de UMA filial, com o período que foi pedido para ela: o que está coberto vale filial a filial
   const cobFilial = new Map();
-  let boletoSemFilial = false;
-  if (temPlanilha) for (const d of U.values()) {
+  // algum boleto do banco sem filial conhecida (CNPJ fora do cadastro)? aí não dá para dizer que uma filial "não tem arquivo"
+  let boletoSemFilial = temPlanilha && arqs.some(a => a.titulos.some(d => d.mov !== '31' && d.venc != null && !filialDe(d)));
+  if (temPlanilha) for (const d of [...U.values(), ...titulosPlanilha]) {
     if (d.mov === '31' || d.venc == null) continue;
-    const f = d.filialArquivo || (opt.filialDeCnpj ? opt.filialDeCnpj(String(d.pagadorCnpj || d.pagador || '').replace(/\D/g, '').slice(-14)) : null);
-    if (!f) { boletoSemFilial = true; continue; }
+    const f = filialDe(d);
+    if (!f) continue;
     const c = cobFilial.get(f);
     if (!c) cobFilial.set(f, { ini: d.venc, fim: d.venc });
     else { if (d.venc < c.ini) c.ini = d.venc; if (d.venc > c.fim) c.fim = d.venc; }

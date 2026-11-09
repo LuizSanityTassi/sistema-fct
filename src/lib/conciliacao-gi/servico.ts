@@ -207,6 +207,8 @@ export async function executarConciliacao(supabase: Cliente, userId: string, ped
   const { data: arquivos, error } = await supabase.from("gi_conc_arquivos").select("*").in("id", ids);
   if (error) throw new Error(error.message);
   if (arquivos.length !== ids.length) throw new Error("Algum arquivo escolhido não foi encontrado.");
+  // na ordem em que entraram no sistema: desempate para o motor quando dois arquivos têm a mesma data de geração
+  arquivos.sort((a, b) => a.enviado_em.localeCompare(b.enviado_em));
   const filiais = await mapaFiliais();
 
   const ddas: ArquivoDDA[] = [];
@@ -229,6 +231,8 @@ export async function executarConciliacao(supabase: Cliente, userId: string, ped
       if (d.planilha) {
         d.filial = a.filial ?? filialDoNome(a.nome, filiais.codigos);
         for (const t of d.titulos) t.filialArquivo = d.filial;
+        // dia em que a planilha entrou no sistema: é o que ordena a foto do portal entre os .RET (o estado mais novo manda)
+        d.exportadoEm = Math.floor(Date.parse(a.enviado_em) / 86_400_000);
         if (d.filial == null) avisos.push(`"${a.nome}": não deu para saber a filial pelo nome do arquivo; os boletos valem para qualquer filial da faixa.`);
       }
       if (d.ignoradas) avisos.push(`"${a.nome}": ${d.ignoradas} linha(s) danificada(s) ignorada(s) (arquivo baixado pela metade?).`);
