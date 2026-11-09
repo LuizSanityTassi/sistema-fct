@@ -47,9 +47,9 @@ function metaDDA(a: ArquivoDDA): Record<string, Json> {
   };
 }
 
-/** Códigos do Trier que são, na verdade, outra filial (Luiz, 09/11/2026): 099 = 009 (V. Floresta) e 199 = 110
- *  (Drogabel/Estoque). Sem isso os títulos ficavam "só no Trier", porque o boleto vem na planilha da filial real. */
-const FILIAL_TRIER_EQUIVALENTE: Record<number, number> = { 99: 9, 199: 110 };
+/** Códigos do Trier que são, na verdade, outra filial (Luiz, 09/11/2026): 099 = 009 (V. Floresta), 199 = 110
+ *  (Drogabel/Estoque) e 399 = 304. Sem isso os títulos ficavam "só no Trier", porque o boleto vem na planilha da filial real. */
+const FILIAL_TRIER_EQUIVALENTE: Record<number, number> = { 99: 9, 199: 110, 399: 304 };
 function filiaisReaisTrier(tr: ResultadoTrier): ResultadoTrier {
   for (const t of tr.titulos) t.fil = FILIAL_TRIER_EQUIVALENTE[t.fil] ?? t.fil;
   return tr;
