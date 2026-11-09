@@ -62,7 +62,9 @@ async function chamar(ch: Chaves, emp: EmpresaOmie, caminho: string, call: strin
       if (/bloqueada/i.test(ultimo)) throw new OmieErro(ultimo);
       // limite de uso / requisição repetida: espera e tenta de novo
       if (tentativa < 2 && /consumo redundante|aguarde|too many|tente novamente em/i.test(ultimo)) {
-        await dormir(3000);
+        // a Omie diz quanto esperar ("Aguarde 37 segundos"): repetir antes disso só renova a trava (parou o envio de 09/11)
+        const segundos = Number(/aguarde\s+(\d+)\s*segundo/i.exec(ultimo)?.[1] ?? 0);
+        await dormir(segundos > 0 ? Math.min(segundos + 2, 65) * 1000 : 3000);
         continue;
       }
       throw new OmieErro(ultimo);

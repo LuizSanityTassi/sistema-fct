@@ -162,7 +162,9 @@ export function EnvioOmie({ conciliacaoId, contas, grupo, contagem, api, config,
         } catch (e) {
           ultimo = e instanceof Error ? e.message : "sem conexão";
         }
-        await dormir(15_000);
+        // "Aguarde 37 segundos para tentar novamente (REDUNDANT)": espera o que a Omie pediu, senão a trava se renova
+        const segundos = Number(/aguarde\s+(\d+)\s*segundo/i.exec(ultimo)?.[1] ?? 0);
+        await dormir(segundos > 0 ? Math.min(segundos + 5, 120) * 1000 : 15_000);
       }
       throw new Error(ultimo);
     };
