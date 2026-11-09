@@ -278,7 +278,8 @@ export function GradeLancamentos({ competencia, eventos, grupos, versao }: Props
           setMsg({ ok: true, texto: `Tudo salvo às ${hora} (${r.gravados} valor(es) gravado(s), ${r.apagados} apagado(s)${r.observacoes ? `, ${r.observacoes} observação(ões)` : ""}).` });
           return true;
         } catch {
-          setMsg({ ok: false, texto: "Não salvou: sem conexão com o servidor. Tente de novo." });
+          // sem resposta do servidor: internet caiu OU o sistema foi atualizado com esta página aberta (aí só recarregando)
+          setMsg({ ok: false, texto: "Não salvou: o sistema foi atualizado ou a internet caiu. Anote os valores em amarelo, recarregue a página (F5) e digite de novo." });
           return false;
         } finally {
           setSalvando(false);
