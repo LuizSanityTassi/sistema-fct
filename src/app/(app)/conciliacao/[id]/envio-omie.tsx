@@ -195,7 +195,11 @@ export function EnvioOmie({ conciliacaoId, contas, grupo, contagem, api, config,
             return { nome: c?.nome ?? b.chave, filial: c?.filial ?? null, valor: c?.valor ?? 0, venc: c?.vencimento ?? null, motivo: b.motivo };
           });
         const vencimento = new Map(lista.map((c) => [c.chave, c.vencimento]));
-        const novas = conferencia.liberadas.filter((k) => !(vencimento.get(k) && vencimento.get(k)! < hoje));
+        // em ordem de vencimento: cada lote cobre poucos dias e o servidor reconfere na Omie só esse trecho (antes cada
+        // lote misturava o período todo e relia ~90 páginas da Omie a cada 200 contas: lento e arriscava bloquear a chave)
+        const novas = conferencia.liberadas
+          .filter((k) => !(vencimento.get(k) && vencimento.get(k)! < hoje))
+          .sort((a, b) => (vencimento.get(a) ?? "").localeCompare(vencimento.get(b) ?? ""));
         const vencidas = conferencia.liberadas.length - novas.length;
         fim.vencidas += vencidas;
         fim.barradas.push(...barradas);
@@ -216,7 +220,8 @@ export function EnvioOmie({ conciliacaoId, contas, grupo, contagem, api, config,
           const r = await postar<RespostaLote>("/api/conciliacao/omie-lote", { conciliacao: conciliacaoId, chaves: pedaco, cadastrar });
           if (r.modoTeste.length) throw new Error(`modo teste em ${r.modoTeste.join(", ")}: libere o lote em DDA x Trier → Omie`);
           novas.splice(0, pedaco.length);
-          novas.push(...r.adiadas);
+          // as adiadas (não deu tempo neste lote) voltam para a frente: mesmo trecho de vencimentos no próximo lote
+          novas.unshift(...r.adiadas);
           fim.lancadas += r.lancadas;
           fim.erros.push(...r.erros);
           for (const b of r.barradas) fim.barradas.push({ nome: porChave.get(b.chave)?.nome ?? b.chave, valor: porChave.get(b.chave)?.valor ?? 0, motivo: b.motivo });
