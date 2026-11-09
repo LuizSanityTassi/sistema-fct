@@ -88,7 +88,9 @@ export function filialDaPlanilha(nome: string, empresaCnpj: string, filiais: { c
   const raiz = empresaCnpj.replace(/\D/g, "").slice(0, 8);
   if (raiz.length !== 8) return null;
   const base = nome.replace(/\.[^.]+$/, "").trim();
-  if (/^\d{4}$/.test(base)) return filiais.porCnpj.get(`${raiz}00${base}`) ?? null;
+  // "2325.xlsx" ou "2325 -.xlsx" (o portal/Windows às vezes deixa o " -" no nome)
+  const final4 = /^(\d{4})(?:\s*-)?$/.exec(base)?.[1];
+  if (final4) return filiais.porCnpj.get(`${raiz}00${final4}`) ?? null;
   const numero = /^(\d{1,2})\s*-/.exec(base)?.[1];
   if (!numero) return null;
   const prefixo = raiz + numero.padStart(4, "0");
