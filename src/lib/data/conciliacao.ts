@@ -275,12 +275,26 @@ export async function chavesDoFiltro(conciliacaoId: string, f: FiltrosItens) {
   return [...chaves];
 }
 
-/** Quantas contas cada aba mostra agora, descontando as já enviadas ao Omie. */
-export async function contagemAbas(conciliacaoId: string) {
+type ContagemAbas = Record<GrupoItem | "descontos" | "enviados", number>;
+
+/** Quantas contas cada aba mostra agora, descontando as já enviadas ao Omie. Com datas de vencimento no filtro, conta
+ *  só esse período — o mesmo que a lista mostra (antes o número da aba ficava parado no total). */
+export async function contagemAbas(conciliacaoId: string, datas: { vencDe?: string; vencAte?: string } = {}): Promise<ContagemAbas> {
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("conc_contagem_abas", { p_conciliacao: conciliacaoId });
-  if (error) throw error;
-  return data as Record<GrupoItem | "descontos" | "enviados", number>;
+  if (!datas.vencDe && !datas.vencAte) {
+    const { data, error } = await supabase.rpc("conc_contagem_abas", { p_conciliacao: conciliacaoId });
+    if (error) throw error;
+    return data as ContagemAbas;
+  }
+  const abas = ["exato", "aproximado", "so_trier", "so_dda", "descontos", "enviados"] as const;
+  const contagens = await Promise.all(
+    abas.map(async (grupo) => {
+      const { count, error } = await consultaItens(supabase, conciliacaoId, { grupo, vencDe: datas.vencDe, vencAte: datas.vencAte, pagina: 1 }, "id", { count: "exact" }).limit(1);
+      if (error) throw error;
+      return [grupo, count ?? 0] as const;
+    }),
+  );
+  return Object.fromEntries(contagens) as ContagemAbas;
 }
 
 export async function listarItens(conciliacaoId: string, f: FiltrosItens) {

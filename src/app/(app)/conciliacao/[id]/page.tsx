@@ -78,7 +78,16 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
   const abaPedida = typeof sp.aba === "string" ? sp.aba : "";
   const aba = abaPedida === "filiais" || abaPedida === "omie" ? abaPedida : lerFiltrosItens(sp).grupo;
   const filtros = lerFiltrosItens(sp);
-  const [filiais, resultado, contagem, periodo] = await Promise.all([mapaFiliais(), aba === "filiais" || aba === "omie" ? null : listarItens(c.id, filtros), contagemAbas(c.id), resumoDoPeriodo(c.id)]);
+  const comDatas = !!(filtros.vencDe || filtros.vencAte);
+  // contagem: o total (a aba do Omie trabalha sem datas); contagemAbas: o que cada aba mostra no período filtrado
+  const [filiais, resultado, contagem, contagemPeriodo, periodo] = await Promise.all([
+    mapaFiliais(),
+    aba === "filiais" || aba === "omie" ? null : listarItens(c.id, filtros),
+    contagemAbas(c.id),
+    comDatas ? contagemAbas(c.id, { vencDe: filtros.vencDe, vencAte: filtros.vencAte }) : null,
+    resumoDoPeriodo(c.id),
+  ]);
+  const contagemNasAbas = contagemPeriodo ?? contagem;
   // a lista de boletos fora do padrão é a foto da conciliação: tira o que já venceu
   const anomaliasLista = (r.anomaliasLista ?? []).filter((a) => (a.vencimento ?? "") >= INICIO_OPERACAO);
   const anomaliasGraves = anomaliasLista.filter((a) => a.avisos.some(anomaliaGrave)).length;
@@ -238,7 +247,7 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
 
       <nav aria-label="Abas" className="mb-4 flex flex-wrap gap-2">
         {ABAS.map((a) => {
-          const qtd = a.chave === "omie" ? null : a.chave === "filiais" ? periodo.porFilial.length : contagem[a.chave];
+          const qtd = a.chave === "omie" ? null : a.chave === "filiais" ? periodo.porFilial.length : contagemNasAbas[a.chave];
           const ativa = aba === a.chave;
           return (
             <Link key={a.chave} href={`${base}?aba=${a.chave}${sufixoDatas}`} aria-current={ativa ? "page" : undefined} className={`rounded-full border px-3 py-1 text-sm ${ativa ? "border-primary bg-primary text-primary-foreground" : a.chave === "omie" ? "border-fct-yellow bg-fct-yellow/20 hover:border-primary/40" : "bg-card hover:border-primary/40"}`}>
@@ -354,13 +363,13 @@ export default async function ConciliacaoDetalhePage({ params, searchParams }: P
             )}
           </form>
 
-          {filtros.grupo !== "enviados" && contagem.enviados > 0 && (
+          {filtros.grupo !== "enviados" && contagemNasAbas.enviados > 0 && (
             <p className="mb-2 text-xs text-muted-foreground">
               Esta lista mostra só o que ainda não foi enviado.{" "}
               <Link href={`${base}?aba=enviados${sufixoDatas}`} className="underline">
-                {pluralizar(contagem.enviados, "conta enviada ao Omie", "contas enviadas ao Omie")}
+                {pluralizar(contagemNasAbas.enviados, "conta enviada ao Omie", "contas enviadas ao Omie")}
               </Link>{" "}
-              {contagem.enviados === 1 ? "está" : "estão"} na aba própria.
+              {contagemNasAbas.enviados === 1 ? "está" : "estão"} na aba própria.
             </p>
           )}
           <div className="rounded-xl border bg-card">
