@@ -204,7 +204,9 @@ export async function lerColeta(client: Cliente, coleta: ColetaParaLer, filiais:
     const semCadastro = lidas.filter((f) => !filiais.get(f.filial));
     if (semCadastro.length) throw new LeituraErro(`filial do Trier sem cadastro no portal: ${semCadastro.map((f) => `${f.filial} ${f.nome}`).join(", ")}; nada foi gravado na DRE`);
     const fora = FORA_DA_DRE[coleta.de.slice(0, 7)];
-    const valores = lidas.filter((f) => !fora?.(f.filial)).map((f) => ({ branch_id: filiais.get(f.filial)!, valor: Math.abs(f.venda) }));
+    // custo das devoluções = "Total Vlr. Custo" da filial → soma no "Crédito CMV" da DRE (pedido do Luiz, 10/11/2026)
+    const valores = lidas.filter((f) => !fora?.(f.filial)).map((f) => ({ branch_id: filiais.get(f.filial)!, valor: Math.abs(f.venda), custo: Math.abs(f.custo) }));
+    if (valores.some((v) => v.valor > 0) && !valores.some((v) => v.custo > 0)) throw new LeituraErro("o relatório de devoluções veio sem custo em todas as filiais; nada foi gravado na DRE");
     const { error } = await client.rpc("dre_devolucoes_trier_gravar", { p_competencia: coleta.de, p_valores: valores, p_arquivo: `Trier: Vendas Produtos (devoluções) ${coleta.de.slice(0, 7)} (robô, total ${totalGeral.toFixed(2)})` });
     if (error) throw new LeituraErro(`DRE: ${error.message}`);
     linhas = valores.length;

@@ -43,6 +43,8 @@ export async function valoresGravados(empresa: string, meses: string[], filial?:
     .from("dre_contabil")
     .select("branch_id, competencia, linha, valor, formula, manual")
     .eq("empresa", empresa)
+    // a parte do Trier no Crédito CMV (custo das devoluções) não aparece para digitar: quem digita mexe só na do contador
+    .or("origem.is.null,origem.neq.trier_credito_devolucoes")
     .in(
       "competencia",
       meses.map((m) => `${m}-01`),
