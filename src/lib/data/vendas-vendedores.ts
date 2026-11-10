@@ -19,6 +19,10 @@ async function todas<T>(consulta: (de: number, ate: number) => PromiseLike<{ dat
 
 export const DIAS_VENDEDORES = 60;
 
+/** Lojas cujo pessoal não tem cadastro nem login no portal (decisão do Luiz em 10/11/2026): Indaial, São Vicente, Cidade
+ * Nova, Navegantes e Itajaí (F201–F205) e Blumenau (F501–F504). Os vendedores delas ficam fora do "Falta ligar". */
+export const FILIAIS_FORA_DO_PORTAL = new Set(["F201", "F202", "F203", "F204", "F205", "F501", "F502", "F503", "F504"]);
+
 export type FuncionarioVinculo = { id: string; nome: string; filial: string | null; status: string; temLogin: boolean };
 export type LinhaVendedor = {
   codigo: number;
@@ -29,6 +33,8 @@ export type LinhaVendedor = {
   venda: number;
   vinculado: FuncionarioVinculo | null;
   sugestao: Sugestao | null;
+  /** vende numa loja fora do portal (FILIAIS_FORA_DO_PORTAL) e não está ligado: não é pendência */
+  foraDoPortal: boolean;
 };
 
 /** Vendedores do Trier (os que venderam nos últimos 60 dias + os já ligados) com o funcionário ligado ou a sugestão. Só admin. */
@@ -55,6 +61,7 @@ export async function vendedoresEFuncionarios() {
 
   const linhas: LinhaVendedor[] = vendedores.map((v) => {
     const l = ligado.get(v.vendedorCodigo);
+    const fora = !l && FILIAIS_FORA_DO_PORTAL.has(v.codigo);
     return {
       codigo: v.vendedorCodigo,
       nomeTrier: v.vendedorNome,
@@ -62,13 +69,14 @@ export async function vendedoresEFuncionarios() {
       loja: v.loja,
       venda: v.venda,
       vinculado: l ? (funcionarios.get(l.employee_id) ?? null) : null,
-      sugestao: l ? null : sugerirFuncionario(v.vendedorNome, v.branchId, paraSugerir),
+      sugestao: l || fora ? null : sugerirFuncionario(v.vendedorNome, v.branchId, paraSugerir),
+      foraDoPortal: fora,
     };
   });
   // ligados que não venderam nos últimos 60 dias
   for (const l of vinculos) {
     if (vendedores.some((v) => v.vendedorCodigo === l.vendedor_codigo)) continue;
-    linhas.push({ codigo: l.vendedor_codigo, nomeTrier: l.vendedor_nome, filial: null, loja: null, venda: 0, vinculado: funcionarios.get(l.employee_id) ?? null, sugestao: null });
+    linhas.push({ codigo: l.vendedor_codigo, nomeTrier: l.vendedor_nome, filial: null, loja: null, venda: 0, vinculado: funcionarios.get(l.employee_id) ?? null, sugestao: null, foraDoPortal: false });
   }
   linhas.sort((a, b) => b.venda - a.venda || a.nomeTrier.localeCompare(b.nomeTrier));
   // lista para escolher à mão: "NOME · F014" (rótulo único)

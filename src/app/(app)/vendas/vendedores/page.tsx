@@ -6,14 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
-import { DIAS_VENDEDORES, vendedoresEFuncionarios, type FuncionarioVinculo, type LinhaVendedor } from "@/lib/data/vendas-vendedores";
+import { DIAS_VENDEDORES, FILIAIS_FORA_DO_PORTAL, vendedoresEFuncionarios, type FuncionarioVinculo, type LinhaVendedor } from "@/lib/data/vendas-vendedores";
 import { cn } from "cn";
 import { AbasVendas, moeda } from "../comum";
 import { desligarVendedor, ligarSugestoes, ligarVendedor } from "./actions";
 
 export const metadata = { title: "Acesso dos vendedores" };
 
-const VISOES = { pendentes: "Falta ligar", ligados: "Ligados", todos: "Todos" } as const;
+const VISOES = { pendentes: "Falta ligar", ligados: "Ligados", fora: "Lojas fora do portal", todos: "Todos" } as const;
 type Visao = keyof typeof VISOES;
 
 const ROTULO_SUGESTAO = { certa: "sugestão certa", provavel: "confira", varias: "mais de um possível", nenhuma: "" } as const;
@@ -39,7 +39,7 @@ export default async function AcessoVendedoresPage({ searchParams }: PageProps<"
   const busca = q.toUpperCase();
   const filtradas = linhas.filter(
     (l) =>
-      (visao === "todos" || (visao === "ligados") === !!l.vinculado) &&
+      (visao === "todos" || (visao === "ligados" ? !!l.vinculado : visao === "fora" ? l.foraDoPortal : !l.vinculado && !l.foraDoPortal)) &&
       (!busca || l.nomeTrier.toUpperCase().includes(busca) || String(l.codigo) === busca || l.vinculado?.nome.toUpperCase().includes(busca) || l.filial === busca),
   );
   const ligados = linhas.filter((l) => l.vinculado);
@@ -72,7 +72,10 @@ export default async function AcessoVendedoresPage({ searchParams }: PageProps<"
           <strong className="text-foreground">{ligados.filter((l) => l.vinculado?.temLogin).length}</strong> ligados com login
         </span>
         <span>
-          <strong className="text-foreground">{linhas.filter((l) => l.sugestao?.tipo === "certa").length}</strong> sugestões certas para confirmar
+          <strong className="text-foreground">{linhas.filter((l) => !l.vinculado && !l.foraDoPortal).length}</strong> falta ligar
+        </span>
+        <span>
+          <strong className="text-foreground">{linhas.filter((l) => l.foraDoPortal).length}</strong> de lojas fora do portal ({[...FILIAIS_FORA_DO_PORTAL].join(", ")}), que não precisam de vínculo
         </span>
       </div>
 
@@ -173,6 +176,8 @@ function Linha({ l, volta }: { l: LinhaVendedor; volta: string }) {
               </button>
             </form>
           </div>
+        ) : l.foraDoPortal ? (
+          <span className="text-xs text-muted-foreground">loja fora do portal: sem vínculo</span>
         ) : (
           <div className="grid gap-1.5">
             {sug && sug.candidatos.length > 0 && (
