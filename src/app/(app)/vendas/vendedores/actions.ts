@@ -24,8 +24,13 @@ const codigoValido = (v: unknown) => {
   return Number.isInteger(n) && n > 0 && n < 10_000_000 ? n : null;
 };
 
-/** "NOME · F014" ou "NOME · F014 (2)" (a lista para escolher à mão) → funcionário. */
-async function funcionarioDoRotulo(supabase: Awaited<ReturnType<typeof createClient>>, rotulo: string) {
+/** "NOME · F014" ou "NOME · F014 (2)" (a lista para escolher à mão) → funcionário; "NOME · usuário email" → login sem ficha. */
+async function funcionarioDoRotulo(supabase: Awaited<ReturnType<typeof createClient>>, rotulo: string): Promise<{ erro?: string; id?: string; profile?: string }> {
+  const u = / · usuário (\S+@\S+)$/.exec(rotulo.trim());
+  if (u) {
+    const { data } = await supabase.from("profiles").select("id").eq("email", u[1]).eq("ativo", true).is("employee_id", null).maybeSingle();
+    return data ? { profile: data.id } : { erro: `Não achei o usuário ${u[1]} (ativo e sem ficha no RH).` };
+  }
   const m = /^(.+?) · (\S+?)(?: \((\d+)\))?$/.exec(rotulo.trim());
   if (!m) return { erro: "Escolha o funcionário na lista." };
   const [, nome, filial, ordem] = m;
@@ -48,17 +53,19 @@ export async function ligarVendedor(fd: FormData) {
   if (!codigo || !nomeTrier) voltar(fd, "Código do vendedor inválido.");
   const supabase = await createClient();
   let employeeId = String(fd.get("employee") ?? "");
+  let profileId: string | null = null;
   const rotulo = String(fd.get("rotulo") ?? "").trim();
   if (rotulo) {
     const r = await funcionarioDoRotulo(supabase, rotulo);
     if (r.erro) voltar(fd, r.erro);
-    employeeId = r.id!;
+    employeeId = r.id ?? "";
+    profileId = r.profile ?? null;
   }
-  if (!ehUuid(employeeId)) voltar(fd, "Escolha o funcionário.");
+  if (!profileId && !ehUuid(employeeId)) voltar(fd, "Escolha o funcionário.");
   // nunca troca em silêncio: se o código já é de alguém, avisa (desligue antes)
   const { data: antes } = await supabase.from("vendas_vendedor_vinculo").select("employee_id").eq("vendedor_codigo", codigo).maybeSingle();
   if (antes) voltar(fd, `O código ${codigo} já está ligado a outro funcionário. Desligue primeiro para trocar.`);
-  const linha = { vendedor_codigo: codigo, employee_id: employeeId, vendedor_nome: nomeTrier, criado_por: sessao.id };
+  const linha = { vendedor_codigo: codigo, employee_id: profileId ? null : employeeId, profile_id: profileId, vendedor_nome: nomeTrier, criado_por: sessao.id };
   const { error } = await supabase.from("vendas_vendedor_vinculo").insert(linha);
   if (error) voltar(fd, `Não liguei: ${error.message}`);
   await registrarAuditoria(supabase, { userId: sessao.id, acao: "criar", entidade: "vendas_vendedor_vinculo", registroId: String(codigo), novo: linha });
@@ -94,7 +101,7 @@ export async function desligarVendedor(fd: FormData) {
   const codigo = codigoValido(fd.get("codigo"));
   if (!codigo) voltar(fd, "Código inválido.");
   const supabase = await createClient();
-  const { data, error } = await supabase.from("vendas_vendedor_vinculo").delete().eq("vendedor_codigo", codigo).select("vendedor_codigo, employee_id, vendedor_nome");
+  const { data, error } = await supabase.from("vendas_vendedor_vinculo").delete().eq("vendedor_codigo", codigo).select("vendedor_codigo, employee_id, profile_id, vendedor_nome");
   if (error) voltar(fd, `Não desliguei: ${error.message}`);
   if (data?.length) await registrarAuditoria(supabase, { userId: sessao.id, acao: "excluir", entidade: "vendas_vendedor_vinculo", registroId: String(codigo), anterior: data[0] });
   voltar(fd, data?.length ? `${data[0].vendedor_nome} (${codigo}) desligado.` : "Esse código já não estava ligado.");

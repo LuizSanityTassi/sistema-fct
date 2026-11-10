@@ -2996,21 +2996,24 @@ export type Database = {
         Row: {
           criado_em: string
           criado_por: string | null
-          employee_id: string
+          employee_id: string | null
+          profile_id: string | null
           vendedor_codigo: number
           vendedor_nome: string
         }
         Insert: {
           criado_em?: string
           criado_por?: string | null
-          employee_id: string
+          employee_id?: string | null
+          profile_id?: string | null
           vendedor_codigo: number
           vendedor_nome: string
         }
         Update: {
           criado_em?: string
           criado_por?: string | null
-          employee_id?: string
+          employee_id?: string | null
+          profile_id?: string | null
           vendedor_codigo?: number
           vendedor_nome?: string
         }
@@ -3020,6 +3023,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendas_vendedor_vinculo_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -6630,6 +6640,7 @@ export type Database = {
           p_ate: string
           p_de: string
           p_employee?: string
+          p_profile?: string
         }
         Returns: Json
       }

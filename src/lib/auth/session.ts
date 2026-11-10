@@ -53,11 +53,13 @@ export const getSessao = cache(async (): Promise<Sessao> => {
   let responsavel = false;
   // vendedor com o código do Trier ligado a ele: vê "Minhas vendas" (só a venda dele, pela função vendas_minhas)
   let vendedor = false;
-  if (profile?.employee_id && cargo !== "relogio") {
-    const veFolha = !adminSistema && cargo !== "admin" && cargo !== "gerente";
+  if (profile && cargo !== "relogio") {
+    const veFolha = !!profile.employee_id && !adminSistema && cargo !== "admin" && cargo !== "gerente";
+    // o código pode estar ligado à ficha de funcionário ou direto ao login (usuário sem ficha no RH)
+    const dono = profile.employee_id ? `employee_id.eq.${profile.employee_id},profile_id.eq.${user.id}` : `profile_id.eq.${user.id}`;
     const [folha, vend] = await Promise.all([
-      veFolha ? supabase.from("branches").select("id", { count: "exact", head: true }).eq("responsavel_employee_id", profile.employee_id) : null,
-      supabase.from("vendas_vendedor_vinculo").select("vendedor_codigo", { count: "exact", head: true }).eq("employee_id", profile.employee_id),
+      veFolha ? supabase.from("branches").select("id", { count: "exact", head: true }).eq("responsavel_employee_id", profile.employee_id!) : null,
+      supabase.from("vendas_vendedor_vinculo").select("vendedor_codigo", { count: "exact", head: true }).or(dono),
     ]);
     responsavel = !!folha?.count;
     vendedor = !!vend.count;

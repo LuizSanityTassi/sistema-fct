@@ -163,9 +163,9 @@ function Linha({ l, volta }: { l: LinhaVendedor; volta: string }) {
           <div className="flex flex-wrap items-center gap-2">
             <UserCheck className="size-4 text-emerald-600" aria-hidden />
             <span className="font-medium">{l.vinculado.nome}</span>
-            <span className="font-mono text-xs text-muted-foreground">{l.vinculado.filial}</span>
+            {l.vinculado.usuario ? <span className="rounded bg-muted px-1.5 py-0.5 text-[11px]">usuário do portal, sem ficha no RH</span> : <span className="font-mono text-xs text-muted-foreground">{l.vinculado.filial}</span>}
             {l.vinculado.status === "desligado" ? <span className="rounded bg-red-50 px-1.5 py-0.5 text-[11px] font-medium text-red-800">desligado</span> : <Login f={l.vinculado} />}
-            <Link href={`/vendas/minhas?func=${l.vinculado.id}`} className="inline-flex items-center gap-1 text-xs underline">
+            <Link href={`/vendas/minhas?${l.vinculado.usuario ? "usuario" : "func"}=${l.vinculado.id}`} className="inline-flex items-center gap-1 text-xs underline">
               <Eye className="size-3.5" aria-hidden /> ver o que ele vê
             </Link>
             <form action={desligarVendedor} className="ml-auto">

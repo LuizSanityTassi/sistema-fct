@@ -29,7 +29,11 @@ export default async function MinhasVendasPage({ searchParams }: PageProps<"/ven
   const { de, ate } = periodo;
   // só o administrador abre a venda de outra pessoa (para conferir o que o vendedor vê)
   const func = sessao.papel === "admin" && ehUuid(s("func")) ? s("func") : undefined;
-  const [atual, anterior] = await Promise.all([minhasVendas(de, ate, func), minhasVendas(mesmoDia(de, 1), mesmoDia(ate, 1), func)]);
+  // usuário do portal sem ficha no RH (o código ligado direto ao login)
+  const usu = sessao.papel === "admin" && !func && ehUuid(s("usuario")) ? s("usuario") : undefined;
+  const outro = func ?? usu;
+  const alvo = { employee: func, profile: usu };
+  const [atual, anterior] = await Promise.all([minhasVendas(de, ate, alvo), minhasVendas(mesmoDia(de, 1), mesmoDia(ate, 1), alvo)]);
   const t = somar(atual.dias);
   const a = somar(anterior.dias);
   const [am, mm] = de.split("-").map(Number);
@@ -45,18 +49,18 @@ export default async function MinhasVendasPage({ searchParams }: PageProps<"/ven
   for (const d of atual.dias) diasDaFilial.set(d.filial, [...(diasDaFilial.get(d.filial) ?? []), d]);
   const porFilial = [...diasDaFilial].map(([codigo, dias]) => ({ codigo, loja: dias[0].loja, ...somar(dias) })).sort((x, y) => y.venda - x.venda);
   const totalGrupos = atual.grupos.reduce((s, g) => s + g.venda, 0);
-  const extra = func ? `&func=${func}` : "";
+  const extra = func ? `&func=${func}` : usu ? `&usuario=${usu}` : "";
   const nomes = atual.vendedores.map((v) => `${v.codigo}${v.nome && v.nome !== atual.funcionario ? ` (${v.nome})` : ""}`).join(", ");
 
   return (
     <>
       <PageHeader
         eyebrow="Vendas"
-        titulo={func && atual.funcionario ? `Vendas de ${atual.funcionario}` : "Minhas vendas"}
+        titulo={outro && atual.funcionario ? `Vendas de ${atual.funcionario}` : "Minhas vendas"}
         descricao="Só a sua venda, lida do Trier (vendas menos devoluções). O dia de hoje é parcial e vai atualizando ao longo do dia; de madrugada o dia inteiro é lido de novo."
       />
       <AtualizaSozinho />
-      {func && (
+      {outro && (
         <div role="status" className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
           <Eye className="size-4" aria-hidden />
           <span>
@@ -72,7 +76,7 @@ export default async function MinhasVendasPage({ searchParams }: PageProps<"/ven
         <section className="rounded-xl border bg-card">
           <EstadoVazio
             icone={BadgeDollarSign}
-            titulo={func ? "Esse funcionário não tem código de vendedor ligado" : "Seu login ainda não está ligado ao seu código de vendedor no Trier"}
+            titulo={outro ? "Essa pessoa não tem código de vendedor ligado" : "Seu login ainda não está ligado ao seu código de vendedor no Trier"}
             descricao={
               sessao.papel === "admin" ? (
                 <>
@@ -92,6 +96,7 @@ export default async function MinhasVendasPage({ searchParams }: PageProps<"/ven
         <>
           <form method="get" className="mb-4 flex flex-wrap items-end gap-2 rounded-xl border bg-card p-3">
             {func && <input type="hidden" name="func" value={func} />}
+            {usu && <input type="hidden" name="usuario" value={usu} />}
             <CamposPeriodo p={periodo} rota={ROTA_MINHAS_VENDAS} extra={extra} />
             <Button type="submit">Pesquisar</Button>
             <p className="ml-auto self-center text-xs text-muted-foreground">

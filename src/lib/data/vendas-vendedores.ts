@@ -23,7 +23,8 @@ export const DIAS_VENDEDORES = 60;
  * Nova, Navegantes e Itajaí (F201–F205) e Blumenau (F501–F504). Os vendedores delas ficam fora do "Falta ligar". */
 export const FILIAIS_FORA_DO_PORTAL = new Set(["F201", "F202", "F203", "F204", "F205", "F501", "F502", "F503", "F504"]);
 
-export type FuncionarioVinculo = { id: string; nome: string; filial: string | null; status: string; temLogin: boolean };
+/** Quem tem o código: funcionário (ficha do RH) ou, com `usuario`, um login do portal sem ficha no RH (id = profile). */
+export type FuncionarioVinculo = { id: string; nome: string; filial: string | null; status: string; temLogin: boolean; usuario?: boolean };
 export type LinhaVendedor = {
   codigo: number;
   nomeTrier: string;
@@ -41,21 +42,27 @@ export type LinhaVendedor = {
 export async function vendedoresEFuncionarios() {
   const supabase = await createClient();
   const hoje = hojeNoBrasil();
-  const [vendedores, vinculos, ativos, logins, filiais] = await Promise.all([
+  const [vendedores, vinculos, ativos, logins, filiais, semFicha] = await Promise.all([
     vendedoresNoPeriodo(somarDias(hoje, -DIAS_VENDEDORES), hoje),
-    todas((de, ate) => supabase.from("vendas_vendedor_vinculo").select("vendedor_codigo, employee_id, vendedor_nome").order("vendedor_codigo").range(de, ate)),
+    todas((de, ate) => supabase.from("vendas_vendedor_vinculo").select("vendedor_codigo, employee_id, profile_id, vendedor_nome").order("vendedor_codigo").range(de, ate)),
     todas((de, ate) => supabase.from("employees").select("id, nome, branch_id, status").neq("status", "desligado").order("nome").order("id").range(de, ate)),
     todas((de, ate) => supabase.from("profiles").select("employee_id").eq("ativo", true).not("employee_id", "is", null).order("id").range(de, ate)),
     todas((de, ate) => supabase.from("branches").select("id, codigo").order("codigo").range(de, ate)),
+    // logins ativos sem ficha no RH (ex.: usuário do comercial interno): também podem ter código de vendedor
+    todas((de, ate) => supabase.from("profiles").select("id, nome, email").eq("ativo", true).is("employee_id", null).neq("papel", "relogio").order("nome").order("id").range(de, ate)),
   ]);
   const codigoFilial = new Map(filiais.map((b) => [b.id, b.codigo]));
   const comLogin = new Set(logins.map((p) => p.employee_id));
   // ligados a quem já saiu (desligado) também aparecem
-  const faltam = [...new Set(vinculos.map((v) => v.employee_id))].filter((id) => !ativos.some((e) => e.id === id));
+  const faltam = [...new Set(vinculos.flatMap((v) => (v.employee_id ? [v.employee_id] : [])))].filter((id) => !ativos.some((e) => e.id === id));
   const desligados = faltam.length ? ((await supabase.from("employees").select("id, nome, branch_id, status").in("id", faltam)).data ?? []) : [];
   const funcionarios = new Map<string, FuncionarioVinculo>(
     [...ativos, ...desligados].map((e) => [e.id, { id: e.id, nome: e.nome, filial: e.branch_id ? (codigoFilial.get(e.branch_id) ?? null) : null, status: e.status, temLogin: comLogin.has(e.id) }]),
   );
+  const usuarios = new Map<string, FuncionarioVinculo & { email: string | null }>(
+    semFicha.map((p) => [p.id, { id: p.id, nome: p.nome, filial: null, status: "ativo", temLogin: true, usuario: true, email: p.email }]),
+  );
+  const donoDe = (l: { employee_id: string | null; profile_id: string | null }) => (l.employee_id ? funcionarios.get(l.employee_id) : l.profile_id ? usuarios.get(l.profile_id) : undefined) ?? null;
   const paraSugerir = ativos.map((e) => ({ f: { id: e.id, nome: e.nome, branchId: e.branch_id } satisfies Funcionario, tokens: tokensNome(e.nome) }));
   const ligado = new Map(vinculos.map((v) => [v.vendedor_codigo, v]));
 
@@ -68,7 +75,7 @@ export async function vendedoresEFuncionarios() {
       filial: v.codigo,
       loja: v.loja,
       venda: v.venda,
-      vinculado: l ? (funcionarios.get(l.employee_id) ?? null) : null,
+      vinculado: l ? donoDe(l) : null,
       sugestao: l || fora ? null : sugerirFuncionario(v.vendedorNome, v.branchId, paraSugerir),
       foraDoPortal: fora,
     };
@@ -76,7 +83,7 @@ export async function vendedoresEFuncionarios() {
   // ligados que não venderam nos últimos 60 dias
   for (const l of vinculos) {
     if (vendedores.some((v) => v.vendedorCodigo === l.vendedor_codigo)) continue;
-    linhas.push({ codigo: l.vendedor_codigo, nomeTrier: l.vendedor_nome, filial: null, loja: null, venda: 0, vinculado: funcionarios.get(l.employee_id) ?? null, sugestao: null, foraDoPortal: false });
+    linhas.push({ codigo: l.vendedor_codigo, nomeTrier: l.vendedor_nome, filial: null, loja: null, venda: 0, vinculado: donoDe(l), sugestao: null, foraDoPortal: false });
   }
   linhas.sort((a, b) => b.venda - a.venda || a.nomeTrier.localeCompare(b.nomeTrier));
   // lista para escolher à mão: "NOME · F014" (rótulo único)
@@ -89,6 +96,8 @@ export async function vendedoresEFuncionarios() {
       vistos.set(base, k);
       return { id: f.id, rotulo: k > 1 ? `${base} (${k})` : base };
     });
+  // logins sem ficha no RH: "Nome · usuário email" (o e-mail é único)
+  for (const u of usuarios.values()) if (u.email) opcoes.push({ id: u.id, rotulo: `${u.nome} · usuário ${u.email}` });
   return { linhas, opcoes };
 }
 
@@ -103,10 +112,10 @@ export type MinhasVendas = {
   meta: number | null;
 };
 
-/** Venda do vendedor logado (ou, só para o administrador, de um funcionário escolhido). */
-export async function minhasVendas(de: string, ate: string, employeeId?: string): Promise<MinhasVendas> {
+/** Venda do vendedor logado (ou, só para o administrador, de um funcionário ou usuário escolhido). */
+export async function minhasVendas(de: string, ate: string, alvo: { employee?: string; profile?: string } = {}): Promise<MinhasVendas> {
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("vendas_minhas", { p_de: de, p_ate: ate, ...(employeeId ? { p_employee: employeeId } : {}) });
+  const { data, error } = await supabase.rpc("vendas_minhas", { p_de: de, p_ate: ate, ...(alvo.employee ? { p_employee: alvo.employee } : {}), ...(alvo.profile ? { p_profile: alvo.profile } : {}) });
   if (error) throw new Error(error.message);
   const r = (data ?? {}) as Record<string, unknown>;
   const lista = <T,>(v: unknown) => (Array.isArray(v) ? (v as T[]) : []);
