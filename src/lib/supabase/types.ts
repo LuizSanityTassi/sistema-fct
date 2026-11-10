@@ -6477,6 +6477,10 @@ export type Database = {
         Args: { p_competencia: string }
         Returns: number
       }
+      dre_devolucoes_trier_gravar: {
+        Args: { p_arquivo: string; p_competencia: string; p_valores: Json }
+        Returns: Json
+      }
       dre_receita_trier_gravar: {
         Args: { p_arquivo: string; p_competencia: string; p_valores: Json }
         Returns: Json

@@ -14,8 +14,10 @@ import { lerColetaAnotando, mapaFiliaisTrier } from "./leitura";
 type Cliente = SupabaseClient<Database>;
 
 export const RELATORIOS_COLETA = Object.keys(RELATORIOS_VENDAS) as RelatorioVendas[];
-/** Relatórios de mês: vendedores por grupo (do dia 1 até a data) e a receita da DRE (só mês fechado). */
-const RELATORIOS_DE_MES: RelatorioVendas[] = ["vendedores", "receita"];
+/** Relatórios de mês: vendedores por grupo (do dia 1 até a data) e a receita e as devoluções da DRE (só mês fechado). */
+const RELATORIOS_DE_MES: RelatorioVendas[] = ["vendedores", "receita", "devolucoes"];
+/** Relatórios da DRE (mês fechado, Vendas Produtos): receita + CMV e devoluções. */
+const RELATORIOS_DRE = ["receita", "devolucoes"] as const;
 export const RELATORIOS_DIARIOS = RELATORIOS_COLETA.filter((r) => !RELATORIOS_DE_MES.includes(r));
 export const ehRelatorioVendas = (v: string): v is RelatorioVendas => v in RELATORIOS_VENDAS;
 
@@ -82,7 +84,7 @@ export function pedidosDoPeriodo(de: string, ate: string, relatorios: RelatorioV
   const dias = diasEntre(de, ate).reverse();
   const diarios = dias.flatMap((dia) => relatorios.filter((r) => !RELATORIOS_DE_MES.includes(r)).map((relatorio) => ({ relatorio, de: dia, ate: dia })));
   const meses = relatorios.includes("vendedores") ? [...new Set(dias.map((d) => d.slice(0, 7)))] : [];
-  const receita = relatorios.includes("receita") ? mesesFechados(de, ate).map((m) => ({ relatorio: "receita" as const, ...m })) : [];
+  const receita = RELATORIOS_DRE.filter((r) => relatorios.includes(r)).flatMap((relatorio) => mesesFechados(de, ate).map((m) => ({ relatorio, ...m })));
   return [...receita, ...meses.map((mes) => ({ relatorio: "vendedores" as const, de: `${mes}-01`, ate: fimDoMes(`${mes}-01`) < ate ? fimDoMes(`${mes}-01`) : ate })), ...diarios];
 }
 
@@ -125,11 +127,11 @@ export async function pedidosDoRoboVendas(admin: Cliente, agora = new Date()): P
     const [a, m] = ontem.split("-").map(Number);
     return m === 1 ? `${a - 1}-12-01` : `${a}-${String(m - 1).padStart(2, "0")}-01`;
   })();
-  const receita = await pedidosPendentes(admin, [{ relatorio: "receita", ...mesAnteriorFechado(agora) }]);
+  const receita = await pedidosPendentes(admin, RELATORIOS_DRE.map((relatorio) => ({ relatorio, ...mesAnteriorFechado(agora) })));
   const recentes = await pedidosPendentes(admin, pedidosDoPeriodo(corte, ontem, RELATORIOS_DIARIOS));
   const mes = await pedidosPendentes(admin, [{ relatorio: "vendedores", de: `${ontem.slice(0, 7)}-01`, ate: ontem }]);
   // (o mês corrente dos vendedores já vai acima, até ontem; a receita também)
-  const semReceita = RELATORIOS_COLETA.filter((r) => r !== "receita");
+  const semReceita = RELATORIOS_COLETA.filter((r) => !(RELATORIOS_DRE as readonly string[]).includes(r));
   const doisMeses = corte > inicioMesAnt ? await pedidosPendentes(admin, pedidosDoPeriodo(inicioMesAnt, diaBrasil(agora, DIAS_CONFERIDOS + 1), semReceita).filter((p) => !(p.relatorio === "vendedores" && p.de === `${ontem.slice(0, 7)}-01`))) : [];
   const historico = await pedidosPendentes(admin, pedidosDoPeriodo(INICIO_HISTORICO, diaBrasil(agora, DIAS_CONFERIDOS + 1), RELATORIOS_HISTORICO));
   const vistos = new Set([...receita, ...recentes, ...mes, ...doisMeses].map((p) => `${p.relatorio}|${p.de}|${p.ate}`));
@@ -144,20 +146,26 @@ export async function receitaPendente(admin: Cliente, agora = new Date()): Promi
   // todos os meses fechados desde o primeiro da DRE pelo Trier, do mais recente para trás
   const meses: { de: string; ate: string }[] = [];
   for (let m = mesAnteriorFechado(agora); m.de >= INICIO_RECEITA_DRE; m = mesAnteriorFechado(new Date(`${m.de}T15:00:00Z`))) meses.push(m);
-  const pend = await pedidosPendentes(admin, meses.map((m) => ({ relatorio: "receita" as const, ...m })));
+  // devoluções só desde outubro/2026 (setembro para trás já estava travado pelo contador quando entraram)
+  const pend = await pedidosPendentes(admin, [
+    ...meses.map((m) => ({ relatorio: "receita" as const, ...m })),
+    ...meses.filter((m) => m.de >= INICIO_DEVOLUCOES_DRE).map((m) => ({ relatorio: "devolucoes" as const, ...m })),
+  ]);
   if (!pend.length) return [];
-  const { data, error } = await admin.from("vendas_coletas").select("de").eq("relatorio", "receita").gt("coletado_em", new Date(agora.getTime() - 25 * 60_000).toISOString());
+  const { data, error } = await admin.from("vendas_coletas").select("relatorio, de").in("relatorio", [...RELATORIOS_DRE]).gt("coletado_em", new Date(agora.getTime() - 25 * 60_000).toISOString());
   if (error) throw new Error(error.message);
-  const tentados = new Set((data ?? []).map((c) => c.de));
-  return pend.filter((p) => !tentados.has(p.de));
+  const tentados = new Set((data ?? []).map((c) => `${c.relatorio}|${c.de}`));
+  return pend.filter((p) => !tentados.has(`${p.relatorio}|${p.de}`));
 }
 
 /** Primeiro mês com a receita da DRE vinda do Trier (pedido do Luiz em 05/11/2026: setembro e outubro de 2026). */
 export const INICIO_RECEITA_DRE = "2026-09-01";
+/** Primeiro mês com as devoluções da DRE vindas do Trier (pedido do Luiz em 10/11/2026). */
+export const INICIO_DEVOLUCOES_DRE = "2026-10-01";
 
 /** Receitas guardadas e ainda não lidas (leitor novo ou erro de leitura): lê de novo o Excel guardado, sem ir ao Trier. */
 export async function lerReceitasGuardadas(admin: Cliente) {
-  const { data, error } = await admin.from("vendas_coletas").select("id, relatorio, de, ate").eq("relatorio", "receita").eq("status", "ok").is("lido_em", null).not("arquivo_b64", "is", null).order("coletado_em").limit(3);
+  const { data, error } = await admin.from("vendas_coletas").select("id, relatorio, de, ate").in("relatorio", [...RELATORIOS_DRE]).eq("status", "ok").is("lido_em", null).not("arquivo_b64", "is", null).order("coletado_em").limit(3);
   if (error) throw new Error(error.message);
   if (!data?.length) return [];
   const filiais = await mapaFiliaisTrier(admin);

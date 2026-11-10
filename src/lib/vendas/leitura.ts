@@ -194,6 +194,20 @@ export async function lerColeta(client: Cliente, coleta: ColetaParaLer, filiais:
     const { error } = await client.rpc("dre_receita_trier_gravar", { p_competencia: coleta.de, p_valores: valores, p_arquivo: `Trier: Vendas Produtos ${coleta.de.slice(0, 7)} (robô, total ${totalGeral.toFixed(2)})` });
     if (error) throw new LeituraErro(`DRE: ${error.message}`);
     linhas = valores.length;
+  } else if (rel === "devolucoes") {
+    // devoluções do mês fechado (Vendas Produtos com a seleção "Devoluções") → "(-) Devoluções" da DRE, uma linha por
+    // filial, na empresa de cada filial. Mesmas travas da receita: mês inteiro, contas batendo, toda filial cadastrada.
+    const [a, mm] = coleta.de.split("-").map(Number);
+    const fimMes = new Date(Date.UTC(a, mm, 0)).toISOString().slice(0, 10);
+    if (!coleta.de.endsWith("-01") || coleta.ate !== fimMes) throw new LeituraErro("as devoluções da DRE precisam ser do mês inteiro (dia 1 ao último dia)");
+    const { filiais: lidas, totalGeral } = lerReceitaPorFilial(m);
+    const semCadastro = lidas.filter((f) => !filiais.get(f.filial));
+    if (semCadastro.length) throw new LeituraErro(`filial do Trier sem cadastro no portal: ${semCadastro.map((f) => `${f.filial} ${f.nome}`).join(", ")}; nada foi gravado na DRE`);
+    const fora = FORA_DA_DRE[coleta.de.slice(0, 7)];
+    const valores = lidas.filter((f) => !fora?.(f.filial)).map((f) => ({ branch_id: filiais.get(f.filial)!, valor: Math.abs(f.venda) }));
+    const { error } = await client.rpc("dre_devolucoes_trier_gravar", { p_competencia: coleta.de, p_valores: valores, p_arquivo: `Trier: Vendas Produtos (devoluções) ${coleta.de.slice(0, 7)} (robô, total ${totalGeral.toFixed(2)})` });
+    if (error) throw new LeituraErro(`DRE: ${error.message}`);
+    linhas = valores.length;
   } else throw new LeituraErro(`relatório desconhecido: ${coleta.relatorio}`);
 
   checar(await client.from("vendas_coletas").update({ lido_em: new Date().toISOString(), linhas, erro: null }).eq("id", coleta.id));

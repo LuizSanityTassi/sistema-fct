@@ -685,6 +685,53 @@ export async function buscarDiferencasCaixaTrier(
  * Rel_0028 Vendas por Vendedor — agrup_fil 2 = Filiais; sel_relatorio 0 = totais por vendedor, 3 = vendedor e grupo de
  *   produtos; sel_vendas 2 = vendas menos devoluções; chk_vendastel S = só as vendas por tele-entrega.
  */
+// Rel_0024 Vendas Produtos (receita e devoluções da DRE): mesmos campos, muda só a Seleção Vendas.
+const AJUSTES_VENDAS_PRODUTOS = {
+  agrup_fil: "2",
+  consid_grfil: "C",
+  consid_filial: "C",
+  consid_grupo: "D",
+  selecaoVendas: "0",
+  selecaoPeriodo: "0",
+  selecaoI: "9",
+  selecaoII: "2",
+  selecaoIII: "2",
+  selecaoVI: "0",
+  selecaoCusto: "3",
+  selecaoCustoII: "0",
+  agrup_rateio: "0",
+  hor_init: "00:00:00",
+  hor_fim: "23:59:59",
+  hor_init_entrada: "00:00:00",
+  hor_fim_entrada: "23:59:59",
+  chk_transf: "N",
+  chk_qtd_vendida_neg: "S",
+  chk_produ_svendas_vendaxcompas: "N",
+  chk_considerar_fornecedor: "N",
+  chk_imprimir_estoq: "N",
+  chk_mostraDescricaoProdutoCompleta: "N",
+  chk_arquivo_layout_febrafar: "N",
+  chk_imprimir_cod_barra: "N",
+  chk_novo_layout: "N",
+  chk_total_nota_compra: "N",
+  chk_venda_promo: "N",
+  chk_venda_itens_promo: "N",
+  chk_imprimir_contato_cliente: "N",
+  chk_venda_ecommerce: "N",
+  chk_venda_ifood: "N",
+  chk_venda_edelivery: "N",
+  chk_venda_farmaciasapp: "N",
+  chk_venda_pilotself: "N",
+  chk_venda_scanntech: "N",
+  chk_venda_promocao_importacao: "N",
+  chk_produtos_sem_venda_e_estoque: "N",
+} as const;
+const ANTES_VENDAS_PRODUTOS = [
+  { acao: "onChangeSelecaoI" },
+  // a tela consulta o grupo antes (o nome vem da consulta); aqui o nome vai junto e a conferência é o código 61 na lista
+  { acao: "addGrupo", campos: { cod_grupoEntrada: "61", cod_grupo: "61", cadgrpro_grupo_nom_grupo: "SERVICO" }, confere: /createSelectOption\('61 - [^']*',\s*'61'\)/, falha: "o Trier não confirmou a retirada do grupo 61 SERVICO" },
+];
+
 export const RELATORIOS_VENDAS = {
   filiais: { pagina: "Rel_0056.pod", rotulo: "Vendas por data, por filial", ajustes: { agrup_fil: "2", selv: "2", chk_som_total: "S" } },
   grupos: { pagina: "Rel_0080.pod", rotulo: "CMV por filial e grupo de produtos", ajustes: { agrupFilial: "2", agrupProd: "1", soTotal: "S", selecaoVend: "2" } },
@@ -726,52 +773,17 @@ export const RELATORIOS_VENDAS = {
   receita: {
     pagina: "Rel_0024.pod",
     rotulo: "Receita do mês por filial (Vendas Produtos sem o grupo 61 serviço)",
-    ajustes: {
-      agrup_fil: "2",
-      consid_grfil: "C",
-      consid_filial: "C",
-      consid_grupo: "D",
-      selecaoVendas: "0",
-      selecaoPeriodo: "0",
-      selecaoI: "9",
-      selecaoII: "2",
-      selecaoIII: "2",
-      selecaoVI: "0",
-      selecaoCusto: "3",
-      selecaoCustoII: "0",
-      agrup_rateio: "0",
-      hor_init: "00:00:00",
-      hor_fim: "23:59:59",
-      hor_init_entrada: "00:00:00",
-      hor_fim_entrada: "23:59:59",
-      chk_transf: "N",
-      chk_qtd_vendida_neg: "S",
-      chk_produ_svendas_vendaxcompas: "N",
-      chk_considerar_fornecedor: "N",
-      chk_imprimir_estoq: "N",
-      chk_mostraDescricaoProdutoCompleta: "N",
-      chk_arquivo_layout_febrafar: "N",
-      chk_imprimir_cod_barra: "N",
-      chk_novo_layout: "N",
-      chk_total_nota_compra: "N",
-      chk_venda_promo: "N",
-      chk_venda_itens_promo: "N",
-      chk_imprimir_contato_cliente: "N",
-      chk_venda_ecommerce: "N",
-      chk_venda_ifood: "N",
-      chk_venda_edelivery: "N",
-      chk_venda_farmaciasapp: "N",
-      chk_venda_pilotself: "N",
-      chk_venda_scanntech: "N",
-      chk_venda_promocao_importacao: "N",
-      chk_produtos_sem_venda_e_estoque: "N",
-    },
+    ajustes: AJUSTES_VENDAS_PRODUTOS,
     // como a tela faz: trocar a Seleção I avisa o servidor; o grupo 61 só sai se o Trier devolver o nome dele
-    antes: [
-      { acao: "onChangeSelecaoI" },
-      // a tela consulta o grupo antes (o nome vem da consulta); aqui o nome vai junto e a conferência é o código 61 na lista
-      { acao: "addGrupo", campos: { cod_grupoEntrada: "61", cod_grupo: "61", cadgrpro_grupo_nom_grupo: "SERVICO" }, confere: /createSelectOption\('61 - [^']*',\s*'61'\)/, falha: "o Trier não confirmou a retirada do grupo 61 SERVICO" },
-    ],
+    antes: ANTES_VENDAS_PRODUTOS,
+  },
+  // devoluções do mês fechado para a DRE (pedido do Luiz, 10/11/2026): o mesmo caminho da receita (Vendas Produtos por
+  // filial, sem o grupo 61 SERVICO) com a Seleção Vendas em "Devoluções" (selecaoVendas 1). Vai para "(-) Devoluções".
+  devolucoes: {
+    pagina: "Rel_0024.pod",
+    rotulo: "Devoluções do mês por filial (Vendas Produtos, seleção Devoluções, sem o grupo 61 serviço)",
+    ajustes: { ...AJUSTES_VENDAS_PRODUTOS, selecaoVendas: "1" },
+    antes: ANTES_VENDAS_PRODUTOS,
   },
 } as const;
 export type RelatorioVendas = keyof typeof RELATORIOS_VENDAS;
