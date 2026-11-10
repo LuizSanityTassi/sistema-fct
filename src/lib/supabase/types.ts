@@ -2938,6 +2938,33 @@ export type Database = {
           },
         ]
       }
+      vendas_tele_filial_dia: {
+        Row: {
+          atendimentos: number
+          atualizado_em: string
+          branch_id: string
+          coleta_id: string | null
+          data: string
+          venda: number
+        }
+        Insert: {
+          atendimentos?: number
+          atualizado_em?: string
+          branch_id: string
+          coleta_id?: string | null
+          data: string
+          venda?: number
+        }
+        Update: {
+          atendimentos?: number
+          atualizado_em?: string
+          branch_id?: string
+          coleta_id?: string | null
+          data?: string
+          venda?: number
+        }
+        Relationships: []
+      }
       vendas_televendas_vendedores: {
         Row: {
           atualizado_em: string

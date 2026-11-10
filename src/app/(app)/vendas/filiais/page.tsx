@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
 import { cn } from "cn";
-import { chaveMetaFilial, diasSemVendas, ehRegionalVendas, ehTele, faixasDeDias, metasDoMes, REGIONAIS_VENDAS, somar, TELEVENDAS, ultimoDiaVendas, vendasPorFilial, type LinhaFilialVendas } from "@/lib/data/vendas";
+import { chaveMetaFilial, diasSemVendas, ehRegionalVendas, ehTele, faixasDeDias, metasDoMes, REGIONAIS_VENDAS, somar, teleDasFiliais, TELEVENDAS, ultimoDiaVendas, vendasPorFilial, type LinhaFilialVendas } from "@/lib/data/vendas";
 import { AtualizaSozinho } from "../atualiza-sozinho";
 import { AbasVendas, AvisoDiasFaltando, decimal, inteiro, moeda, pct } from "../comum";
 import { CamposPeriodo, lerPeriodoVendas } from "../periodo";
@@ -24,7 +24,8 @@ const ORDENS = {
   gensim: { rotulo: "% genérico + similar", valor: (l: LinhaFilialVendas) => l.pctGenSim ?? 0 },
   cmv: { rotulo: "Menor CMV", valor: (l: LinhaFilialVendas) => -(l.cmv ?? 999) },
 } as const;
-type Ordem = keyof typeof ORDENS;
+type Ordem = keyof typeof ORDENS | "tele";
+const ROTULO_TELE = "Venda no tele";
 
 export default async function VendaFiliaisPage({ searchParams }: PageProps<"/vendas/filiais">) {
   const [sessao, sp, ultimo] = await Promise.all([exigirAcesso("/vendas/filiais"), searchParams, ultimoDiaVendas()]);
@@ -32,12 +33,17 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
   const periodo = lerPeriodoVendas(sp, ultimo.dia);
   const { de, ate } = periodo;
   const regional = ehRegionalVendas(s("regional")) ? s("regional") : "";
-  const ordem: Ordem = s("ordem") in ORDENS ? (s("ordem") as Ordem) : "venda";
+  const ordem: Ordem = s("ordem") in ORDENS || s("ordem") === "tele" ? (s("ordem") as Ordem) : "venda";
 
-  const [todas, faltam, metas] = await Promise.all([vendasPorFilial(de, ate), diasSemVendas(de, ate), periodo.ver === "mes" ? metasDoMes(`${periodo.mes}-01`) : Promise.resolve(new Map<string, number>())]);
+  const [todas, faltam, metas, teles] = await Promise.all([vendasPorFilial(de, ate), diasSemVendas(de, ate), periodo.ver === "mes" ? metasDoMes(`${periodo.mes}-01`) : Promise.resolve(new Map<string, number>()), teleDasFiliais(de, ate)]);
+  // quanto a filial vendeu no tele (sem a central de televendas, que tem linha própria)
+  const teleDe = (l: LinhaFilialVendas) => (ehTele(l) ? null : (teles.get(l.branchId)?.venda ?? 0));
+  const valorOrdem = (l: LinhaFilialVendas) => (ordem === "tele" ? (teleDe(l) ?? -1) : ORDENS[ordem].valor(l));
   // as centrais do tele (venda da equipe de tele-vendas, que sai das filiais) entram no ranking como lojas da regional delas
-  const linhas = todas.filter((l) => !regional || l.regional === regional).sort((a, b) => ORDENS[ordem].valor(b) - ORDENS[ordem].valor(a) || b.venda - a.venda);
+  const linhas = todas.filter((l) => !regional || l.regional === regional).sort((a, b) => valorOrdem(b) - valorOrdem(a) || b.venda - a.venda);
   const total = somar(linhas);
+  const teleTotal = linhas.reduce((s, l) => s + (teleDe(l) ?? 0), 0);
+  const vendaLojas = linhas.reduce((s, l) => s + (ehTele(l) ? 0 : l.venda), 0);
   const temTele = linhas.some(ehTele);
   // meta do mês (só na visão mensal, quando há meta cadastrada)
   const metaDe = (l: LinhaFilialVendas) => metas.get(chaveMetaFilial(l)) ?? null;
@@ -68,11 +74,12 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
         <label className="grid gap-1 text-sm">
           <span className="font-medium">Ordenar por</span>
           <SelectNativo name="ordem" defaultValue={ordem} className="w-52">
-            {(Object.keys(ORDENS) as Ordem[]).map((o) => (
+            {(Object.keys(ORDENS) as (keyof typeof ORDENS)[]).map((o) => (
               <option key={o} value={o}>
                 {ORDENS[o].rotulo}
               </option>
             ))}
+            <option value="tele">{ROTULO_TELE}</option>
           </SelectNativo>
         </label>
         <Button type="submit">Pesquisar</Button>
@@ -110,6 +117,8 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
                 <TableHead className="text-right">Venda R$</TableHead>
                 {temMeta && <TableHead className="hidden text-right lg:table-cell">Meta</TableHead>}
                 {temMeta && <TableHead className="text-right">% meta</TableHead>}
+                <TableHead className="text-right">Tele R$</TableHead>
+                <TableHead className="hidden text-right md:table-cell">% tele</TableHead>
                 <TableHead className="text-right">Nº atend.</TableHead>
                 <TableHead className="text-right">Ticket médio</TableHead>
                 <TableHead className="hidden text-right md:table-cell">Unid. vendidas</TableHead>
@@ -145,6 +154,8 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
                   <TableCell className="text-right font-semibold tabular-nums">{moeda(l.venda)}</TableCell>
                   {temMeta && <TableCell className="hidden text-right tabular-nums text-muted-foreground lg:table-cell">{moeda(metaDe(l))}</TableCell>}
                   {temMeta && <TableCell className={cn("text-right tabular-nums", (pctMeta(l.venda, metaDe(l)) ?? 0) >= 100 && "font-semibold text-emerald-700")}>{pct(pctMeta(l.venda, metaDe(l)), 1)}</TableCell>}
+                  <TableCell className="text-right tabular-nums">{teleDe(l) === null ? "—" : moeda(teleDe(l))}</TableCell>
+                  <TableCell className="hidden text-right tabular-nums text-muted-foreground md:table-cell">{teleDe(l) === null || !l.venda ? "—" : pct(((teleDe(l) ?? 0) / l.venda) * 100, 1)}</TableCell>
                   <TableCell className="text-right tabular-nums">{inteiro(l.atendimentos)}</TableCell>
                   <TableCell className="text-right tabular-nums">{moeda(l.ticket)}</TableCell>
                   <TableCell className="hidden text-right tabular-nums md:table-cell">{inteiro(l.unidades)}</TableCell>
@@ -167,6 +178,8 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
                 <TableCell className="text-right tabular-nums">{moeda(total.venda)}</TableCell>
                 {temMeta && <TableCell className="hidden text-right tabular-nums lg:table-cell">{moeda(metaTotal)}</TableCell>}
                 {temMeta && <TableCell className="text-right tabular-nums">{pct(pctMeta(total.venda, metaTotal), 1)}</TableCell>}
+                <TableCell className="text-right tabular-nums">{moeda(teleTotal)}</TableCell>
+                <TableCell className="hidden text-right tabular-nums md:table-cell">{vendaLojas ? pct((teleTotal / vendaLojas) * 100, 1) : "—"}</TableCell>
                 <TableCell className="text-right tabular-nums">{inteiro(total.atendimentos)}</TableCell>
                 <TableCell className="text-right tabular-nums">{moeda(total.ticket)}</TableCell>
                 <TableCell className="hidden text-right tabular-nums md:table-cell">{inteiro(total.unidades)}</TableCell>
@@ -184,7 +197,7 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
         )}
       </section>
       <p className="mt-2 text-xs text-muted-foreground">
-        Unid. sacola = unidades por atendimento. CMV = custo do cadastro do produto ÷ venda. % rentab. = 100% − CMV. Fortvigor = laboratórios Fortvigor/FCT e Agape/Fortvigor.
+        Tele R$ = quanto a filial vendeu no tele-entrega (Trier: Relação de Vendas, sem o tipo de cartão 30 e sem os vendedores da central de televendas); % tele = parte da venda da filial. Unid. sacola = unidades por atendimento. CMV = custo do cadastro do produto ÷ venda. % rentab. = 100% − CMV. Fortvigor = laboratórios Fortvigor/FCT e Agape/Fortvigor.
         {temTele && (
           <>
             {" "}

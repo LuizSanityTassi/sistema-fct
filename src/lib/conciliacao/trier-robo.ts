@@ -694,6 +694,31 @@ export const RELATORIOS_VENDAS = {
   tele_entrega: { pagina: "Rel_0028.pod", rotulo: "Tele-entrega por vendedor, por filial", ajustes: { agrup_fil: "2", sel_relatorio: "0", sel_vendas: "2", chk_vendastel: "S" } },
   // só as vendas e-commerce (com a forma de pagamento): saem do televendas
   ecommerce: { pagina: "Rel_0027.pod", rotulo: "Vendas e-commerce (relação de vendas)", ajustes: { agrup_fil: "2", selecaoVendas: "2", agrupProduto: "0", chk_venda_ecommerce: "S", chk_impr_formapagto: "S" } },
+  // quanto cada filial vendeu no tele (pedido do comercial, 10/11/2026): Relatórios > Vendas > Outros > Relação de Vendas,
+  // só vendas tele-entrega, DESCONSIDERANDO o tipo de cartão 30 e os vendedores da central de televendas (já contados
+  // à parte). As listas da tela (sel_cartao, sel_vendedor) são montadas pelas ações addCartao/addVendedor, como na tela.
+  tele_filial: {
+    pagina: "Rel_0027.pod",
+    rotulo: "Tele-entrega de cada filial (relação de vendas, sem o cartão 30 e sem a central de televendas)",
+    ajustes: { agrup_fil: "2", selecaoVendas: "2", agrupProduto: "0", chk_venda_tele_entrega: "S", chk_venda_ecommerce: "N", chk_impr_formapagto: "N", consid_cartao: "D", consid_vendedor: "D" },
+    antes: [
+      { acao: "addCartao", campos: { cod_cartaoEntrada: "30", cod_cartao: "30" }, confere: /createSelectOption\('30 - [^']*',\s*'30'\)/, falha: "o Trier não confirmou a retirada do tipo de cartão 30" },
+      ...([
+        ["56562", "ARTUR"],
+        ["56698", "ISABEL FELISBINO"],
+        ["56843", "JESSICA APARECIDA"],
+        ["2582", "PRISCILLA SVOBODA"],
+        ["60385", "DERIANE MARIA BENELLI"],
+        ["56345", "SHEILA HIRT JACOVACS"],
+        ["56828", "GUSTAVO MUNIZ PORTO"],
+      ] as const).map(([cod, nome]) => ({
+        acao: "addVendedor",
+        campos: { cod_vendedorEntrada: cod, cod_vendedor: cod, cadusuar_vendedor_nom_usuario: nome },
+        confere: new RegExp(`createSelectOption\\('${cod} - [^']*',\\s*'${cod}'\\)`),
+        falha: `o Trier não confirmou a retirada do vendedor ${cod} ${nome}`,
+      })),
+    ],
+  },
   // receita do mês fechado para a DRE (pedido do Luiz, 05/11/2026): Relatórios > Vendas > Produtos > Vendas Produtos,
   // agrupado por filial, só vendas, desconsiderando o grupo 61 SERVICO, totais por data, custo gerencial.
   // Rel_0024: agrup_fil 2 = Filiais; selecaoVendas 0 = Vendas; selecaoI 9 = TOTAIS POR DATA; selecaoII 2 = todos os
@@ -768,7 +793,9 @@ export async function buscarVendasTrier(cred: CredenciaisTrier, pedidos: PedidoV
   const resta = () => prazoMs - (Date.now() - comeco);
   const ck: Cookies = {};
   const base = await trierEntrar(cred, ck);
-  const restantes = [...pedidos];
+  // a tele por filial usa a mesma tela do e-commerce (Rel_0027) com listas de "desconsiderar": vai por último na rodada,
+  // numa instância própria da tela, para as listas nunca valerem no relatório do e-commerce
+  const restantes = [...pedidos].sort((a, b) => Number(a.relatorio === "tele_filial") - Number(b.relatorio === "tele_filial"));
   // cada tela é aberta uma vez por rodada: o formulário como o navegador mandaria + os campos de data
   const telas = new Map<string, { serial: string; formulario: Record<string, string>; datas: string[] } | null>();
   try {
@@ -778,7 +805,9 @@ export async function buscarVendasTrier(cred: CredenciaisTrier, pedidos: PedidoV
       const t0 = Date.now();
       let resposta: RespostaVendasTrier;
       try {
-        let tela = telas.get(cfg.pagina);
+        // relatório com passos próprios (listas da tela) ganha a sua instância da tela
+        const chaveTela = "antes" in cfg ? `${cfg.pagina}|${pedido.relatorio}` : cfg.pagina;
+        let tela = telas.get(chaveTela);
         if (tela === undefined) {
           const p = await trierPagina(base, cfg.pagina, ck);
           tela = null;
@@ -797,7 +826,7 @@ export async function buscarVendasTrier(cred: CredenciaisTrier, pedidos: PedidoV
               }
             }
           }
-          telas.set(cfg.pagina, tela);
+          telas.set(chaveTela, tela);
         }
         if (!tela) throw new TrierErro(`o usuário do robô no Trier não abre "${cfg.rotulo}" (${cfg.pagina}).`);
         const campos: Record<string, string> = { ...tela.formulario };

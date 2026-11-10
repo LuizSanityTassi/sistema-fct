@@ -93,6 +93,27 @@ export async function vendasPorFilial(de: string, ate: string): Promise<LinhaFil
   );
 }
 
+/**
+ * Quanto cada filial vendeu no tele no período (Trier Rel_0027, vendas tele-entrega, sem o tipo de cartão 30 e sem os
+ * vendedores da central de televendas). Por branch_id; filial sem tele não aparece.
+ */
+export async function teleDasFiliais(de: string, ate: string): Promise<Map<string, { venda: number; atendimentos: number }>> {
+  const supabase = await createClient();
+  const out = new Map<string, { venda: number; atendimentos: number }>();
+  for (let desde = 0; ; desde += 1000) {
+    const { data, error } = await supabase.from("vendas_tele_filial_dia").select("branch_id, venda, atendimentos").gte("data", de).lte("data", ate).order("branch_id").order("data").range(desde, desde + 999);
+    if (error) throw new Error(error.message);
+    for (const r of data) {
+      const a = out.get(r.branch_id) ?? { venda: 0, atendimentos: 0 };
+      a.venda = Math.round((a.venda + Number(r.venda)) * 100) / 100;
+      a.atendimentos += r.atendimentos;
+      out.set(r.branch_id, a);
+    }
+    if (data.length < 1000) break;
+  }
+  return out;
+}
+
 export type PontoSerie = MetricasVendas & { periodo: string; regional: RegionalOuTele };
 
 /** Vendas por dia ou por mês (periodo = 1º dia do mês) e regional. */

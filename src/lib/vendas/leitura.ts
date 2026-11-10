@@ -60,7 +60,7 @@ const checar = ({ error }: { error: { message: string } | null }) => {
 /** Filiais que ficam fora da receita da DRE em um mês (mesma regra das outras contas daquele mês). */
 const FORA_DA_DRE: Record<string, (filial: number) => boolean> = { "2026-09": (f) => (f >= 200 && f < 300) || (f >= 500 && f < 600) };
 
-const DIARIOS: RelatorioVendas[] =["filiais", "grupos", "laboratorios", "atendimentos", "tele_entrega", "ecommerce"];
+const DIARIOS: RelatorioVendas[] = ["filiais", "grupos", "laboratorios", "atendimentos", "tele_entrega", "ecommerce", "tele_filial"];
 
 /** Lê uma coleta e grava os números. Lança LeituraErro quando o Excel não tem o formato esperado. */
 export async function lerColeta(client: Cliente, coleta: ColetaParaLer, filiais: Map<number, string>): Promise<ResultadoLeitura> {
@@ -122,6 +122,19 @@ export async function lerColeta(client: Cliente, coleta: ColetaParaLer, filiais:
       ),
     );
     checar(await client.from("vendas_vendedor_dia").delete().eq("data", data).eq("atendimentos", 0).eq("venda", 0).eq("tele_atendimentos", 0).eq("tele_venda", 0).eq("ecom_venda", 0));
+    linhas = rows.length;
+  } else if (rel === "tele_filial") {
+    // tele-entrega de cada filial (sem o cartão 30 e sem a central de televendas): a soma do líquido das vendas do dia
+    const rows = somar(
+      lerVendasEcommerce(m).flatMap((v) => {
+        const branch_id = branch(v.filial);
+        return branch_id ? [{ branch_id, venda: v.venda, atendimentos: v.atendimentos }] : [];
+      }),
+      (l) => l.branch_id,
+      ["venda", "atendimentos"],
+    );
+    checar(await client.from("vendas_tele_filial_dia").delete().eq("data", data));
+    await emLotes(rows, (l) => client.from("vendas_tele_filial_dia").insert(l.map((r) => ({ branch_id: r.branch_id, data, venda: r.venda, atendimentos: r.atendimentos, coleta_id: coleta.id }))));
     linhas = rows.length;
   } else if (rel === "vendedores") {
     if (!coleta.de.endsWith("-01") || coleta.ate.slice(0, 7) !== coleta.de.slice(0, 7)) throw new LeituraErro("o relatório de vendedores por grupo precisa ir do dia 1 até um dia do mesmo mês");
