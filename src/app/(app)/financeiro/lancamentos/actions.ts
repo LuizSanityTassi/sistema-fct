@@ -51,7 +51,7 @@ function revalidar() {
   revalidatePath("/financeiro/lancamentos");
 }
 
-const mensagemFechado = (competencia: string) => `A competência ${competencia} está fechada. Peça ao administrador para reabrir.`;
+const mensagemFechado = (competencia: string) => `A competência ${competencia} está fechada pelo financeiro ou travada pelo contador. Peça para reabrir (administrador) ou liberar a trava (contador).`;
 
 export async function salvarLancamento(id: string | null, _prev: EstadoLancamento, fd: FormData): Promise<EstadoLancamento> {
   const sessao = await getSessao();

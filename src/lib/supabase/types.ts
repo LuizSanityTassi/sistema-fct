@@ -2572,6 +2572,27 @@ export type Database = {
           },
         ]
       }
+      contabil_meses_travados: {
+        Row: {
+          competencia: string
+          travado_em: string
+          travado_por: string | null
+          travado_por_nome: string | null
+        }
+        Insert: {
+          competencia: string
+          travado_em?: string
+          travado_por?: string | null
+          travado_por_nome?: string | null
+        }
+        Update: {
+          competencia?: string
+          travado_em?: string
+          travado_por?: string | null
+          travado_por_nome?: string | null
+        }
+        Relationships: []
+      }
       coord_checklists: {
         Row: {
           id: string

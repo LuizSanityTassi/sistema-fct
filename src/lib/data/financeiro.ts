@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { mesTravadoContabil } from "@/lib/data/contabil-trava";
 import { ehUuid } from "@/lib/data/filiais";
 import { grupoFinanceiro } from "@/lib/financeiro/formatos";
 import {
@@ -106,9 +107,10 @@ export const listarMesesFechados = cache(async () => {
   return data.map((m) => ({ ...m, competencia: m.competencia.trim() }));
 });
 
+/** Fechado pelo financeiro OU travado pelo contador (trava contábil, que vale até para o administrador). */
 export async function mesFechado(competencia: string) {
-  const meses = await listarMesesFechados();
-  return meses.some((m) => m.competencia === competencia);
+  const [meses, travado] = await Promise.all([listarMesesFechados(), mesTravadoContabil(competencia)]);
+  return travado || meses.some((m) => m.competencia === competencia);
 }
 
 // ---------- filtros da listagem ----------

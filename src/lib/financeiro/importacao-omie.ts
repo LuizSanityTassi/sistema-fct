@@ -214,9 +214,10 @@ export type Analise = {
 
 /** Classifica cada item: novo / repetido no arquivo / já no banco / mês fechado / inválido. Não grava nada. */
 export async function analisarImportacao(supabase: Cliente, itens: ItemImportado[], admin: boolean): Promise<Analise> {
-  const [{ data: cats, error: eCat }, { data: fechados }] = await Promise.all([
+  const [{ data: cats, error: eCat }, { data: fechados }, { data: travados }] = await Promise.all([
     supabase.from("fin_categorias").select("id, tipo, grupo, nome, ativo"),
     supabase.from("fin_meses_fechados").select("competencia"),
+    supabase.from("contabil_meses_travados").select("competencia"),
   ]);
   if (eCat) throw new Error(eCat.message);
   const categorias = (cats ?? []) as Categoria[];
@@ -228,6 +229,8 @@ export async function analisarImportacao(supabase: Cliente, itens: ItemImportado
     if (!porNome.has(k) || (!porNome.get(k)!.ativo && c.ativo)) porNome.set(k, c);
   }
   const mesesFechados = new Set((fechados ?? []).map((m) => m.competencia.trim()));
+  // travado pelo contador: nem o administrador lança (o banco recusa)
+  const mesesTravados = new Set((travados ?? []).map((m) => m.competencia.slice(0, 7)));
 
   // lançamentos já existentes no período (para a proteção anti-duplicidade)
   const existentes = new Set<string>();
@@ -258,7 +261,7 @@ export async function analisarImportacao(supabase: Cliente, itens: ItemImportado
     }
     let situacao: ItemAnalisado["situacao"] = "novo";
     if (!(it.valor > 0) || !/^\d{4}-\d{2}-\d{2}$/.test(it.data)) situacao = "invalido";
-    else if (!admin && mesesFechados.has(it.data.slice(0, 7))) situacao = "mes_fechado";
+    else if (mesesTravados.has(it.data.slice(0, 7)) || (!admin && mesesFechados.has(it.data.slice(0, 7)))) situacao = "mes_fechado";
     else {
       const chave = `${it.branchId}|${it.tipo}|${chaveCat}|${it.valor}|${it.data}`;
       if (vistos.has(chave)) situacao = "dup_arquivo";

@@ -12,6 +12,7 @@ import { rotuloCompetencia } from "@/lib/rh/competencia";
 import { AbasCaixaContabil } from "./abas";
 import { salvarAjusteDre, salvarAjusteLinhaDre, salvarSaldoDre } from "./actions";
 import { DreTabela } from "./dre-tabela";
+import { TravaContabil } from "../trava-contabil";
 
 export const metadata = { title: "Caixa contábil" };
 
@@ -50,6 +51,7 @@ export default async function DrePage({ searchParams }: PageProps<"/financeiro/c
         }
       />
       <AbasCaixaContabil ativa="demonstrativo" podeImportar={podeEditar} />
+      <TravaContabil papel={sessao.papel} />
 
       <form method="get" className="mb-4 grid gap-2 rounded-xl border bg-card p-3 sm:grid-cols-2 lg:grid-cols-[auto_1fr_auto_auto_auto_auto] lg:items-center">
         <SelectNativo name="grupo" defaultValue={escopo.grupo} aria-label="Grupo" className="lg:w-44">

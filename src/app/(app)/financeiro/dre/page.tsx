@@ -21,6 +21,7 @@ import { Comparativo } from "./comparativo";
 import { Demonstrativo, type EdicaoDemonstrativo } from "./demonstrativo";
 import { LancarForm } from "./lancar-form";
 import { RateioForm } from "./rateio-form";
+import { TravaContabil } from "../trava-contabil";
 
 export const metadata = { title: "DRE" };
 
@@ -132,6 +133,7 @@ export default async function DrePage({ searchParams }: PageProps<"/financeiro/d
       />
 
       <AbasDre ativa={ver} base={base} filial={s("filial") || undefined} podeImportar={podeImportar} />
+      <TravaContabil papel={sessao.papel} />
 
       {ver === "resumo" ? (
         <Resumo {...props} porEmpresa={porEmpresa} />
