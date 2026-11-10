@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { normalizarBloqueios, podeAcessar, ROTA_FOLHA_EQUIPE } from "@/lib/nav";
+import { normalizarBloqueios, podeAcessar, ROTA_FOLHA_EQUIPE, ROTA_MINHAS_VENDAS } from "@/lib/nav";
 import { ehPapel, type AppRole } from "@/lib/roles";
 
 export type Sessao = {
@@ -51,9 +51,16 @@ export const getSessao = cache(async (): Promise<Sessao> => {
   const adminSistema = !!profile?.admin_sistema && cargo !== "admin";
   // responsável no cadastro da filial também é gerente, mesmo sem esse papel: vê a Folha da equipe (o papel e o admin já veem)
   let responsavel = false;
-  if (profile?.employee_id && !adminSistema && cargo !== "admin" && cargo !== "gerente" && cargo !== "relogio") {
-    const { count } = await supabase.from("branches").select("id", { count: "exact", head: true }).eq("responsavel_employee_id", profile.employee_id);
-    responsavel = !!count;
+  // vendedor com o código do Trier ligado a ele: vê "Minhas vendas" (só a venda dele, pela função vendas_minhas)
+  let vendedor = false;
+  if (profile?.employee_id && cargo !== "relogio") {
+    const veFolha = !adminSistema && cargo !== "admin" && cargo !== "gerente";
+    const [folha, vend] = await Promise.all([
+      veFolha ? supabase.from("branches").select("id", { count: "exact", head: true }).eq("responsavel_employee_id", profile.employee_id) : null,
+      supabase.from("vendas_vendedor_vinculo").select("vendedor_codigo", { count: "exact", head: true }).eq("employee_id", profile.employee_id),
+    ]);
+    responsavel = !!folha?.count;
+    vendedor = !!vend.count;
   }
   return {
     id: user.id,
@@ -64,7 +71,7 @@ export const getSessao = cache(async (): Promise<Sessao> => {
     adminSistema,
     branchId: profile?.branch_id ?? null,
     regional: profile?.regional ?? null,
-    telasExtras: [...(extras ?? []).map((e) => e.rota), ...(responsavel ? [ROTA_FOLHA_EQUIPE] : [])],
+    telasExtras: [...(extras ?? []).map((e) => e.rota), ...(responsavel ? [ROTA_FOLHA_EQUIPE] : []), ...(vendedor ? [ROTA_MINHAS_VENDAS] : [])],
     bloqueios: normalizarBloqueios(profile?.modulos_bloqueados),
   };
 });

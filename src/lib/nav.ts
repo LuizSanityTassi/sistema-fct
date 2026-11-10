@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowLeftRight,
+  BadgeDollarSign,
   CalendarClock,
   CalendarDays,
   CalendarX2,
@@ -46,6 +47,7 @@ import {
   Store,
   Target,
   TrendingUp,
+  UserCheck,
   UserCog,
   Users,
   Wallet,
@@ -73,6 +75,9 @@ export type NavGrupo = {
 
 /** Folha da equipe: além do papel Gerente, abre para quem é o responsável no cadastro da filial (getSessao). */
 export const ROTA_FOLHA_EQUIPE = "/folha-equipe";
+
+/** Minhas vendas: abre para quem tem o código de vendedor do Trier ligado a ele (getSessao); o admin abre para conferir. */
+export const ROTA_MINHAS_VENDAS = "/vendas/minhas";
 
 // Fonte única de verdade do menu E da autorização de rota (ver `podeAcessar`).
 // O que cada papel enxerga nos dados continua sendo decidido pelo RLS no banco.
@@ -374,6 +379,20 @@ export const NAV: NavGrupo[] = [
         icon: Goal,
         papeis: ["admin", "financeiro", "coordenador"],
         descricao: "Meta do mês por filial, para o televendas e por vendedor, com o realizado e o % atingido.",
+      },
+      {
+        label: "Minhas vendas",
+        href: ROTA_MINHAS_VENDAS,
+        icon: BadgeDollarSign,
+        papeis: ["admin"],
+        descricao: "Só a sua venda: do dia, do mês, por filial, grupos de produtos e a sua meta. Aparece para o vendedor ligado ao código dele no Trier.",
+      },
+      {
+        label: "Acesso dos vendedores",
+        href: "/vendas/vendedores",
+        icon: UserCheck,
+        papeis: ["admin"],
+        descricao: "Liga o código de cada vendedor do Trier ao funcionário: ligado, ele entra com o login dele e vê só a própria venda.",
       },
     ],
   },

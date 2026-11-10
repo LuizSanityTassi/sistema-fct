@@ -2992,6 +2992,38 @@ export type Database = {
         }
         Relationships: []
       }
+      vendas_vendedor_vinculo: {
+        Row: {
+          criado_em: string
+          criado_por: string | null
+          employee_id: string
+          vendedor_codigo: number
+          vendedor_nome: string
+        }
+        Insert: {
+          criado_em?: string
+          criado_por?: string | null
+          employee_id: string
+          vendedor_codigo: number
+          vendedor_nome: string
+        }
+        Update: {
+          criado_em?: string
+          criado_por?: string | null
+          employee_id?: string
+          vendedor_codigo?: number
+          vendedor_nome?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendas_vendedor_vinculo_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vendas_vendedor_dia: {
         Row: {
           atendimentos: number
@@ -6592,6 +6624,14 @@ export type Database = {
             unidades: number
             venda: number
         }[]
+      }
+      vendas_minhas: {
+        Args: {
+          p_ate: string
+          p_de: string
+          p_employee?: string
+        }
+        Returns: Json
       }
       vendas_vendedores_periodo: {
         Args: {
