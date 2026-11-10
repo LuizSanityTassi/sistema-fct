@@ -268,6 +268,7 @@ export function lerReceitaPorFilial(m: Matriz): { filiais: ReceitaFilial[]; tota
   if (iCab < 0) throw new LeituraErro('não achei a coluna "Total Vlr. Vend." no relatório');
   const cVenda = indice(m[iCab], (t) => /vlr\.?\s*vend/i.test(t));
   const cCusto = indice(m[iCab], (t) => /vlr\.?\s*custo/i.test(t));
+  if (cCusto < 0) throw new LeituraErro('não achei a coluna "Total Vlr. Custo" no relatório');
   const filiais: ReceitaFilial[] = [];
   let atual: (ReceitaFilial & { somaDias: number }) | null = null;
   let totalGeral: number | null = null;

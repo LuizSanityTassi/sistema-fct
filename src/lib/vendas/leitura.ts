@@ -188,7 +188,9 @@ export async function lerColeta(client: Cliente, coleta: ColetaParaLer, filiais:
     if (semCadastro.length) throw new LeituraErro(`filial do Trier sem cadastro no portal: ${semCadastro.map((f) => `${f.filial} ${f.nome}`).join(", ")}; nada foi gravado na DRE`);
     // set/2026 ficou sem Itajaí (F2xx) e Blumenau (F5xx) na DRE, a pedido do Luiz (migração 0110): a receita segue igual
     const fora = FORA_DA_DRE[coleta.de.slice(0, 7)];
-    const valores = lidas.filter((f) => !fora?.(f.filial)).map((f) => ({ branch_id: filiais.get(f.filial)!, valor: f.venda }));
+    // custo = "Total Vlr. Custo" (custo gerencial) da filial → "Custo das mercadorias" da DRE (pedido do Luiz, 10/11/2026)
+    const valores = lidas.filter((f) => !fora?.(f.filial)).map((f) => ({ branch_id: filiais.get(f.filial)!, valor: f.venda, custo: f.custo }));
+    if (valores.some((v) => v.valor > 0) && !valores.some((v) => v.custo > 0)) throw new LeituraErro("o relatório veio sem custo em todas as filiais; nada foi gravado na DRE");
     const { error } = await client.rpc("dre_receita_trier_gravar", { p_competencia: coleta.de, p_valores: valores, p_arquivo: `Trier: Vendas Produtos ${coleta.de.slice(0, 7)} (robô, total ${totalGeral.toFixed(2)})` });
     if (error) throw new LeituraErro(`DRE: ${error.message}`);
     linhas = valores.length;
