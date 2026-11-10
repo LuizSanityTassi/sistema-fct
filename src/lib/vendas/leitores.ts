@@ -194,6 +194,56 @@ export function lerVendasEcommerce(m: Matriz): VendaEcommerce[] {
   return [...soma.values()];
 }
 
+// ---------- Rel_0027 Relação de Vendas, só tele-entrega, sem cartão 30 e sem a central de televendas ----------
+
+export type TeleFilial = { filial: number; venda: number; atendimentos: number };
+
+/**
+ * Mesmo relatório do e-commerce, sem as formas de pagamento: cabeçalho "Núm. Venda | Fil. | … | Vend. | … | Vlr. Líquido
+ * | … | Total Líquido", uma linha por venda (o número da venda às vezes vem uma coluna antes do título), "Total Filial:" e
+ * "Total Geral:". Soma o Total Líquido por filial (devolução, líquido negativo, desconta um atendimento) e confere com o
+ * Total Geral: diferença acima de 5 centavos é erro (nada é gravado). Layout conferido no Excel de 09/11/2026.
+ */
+export function lerTeleFilial(m: Matriz): TeleFilial[] {
+  const ih = m.findIndex((l) => indice(l, (t) => t === "Fil.") >= 0 && indice(l, (t) => t === "Vend.") >= 0 && indice(l, (t) => /L[ií]quido/i.test(t)) >= 0);
+  if (ih < 0) {
+    // dia sem tele: o Trier manda só o cabeçalho do filtro
+    if (m.some((l) => l.some((c) => /^Tipo Cart[aã]o:/i.test(txt(c))))) return [];
+    throw new LeituraErro('não achei o cabeçalho "Núm. Venda | Fil. | … | Vend. | … | Total Líquido" (o relatório mudou?)');
+  }
+  const h = m[ih];
+  const cFil = indice(h, (t) => t === "Fil.");
+  const cVend = indice(h, (t) => t === "Vend.");
+  const cTotal = indice(h, (t) => /^Total L[ií]quido$/i.test(t));
+  const cLiq = cTotal >= 0 ? cTotal : indice(h, (t) => /L[ií]quido/i.test(t));
+  const cNum = indice(h, (t) => /^N[uú]m/i.test(t));
+  if ([cFil, cVend, cLiq].some((c) => c < 0)) throw new LeituraErro("não achei as colunas de filial, vendedor e líquido");
+  const numeroDaVenda = (l: unknown[]) => [cNum, cNum - 1, 0].some((c) => c >= 0 && inteiro(l[c]) && Number(l[c]) > 0);
+  const soma = new Map<number, TeleFilial>();
+  let totalGeral: number | null = null;
+  for (let i = ih + 1; i < m.length; i++) {
+    const l = m[i];
+    if (/^Total Geral/i.test(txt(l[0]))) {
+      // as linhas de total vêm uma coluna antes das de venda: o Total Líquido é o último número da linha
+      const numeros = l.filter((c): c is number => typeof c === "number");
+      totalGeral = numeros.length ? cent(numeros[numeros.length - 1]) : null;
+      continue;
+    }
+    if (!inteiro(l[cFil]) || !inteiro(l[cVend]) || typeof l[cLiq] !== "number" || !numeroDaVenda(l)) continue;
+    const filial = Number(l[cFil]);
+    const liquido = num(l[cLiq]);
+    const atual = soma.get(filial) ?? { filial, venda: 0, atendimentos: 0 };
+    atual.venda = cent(atual.venda + liquido);
+    atual.atendimentos += liquido < 0 ? -1 : 1;
+    soma.set(filial, atual);
+  }
+  const lidas = [...soma.values()];
+  const somaLida = cent(lidas.reduce((s, f) => s + f.venda, 0));
+  if (totalGeral !== null && Math.abs(somaLida - totalGeral) > 0.05) throw new LeituraErro(`as vendas lidas somam ${somaLida} e o Total Geral do relatório é ${totalGeral}`);
+  if (totalGeral === null && lidas.length) throw new LeituraErro('não achei o "Total Geral" para conferir a soma');
+  return lidas;
+}
+
 /** "Total Geral:" do relatório (coluna de venda), para conferir a soma do que foi lido. */
 export function totalGeral(m: Matriz, coluna: (cabecalho: unknown[]) => number): number | null {
   const ih = m.findIndex((l) => txt(l[0]) === "Código");

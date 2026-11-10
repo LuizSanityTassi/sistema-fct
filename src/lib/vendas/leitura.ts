@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import * as XLSX from "xlsx";
 import type { RelatorioVendas } from "@/lib/conciliacao/trier-robo";
 import type { Database } from "@/lib/supabase/types";
-import { lerCmvAgrupado, lerReceitaPorFilial, lerVendasEcommerce, lerVendasPorData, lerVendasPorVendedor, lerVendedorGrupo, LeituraErro, type Matriz } from "./leitores";
+import { lerCmvAgrupado, lerReceitaPorFilial, lerTeleFilial, lerVendasEcommerce, lerVendasPorData, lerVendasPorVendedor, lerVendedorGrupo, LeituraErro, type Matriz } from "./leitores";
 
 type Cliente = SupabaseClient<Database>;
 
@@ -126,7 +126,7 @@ export async function lerColeta(client: Cliente, coleta: ColetaParaLer, filiais:
   } else if (rel === "tele_filial") {
     // tele-entrega de cada filial (sem o cartão 30 e sem a central de televendas): a soma do líquido das vendas do dia
     const rows = somar(
-      lerVendasEcommerce(m).flatMap((v) => {
+      lerTeleFilial(m).flatMap((v) => {
         const branch_id = branch(v.filial);
         return branch_id ? [{ branch_id, venda: v.venda, atendimentos: v.atendimentos }] : [];
       }),
