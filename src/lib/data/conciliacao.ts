@@ -341,8 +341,15 @@ export type FiltrosPendencias = {
   /** Vencimento entre estas datas (aaaa-mm-dd). */
   vencDe?: string;
   vencAte?: string;
+  /** Varela (filiais abaixo de 300) ou Nazário (300 em diante). */
+  empresa?: "varela" | "nazario";
+  /** Beneficiários que saem da lista (nome exato, sem diferença de maiúsculas), como o filtro de coluna do Omie. */
+  semBeneficiarios: string[];
   ordem: "prioridade" | "vencimento" | "valor" | "filial" | "antigas";
 };
+
+/** Chave para comparar nomes de beneficiário (maiúsculas, espaços únicos). */
+export const chaveBeneficiario = (nome: string | null | undefined) => (nome ?? "").trim().replace(/\s+/g, " ").toUpperCase();
 
 export function lerFiltrosPendencias(sp: Record<string, string | string[] | undefined>): FiltrosPendencias {
   const s = (k: string) => (typeof sp[k] === "string" ? sp[k].trim() : "");
@@ -351,7 +358,12 @@ export function lerFiltrosPendencias(sp: Record<string, string | string[] | unde
   const filial = Number.parseInt(s("filial"), 10);
   const ordem = s("ordem");
   const problema = s("problema");
+  const empresa = s("empresa");
+  // vários nomes num parâmetro só, separados por "|" (cabe na paginação e no "voltar")
+  const sem = [sp.sem].flat().flatMap((v) => (typeof v === "string" ? v.split("|") : [])).map((v) => v.trim()).filter(Boolean);
   return {
+    empresa: empresa === "varela" || empresa === "nazario" ? empresa : undefined,
+    semBeneficiarios: [...new Set(sem)].slice(0, 300),
     vencDe: diaDoParametro(s("venc_de")),
     vencAte: diaDoParametro(s("venc_ate")),
     status: status === "todas" || ehStatusPendencia(status) ? status : "abertas",
@@ -380,6 +392,8 @@ export async function listarPendencias(f: FiltrosPendencias, usuarioId: string) 
     else if (f.status !== "todas") consulta = consulta.eq("status", f.status);
     if (f.problema) consulta = consulta.eq("problema", f.problema);
     if (f.filial !== undefined) consulta = consulta.eq("filial", f.filial);
+    if (f.empresa === "varela") consulta = consulta.lt("filial", 300);
+    else if (f.empresa === "nazario") consulta = consulta.gte("filial", 300);
     if (f.responsavel === "sem") consulta = consulta.is("responsavel", null);
     else if (f.responsavel === "eu") consulta = consulta.eq("responsavel", usuarioId);
     else if (f.responsavel && ehUuid(f.responsavel)) consulta = consulta.eq("responsavel", f.responsavel);
@@ -398,10 +412,22 @@ export async function listarPendencias(f: FiltrosPendencias, usuarioId: string) 
   }
 
   const termo = f.q ? f.q.toUpperCase() : "";
-  const lista = data
+  const filtradas = data
     .map((p) => ({ ...p, prioridade: prioridadePendencia(p) }))
     .filter((p) => !f.prioridade || p.prioridade === f.prioridade)
     .filter((p) => !termo || [p.beneficiario, p.cnpj, p.documento, p.detalhe, p.motivo, String(p.valor)].join(" ").toUpperCase().includes(termo));
+  // a lista de beneficiários (para tirar) sai do que os outros filtros mostram, antes de tirar: o que foi tirado continua marcável
+  const porBenef = new Map<string, { nome: string; qtd: number; valor: number }>();
+  for (const p of filtradas) {
+    const k = chaveBeneficiario(p.beneficiario);
+    const b = porBenef.get(k) ?? { nome: (p.beneficiario ?? "").trim() || "(sem beneficiário)", qtd: 0, valor: 0 };
+    b.qtd += 1;
+    b.valor += Number(p.valor);
+    porBenef.set(k, b);
+  }
+  const tirar = new Set(f.semBeneficiarios.map(chaveBeneficiario));
+  const lista = tirar.size ? filtradas.filter((p) => !tirar.has(chaveBeneficiario(p.beneficiario))) : filtradas;
+  const beneficiarios = [...porBenef.entries()].map(([chave, b]) => ({ chave, ...b, tirado: tirar.has(chave) })).sort((a, b) => b.qtd - a.qtd || a.nome.localeCompare(b.nome));
   const venc = (p: { vencimento: string | null }) => p.vencimento ?? "9999-12-31";
   const cmp: Record<FiltrosPendencias["ordem"], (a: (typeof lista)[number], b: (typeof lista)[number]) => number> = {
     prioridade: (a, b) => b.prioridade - a.prioridade || venc(a).localeCompare(venc(b)) || Number(b.valor) - Number(a.valor),
@@ -410,9 +436,10 @@ export async function listarPendencias(f: FiltrosPendencias, usuarioId: string) 
     filial: (a, b) => (a.filial ?? 9999) - (b.filial ?? 9999) || b.prioridade - a.prioridade,
     antigas: (a, b) => a.criado_em.localeCompare(b.criado_em),
   };
-  return lista.sort(cmp[f.ordem]);
+  return { lista: lista.sort(cmp[f.ordem]), beneficiarios };
 }
-export type PendenciaLista = Awaited<ReturnType<typeof listarPendencias>>[number];
+export type PendenciaLista = Awaited<ReturnType<typeof listarPendencias>>["lista"][number];
+export type BeneficiarioPendencia = Awaited<ReturnType<typeof listarPendencias>>["beneficiarios"][number];
 
 /** Código de barras das pendências: fica no boleto gravado nos itens da conciliação. A mesma conta aparece em várias conciliações, daí os lotes pequenos. */
 export async function barrasDasPendencias(chaves: string[]) {

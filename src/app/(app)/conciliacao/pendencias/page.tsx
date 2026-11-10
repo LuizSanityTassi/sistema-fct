@@ -17,6 +17,7 @@ import { formatarData, formatarMoeda, pluralizar } from "@/lib/formatos";
 import { alterarStatusPendencias, atribuirPendencias } from "../actions";
 import { BadgePrioridadePendencia, BadgeStatusPendencia, Filial } from "../badges-conc";
 import { AcoesPendencias } from "./acoes-pendencias";
+import { FiltroBeneficiarios } from "./filtro-beneficiarios";
 
 export const metadata = { title: "Pendências da conciliação" };
 
@@ -25,12 +26,12 @@ export default async function PendenciasPage({ searchParams }: PageProps<"/conci
   // as datas do filtro continuam valendo ao voltar para esta tela
   const sp = comDatasGuardadas(spEndereco, biscoitos.get(COOKIE_VENC)?.value);
   const filtros = lerFiltrosPendencias(sp);
-  const [lista, responsaveis, filiais] = await Promise.all([listarPendencias(filtros, sessao.id), listarResponsaveis(), mapaFiliais()]);
+  const [{ lista, beneficiarios }, responsaveis, filiais] = await Promise.all([listarPendencias(filtros, sessao.id), listarResponsaveis(), mapaFiliais()]);
   const escreve = podeConciliar(sessao.papel);
   const erro = typeof sp.erro === "string" ? sp.erro : null;
   const ok = typeof sp.ok === "string" ? Number(sp.ok) : null;
   const query = new URLSearchParams();
-  for (const [k, v] of Object.entries({ status: filtros.status, prioridade: filtros.prioridade ? String(filtros.prioridade) : undefined, problema: filtros.problema, filial: filtros.filial !== undefined ? String(filtros.filial) : undefined, responsavel: filtros.responsavel, q: filtros.q, venc_de: filtros.vencDe, venc_ate: filtros.vencAte, ordem: filtros.ordem })) {
+  for (const [k, v] of Object.entries({ status: filtros.status, prioridade: filtros.prioridade ? String(filtros.prioridade) : undefined, problema: filtros.problema, filial: filtros.filial !== undefined ? String(filtros.filial) : undefined, responsavel: filtros.responsavel, q: filtros.q, venc_de: filtros.vencDe, venc_ate: filtros.vencAte, ordem: filtros.ordem, empresa: filtros.empresa, sem: filtros.semBeneficiarios.join("|") || undefined })) {
     if (v) query.set(k, v);
   }
   const paginas = Math.max(1, Math.ceil(lista.length / TAMANHO_PAGINA_PENDENCIAS));
@@ -42,6 +43,11 @@ export default async function PendenciasPage({ searchParams }: PageProps<"/conci
   const voltar = `/conciliacao/pendencias?${query.toString()}${pagina > 1 ? `&pagina=${pagina}` : ""}`;
   const totalValor = lista.reduce((s, p) => s + Number(p.valor), 0);
   const filiaisComPendencia = [...new Set(lista.map((p) => p.filial).filter((f): f is number => f != null))].sort((a, b) => a - b);
+  // Varela abaixo de 300, Nazário de 300 em diante (a mesma regra do envio ao Omie)
+  const opcoesFilial = [...filiais.porFilial.entries()]
+    .filter(([n]) => !filtros.empresa || (filtros.empresa === "nazario" ? n >= 300 : n < 300))
+    .sort(([a], [b]) => a - b);
+  const tirados = beneficiarios.filter((b) => b.tirado);
 
   return (
     <>
@@ -87,7 +93,19 @@ export default async function PendenciasPage({ searchParams }: PageProps<"/conci
             </option>
           ))}
         </SelectNativo>
-        <Input name="filial" type="number" min={1} max={9999} defaultValue={filtros.filial ?? ""} placeholder="Filial" aria-label="Filial" />
+        <SelectNativo name="empresa" defaultValue={filtros.empresa ?? ""} aria-label="Empresa">
+          <option value="">Varela e Nazário</option>
+          <option value="varela">Só Varela (filiais até 299)</option>
+          <option value="nazario">Só Nazário (filiais 300+)</option>
+        </SelectNativo>
+        <SelectNativo name="filial" defaultValue={filtros.filial ?? ""} aria-label="Filial">
+          <option value="">Todas as filiais</option>
+          {opcoesFilial.map(([n, f]) => (
+            <option key={n} value={n}>
+              {String(n).padStart(3, "0")} · {f.nome}
+            </option>
+          ))}
+        </SelectNativo>
         <SelectNativo name="responsavel" defaultValue={filtros.responsavel ?? ""} aria-label="Responsável">
           <option value="">Qualquer responsável</option>
           <option value="eu">Minhas</option>
@@ -109,6 +127,7 @@ export default async function PendenciasPage({ searchParams }: PageProps<"/conci
           <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
           <Input name="q" defaultValue={filtros.q ?? ""} placeholder="Beneficiário, documento, motivo" className="pl-8" aria-label="Buscar" />
         </div>
+        <FiltroBeneficiarios key={filtros.semBeneficiarios.join("|")} beneficiarios={beneficiarios} />
         <label className="text-xs text-muted-foreground">
           Vencimento de
           <Input name="venc_de" type="date" defaultValue={filtros.vencDe ?? ""} className="mt-1" />
@@ -131,6 +150,7 @@ export default async function PendenciasPage({ searchParams }: PageProps<"/conci
       <p className="mb-3 text-xs text-muted-foreground">
         {pluralizar(lista.length, "pendência", "pendências")} · {formatarMoeda(totalValor)}
         {filiaisComPendencia.length ? ` · filiais ${filiaisComPendencia.join(", ")}` : ""}
+        {tirados.length > 0 && ` · fora da lista: ${tirados.map((b) => `${b.nome} (${b.qtd})`).join(", ")}`}
       </p>
 
       {escreve && lista.length > 0 && <AcoesPendencias chaves={naPagina.map((p) => p.chave)} responsaveis={responsaveis} voltar={voltar} alterarStatus={alterarStatusPendencias} atribuir={atribuirPendencias} />}
