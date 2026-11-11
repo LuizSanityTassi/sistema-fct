@@ -288,8 +288,10 @@ function Resumo({ s, base, empresas, todas, anos, mesesDoAno, mapa, rateios, fil
       return acc;
     }, {}),
   );
+  // contagem só das lojas que faturaram no período: administrativo, terceirizadas, televendas e loja fechada não entram
   const conta = { prejuizo: 0, empate: 0, lucro: 0 };
-  for (const l of linhas) conta[situacaoDoLucro(l.c.lucro)]++;
+  for (const l of linhas) if (l.c.receitaBruta > 0) conta[situacaoDoLucro(l.c.lucro)]++;
+  const semFaturamento = linhas.filter((l) => !(l.c.receitaBruta > 0)).length;
   const deAte = (ms: string[]) => (ms.length > 1 ? `${rotuloCompetencia(ms[0])} a ${rotuloCompetencia(ms[ms.length - 1])}` : rotuloCompetencia(ms[0]));
   const nomePeriodo = periodo === "acumulado" ? `acumulado de ${deAte(mesesDoAno)}` : tri ? `${tri.rotulo} de ${base.ano} (${deAte(tri.meses)})` : rotuloCompetencia(periodo);
   const cabecalho = cabecalhosOrdenaveis(ordem, dir, "lucro", (p) => `/financeiro/dre?${query({ ...base, mes: s("mes") || undefined, ...p })}`);
@@ -328,10 +330,10 @@ function Resumo({ s, base, empresas, todas, anos, mesesDoAno, mapa, rateios, fil
         <Cartao rotulo="Lucro / prejuízo" valor={moedaFin(consolidado.lucro)} tom={tom(consolidado.lucro)} nota={`${nomePeriodo}, com depreciação`} />
         <Cartao rotulo="Receita bruta" valor={moedaFin(consolidado.receitaBruta)} nota={`receita líquida ${moedaFin(consolidado.receitaLiquida)}`} />
         <Cartao rotulo="Margem de contribuição" valor={mostraPct(consolidado.margemPct)} nota={`${moedaFin(consolidado.margem)} · CMV ${mostraPct(consolidado.cmvSobreBruta)} da receita bruta`} />
-        <Cartao rotulo="Filiais" valor={`${conta.lucro} com lucro`} nota={`${conta.empate} praticamente empataram (até R$ 2.000) · ${conta.prejuizo} com prejuízo`} />
+        <Cartao rotulo="Lojas" valor={`${conta.lucro} com lucro`} nota={`${conta.empate} praticamente empataram (até R$ 2.000) · ${conta.prejuizo} com prejuízo`} />
       </div>
 
-      {linhas.length > 0 && <ResumoGeral nomePeriodo={nomePeriodo} nMeses={meses.length} conta={conta} c={consolidado} />}
+      {linhas.length > 0 && <ResumoGeral nomePeriodo={nomePeriodo} nMeses={meses.length} conta={conta} c={consolidado} semFaturamento={semFaturamento} />}
 
       {resumoEmpresas.length > 0 && (
         <section className="mb-4 rounded-xl border bg-card">
@@ -464,7 +466,7 @@ function Resumo({ s, base, empresas, todas, anos, mesesDoAno, mapa, rateios, fil
  * Quadro "Resumo geral" da planilha do contador (o mesmo do Fluxo → Análise): filiais por resultado no período e os
  * indicadores do consolidado. "Lucro bruto" na planilha = receita bruta.
  */
-function ResumoGeral({ nomePeriodo, nMeses, conta, c }: { nomePeriodo: string; nMeses: number; conta: Record<"prejuizo" | "empate" | "lucro", number>; c: ContasDre }) {
+function ResumoGeral({ nomePeriodo, nMeses, conta, c, semFaturamento }: { nomePeriodo: string; nMeses: number; conta: Record<"prejuizo" | "empate" | "lucro", number>; c: ContasDre; semFaturamento: number }) {
   const custoFixoPct = c.receitaLiquida ? c.custoFixo / c.receitaLiquida : null;
   const indicadores: [string, string, string, string?][] = [
     ["Comissão s/ lucro bruto", mostraPct(c.comissoesSobreBruta), "comissões ÷ receita bruta"],
@@ -481,7 +483,7 @@ function ResumoGeral({ nomePeriodo, nMeses, conta, c }: { nomePeriodo: string; n
           <table className="w-full">
             <tbody>
               <tr className="bg-red-600 font-semibold text-white">
-                <td className="px-3 py-1.5">Filiais com prejuízo</td>
+                <td className="px-3 py-1.5">Lojas com prejuízo</td>
                 <td className="px-3 py-1.5 text-right tabular-nums">{conta.prejuizo}</td>
               </tr>
               <tr className="bg-sky-300 font-semibold text-sky-950">
@@ -489,7 +491,7 @@ function ResumoGeral({ nomePeriodo, nMeses, conta, c }: { nomePeriodo: string; n
                 <td className="px-3 py-1.5 text-right tabular-nums">{conta.empate}</td>
               </tr>
               <tr className="bg-emerald-600 font-semibold text-white">
-                <td className="px-3 py-1.5">Filiais com lucro</td>
+                <td className="px-3 py-1.5">Lojas com lucro</td>
                 <td className="px-3 py-1.5 text-right tabular-nums">{conta.lucro}</td>
               </tr>
             </tbody>
@@ -521,7 +523,11 @@ function ResumoGeral({ nomePeriodo, nMeses, conta, c }: { nomePeriodo: string; n
           </tbody>
         </table>
       </div>
-      <p className="mt-3 text-xs text-muted-foreground">Contagem pelo resultado de cada filial no período (com o rateio, sem a depreciação, que é da empresa). Percentuais e lucro do consolidado, com a depreciação. Na planilha, “lucro bruto” é a receita bruta.</p>
+      <p className="mt-3 text-xs text-muted-foreground">
+        Contagem pelo resultado de cada loja que faturou no período (com o rateio, sem a depreciação, que é da empresa)
+        {semFaturamento > 0 ? `; ${semFaturamento} ${semFaturamento === 1 ? "linha sem faturamento fica" : "linhas sem faturamento (administrativo, terceirizadas, televendas, loja fechada) ficam"} fora da contagem, mas o custo delas está no lucro` : ""}. Percentuais e lucro do
+        consolidado, com a depreciação. Na planilha, “lucro bruto” é a receita bruta.
+      </p>
     </section>
   );
 }
