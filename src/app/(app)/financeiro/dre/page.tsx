@@ -333,7 +333,7 @@ function Resumo({ s, base, empresas, todas, anos, mesesDoAno, mapa, rateios, fil
         <Cartao rotulo="Lojas" valor={`${conta.lucro} com lucro`} nota={`${conta.empate} praticamente empataram (até R$ 2.000) · ${conta.prejuizo} com prejuízo`} />
       </div>
 
-      {linhas.length > 0 && <ResumoGeral nomePeriodo={nomePeriodo} nMeses={meses.length} conta={conta} c={consolidado} semFaturamento={semFaturamento} />}
+      {linhas.length > 0 && <ResumoGeral nomePeriodo={nomePeriodo} nMeses={meses.length} conta={conta} c={consolidado} l={somar(mapa, "*", meses)} semFaturamento={semFaturamento} />}
 
       {resumoEmpresas.length > 0 && (
         <section className="mb-4 rounded-xl border bg-card">
@@ -466,7 +466,7 @@ function Resumo({ s, base, empresas, todas, anos, mesesDoAno, mapa, rateios, fil
  * Quadro "Resumo geral" da planilha do contador (o mesmo do Fluxo → Análise): filiais por resultado no período e os
  * indicadores do consolidado. "Lucro bruto" na planilha = receita bruta.
  */
-function ResumoGeral({ nomePeriodo, nMeses, conta, c, semFaturamento }: { nomePeriodo: string; nMeses: number; conta: Record<"prejuizo" | "empate" | "lucro", number>; c: ContasDre; semFaturamento: number }) {
+function ResumoGeral({ nomePeriodo, nMeses, conta, c, l, semFaturamento }: { nomePeriodo: string; nMeses: number; conta: Record<"prejuizo" | "empate" | "lucro", number>; c: ContasDre; l: Lancamentos; semFaturamento: number }) {
   const custoFixoPct = c.receitaLiquida ? c.custoFixo / c.receitaLiquida : null;
   const indicadores: [string, string, string, string?][] = [
     ["Comissão s/ lucro bruto", mostraPct(c.comissoesSobreBruta), "comissões ÷ receita bruta"],
@@ -474,7 +474,23 @@ function ResumoGeral({ nomePeriodo, nMeses, conta, c, semFaturamento }: { nomePe
     ["CMV s/ lucro bruto", mostraPct(c.cmvSobreBruta), "custo das mercadorias ÷ receita bruta"],
     ["Margem de contribuição (operação líquida)", mostraPct(c.margemPct), "margem de contribuição ÷ receita líquida"],
     ["Custos fixos s/ lucro líquido", mostraPct(custoFixoPct), "despesas sem a depreciação ÷ receita líquida"],
+    ["Despesas s/ receita bruta", mostraPct(c.despesasSobreBruta), "todas as despesas (com a depreciação) ÷ receita bruta"],
+    ["Ponto de equilíbrio", c.pontoEquilibrio === null ? "sem ponto (margem ≤ 0)" : `${moedaFin(nMeses > 1 ? c.pontoEquilibrio / nMeses : c.pontoEquilibrio)}${nMeses > 1 ? "/mês" : ""}`, "receita bruta que paga o custo fixo com a margem do período"],
   ];
+  // composição do resultado: cada conta em R$, % da receita bruta e média por mês, com os subtotais da DRE
+  const rb = c.receitaBruta;
+  type ItemComposicao = { rotulo: string; valor: number; total?: boolean };
+  const composicao = ([] as ItemComposicao[]).concat(
+    { rotulo: "Receita bruta", valor: c.receitaBruta, total: true },
+    ...(["devolucoes", "impostos_vendas", "comissoes"] as const).map((k) => ({ rotulo: ROTULO_LINHA[k], valor: l[k] ?? 0 })),
+    { rotulo: "Receita líquida", valor: c.receitaLiquida, total: true },
+    ...(["custo_mercadoria", "ajuste_cmv"] as const).map((k) => ({ rotulo: ROTULO_LINHA[k], valor: l[k] ?? 0 })),
+    { rotulo: "Margem de contribuição", valor: c.margem, total: true },
+    ...(["despesas_pessoal", "despesas_administrativas", "despesas_comerciais", "outras_despesas", "depreciacao"] as const).map((k) => ({ rotulo: ROTULO_LINHA[k], valor: l[k] ?? 0 })),
+    { rotulo: "Lucro operacional", valor: c.lucroOperacional, total: true },
+    ...(["receita_financeira", "outras_receitas", "despesas_financeiras", "ir_csll"] as const).map((k) => ({ rotulo: ROTULO_LINHA[k], valor: l[k] ?? 0 })),
+    { rotulo: "Lucro / prejuízo", valor: c.lucro, total: true },
+  ).filter((x) => x.total || Math.abs(x.valor) >= 0.005);
   return (
     <section className="mb-4 rounded-xl border bg-card p-4 text-sm">
       <h2 className="mb-3 text-sm font-semibold">Resumo geral · {nomePeriodo}</h2>
@@ -518,6 +534,29 @@ function ResumoGeral({ nomePeriodo, nMeses, conta, c, semFaturamento }: { nomePe
                   <span className="block text-[11px] text-muted-foreground">{explica}</span>
                 </td>
                 <td className={`py-1.5 text-right font-semibold tabular-nums ${valor.startsWith("-") || valor.startsWith("−") ? "text-red-700 dark:text-red-400" : ""}`}>{valor}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <h3 className="mt-5 mb-2 text-sm font-semibold">Composição do resultado (% da receita bruta)</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[28rem]">
+          <thead className="text-xs text-muted-foreground">
+            <tr className="border-b">
+              <th className="py-1.5 pr-3 text-left font-medium">Conta</th>
+              <th className="py-1.5 pr-3 text-right font-medium">{nMeses > 1 ? "No período" : "No mês"}</th>
+              {nMeses > 1 && <th className="py-1.5 pr-3 text-right font-medium">Média por mês</th>}
+              <th className="py-1.5 text-right font-medium">% receita bruta</th>
+            </tr>
+          </thead>
+          <tbody>
+            {composicao.map((x) => (
+              <tr key={x.rotulo} className={x.total ? "border-y bg-muted/40 font-semibold" : "border-b last:border-0"}>
+                <td className={`py-1.5 pr-3 ${x.total ? "" : "pl-3"}`}>{x.rotulo}</td>
+                <td className={`py-1.5 pr-3 text-right tabular-nums ${x.total && x.rotulo !== "Receita bruta" ? tom(x.valor) : x.valor < 0 ? "text-red-700 dark:text-red-400" : ""}`}>{moedaFin(x.valor)}</td>
+                {nMeses > 1 && <td className="py-1.5 pr-3 text-right tabular-nums text-muted-foreground">{moedaFin(x.valor / nMeses)}</td>}
+                <td className={`py-1.5 text-right tabular-nums ${x.valor < 0 ? "text-red-700 dark:text-red-400" : ""}`}>{mostraPct(rb ? x.valor / rb : null)}</td>
               </tr>
             ))}
           </tbody>
