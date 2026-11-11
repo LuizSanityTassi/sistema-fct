@@ -6,7 +6,9 @@ import { PageHeader } from "@/components/layout/page-header";
 import { EstadoVazio, LinkPainel } from "@/components/layout/painel";
 import { exigirAcesso } from "@/lib/auth/session";
 import { chaveMetaFilial, DIAS_SEMANA, diaDaSemana, diasSemVendas, ehRegionalVendas, ehTele, faixasDeDias, hojeNoBrasil, horaNoBrasil, MESES, mesmoDia, metasDoMes, porPeriodo, REGIONAIS_VENDAS, resumirTelevendas, serieVendas, serieVendasFilial, somar, somarDias, TELEVENDAS, televendasNoPeriodo, ultimoDia, ultimoDiaVendas, vendasPorFilial, type LinhaFilialVendas, type RegionalVendas } from "@/lib/data/vendas";
+import { feriadosDoPeriodo } from "@/lib/data/fluxo-caixa";
 import { formatarData } from "@/lib/formatos";
+import { diasEspeciais, projetarMes } from "@/lib/vendas/projecao";
 import { AtualizaSozinho } from "./atualiza-sozinho";
 import { EscolhaFilial } from "./escolha-filial";
 import { AbasVendas, AvisoDiasFaltando, decimal, inteiro, moeda, moedaCurta, pct } from "./comum";
@@ -41,7 +43,13 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
 
   // venda por dia/mês: da filial escolhida ou das regionais (rede ou uma regional)
   const serie = (de: string, fim: string, por: "dia" | "mes") => (filial ? serieVendasFilial(filial, de, fim, por) : serieVendas(de, fim, por).then((p) => porPeriodo(p, r)));
-  const [listaMes, listaMesAnt, listaAnoAnt, porMes, porDia, porDiaAnt, porDia14, faltamMes, faltamMesAnt, teleLinhas, teleLinhasAnt, metas] = await Promise.all([
+  const fimDe = (inicio: string) => `${inicio.slice(0, 7)}-${String(ultimoDia(Number(inicio.slice(0, 4)), Number(inicio.slice(5, 7)))).padStart(2, "0")}`;
+  const fimDoMes = fimDe(inicioMes);
+  // os 12 meses fechados anteriores, dia a dia, para os pesos da projeção (um mês por chamada: cabe no limite de linhas e
+  // cada mês fechado fica guardado em cache)
+  const inicioHist = mesmoDia(inicioMes, 12);
+  const mesesHist = Array.from({ length: 12 }, (_, i) => mesmoDia(inicioMes, 12 - i));
+  const [listaMes, listaMesAnt, listaAnoAnt, porMes, porDia, porDiaAnt, porDia14, faltamMes, faltamMesAnt, teleLinhas, teleLinhasAnt, metas, feriados, porDiaHist] = await Promise.all([
     vendasPorFilial(inicioMes, ate),
     vendasPorFilial(inicioMesAnt, mesmoDia(ate, 1)),
     vendasPorFilial(`${ano - 1}-01-01`, mesmoDia(ate, 12)),
@@ -55,6 +63,8 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
     soLoja ? Promise.resolve([]) : televendasNoPeriodo(inicioMes, ate),
     soLoja ? Promise.resolve([]) : televendasNoPeriodo(inicioMesAnt, mesmoDia(ate, 1)),
     metasDoMes(inicioMes),
+    feriadosDoPeriodo(inicioHist, fimDoMes),
+    Promise.all(mesesHist.map((m) => serie(m, fimDe(m), "dia"))),
   ]);
   const tele = resumirTelevendas(teleLinhas);
   const teleAnt = resumirTelevendas(teleLinhasAnt);
@@ -115,13 +125,17 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
   const diasAntAteHoje = [...porDiaAnt].filter(([d, v]) => d <= mesmoDia(ate, 1) && v.venda > 0).length;
   const mediaDiaAnt = diasAntAteHoje ? tMesAnt.venda / diasAntAteHoje : null;
   const vendaMesAntInteiro = [...porDiaAnt.values()].reduce((s, v) => s + v.venda, 0);
-  const mediaSemana = (w: number) => {
-    const xs = completos.filter(([d]) => diaDaSemana(d) === w).map(([, v]) => v.venda);
-    return xs.length ? xs.reduce((s, v) => s + v, 0) / xs.length : mediaDia;
-  };
-  const faltamDias = Array.from({ length: diasNoMes - dia }, (_, i) => somarDias(ate, i + 1));
-  const restoDeHoje = ultimo.parcial ? Math.max(0, mediaSemana(diaDaSemana(ate)) - vendaHoje) : 0;
-  const projecao = tMes.venda + restoDeHoje + faltamDias.reduce((s, d) => s + mediaSemana(diaDaSemana(d)), 0);
+  // nível do mês × peso do dia da semana × peso do dia do mês (12 meses), feriado com o peso do histórico (lib/vendas/projecao)
+  const especiais = diasEspeciais(feriados, inicioHist, fimDoMes);
+  const { projecao, faltamDias, especiaisPelaFrente } = projetarMes({
+    vendaPorDia: new Map([...porDia].map(([d, v]) => [d, v.venda])),
+    historico: new Map(porDiaHist.flatMap((m) => [...m].map(([d, v]) => [d, v.venda] as const))),
+    ate,
+    ontem,
+    parcial: ultimo.parcial,
+    realizado: tMes.venda,
+    especiais,
+  });
   const projecaoSimples = tMes.venda + (ultimo.parcial ? Math.max(0, mediaDia - vendaHoje) : 0) + mediaDia * faltamDias.length;
   const realizado = projecao ? (tMes.venda / projecao) * 100 : 0;
   const decorrido = (dia / diasNoMes) * 100;
@@ -360,7 +374,9 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
                 </dl>
               </div>
             )}
-            <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground">A projeção soma ao realizado a média de cada dia da semana no mês (domingo vende diferente de segunda){ultimo.parcial ? "; para hoje, só o que falta para a média do dia" : ""}.{metaMes > 0 ? " A meta é a soma das metas cadastradas das lojas mostradas." : visaoLoja ? "" : " Cadastre a meta em Comercial → Metas e ela aparece aqui."}</p>
+            <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground">A projeção soma ao realizado o esperado de cada dia que falta{ultimo.parcial ? " (de hoje, só o que falta para o esperado do dia)" : ""}: o ritmo deste mês, ajustado pelo dia da semana (domingo vende cerca de 1/3 de um dia útil) e pela época do mês (o começo, com o pagamento, vende mais que o fim), pesos tirados dos últimos 12 meses. Feriado entra com o que costuma vender: cerca de 43% de um dia útil (Natal e Ano-Novo 22%, Carnaval 82% na segunda e 60% na terça).
+              {especiaisPelaFrente.length > 0 && ` Ainda no mês: ${especiaisPelaFrente.map((f) => `${f.data.slice(8, 10)}/${f.data.slice(5, 7)} ${f.nome}`).join(", ")}.`}
+              {metaMes > 0 ? " A meta é a soma das metas cadastradas das lojas mostradas." : visaoLoja ? "" : " Cadastre a meta em Comercial → Metas e ela aparece aqui."}</p>
           </div>
         </div>
       </section>
