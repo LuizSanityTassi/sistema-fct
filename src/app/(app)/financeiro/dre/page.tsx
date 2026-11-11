@@ -257,9 +257,18 @@ async function Lancar({ s, base, empresas, todas, mapa, filiais }: Props) {
   );
 }
 
+/** Trimestres do ano que têm mês importado (período "tri1".."tri4" do resumo). */
+function trimestresDoAno(mesesDoAno: string[]) {
+  return [1, 2, 3, 4]
+    .map((t) => ({ valor: `tri${t}`, rotulo: `${t}º trimestre`, meses: mesesDoAno.filter((m) => Math.ceil(Number(m.slice(5, 7)) / 3) === t) }))
+    .filter((t) => t.meses.length > 0);
+}
+
 function Resumo({ s, base, empresas, todas, anos, mesesDoAno, mapa, rateios, filiais, mesesPorEmpresa, porEmpresa }: Props & { porEmpresa: { empresa: string; mapa: MapaDre }[] }) {
-  const periodo = s("mes") === "acumulado" ? "acumulado" : mesesDoAno.includes(s("mes")) ? s("mes") : mesesDoAno[mesesDoAno.length - 1];
-  const meses = periodo === "acumulado" ? mesesDoAno : [periodo];
+  const trimestres = trimestresDoAno(mesesDoAno);
+  const tri = trimestres.find((t) => t.valor === s("mes"));
+  const periodo = s("mes") === "acumulado" ? "acumulado" : tri ? tri.valor : mesesDoAno.includes(s("mes")) ? s("mes") : mesesDoAno[mesesDoAno.length - 1];
+  const meses = periodo === "acumulado" ? mesesDoAno : tri ? tri.meses : [periodo];
   // ordem: uma coluna de ORDENS ou "filial"; primeiro clique = maior para menor (filial: A→Z), o segundo inverte
   const ordem = s("ordem") === "filial" || Object.hasOwn(ORDENS, s("ordem")) ? s("ordem") : "lucro";
   const dir: Direcao = s("dir") === "asc" || s("dir") === "desc" ? (s("dir") as Direcao) : ordem === "filial" ? "asc" : "desc";
@@ -281,7 +290,8 @@ function Resumo({ s, base, empresas, todas, anos, mesesDoAno, mapa, rateios, fil
   );
   const conta = { prejuizo: 0, empate: 0, lucro: 0 };
   for (const l of linhas) conta[situacaoDoLucro(l.c.lucro)]++;
-  const nomePeriodo = periodo === "acumulado" ? `acumulado de ${rotuloCompetencia(mesesDoAno[0])} a ${rotuloCompetencia(mesesDoAno[mesesDoAno.length - 1])}` : rotuloCompetencia(periodo);
+  const deAte = (ms: string[]) => (ms.length > 1 ? `${rotuloCompetencia(ms[0])} a ${rotuloCompetencia(ms[ms.length - 1])}` : rotuloCompetencia(ms[0]));
+  const nomePeriodo = periodo === "acumulado" ? `acumulado de ${deAte(mesesDoAno)}` : tri ? `${tri.rotulo} de ${base.ano} (${deAte(tri.meses)})` : rotuloCompetencia(periodo);
   const cabecalho = cabecalhosOrdenaveis(ordem, dir, "lucro", (p) => `/financeiro/dre?${query({ ...base, mes: s("mes") || undefined, ...p })}`);
   const resumoEmpresas = todas ? porEmpresa.map((e) => ({ empresa: e.empresa, c: contas(e.mapa, "*", meses) })).filter((e) => e.c.receitaBruta || e.c.lucro) : [];
 
@@ -291,12 +301,21 @@ function Resumo({ s, base, empresas, todas, anos, mesesDoAno, mapa, rateios, fil
         <label className="grid gap-1 text-sm">
           <span className="font-medium">Período</span>
           <SelectNativo name="mes" defaultValue={periodo} className="w-52">
-            {[...mesesDoAno].reverse().map((m) => (
-              <option key={m} value={m}>
-                {rotuloCompetencia(m)}
-              </option>
-            ))}
-            <option value="acumulado">Acumulado do ano</option>
+            <optgroup label="Mês">
+              {[...mesesDoAno].reverse().map((m) => (
+                <option key={m} value={m}>
+                  {rotuloCompetencia(m)}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="Consolidado">
+              {[...trimestres].reverse().map((t) => (
+                <option key={t.valor} value={t.valor}>
+                  {t.rotulo} ({deAte(t.meses).replace(/ de \d{4}/g, "")})
+                </option>
+              ))}
+              <option value="acumulado">Acumulado do ano</option>
+            </optgroup>
           </SelectNativo>
         </label>
         {ordem !== "lucro" && <input type="hidden" name="ordem" value={ordem} />}
@@ -311,6 +330,8 @@ function Resumo({ s, base, empresas, todas, anos, mesesDoAno, mapa, rateios, fil
         <Cartao rotulo="Margem de contribuição" valor={mostraPct(consolidado.margemPct)} nota={`${moedaFin(consolidado.margem)} · CMV ${mostraPct(consolidado.cmvSobreBruta)} da receita bruta`} />
         <Cartao rotulo="Filiais" valor={`${conta.lucro} com lucro`} nota={`${conta.empate} praticamente empataram (até R$ 2.000) · ${conta.prejuizo} com prejuízo`} />
       </div>
+
+      {linhas.length > 0 && <ResumoGeral nomePeriodo={nomePeriodo} nMeses={meses.length} conta={conta} c={consolidado} />}
 
       {resumoEmpresas.length > 0 && (
         <section className="mb-4 rounded-xl border bg-card">
@@ -436,6 +457,72 @@ function Resumo({ s, base, empresas, todas, anos, mesesDoAno, mapa, rateios, fil
         )}
       </section>
     </>
+  );
+}
+
+/**
+ * Quadro "Resumo geral" da planilha do contador (o mesmo do Fluxo → Análise): filiais por resultado no período e os
+ * indicadores do consolidado. "Lucro bruto" na planilha = receita bruta.
+ */
+function ResumoGeral({ nomePeriodo, nMeses, conta, c }: { nomePeriodo: string; nMeses: number; conta: Record<"prejuizo" | "empate" | "lucro", number>; c: ContasDre }) {
+  const custoFixoPct = c.receitaLiquida ? c.custoFixo / c.receitaLiquida : null;
+  const indicadores: [string, string, string, string?][] = [
+    ["Comissão s/ lucro bruto", mostraPct(c.comissoesSobreBruta), "comissões ÷ receita bruta"],
+    ["Impostos s/ lucro bruto", mostraPct(c.impostosSobreBruta), "impostos sobre vendas ÷ receita bruta"],
+    ["CMV s/ lucro bruto", mostraPct(c.cmvSobreBruta), "custo das mercadorias ÷ receita bruta"],
+    ["Margem de contribuição (operação líquida)", mostraPct(c.margemPct), "margem de contribuição ÷ receita líquida"],
+    ["Custos fixos s/ lucro líquido", mostraPct(custoFixoPct), "despesas sem a depreciação ÷ receita líquida"],
+  ];
+  return (
+    <section className="mb-4 rounded-xl border bg-card p-4 text-sm">
+      <h2 className="mb-3 text-sm font-semibold">Resumo geral · {nomePeriodo}</h2>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div>
+          <table className="w-full">
+            <tbody>
+              <tr className="bg-red-600 font-semibold text-white">
+                <td className="px-3 py-1.5">Filiais com prejuízo</td>
+                <td className="px-3 py-1.5 text-right tabular-nums">{conta.prejuizo}</td>
+              </tr>
+              <tr className="bg-sky-300 font-semibold text-sky-950">
+                <td className="px-3 py-1.5">Praticamente empataram (até R$ 2.000)</td>
+                <td className="px-3 py-1.5 text-right tabular-nums">{conta.empate}</td>
+              </tr>
+              <tr className="bg-emerald-600 font-semibold text-white">
+                <td className="px-3 py-1.5">Filiais com lucro</td>
+                <td className="px-3 py-1.5 text-right tabular-nums">{conta.lucro}</td>
+              </tr>
+            </tbody>
+          </table>
+          <dl className="mt-4 grid grid-cols-2 gap-3">
+            <div className="rounded-lg border p-3">
+              <dt className="rotulo">{nMeses > 1 ? "Lucro / prejuízo no período" : "Lucro / prejuízo do mês"}</dt>
+              <dd className={`mt-1 numero-sm ${tom(c.lucro)}`}>{moedaFin(c.lucro)}</dd>
+              {nMeses > 1 && <dd className={`text-xs ${tom(c.lucro)}`}>{moedaFin(c.lucro / nMeses)} por mês (média de {nMeses})</dd>}
+            </div>
+            <div className="rounded-lg border p-3">
+              <dt className="rotulo">Lucro % {nMeses > 1 ? "no período" : "no mês"}</dt>
+              <dd className={`mt-1 numero-sm ${tom(c.lucro)}`}>{mostraPct(c.lucroSobreBruta)}</dd>
+              <dd className="text-xs text-muted-foreground">sobre a receita bruta</dd>
+            </div>
+          </dl>
+        </div>
+        <table className="w-full self-start">
+          <tbody>
+            {indicadores.map(([rotulo, valor, explica]) => (
+              <tr key={rotulo} className="border-b last:border-0">
+                <td className="py-1.5 pr-3">
+                  {rotulo}
+                  <span className="block text-[11px] text-muted-foreground">{explica}</span>
+                </td>
+                <td className={`py-1.5 text-right font-semibold tabular-nums ${valor.startsWith("-") || valor.startsWith("−") ? "text-red-700 dark:text-red-400" : ""}`}>{valor}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-3 text-xs text-muted-foreground">Contagem pelo resultado de cada filial no período (com o rateio, sem a depreciação, que é da empresa). Percentuais e lucro do consolidado, com a depreciação. Na planilha, “lucro bruto” é a receita bruta.</p>
+    </section>
   );
 }
 
