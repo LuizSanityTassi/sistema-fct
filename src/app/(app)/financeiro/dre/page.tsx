@@ -491,6 +491,13 @@ function ResumoGeral({ nomePeriodo, nMeses, conta, c, l, semFaturamento }: { nom
     ...(["receita_financeira", "outras_receitas", "despesas_financeiras", "ir_csll"] as const).map((k) => ({ rotulo: ROTULO_LINHA[k], valor: l[k] ?? 0 })),
     { rotulo: "Lucro / prejuízo", valor: c.lucro, total: true },
   ).filter((x) => x.total || Math.abs(x.valor) >= 0.005);
+  // composição do faturamento (o mesmo quadro do Resumo por loja do Caixa contábil): cada dedução e despesa como % da
+  // receita bruta, com o total no fim
+  const descontos = (["devolucoes", "impostos_vendas", "comissoes", "custo_mercadoria", "ajuste_cmv", "despesas_pessoal", "despesas_administrativas", "despesas_comerciais", "outras_despesas", "depreciacao", "despesas_financeiras", "ir_csll"] as const)
+    .map((k) => ({ rotulo: ROTULO_LINHA[k].replace(/^\(−\) /, ""), valor: l[k] ?? 0 }))
+    .filter((x) => Math.abs(x.valor) >= 0.005);
+  const totalDescontos = descontos.reduce((s, x) => s + x.valor, 0);
+  const corPct = (v: number) => (v < 0 ? "text-red-700 dark:text-red-400" : v > 0 ? "text-emerald-700 dark:text-emerald-400" : "");
   return (
     <section className="mb-4 rounded-xl border bg-card p-4 text-sm">
       <h2 className="mb-3 text-sm font-semibold">Resumo geral · {nomePeriodo}</h2>
@@ -525,20 +532,38 @@ function ResumoGeral({ nomePeriodo, nMeses, conta, c, l, semFaturamento }: { nom
             </div>
           </dl>
         </div>
-        <table className="w-full self-start">
-          <tbody>
-            {indicadores.map(([rotulo, valor, explica]) => (
-              <tr key={rotulo} className="border-b last:border-0">
-                <td className="py-1.5 pr-3">
-                  {rotulo}
-                  <span className="block text-[11px] text-muted-foreground">{explica}</span>
-                </td>
-                <td className={`py-1.5 text-right font-semibold tabular-nums ${valor.startsWith("-") || valor.startsWith("−") ? "text-red-700 dark:text-red-400" : ""}`}>{valor}</td>
+        <div className="self-start">
+          <h3 className="mb-2 text-sm font-semibold">Composição (% do faturamento)</h3>
+          <table className="w-full">
+            <tbody>
+              {descontos.map((x) => (
+                <tr key={x.rotulo} className="border-b last:border-0">
+                  <td className="py-1">{x.rotulo}</td>
+                  <td className={`py-1 text-right tabular-nums ${corPct(x.valor)}`}>{mostraPct(rb ? x.valor / rb : null)}</td>
+                </tr>
+              ))}
+              <tr className="border-t-2 font-bold">
+                <td className="py-1">Total</td>
+                <td className={`py-1 text-right tabular-nums ${corPct(totalDescontos)}`}>{mostraPct(rb ? totalDescontos / rb : null)}</td>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </div>
       </div>
+      <h3 className="mt-5 mb-2 text-sm font-semibold">Indicadores</h3>
+      <table className="w-full">
+        <tbody>
+          {indicadores.map(([rotulo, valor, explica]) => (
+            <tr key={rotulo} className="border-b last:border-0">
+              <td className="py-1.5 pr-3">
+                {rotulo}
+                <span className="block text-[11px] text-muted-foreground">{explica}</span>
+              </td>
+              <td className={`py-1.5 text-right font-semibold tabular-nums ${valor.startsWith("-") || valor.startsWith("−") ? "text-red-700 dark:text-red-400" : ""}`}>{valor}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
       <h3 className="mt-5 mb-2 text-sm font-semibold">Composição do resultado (% da receita bruta)</h3>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[28rem]">
