@@ -490,7 +490,7 @@ export const NAV: NavGrupo[] = [
         href: "/financeiro/caixa-contabil",
         icon: ChartColumn,
         papeis: ["admin", "financeiro", "contador", "coordenador"],
-        descricao: "Demonstrativo contábil por grupo/unidade e mês, com ajustes do contador e caixa.",
+        descricao: "Demonstrativo contábil por grupo/unidade e mês, com ajustes do contador e caixa; ranking de lojas, resumo por loja e comparativo mês a mês.",
       },
       {
         label: "Orçamento",
@@ -521,11 +521,11 @@ export const NAV: NavGrupo[] = [
         descricao: "Declarado × movimentado de cada caixa (Trier): tolerância, quebras, justificativas e desconto na folha.",
       },
       {
-        label: "Inadimplência e ranking",
+        label: "Inadimplência",
         href: "/financeiro/analise",
         icon: ChartColumn,
         papeis: ["admin", "financeiro", "contador", "coordenador"],
-        descricao: "Inadimplência de crediário/convênio, ranking de lojas e comparativo.",
+        descricao: "Inadimplência de crediário e convênio por mês.",
       },
       {
         label: "Migrar sistema anterior",

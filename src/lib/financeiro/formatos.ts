@@ -48,3 +48,8 @@ export const COR_GRUPO: Record<string, string> = {
   NAZÁRIO: "text-blue-700",
   BLUMENAU: "text-blue-500",
 };
+
+/** Como moedaFin, sem o "R$": é a regra do Caixa contábil (pedido do usuário; o resto do financeiro continua com R$). */
+export function moedaSemRs(valor: number | string | null | undefined) {
+  return moedaFin(valor).replace("R$ ", "");
+}
