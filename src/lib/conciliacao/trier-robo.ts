@@ -867,3 +867,50 @@ export async function buscarVendasTrier(cred: CredenciaisTrier, pedidos: PedidoV
   }
   return { restantes, ms: Date.now() - comeco };
 }
+
+// ---------- relatório avulso (pedido pontual: uma tela, um período, os filtros da tela) ----------
+
+export type PassoAntesTrier = PassoAntes;
+export type RelatorioAvulsoTrier = { pagina: string; rotulo: string; ajustes: Record<string, string>; antes?: readonly PassoAntes[] };
+
+/**
+ * Gera UM relatório do Trier com os filtros pedidos (todas as filiais, Excel), do jeito que a tela faria: abre a tela,
+ * roda os passos que montam as listas (vendedor, laboratório...) e pede o Excel. Só leitura: não altera nada no Trier.
+ */
+export async function gerarRelatorioAvulsoTrier(cred: CredenciaisTrier, cfg: RelatorioAvulsoTrier, de: string, ate: string, prazoMs = 250_000) {
+  const comeco = Date.now();
+  const resta = () => prazoMs - (Date.now() - comeco);
+  const ck: Cookies = {};
+  const base = await trierEntrar(cred, ck);
+  try {
+    const p = await trierPagina(base, cfg.pagina, ck);
+    if (!p.serial) throw new TrierErro(`o usuário do robô no Trier não abre "${cfg.rotulo}" (${cfg.pagina}).`);
+    const inicio = await trierAcao(base, p.serial, "httpStart", { attributes: trierAtributos(p.html) }, ck, 30_000, cfg.pagina);
+    const camposTela = camposDaTela(p.html);
+    const padroes = padroesDoInicio(inicio);
+    const formulario = camposTentativa(camposTela, padroes);
+    for (const passo of cfg.antes ?? []) {
+      const r = await trierAcao(base, p.serial, passo.acao, { ...formulario, ...cfg.ajustes, ...passo.campos }, ck, 30_000, cfg.pagina);
+      if (passo.confere && !passo.confere.test(r)) {
+        const msg = trierMsg(r);
+        throw new TrierErro(`${passo.falha ?? `o Trier recusou a etapa ${passo.acao}`}${msg ? `: ${msg}` : ""} [resposta: ${corta(semTags(r).replace(/\s+/g, " ").trim(), 240)}]`);
+      }
+    }
+    const campos: Record<string, string> = { ...formulario };
+    for (const n of camposDeData(camposTela, padroes)) campos[n] = isoParaBr(EH_DATA_FIM.test(n) ? ate : de);
+    for (const n of FILIAL_TODAS) if (n in campos) campos[n] = "";
+    Object.assign(campos, cfg.ajustes, { saida: "4" }); // 4 = XLS
+    const r = await trierAcao(base, p.serial, "runReport", campos, ck, Math.min(180_000, resta() - 15_000), cfg.pagina);
+    const m = /openReport\('([^']+\.xlsx?)'/i.exec(r);
+    if (!m) {
+      const msg = trierMsg(r);
+      if (/nenhum|n[aã]o (h[aá]|foram|existe)|sem (registro|movimento)/i.test(msg)) return { semMovimento: true as const, ms: Date.now() - comeco };
+      throw new TrierErro(msg || "o Trier não gerou o relatório");
+    }
+    const arq = await httpPedido("GET", base + m[1].replace(/^\/+/, ""), null, ck, Math.max(10_000, Math.min(60_000, resta() - 10_000)));
+    if (arq.cod !== 200 || arq.corpo.subarray(0, 2).toString("latin1") !== "PK") throw new TrierErro("não consegui baixar o Excel gerado pelo Trier.");
+    return { xlsx: arq.corpo, ms: Date.now() - comeco };
+  } finally {
+    await trierSair(base, ck);
+  }
+}
