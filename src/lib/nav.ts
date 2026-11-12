@@ -39,6 +39,7 @@ import {
   MonitorCog,
   ScrollText,
   ShieldAlert,
+  Signature,
   Send,
   Workflow,
   ShieldCheck,
@@ -260,6 +261,13 @@ export const NAV: NavGrupo[] = [
         icon: ChartColumn,
         papeis: ["admin", "rh", "gerente", "coordenador"],
         descricao: "Horas trabalhadas, extras, faltas, atrasos, banco e marcações em Excel, CSV ou PDF.",
+      },
+      {
+        label: "Folha para assinatura",
+        href: "/ponto/folha-assinatura",
+        icon: Signature,
+        papeis: ["admin", "rh", "gerente", "coordenador"],
+        descricao: "Cartão de ponto do período, uma folha por colaborador, com marcações, extras, faltas, noturno e carga, para conferir e assinar (PDF pelo navegador).",
       },
       {
         label: "Fechamento do mês",
