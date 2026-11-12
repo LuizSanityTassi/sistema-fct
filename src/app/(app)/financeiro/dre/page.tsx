@@ -291,7 +291,6 @@ function Resumo({ s, base, empresas, todas, anos, mesesDoAno, mapa, rateios, fil
   // contagem só das lojas que faturaram no período: administrativo, terceirizadas, televendas e loja fechada não entram
   const conta = { prejuizo: 0, empate: 0, lucro: 0 };
   for (const l of linhas) if (l.c.receitaBruta > 0) conta[situacaoDoLucro(l.c.lucro)]++;
-  const semFaturamento = linhas.filter((l) => !(l.c.receitaBruta > 0)).length;
   const deAte = (ms: string[]) => (ms.length > 1 ? `${rotuloCompetencia(ms[0])} a ${rotuloCompetencia(ms[ms.length - 1])}` : rotuloCompetencia(ms[0]));
   const nomePeriodo = periodo === "acumulado" ? `acumulado de ${deAte(mesesDoAno)}` : tri ? `${tri.rotulo} de ${base.ano} (${deAte(tri.meses)})` : rotuloCompetencia(periodo);
   const cabecalho = cabecalhosOrdenaveis(ordem, dir, "lucro", (p) => `/financeiro/dre?${query({ ...base, mes: s("mes") || undefined, ...p })}`);
@@ -333,7 +332,7 @@ function Resumo({ s, base, empresas, todas, anos, mesesDoAno, mapa, rateios, fil
         <Cartao rotulo="Lojas" valor={`${conta.lucro} com lucro`} nota={`${conta.empate} praticamente empataram (até R$ 2.000) · ${conta.prejuizo} com prejuízo`} />
       </div>
 
-      {linhas.length > 0 && <ResumoGeral nomePeriodo={nomePeriodo} nMeses={meses.length} conta={conta} c={consolidado} l={somar(mapa, "*", meses)} semFaturamento={semFaturamento} />}
+      {linhas.length > 0 && <ResumoGeral nomePeriodo={nomePeriodo} nMeses={meses.length} conta={conta} c={consolidado} l={somar(mapa, "*", meses)} />}
 
       {resumoEmpresas.length > 0 && (
         <section className="mb-4 rounded-xl border bg-card">
@@ -463,34 +462,11 @@ function Resumo({ s, base, empresas, todas, anos, mesesDoAno, mapa, rateios, fil
 }
 
 /**
- * Quadro "Resumo geral" da planilha do contador (o mesmo do Fluxo → Análise): filiais por resultado no período e os
- * indicadores do consolidado. "Lucro bruto" na planilha = receita bruta.
+ * Quadro "Resumo geral" da planilha do contador: filiais por resultado no período (lucro, empate, prejuízo), lucro do
+ * consolidado e a composição do faturamento (o mesmo quadro do Resumo por loja do Caixa contábil).
  */
-function ResumoGeral({ nomePeriodo, nMeses, conta, c, l, semFaturamento }: { nomePeriodo: string; nMeses: number; conta: Record<"prejuizo" | "empate" | "lucro", number>; c: ContasDre; l: Lancamentos; semFaturamento: number }) {
-  const custoFixoPct = c.receitaLiquida ? c.custoFixo / c.receitaLiquida : null;
-  const indicadores: [string, string, string, string?][] = [
-    ["Comissão s/ lucro bruto", mostraPct(c.comissoesSobreBruta), "comissões ÷ receita bruta"],
-    ["Impostos s/ lucro bruto", mostraPct(c.impostosSobreBruta), "impostos sobre vendas ÷ receita bruta"],
-    ["CMV s/ lucro bruto", mostraPct(c.cmvSobreBruta), "custo das mercadorias ÷ receita bruta"],
-    ["Margem de contribuição (operação líquida)", mostraPct(c.margemPct), "margem de contribuição ÷ receita líquida"],
-    ["Custos fixos s/ lucro líquido", mostraPct(custoFixoPct), "despesas sem a depreciação ÷ receita líquida"],
-    ["Despesas s/ receita bruta", mostraPct(c.despesasSobreBruta), "todas as despesas (com a depreciação) ÷ receita bruta"],
-    ["Ponto de equilíbrio", c.pontoEquilibrio === null ? "sem ponto (margem ≤ 0)" : `${moedaFin(nMeses > 1 ? c.pontoEquilibrio / nMeses : c.pontoEquilibrio)}${nMeses > 1 ? "/mês" : ""}`, "receita bruta que paga o custo fixo com a margem do período"],
-  ];
-  // composição do resultado: cada conta em R$, % da receita bruta e média por mês, com os subtotais da DRE
+function ResumoGeral({ nomePeriodo, nMeses, conta, c, l }: { nomePeriodo: string; nMeses: number; conta: Record<"prejuizo" | "empate" | "lucro", number>; c: ContasDre; l: Lancamentos }) {
   const rb = c.receitaBruta;
-  type ItemComposicao = { rotulo: string; valor: number; total?: boolean };
-  const composicao = ([] as ItemComposicao[]).concat(
-    { rotulo: "Receita bruta", valor: c.receitaBruta, total: true },
-    ...(["devolucoes", "impostos_vendas", "comissoes"] as const).map((k) => ({ rotulo: ROTULO_LINHA[k], valor: l[k] ?? 0 })),
-    { rotulo: "Receita líquida", valor: c.receitaLiquida, total: true },
-    ...(["custo_mercadoria", "ajuste_cmv"] as const).map((k) => ({ rotulo: ROTULO_LINHA[k], valor: l[k] ?? 0 })),
-    { rotulo: "Margem de contribuição", valor: c.margem, total: true },
-    ...(["despesas_pessoal", "despesas_administrativas", "despesas_comerciais", "outras_despesas", "depreciacao"] as const).map((k) => ({ rotulo: ROTULO_LINHA[k], valor: l[k] ?? 0 })),
-    { rotulo: "Lucro operacional", valor: c.lucroOperacional, total: true },
-    ...(["receita_financeira", "outras_receitas", "despesas_financeiras", "ir_csll"] as const).map((k) => ({ rotulo: ROTULO_LINHA[k], valor: l[k] ?? 0 })),
-    { rotulo: "Lucro / prejuízo", valor: c.lucro, total: true },
-  ).filter((x) => x.total || Math.abs(x.valor) >= 0.005);
   // composição do faturamento (o mesmo quadro do Resumo por loja do Caixa contábil): cada dedução e despesa como % da
   // receita bruta, com o total no fim
   const descontos = (["devolucoes", "impostos_vendas", "comissoes", "custo_mercadoria", "ajuste_cmv", "despesas_pessoal", "despesas_administrativas", "despesas_comerciais", "outras_despesas", "depreciacao", "despesas_financeiras", "ir_csll"] as const)
@@ -550,48 +526,6 @@ function ResumoGeral({ nomePeriodo, nMeses, conta, c, l, semFaturamento }: { nom
           </table>
         </div>
       </div>
-      <h3 className="mt-5 mb-2 text-sm font-semibold">Indicadores</h3>
-      <table className="w-full">
-        <tbody>
-          {indicadores.map(([rotulo, valor, explica]) => (
-            <tr key={rotulo} className="border-b last:border-0">
-              <td className="py-1.5 pr-3">
-                {rotulo}
-                <span className="block text-[11px] text-muted-foreground">{explica}</span>
-              </td>
-              <td className={`py-1.5 text-right font-semibold tabular-nums ${valor.startsWith("-") || valor.startsWith("−") ? "text-red-700 dark:text-red-400" : ""}`}>{valor}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <h3 className="mt-5 mb-2 text-sm font-semibold">Composição do resultado (% da receita bruta)</h3>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[28rem]">
-          <thead className="text-xs text-muted-foreground">
-            <tr className="border-b">
-              <th className="py-1.5 pr-3 text-left font-medium">Conta</th>
-              <th className="py-1.5 pr-3 text-right font-medium">{nMeses > 1 ? "No período" : "No mês"}</th>
-              {nMeses > 1 && <th className="py-1.5 pr-3 text-right font-medium">Média por mês</th>}
-              <th className="py-1.5 text-right font-medium">% receita bruta</th>
-            </tr>
-          </thead>
-          <tbody>
-            {composicao.map((x) => (
-              <tr key={x.rotulo} className={x.total ? "border-y bg-muted/40 font-semibold" : "border-b last:border-0"}>
-                <td className={`py-1.5 pr-3 ${x.total ? "" : "pl-3"}`}>{x.rotulo}</td>
-                <td className={`py-1.5 pr-3 text-right tabular-nums ${x.total && x.rotulo !== "Receita bruta" ? tom(x.valor) : x.valor < 0 ? "text-red-700 dark:text-red-400" : ""}`}>{moedaFin(x.valor)}</td>
-                {nMeses > 1 && <td className="py-1.5 pr-3 text-right tabular-nums text-muted-foreground">{moedaFin(x.valor / nMeses)}</td>}
-                <td className={`py-1.5 text-right tabular-nums ${x.valor < 0 ? "text-red-700 dark:text-red-400" : ""}`}>{mostraPct(rb ? x.valor / rb : null)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <p className="mt-3 text-xs text-muted-foreground">
-        Contagem pelo resultado de cada loja que faturou no período (com o rateio, sem a depreciação, que é da empresa)
-        {semFaturamento > 0 ? `; ${semFaturamento} ${semFaturamento === 1 ? "linha sem faturamento fica" : "linhas sem faturamento (administrativo, terceirizadas, televendas, loja fechada) ficam"} fora da contagem, mas o custo delas está no lucro` : ""}. Percentuais e lucro do
-        consolidado, com a depreciação. Na planilha, “lucro bruto” é a receita bruta.
-      </p>
     </section>
   );
 }
