@@ -53,6 +53,10 @@ export async function lerTrier(nome: string, buf: Buffer): Promise<ResultadoTrie
   if (!ehPdf(buf)) throw new Error(`${nome}: o relatório do Trier precisa ser PDF ou planilha (XLS/XLSX).`);
 
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  // o "worker" do pdf.js roda na mesma thread: importado aqui com o caminho fixo, o arquivo vai junto para a Vercel
+  // (o pdf.mjs o carrega por um caminho montado em tempo de execução, que o empacotador não enxerga e não copiava)
+  const g = globalThis as { pdfjsWorker?: unknown };
+  g.pdfjsWorker ??= await import("pdfjs-dist/legacy/build/pdf.worker.mjs");
   const tarefa = pdfjs.getDocument({ data: new Uint8Array(buf), useSystemFonts: true, disableFontFace: true });
   const doc = await tarefa.promise;
   const linhas: string[] = [];
