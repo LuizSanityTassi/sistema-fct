@@ -82,7 +82,8 @@ function parseItauPlanilha(linhas, arquivo) {
 
 // ---------- Trier (relatório "Contas a Pagar ou Pagas", detalhado) ----------
 // Recebe as linhas de texto já montadas (uma por linha visual do PDF).
-const RX_TIT = /^(\S+?\/\d{2}-\d)\s*(\d{1,3})\s*(.*?)\s*(\d{2}\/\d{2}\/\d{2})\s+(\d{2}\/\d{2}\/\d{2})\s+(.*)$/;
+// documento "NF/parcela-dígito" (21527/02-0) ou só "número-dígito" (32504943-1 Genesio, 8804479405-0 Santa Cruz, E13709-1)
+const RX_TIT = /^(\S+?\/\d{2}-\d|[A-Z]?\d+-\d)\s*(\d{1,3})\s*(.*?)\s*(\d{2}\/\d{2}\/\d{2})\s+(\d{2}\/\d{2}\/\d{2})\s+(.*)$/;
 const RX_NUM = /^-?[\d.]+,\d{1,2}$/;
 function parseTrier(linhas) {
   const titulos = []; let forn = null, totalGeral = null, ignoradas = [];
@@ -117,7 +118,7 @@ function linhasDeTrierPlanilha(rows) {
     if (/^Fornecedor:$/i.test(a) && c.length > 1) { out.push('Fornecedor: ' + String(c[1]).trim()); continue; }
     if (/^Fornecedor:/i.test(a)) { out.push(a); continue; }
     if (/^Total Geral:$/i.test(a) && typeof c[1] === 'number') { out.push('Total Geral: ' + c[1].toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })); continue; }
-    if (/^\S+?\/\d{2}-\d$/.test(a) && c.length >= 6) {
+    if (/^(\S+?\/\d{2}|[A-Z]?\d+)-\d$/.test(a) && c.length >= 6) {
       // Documento, Filial, Fornec.(curto), Emissão, Vencto., valores…  (o nome curto pode faltar)
       let k = 1; const fil = c[k++]; let curto = '';
       if (typeof c[k] === 'string' && !/^\d{2}\/\d{2}\/\d{2,4}$/.test(c[k])) curto = c[k++];

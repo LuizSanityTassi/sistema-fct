@@ -22,8 +22,13 @@ const PRAZO_FAIXAS_MS = 240_000;
 const DIAS_RETORNO_RECENTE = 3;
 /** Filiais com retorno do banco nestes últimos dias são as conciliadas (título do Trier de filial sem retorno fica de fora). */
 const DIAS_COBERTURA = 7;
+/**
+ * Relatório do Trier enviado à mão (ex.: o Trier da Mega Saúde de Itajaí e Blumenau, que o robô não alcança) vale por
+ * estes dias: nas filiais que ele traz, a rodada usa só ele, e não o relatório do robô.
+ */
+const DIAS_TRIER_MANUAL = 7;
 
-export type ResultadoFaixa = { faixa: string; id?: string; pctBateu?: number; novas?: number; resolvidas?: number; erro?: string; semDados?: string };
+export type ResultadoFaixa = { faixa: string; id?: string; pctBateu?: number; novas?: number; resolvidas?: number; erro?: string; semDados?: string; trierManual?: string };
 export type ResultadoAutomatica = {
   quando: string;
   manual: boolean;
@@ -150,6 +155,20 @@ export async function rodarConciliacaoAutomatica(c: Cliente, cred: CredenciaisTr
   );
   const ha = (dias: number) => new Date(agora.getTime() - dias * 86_400_000).toISOString();
 
+  // Trier enviado à mão nos últimos dias: cada filial fica com o relatório mais novo que a traz (no lugar do robô)
+  const { data: manuais } = await c
+    .from("conc_arquivos")
+    .select("id, nome, enviado_em, meta")
+    .eq("tipo", "trier")
+    .neq("origem", "robo_trier")
+    .is("arquivado_em", null)
+    .gte("enviado_em", ha(DIAS_TRIER_MANUAL))
+    .order("enviado_em", { ascending: false });
+  const donoManual = new Map<number, { id: string; nome: string }>();
+  for (const m of manuais ?? []) {
+    for (const f of ((m.meta as { filiais?: number[] } | null)?.filiais ?? [])) if (!donoManual.has(f)) donoManual.set(f, { id: m.id, nome: m.nome });
+  }
+
   const faixas = await lerConfig<Faixa[]>(c, "faixas", FAIXAS_PADRAO);
   for (const f of faixas) {
     const nome = `${f.nome} (${f.min}–${f.max})`;
@@ -166,10 +185,25 @@ export async function rodarConciliacaoAutomatica(c: Cliente, cred: CredenciaisTr
       continue;
     }
     const cobertas = [...new Set(daFaixa.filter((a) => a.enviado_em >= ha(DIAS_COBERTURA)).flatMap((a) => naFaixa(a.id)))].sort((a, b) => a - b);
+    // filiais da faixa que têm Trier enviado à mão: os títulos delas vêm só desse relatório
+    const exclusivo: Record<string, number[]> = {};
+    for (const [fil, dono] of donoManual) if (fil >= f.min && fil <= f.max) (exclusivo[dono.id] ??= []).push(fil);
+    const idsManuais = Object.keys(exclusivo);
+    const trierManual = idsManuais.length
+      ? `Trier enviado à mão nas filiais ${Object.values(exclusivo).flat().sort((a, b) => a - b).join(", ")} (${[...new Set(idsManuais.map((id) => [...donoManual.values()].find((d) => d.id === id)?.nome))].join(", ")})`
+      : undefined;
     try {
-      const pedido = { ddaIds: daFaixa.map((a) => a.id), trierIds: [trierId], filMin: f.min, filMax: f.max, filiais: cobertas, titulo: `Automática · ${f.nome} · ${horaBrasil(agora)}` };
+      const pedido = {
+        ddaIds: daFaixa.map((a) => a.id),
+        trierIds: [trierId, ...idsManuais],
+        trierExclusivo: idsManuais.length ? exclusivo : undefined,
+        filMin: f.min,
+        filMax: f.max,
+        filiais: cobertas,
+        titulo: `Automática · ${f.nome} · ${horaBrasil(agora)}`,
+      };
       const feita = await executarConciliacao(c, opcoes.userId, pedido, { filiais });
-      r.faixas.push({ faixa: nome, id: feita.id, pctBateu: feita.pctBateu, novas: feita.pendencias.novas, resolvidas: feita.pendencias.resolvidasAuto });
+      r.faixas.push({ faixa: nome, id: feita.id, pctBateu: feita.pctBateu, novas: feita.pendencias.novas, resolvidas: feita.pendencias.resolvidasAuto, trierManual });
     } catch (e) {
       const m = mensagem(e);
       // faixa sem boleto do banco ou sem título no Trier não é erro: só não tem o que conciliar ainda

@@ -142,7 +142,16 @@ export async function guardarArquivo(
 // ---------- conciliação ----------
 
 /** filiais: só os títulos do Trier dessas filiais (as que têm retorno do banco); sem a lista, a faixa toda. */
-export type PedidoConciliacao = { ddaIds: string[]; trierIds: string[]; filMin: number; filMax: number; titulo?: string; filiais?: number[] };
+export type PedidoConciliacao = {
+  ddaIds: string[];
+  trierIds: string[];
+  filMin: number;
+  filMax: number;
+  titulo?: string;
+  filiais?: number[];
+  /** id do relatório do Trier -> filiais que só ele traz (os títulos dessas filiais nos outros relatórios são ignorados). */
+  trierExclusivo?: Record<string, number[]>;
+};
 
 const GRUPO: Record<keyof GruposOmie, GrupoItem> = { exatos: "exato", aproximados: "aproximado", soTrier: "so_trier", soDDA: "so_dda" };
 const PROBLEMAS_ITEM = new Set<string>(PROBLEMAS);
@@ -227,12 +236,22 @@ export async function executarConciliacao(supabase: Cliente, userId: string | nu
   const ddas: ArquivoDDA[] = [];
   const titulos: TituloTrier[] = [];
   const filiaisTrier = new Map<number, string>();
+  // filial -> relatório do Trier que manda nela (Trier enviado à mão no lugar do robô)
+  const donoFilial = new Map<number, string>();
+  for (const [id, fils] of Object.entries(pedido.trierExclusivo ?? {})) for (const f of fils) donoFilial.set(f, id);
+  const nomeArquivo = new Map(arquivos.map((a) => [a.id, a.nome]));
+  if (donoFilial.size) {
+    const porArquivo = new Map<string, number[]>();
+    for (const [f, id] of donoFilial) porArquivo.set(id, [...(porArquivo.get(id) ?? []), f]);
+    for (const [id, fils] of porArquivo) avisos.push(`Filiais ${fils.sort((a, b) => a - b).join(", ")}: títulos só de "${nomeArquivo.get(id) ?? id}" (Trier enviado à mão), sem os do robô.`);
+  }
   for (const a of arquivos) {
     const { data: blob, error: eDown } = await supabase.storage.from(BUCKET_CONCILIACAO).download(a.storage_path);
     if (eDown || !blob) throw new Error(`Não consegui ler "${a.nome}" do Storage.`);
     const buf = Buffer.from(await blob.arrayBuffer());
     if (a.tipo === "trier") {
       const tr = filiaisReaisTrier(await lerTrier(a.nome, buf));
+      if (donoFilial.size) tr.titulos = tr.titulos.filter((t) => (donoFilial.get(t.fil) ?? a.id) === a.id);
       for (const f of new Set(tr.titulos.map((t) => t.fil))) {
         const outro = filiaisTrier.get(f);
         if (outro && outro !== a.nome) avisos.push(`A filial ${f} aparece em "${outro}" e em "${a.nome}": os títulos foram somados. Confira se não é o mesmo relatório duas vezes.`);
