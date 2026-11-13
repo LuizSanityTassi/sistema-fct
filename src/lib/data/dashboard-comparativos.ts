@@ -183,7 +183,8 @@ async function chamados(supabase: Cliente, p: Periodos): Promise<Comparativo[]> 
 
 async function conciliacao(supabase: Cliente, p: Periodos): Promise<Comparativo[]> {
   const [{ data: concs }, novasPorDia, { count: abertas }, { data: primeira }] = await Promise.all([
-    supabase.from("conc_conciliacoes").select("pct_bateu, qtd_trier, criado_em, fil_min").order("criado_em", { ascending: false }).limit(40),
+    // só as rodadas do robô (criado_por nulo): as feitas à mão cobrem outros períodos e arquivos e distorciam o cartão
+    supabase.from("conc_conciliacoes").select("pct_bateu, qtd_trier, criado_em, fil_min, fil_max").is("criado_por", null).order("criado_em", { ascending: false }).limit(40),
     supabase.rpc("conc_pendencias_novas", { p_de: `${desdeOInicio(p.inicioAnt)}T00:00:00-03:00` }),
     supabase.from("conc_pendencias").select("chave", { count: "exact", head: true }).in("status", ["pendente", "em_analise"]).gte("vencimento", INICIO_OPERACAO),
     supabase.from("conc_conciliacoes").select("criado_em").order("criado_em").limit(1).maybeSingle(),
@@ -195,29 +196,39 @@ async function conciliacao(supabase: Cliente, p: Periodos): Promise<Comparativo[
   // sem conciliação antes do fim do período anterior não há base (o módulo começou depois)
   const temBase = !!primeira && diaDe(primeira.criado_em) <= p.fimAnt && p.fimAnt >= INICIO_OPERACAO;
   const cards: Comparativo[] = [];
-  // cada empresa concilia à parte: a rede é a última de cada uma, pesada pelos títulos do Trier
+  // o robô concilia por faixa (Varela 1–112, Itajaí 201–205, Nazário 301–504): a rede é a última de cada faixa,
+  // pesada pelos títulos do Trier (pegar só a última por empresa deixava a Varela com o número de Itajaí)
   const lista = concs ?? [];
+  const porFaixa = new Map<string, typeof lista>();
+  for (const c of lista) {
+    const k = `${c.fil_min}-${c.fil_max}`;
+    porFaixa.set(k, [...(porFaixa.get(k) ?? []), c]);
+  }
+  const faixas = [...porFaixa.values()];
   const empresas = [
-    { nome: "Varela", runs: lista.filter((c) => c.fil_min < 301) },
-    { nome: "Nazário", runs: lista.filter((c) => c.fil_min >= 301) },
-  ].filter((e) => e.runs.length);
+    { nome: "Varela", faixas: faixas.filter((runs) => runs[0].fil_min < 301) },
+    { nome: "Nazário", faixas: faixas.filter((runs) => runs[0].fil_min >= 301) },
+  ].filter((e) => e.faixas.length);
   const pesada = (xs: { pct_bateu: number | null; qtd_trier: number }[]) => {
     const titulos = xs.reduce((s, x) => s + x.qtd_trier, 0);
     return titulos ? (100 * xs.reduce((s, x) => s + Number(x.pct_bateu) * x.qtd_trier, 0)) / titulos : 0;
   };
   if (empresas.length) {
     const dataBr = (ts: string) => diaDe(ts).slice(5).split("-").reverse().join("/");
+    const ultimaData = (runs: typeof faixas) => runs.map((r) => r[0].criado_em).sort().at(-1) ?? "";
     cards.push({
       id: "conc-auto",
       titulo: "Conciliação automática",
       href: "/conciliacao",
-      atual: r2(pesada(empresas.map((e) => e.runs[0]))),
-      anterior: empresas.some((e) => e.runs[1]) ? r2(pesada(empresas.map((e) => e.runs[1] ?? e.runs[0]))) : null,
+      atual: r2(pesada(faixas.map((runs) => runs[0]))),
+      anterior: faixas.some((runs) => runs[1]) ? r2(pesada(faixas.map((runs) => runs[1] ?? runs[0]))) : null,
       formato: "pct",
       melhor: "maior",
-      periodo: "última de cada empresa",
+      periodo: "última de cada faixa",
       comparadoCom: "as conciliações anteriores",
-      nota: empresas.map((e) => `${e.nome} ${(Number(e.runs[0].pct_bateu) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% (${dataBr(e.runs[0].criado_em)})`).join(" · "),
+      nota: empresas
+        .map((e) => `${e.nome} ${pesada(e.faixas.map((runs) => runs[0])).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% (${dataBr(ultimaData(e.faixas))})`)
+        .join(" · "),
     });
   }
   cards.push({
