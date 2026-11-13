@@ -388,7 +388,7 @@ function Resumo({ s, base, empresas, todas, anos, mesesDoAno, mapa, rateios, fil
               <TableRow>
                 {cabecalho("filial", "Filial")}
                 {cabecalho("faturamento", "Faturamento", "text-right")}
-                {cabecalho("pe", "Ponto de equilíbrio", "text-right", "Faturamento (receita bruta) que paga as despesas da filial com a margem de contribuição do período, sem a depreciação")}
+                {cabecalho("pe", "Ponto de equilíbrio", "text-right", "Faturamento (receita bruta) que paga as despesas da filial com a margem de contribuição do período: despesas sem a depreciação, mais receita financeira e outras receitas, menos despesas financeiras")}
                 {cabecalho("part", "Part. %", "hidden text-right md:table-cell")}
                 {cabecalho("margem", "M.C. %", "text-right")}
                 {cabecalho("cmv", "CMV %", "hidden text-right lg:table-cell", "Custo das mercadorias sobre a receita bruta (ordena pelo tamanho do custo)")}
@@ -469,8 +469,9 @@ function Resumo({ s, base, empresas, todas, anos, mesesDoAno, mapa, rateios, fil
 }
 
 /**
- * Ponto de equilíbrio da linha (a mesma conta do Demonstrativo): o faturamento que paga as despesas sem a depreciação
- * com a margem de contribuição do período e, embaixo, quanto o faturamento ficou acima ou abaixo dele.
+ * Ponto de equilíbrio da linha (a mesma conta do Demonstrativo): o faturamento que paga as despesas sem a depreciação,
+ * já com receita financeira, outras receitas e despesas financeiras, com a margem de contribuição do período e, embaixo,
+ * quanto o faturamento ficou acima ou abaixo dele.
  */
 function CelulaPe({ c }: { c: ContasDre }) {
   if (c.pontoEquilibrio === null) {
@@ -499,7 +500,7 @@ function ResumoGeral({ nomePeriodo, nMeses, conta, c, l }: { nomePeriodo: string
   const rb = c.receitaBruta;
   // composição do faturamento (o mesmo quadro do Resumo por loja do Caixa contábil): cada dedução e despesa como % da
   // receita bruta, com o total no fim
-  const descontos = (["devolucoes", "impostos_vendas", "comissoes", "custo_mercadoria", "ajuste_cmv", "despesas_pessoal", "despesas_administrativas", "despesas_comerciais", "outras_despesas", "depreciacao", "despesas_financeiras", "ir_csll"] as const)
+  const descontos = (["devolucoes", "impostos_vendas", "comissoes", "custo_mercadoria", "ajuste_cmv", "despesas_pessoal", "despesas_administrativas", "despesas_comerciais", "outras_despesas", "depreciacao", "receita_financeira", "outras_receitas", "despesas_financeiras", "ir_csll"] as const)
     .map((k) => ({ rotulo: ROTULO_LINHA[k].replace(/^\(−\) /, ""), valor: l[k] ?? 0 }))
     .filter((x) => Math.abs(x.valor) >= 0.005);
   const totalDescontos = descontos.reduce((s, x) => s + x.valor, 0);

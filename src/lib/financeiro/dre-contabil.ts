@@ -173,7 +173,9 @@ export function calcularDre(l: Lancamentos) {
   const lucroOperacional = margem + despesas;
   const financeiro = v(l, "receita_financeira") + v(l, "outras_receitas") + v(l, "despesas_financeiras");
   const lucro = lucroOperacional + financeiro + v(l, "ir_csll");
-  const custoFixo = despesas - v(l, "depreciacao");
+  // custo fixo do ponto de equilíbrio: despesas sem a depreciação + receita financeira, outras receitas e despesas
+  // financeiras (pedido do contador, 13/11/2026); positivo = as receitas já pagam as despesas
+  const custoFixo = despesas - v(l, "depreciacao") + financeiro;
   const margemSobreBruta = pct(margem, receitaBruta);
   return {
     receitaBruta: centavos(receitaBruta),
@@ -190,7 +192,7 @@ export function calcularDre(l: Lancamentos) {
     lucroPct: pct(lucro, receitaLiquida),
     custoFixo: centavos(custoFixo),
     /** Receita bruta que cobre o custo fixo com a margem atual (null = margem ≤ 0: "sem ponto de equilíbrio"). */
-    pontoEquilibrio: margemSobreBruta && margemSobreBruta > 0 ? centavos(Math.abs(custoFixo) / margemSobreBruta) : null,
+    pontoEquilibrio: margemSobreBruta && margemSobreBruta > 0 ? centavos(Math.max(0, -custoFixo) / margemSobreBruta) : null,
     // indicadores do resumo da planilha (sobre a receita bruta)
     cmvSobreBruta: pct(v(l, "custo_mercadoria"), receitaBruta),
     comissoesSobreBruta: pct(v(l, "comissoes"), receitaBruta),
