@@ -480,8 +480,12 @@ async function registrarPendencias(supabase: Cliente, conciliacaoId: string, gru
   const uso: Uso = new Map();
   const itens: Omit<Inserir<"conc_pendencias">, "status">[] = [];
   const ok: string[] = [];
+  // título que antes ficou "só no Trier" e agora bateu com um boleto: a pendência dele tem a chave do título (TR…),
+  // e não a do boleto (DDA…). Sem isto ela nunca era baixada e ficava aberta para sempre.
+  const okTitulos: string[] = [];
   for (const k of Object.keys(GRUPO) as (keyof GruposOmie)[]) {
     for (const it of grupos[k]) {
+      if (it.d) for (const t of it.ts) okTitulos.push(Omie.chave({ ...it, d: null, ts: [t] }));
       const prob = k === "soDDA" ? "SO_DDA" : k === "soTrier" ? (it.resultado === "SO_TRIER" ? "SO_TRIER" : null) : PROBLEMAS_ITEM.has(it.resultado) ? it.resultado : null;
       const chave = Omie.chave(it);
       if (!prob) {
@@ -525,7 +529,7 @@ async function registrarPendencias(supabase: Cliente, conciliacaoId: string, gru
   const porChave = new Map<string, (typeof itens)[number]>();
   for (const it of itens) if (!porChave.has(it.chave)) porChave.set(it.chave, it);
   const itensUnicos = [...porChave.values()];
-  const okUnicos = [...new Set(ok)].filter((k) => !porChave.has(k));
+  const okUnicos = [...new Set([...ok, ...okTitulos])].filter((k) => !porChave.has(k));
   const chaves = [...new Set([...itensUnicos.map((i) => i.chave), ...okUnicos])];
   const existentes = new Map<string, Pendencia>();
   for (let i = 0; i < chaves.length; i += LOTE) {
