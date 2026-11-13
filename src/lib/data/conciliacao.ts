@@ -456,8 +456,24 @@ export async function barrasDasPendencias(chaves: string[]) {
 
 export async function resumoPendencias() {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("conc_pendencias").select("chave, status, problema, valor, vencimento, filial").in("status", ["pendente", "em_analise"]).gte("vencimento", INICIO_OPERACAO);
-  if (error) throw error;
+  // lida em lotes: a API corta em 1.000 linhas e o quadro somava só as primeiras 1.000 pendências
+  const lerLote = (inicio: number) =>
+    supabase
+      .from("conc_pendencias")
+      .select("chave, status, problema, valor, vencimento, filial", { count: inicio === 0 ? "exact" : undefined })
+      .in("status", ["pendente", "em_analise"])
+      .gte("vencimento", INICIO_OPERACAO)
+      .order("chave")
+      .range(inicio, inicio + LOTE - 1);
+  const primeiro = await lerLote(0);
+  if (primeiro.error) throw primeiro.error;
+  const faltam = Math.max(0, Math.ceil((primeiro.count ?? 0) / LOTE) - 1);
+  const resto = await Promise.all(Array.from({ length: faltam }, (_, i) => lerLote((i + 1) * LOTE)));
+  const data = [...primeiro.data];
+  for (const r of resto) {
+    if (r.error) throw r.error;
+    data.push(...r.data);
+  }
   const porPrioridade: Record<Prioridade, { qtd: number; valor: number }> = { 3: { qtd: 0, valor: 0 }, 2: { qtd: 0, valor: 0 }, 1: { qtd: 0, valor: 0 } };
   const porFilial = new Map<number | null, { qtd: number; valor: number }>();
   let valorTotal = 0;
