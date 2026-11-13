@@ -34,6 +34,8 @@ const mesCurto = (m: string) => rotuloCompetencia(m).replace(/^(\w{3})\w* de (\d
  */
 const ORDENS: Record<string, (c: ContasDre) => number> = {
   faturamento: (c) => c.receitaBruta,
+  // sem ponto de equilíbrio (margem zero ou negativa) vai para o fim
+  pe: (c) => c.pontoEquilibrio ?? semValor,
   part: (c) => c.receitaBruta,
   margem: (c) => c.margemPct ?? semValor,
   cmv: (c) => Math.abs(c.cmvSobreBruta ?? 0),
@@ -386,6 +388,7 @@ function Resumo({ s, base, empresas, todas, anos, mesesDoAno, mapa, rateios, fil
               <TableRow>
                 {cabecalho("filial", "Filial")}
                 {cabecalho("faturamento", "Faturamento", "text-right")}
+                {cabecalho("pe", "Ponto de equilíbrio", "text-right", "Faturamento (receita bruta) que paga as despesas da filial com a margem de contribuição do período, sem a depreciação")}
                 {cabecalho("part", "Part. %", "hidden text-right md:table-cell")}
                 {cabecalho("margem", "M.C. %", "text-right")}
                 {cabecalho("cmv", "CMV %", "hidden text-right lg:table-cell", "Custo das mercadorias sobre a receita bruta (ordena pelo tamanho do custo)")}
@@ -409,6 +412,7 @@ function Resumo({ s, base, empresas, todas, anos, mesesDoAno, mapa, rateios, fil
                       {todas && <span className="ml-1.5 text-[11px] text-muted-foreground">{l.empresa}</span>}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{moedaFin(l.c.receitaBruta)}</TableCell>
+                    <CelulaPe c={l.c} />
                     <TableCell className="hidden text-right tabular-nums text-muted-foreground md:table-cell">{mostraPct(consolidado.receitaBruta ? l.c.receitaBruta / consolidado.receitaBruta : null)}</TableCell>
                     <TableCell className="text-right tabular-nums">{mostraPct(l.c.margemPct)}</TableCell>
                     <TableCell className="hidden text-right tabular-nums lg:table-cell">{mostraPct(l.c.cmvSobreBruta)}</TableCell>
@@ -429,6 +433,7 @@ function Resumo({ s, base, empresas, todas, anos, mesesDoAno, mapa, rateios, fil
               <TableRow>
                 <TableCell>Soma das filiais</TableCell>
                 <TableCell className="text-right tabular-nums">{moedaFin(somaFiliais.receitaBruta)}</TableCell>
+                <CelulaPe c={somaFiliais} />
                 <TableCell className="hidden md:table-cell" />
                 <TableCell className="text-right tabular-nums">{mostraPct(somaFiliais.margemPct)}</TableCell>
                 <TableCell className="hidden lg:table-cell" />
@@ -442,6 +447,7 @@ function Resumo({ s, base, empresas, todas, anos, mesesDoAno, mapa, rateios, fil
               {daEmpresa.despesas !== 0 && (
                 <TableRow>
                   <TableCell>Depreciação ({todas ? "das empresas" : "da empresa"})</TableCell>
+                  <TableCell className="text-right" />
                   <TableCell colSpan={8} className="hidden md:table-cell" />
                   <TableCell className="text-right tabular-nums text-red-700 dark:text-red-400">{moedaFin(daEmpresa.despesas)}</TableCell>
                   <TableCell className="hidden sm:table-cell" />
@@ -449,6 +455,7 @@ function Resumo({ s, base, empresas, todas, anos, mesesDoAno, mapa, rateios, fil
               )}
               <TableRow>
                 <TableCell className="font-semibold">Total com depreciação</TableCell>
+                <TableCell className="text-right" />
                 <TableCell colSpan={8} className="hidden md:table-cell" />
                 <TableCell className={`text-right font-semibold tabular-nums ${tom(consolidado.lucro)}`}>{moedaFin(consolidado.lucro)}</TableCell>
                 <TableCell className="hidden text-right tabular-nums sm:table-cell">{mostraPct(consolidado.lucroSobreBruta)}</TableCell>
@@ -458,6 +465,29 @@ function Resumo({ s, base, empresas, todas, anos, mesesDoAno, mapa, rateios, fil
         )}
       </section>
     </>
+  );
+}
+
+/**
+ * Ponto de equilíbrio da linha (a mesma conta do Demonstrativo): o faturamento que paga as despesas sem a depreciação
+ * com a margem de contribuição do período e, embaixo, quanto o faturamento ficou acima ou abaixo dele.
+ */
+function CelulaPe({ c }: { c: ContasDre }) {
+  if (c.pontoEquilibrio === null) {
+    return (
+      <TableCell className="text-right text-xs text-muted-foreground" title="Margem de contribuição zero ou negativa: nenhum faturamento paga as despesas">
+        Sem PE
+      </TableCell>
+    );
+  }
+  const folga = c.receitaBruta - c.pontoEquilibrio;
+  return (
+    <TableCell className="text-right tabular-nums">
+      {moedaFin(c.pontoEquilibrio)}
+      <span className={`block text-[11px] ${folga >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400"}`}>
+        {folga >= 0 ? `${moedaFin(folga)} acima` : `faltou ${moedaFin(-folga)}`}
+      </span>
+    </TableCell>
   );
 }
 
