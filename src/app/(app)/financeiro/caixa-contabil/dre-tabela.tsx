@@ -289,14 +289,37 @@ Clique para somar um ajuste ao resultado (ex.: 2928,45 ou -100); a conta continu
             <tr className="border-t-2 bg-muted/40 font-semibold">
               <td
                 className="px-2 py-1"
-                title="Soma do SALDO INICIAL com o resultado de cada mês, encadeado. É o caixa acumulado desde o início do período. Digite num mês para valer no lugar da conta; o mês seguinte começa dele."
+                title="Soma do SALDO INICIAL com o resultado de cada mês, encadeado. É o caixa acumulado desde o início do período. Clique num mês para somar um ajuste em cima da conta: se receitas ou saídas do mês mudarem, o acumulado acompanha e o ajuste continua por cima; o mês seguinte começa dele."
               >
                 RESULTADO ACUMULADO TOTAL
               </td>
               {dre.meses.map((m) => {
                 const v = dre.acumulado[m];
                 const auto = dre.acumuladoAuto[m];
-                return celulaResultado("acumulado", m, v, v == null ? "—" : moedaDre(v), auto == null ? undefined : moedaDre(auto), v == null ? "text-muted-foreground" : tom(v));
+                const classe = v == null ? "text-muted-foreground" : tom(v);
+                // acumulado digitado à moda antiga (no lugar da conta; só nos meses travados) ou mês ainda sem saldo: como antes
+                if (dre.saldosDigitados.acumulado?.[m] != null || v == null || auto == null || !podeEditar || !dre.mesesTotal.includes(m))
+                  return celulaResultado("acumulado", m, v, v == null ? "—" : moedaDre(v), auto == null ? undefined : moedaDre(auto), classe);
+                const proprio = dre.saldosDigitados.ajuste_acumulado?.[m] ?? null;
+                const conta = moedaDre(auto);
+                return (
+                  <CelulaEditavel
+                    key={m}
+                    action={salvarSaldo}
+                    campos={{ ...base, campo: "ajuste_acumulado", competencia: m }}
+                    base={proprio ?? 0}
+                    conta={contas[`saldo:ajuste_acumulado|${m}`]}
+                    exibicao={moedaDre(v)}
+                    automatico={conta}
+                    ajustado={proprio != null}
+                    destacar={destacarAjustes}
+                    classe={classe}
+                    podeEditar
+                    placeholder="ajuste: ex. 270,61"
+                    dicaEditar={`Saldo inicial + resultado do mês = ${conta}${proprio ? ` · ajuste ${proprio > 0 ? "+" : ""}${moedaDre(proprio)}` : ""}.
+Clique para somar um ajuste ao acumulado (ex.: 270,61 ou -100); a conta continua valendo por baixo: se receitas ou saídas do mês mudarem, o acumulado acompanha. Apague para tirar o ajuste.`}
+                  />
+                );
               })}
               <td className={`px-2 py-1 text-right tabular-nums ${tom(dre.acumulado[dre.mesesTotal[dre.mesesTotal.length - 1]] ?? 0)}`}>{moedaDre(dre.acumulado[dre.mesesTotal[dre.mesesTotal.length - 1]] ?? 0)}</td>
               <td className="px-2 py-1 text-right text-muted-foreground">—</td>

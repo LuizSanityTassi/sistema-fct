@@ -59,8 +59,12 @@ export const CAMPOS_SALDO = [
   { campo: "contas_correntes", rotulo: "TOTAL CONTAS CORRENTES" },
   { campo: "limites_bancos", rotulo: "LIMITES BANCOS" },
 ] as const;
-/** Campos de fin_dre_saldos que só valem no recorte onde foram digitados (o total de cima não soma). */
-export const CAMPOS_DIGITADOS_LOCAIS = ["acumulado", "capacidade", "payback"] as const;
+/**
+ * Campos de fin_dre_saldos que só valem no recorte onde foram digitados (o total de cima não soma).
+ * ajuste_acumulado = ajuste do contador que soma em cima do resultado acumulado da conta (13/11/2026); "acumulado" é o
+ * valor digitado antes disso, que travava o número no lugar da conta — continua valendo só nos meses travados.
+ */
+export const CAMPOS_DIGITADOS_LOCAIS = ["acumulado", "ajuste_acumulado", "capacidade", "payback"] as const;
 
 const r2 = (v: number) => Math.round(v * 100) / 100;
 
@@ -197,12 +201,15 @@ export function montarDre(args: {
   const soma = (fn: (m: string) => number) => r2(mesesTotal.reduce((s, m) => s + fn(m), 0));
 
   // cadeia de saldo: começa no 1º mês do período com zero e soma o resultado de cada mês; um saldo inicial digitado
-  // recomeça a conta no começo do mês, um resultado acumulado digitado recomeça no fim. No total (grupo, todas), o que
+  // recomeça a conta no começo do mês; o ajuste do acumulado soma em cima da conta do mês (se receitas ou saídas do mês
+  // mudarem, o acumulado acompanha); um acumulado digitado à moda antiga (só nos meses travados) vale no lugar da
+  // conta e recomeça no fim. No total (grupo, todas), o que
   // foi digitado numa filial/grupo de baixo entra como diferença daquele mês em diante (correcoes / correcoesFim). Os
   // meses antes do primeiro saldo inicial digitado (aqui ou embaixo) ficam sem saldo — ainda não tinha caixa controlado.
   const saldoVal = (campo: string, m: string) => args.saldos.get(`${campo}|${m}`) ?? null;
   const digitado = (m: string) => saldoVal("saldo_inicial", m);
   const acumDigitado = (m: string) => saldoVal("acumulado", m);
+  const ajusteAcum = (m: string) => saldoVal("ajuste_acumulado", m) ?? 0;
   const kIni = (m: string) => args.correcoes?.get(m) ?? 0;
   const kFim = (m: string) => args.correcoesFim?.get(m) ?? kIni(m);
   const eventos = new Set([...(args.eventos ?? []), ...meses.filter((m) => digitado(m) !== null)]);
@@ -226,7 +233,7 @@ export function montarDre(args: {
     else if (m === partida) ini = kIni(m);
     const res = resultadoMes(m);
     const fimConta = ini === null ? null : r2(ini + res + kFim(m) - kIni(m));
-    const fim = acumDigitado(m) ?? fimConta;
+    const fim = acumDigitado(m) ?? (fimConta === null ? null : r2(fimConta + ajusteAcum(m)));
     const semSaldoFim: number | null = semSaldo === null ? null : r2(semSaldo + res);
     correcao[m] = ini === null ? 0 : r2(ini - (semSaldo ?? 0));
     correcaoFim[m] = fim === null ? 0 : r2(fim - (semSaldoFim ?? 0));

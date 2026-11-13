@@ -98,16 +98,21 @@ export async function salvarAjusteLinhaDre(fd: FormData): Promise<RespostaCelula
   return { ok: true };
 }
 
-/** Saldos de caixa da DRE (saldo inicial, caixinha, contas correntes, limites) e os resultados digitados (acumulado, capacidade, payback). */
+/** Saldos de caixa da DRE (saldo inicial, caixinha, contas correntes, limites) e os resultados digitados (ajuste do acumulado, capacidade, payback). */
 export async function salvarSaldoDre(fd: FormData): Promise<RespostaCelula> {
   const sessao = await getSessao();
   if (!podeLancar(sessao.papel)) return { erro: "Só Administrador, Financeiro e Contador alteram os saldos." };
   const { grupo, filial, competencia, valor, formula, bruto } = campos(fd);
   const campo = String(fd.get("campo") ?? "");
-  if (!grupo || !competencia || !["saldo_inicial", "caixinha", "contas_correntes", "limites_bancos", "acumulado", "capacidade", "payback"].includes(campo)) return { erro: "Dados inválidos." };
+  if (!grupo || !competencia || !["saldo_inicial", "caixinha", "contas_correntes", "limites_bancos", "acumulado", "ajuste_acumulado", "capacidade", "payback"].includes(campo)) return { erro: "Dados inválidos." };
   if (bruto !== "" && valor === null) return { erro: "Valor ou conta inválida." };
   const supabase = await createClient();
   const base = supabase.from("fin_dre_saldos");
+  if (campo === "ajuste_acumulado") {
+    // o ajuste substitui o acumulado digitado à moda antiga (que travava o número no lugar da conta)
+    const { error } = await supabase.from("fin_dre_saldos").delete().eq("grupo", grupo).filter("branch_id", filial ? "eq" : "is", filial).eq("competencia", competencia).eq("campo", "acumulado");
+    if (error) return { erro: error.message };
+  }
   if (filial) {
     const { error } = await supabase.from("fin_dre_saldos").delete().eq("branch_id", filial).eq("campo", campo).eq("competencia", competencia).neq("grupo", grupo);
     if (error) return { erro: error.message };
