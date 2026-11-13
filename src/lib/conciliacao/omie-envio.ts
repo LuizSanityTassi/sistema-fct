@@ -584,7 +584,9 @@ async function lancarReservadas(supabase: Cliente, userId: string, conc: Concili
   const credOmie: Record<EmpresaOmie, Chaves | null> = { nazario: await chavesOmie(supabase, "nazario"), varela: await chavesOmie(supabase, "varela") };
 
   const hoje = new Date();
-  const pisoEmissao = Math.round(Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth() - 1, 1) / 86_400_000);
+  // só emissão do mês atual: o contador fecha o mês anterior na Omie logo no começo do mês (outubro foi fechado em
+  // 12/11/2026) e a Omie recusa lançamento com emissão em período fechado; fora disso vai a data do vencimento
+  const pisoEmissao = Math.round(Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), 1) / 86_400_000);
   const porEmpresa: Record<EmpresaOmie, { linha: ItemConciliacao; item: ItemOmie; conta: ContaApi; regras: RegrasDaConta }[]> = { nazario: [], varela: [] };
   const fora: ResultadoApi["fora"] = [];
   linhasItens.forEach((linha, i) => {
@@ -614,7 +616,7 @@ async function lancarReservadas(supabase: Cliente, userId: string, conc: Concili
         nome,
         valor: l.F,
         venc: Motor.dtxt(d ? d.venc : (t?.venc ?? null)),
-        // emissão do Trier; mais antiga que o mês passado cairia em período contábil fechado, que a Omie recusa
+        // emissão do Trier; de mês anterior cairia em período contábil fechado, que a Omie recusa
         emissao: t?.emis != null && t.emis >= pisoEmissao && t.emis <= ((d ? d.venc : t.venc) ?? t.emis) ? Motor.dtxt(t.emis) : null,
         numdoc: l.U,
         nota: l.Y,

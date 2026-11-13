@@ -65,6 +65,7 @@ type EnvioEmLotes = {
 type RespostaLote = { lancadas: number; adiadas: string[]; parada: string | null; bloqueadas: number; barradas: { chave: string; motivo: string }[]; erros: { nome: string; valor: number; erro: string }[]; modoTeste: string[] };
 const ROTULO_FILA: Record<string, string> = { nazario: "Nazário", varela: "Varela", sem: "Sem empresa" };
 const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const DIAS_POR_LOTE = 3;
 const data = (iso: string | null) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : "—");
 
 export function EnvioOmie({ conciliacaoId, contas, grupo, contagem, api, config, podeEnviar, grupoInicial, marcadas, validar, enviarPlanilha }: Props) {
@@ -197,6 +198,22 @@ export function EnvioOmie({ conciliacaoId, contas, grupo, contagem, api, config,
             return { nome: c?.nome ?? b.chave, filial: c?.filial ?? null, valor: c?.valor ?? 0, venc: c?.vencimento ?? null, motivo: b.motivo };
           });
         const vencimento = new Map(lista.map((c) => [c.chave, c.vencimento]));
+        // cada lote cobre no máximo DIAS_POR_LOTE dias de vencimento: o servidor reconfere na Omie esse trecho (±7 dias) e,
+        // na Varela (~350 títulos por dia), 200 contas de 2–3 semanas não cabiam no prazo da conferência
+        const pedacoDoTrecho = (fila: string[]) => {
+          const ini = vencimento.get(fila[0]);
+          if (!ini) return fila.slice(0, LIMITE_LANCAMENTO_API);
+          const d = new Date(`${ini}T12:00:00Z`);
+          d.setUTCDate(d.getUTCDate() + DIAS_POR_LOTE - 1);
+          const ate = d.toISOString().slice(0, 10);
+          const out: string[] = [];
+          for (const k of fila) {
+            const v = vencimento.get(k);
+            if (out.length >= LIMITE_LANCAMENTO_API || (v && v > ate)) break;
+            out.push(k);
+          }
+          return out;
+        };
         // em ordem de vencimento: cada lote cobre poucos dias e o servidor reconfere na Omie só esse trecho (antes cada
         // lote misturava o período todo e relia ~90 páginas da Omie a cada 200 contas: lento e arriscava bloquear a chave)
         const novas = conferencia.liberadas
@@ -218,7 +235,7 @@ export function EnvioOmie({ conciliacaoId, contas, grupo, contagem, api, config,
         const inicioNovas = novas.length;
         while (novas.length && !parar.current) {
           etapa(emp, `lançando novas, faltam ${inteiro(novas.length)} de ${inteiro(inicioNovas)}`);
-          const pedaco = novas.slice(0, LIMITE_LANCAMENTO_API);
+          const pedaco = pedacoDoTrecho(novas);
           const r = await postar<RespostaLote>("/api/conciliacao/omie-lote", { conciliacao: conciliacaoId, chaves: pedaco, cadastrar });
           if (r.modoTeste.length) throw new Error(`modo teste em ${r.modoTeste.join(", ")}: libere o lote em DDA x Trier → Omie`);
           novas.splice(0, pedaco.length);
