@@ -27,8 +27,10 @@ type Props = {
 
 const inteiro = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 /** Número cheio, sem centavos (regra 41) e sem "R$" (pedido do usuário: só no Caixa contábil), igual à planilha da diretoria. */
-const moedaDre = (v: number) => (v ? `${v < 0 ? "-" : ""}${inteiro.format(arred41(Math.abs(v)))}` : "—");
-const MESES_CURTO = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const moedaInteiro = (v: number) => (v ? `${v < 0 ? "-" : ""}${inteiro.format(arred41(Math.abs(v)))}` : "—");
+const comCentavos = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/** Com centavos: para conferir somas (cada número arredondado sozinho pode deixar R$ 1 de diferença na soma). */
+const moedaCentavos = (v: number) => (v ? comCentavos.format(Math.round(v * 100) / 100) : "—");const MESES_CURTO = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 const rotuloMes = (m: string) => `${MESES_CURTO[Number(m.slice(5, 7)) - 1]}/${m.slice(2, 4)}`;
 const pctFmt = (v: number, base: number) => (base > 0 ? `${((v / base) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%` : "—");
 const tom = (v: number) => (v < 0 ? "text-red-700" : v > 0 ? "text-emerald-700" : "text-muted-foreground");
@@ -37,6 +39,10 @@ const DICA_SALDO_MES = "Digite o valor do mês. No total do grupo (ou de todas),
 export function DreTabela({ dre, escopo, podeEditar, destacarAjustes, salvarAjuste, salvarSaldo, salvarLinha, contas, ajustesDeBaixo, vazias }: Props) {
   const [nivel, setNivel] = React.useState<1 | 2 | 3>(vazias.ligado ? 3 : 1);
   const [busca, setBusca] = React.useState("");
+  // com centavos: a soma dos recortes (VARELA + ITAJAÍ = VARELA + ITAJAÍ) fecha no centavo
+  const [centavos, setCentavos] = React.useState(false);
+  const alternarCentavos = () => setCentavos((c) => !c);
+  const moedaDre = centavos ? moedaCentavos : moedaInteiro;
   const termo = busca.trim().toLowerCase();
   const mostraGrupos = nivel >= 2 || !!termo;
   const mostraCategorias = nivel >= 3 || !!termo;
@@ -192,6 +198,15 @@ export function DreTabela({ dre, escopo, podeEditar, destacarAjustes, salvarAjus
         >
           {vazias.ligado ? "Esconder contas sem valor" : "Mostrar contas sem valor"}
         </Link>
+        <button
+          type="button"
+          onClick={alternarCentavos}
+          aria-pressed={centavos}
+          className={`rounded-full border px-3 py-1 text-xs ${centavos ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary/40"}`}
+          title="Sem centavos, cada número é arredondado sozinho (regra 41) e a soma de dois recortes pode dar R$ 1 de diferença. Com centavos, tudo fecha no centavo."
+        >
+          {centavos ? "Sem centavos" : "Mostrar centavos"}
+        </button>
         <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar categoria" className="ml-auto w-56" aria-label="Buscar categoria" />
       </div>
       <div className="overflow-x-auto rounded-xl border bg-card">
