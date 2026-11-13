@@ -6,6 +6,7 @@ import type { dreDoPeriodo, lerEscopo } from "@/lib/data/dre";
 import { abreviarGrupo, GRUPOS_DESPESA_ORD } from "@/lib/financeiro/dre";
 import { moedaSemRs } from "@/lib/financeiro/formatos";
 import { rotuloCompetencia } from "@/lib/rh/competencia";
+import { cabecalhosOrdenaveis, type Direcao } from "../dre/comum";
 
 /**
  * Ranking de lojas, resumo por loja e comparativo mês a mês do Caixa contábil (antes ficavam em "Inadimplência e
@@ -138,7 +139,22 @@ export function RankingView({ dados, escopo, metrica, mes }: { dados: DadosLojas
  * acumulado do ano até o mês e a composição das despesas; no fim, o consolidado do período (soma de todas as lojas do
  * recorte), como o "Resultado por filial" da DRE.
  */
-export function ResumoLojasView({ dados, escopo, periodo }: { dados: DadosLojas; escopo: Esc; periodo: string }) {
+export function ResumoLojasView({
+  dados,
+  escopo,
+  periodo,
+  ordem,
+  dir,
+  link,
+}: {
+  dados: DadosLojas;
+  escopo: Esc;
+  periodo: string;
+  /** coluna da tabela por loja (?ordem=&dir=, como no "Resultado por filial" da DRE) */
+  ordem?: string;
+  dir?: string;
+  link: (p: { ordem?: string; dir?: Direcao }) => string;
+}) {
   const { linhas, porId, meses } = dados;
   if (!linhas.length) return <Vazio ano={escopo.ano} />;
   const mesSel = periodo === "ano" ? undefined : mesEscolhido(meses, periodo);
@@ -194,6 +210,36 @@ export function ResumoLojasView({ dados, escopo, periodo }: { dados: DadosLojas;
   const pctR = (v: number) => (totRec > 0 ? `-${pct((v / totRec) * 100, 2)}` : "—");
   const pctG = (g: Record<string, number>, grupo: string, total: number) => (g[grupo] && total ? pct((g[grupo] / total) * 100, 2) : "—");
   const colAcum = mesSel ? `Acumulado até ${mesCurto(mesSel)}` : null;
+  // ordem da tabela por loja: padrão pelo código; nas colunas de valor, 1º clique do maior para o menor, 2º inverte.
+  // Loja sem movimento no período (ou sem o grupo) fica no fim nos dois sentidos.
+  const pedida = ordem ?? "filial";
+  const chaveOrd =
+    pedida === "filial" || pedida === "receitas" || pedida === "despesas" || pedida === "resultado" || (pedida === "acumulado" && colAcum) || (pedida.startsWith("g:") && gs.includes(pedida.slice(2)))
+      ? pedida
+      : "filial";
+  const dirOrd: Direcao = dir === "asc" || dir === "desc" ? dir : chaveOrd === "filial" ? "asc" : "desc";
+  const valorOrd = (f: string): number | null => {
+    const d = data.get(f)!;
+    if (chaveOrd === "receitas") return d.mov ? d.rec : null;
+    if (chaveOrd === "despesas") return d.mov ? d.desp : null;
+    if (chaveOrd === "resultado") return d.mov ? d.rec - d.desp : null;
+    if (chaveOrd === "acumulado") return d.acum;
+    const g = chaveOrd.slice(2);
+    return d.g[g] && d.desp ? d.g[g] / d.desp : null;
+  };
+  const lojasOrd =
+    chaveOrd === "filial"
+      ? dirOrd === "asc"
+        ? lojas
+        : [...lojas].reverse()
+      : [...lojas].sort((a, b) => {
+          const va = valorOrd(a);
+          const vb = valorOrd(b);
+          if (va === null || vb === null) return va === vb ? 0 : va === null ? 1 : -1;
+          return dirOrd === "desc" ? vb - va : va - vb;
+        });
+  const cabecalho = cabecalhosOrdenaveis(chaveOrd, dirOrd, "filial", link);
+  const th = "px-2 py-2 first:pl-2 last:pr-2";
   return (
     <div className="space-y-4">
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -249,24 +295,23 @@ export function ResumoLojasView({ dados, escopo, periodo }: { dados: DadosLojas;
         </section>
       </div>
       <section className="overflow-x-auto rounded-xl border bg-card">
-        <h2 className="px-4 pt-3 pb-2 text-sm font-semibold">Resultado por loja · {nomePeriodo}</h2>
+        <div className="flex flex-wrap items-baseline justify-between gap-2 px-4 pt-3 pb-2">
+          <h2 className="text-sm font-semibold">Resultado por loja · {nomePeriodo}</h2>
+          <p className="text-xs text-muted-foreground">Clique no título da coluna para ordenar; clique de novo para inverter.</p>
+        </div>
         <table className="w-full text-sm">
           <thead className="text-xs text-muted-foreground">
             <tr className="border-y">
-              <th className="px-2 py-2 text-left">Loja</th>
-              <th className="px-2 py-2 text-right">Receitas</th>
-              <th className="px-2 py-2 text-right">Despesas</th>
-              <th className="px-2 py-2 text-right">Resultado</th>
-              {colAcum && <th className="px-2 py-2 text-right">{colAcum}</th>}
-              {gs.map((g) => (
-                <th key={g} className="px-2 py-2 text-right">
-                  {abreviarGrupo(g)}
-                </th>
-              ))}
+              {cabecalho("filial", "Loja", `${th} text-left`)}
+              {cabecalho("receitas", "Receitas", `${th} text-right`)}
+              {cabecalho("despesas", "Despesas", `${th} text-right`)}
+              {cabecalho("resultado", "Resultado", `${th} text-right`)}
+              {colAcum && cabecalho("acumulado", colAcum, `${th} text-right`)}
+              {gs.map((g) => cabecalho(`g:${g}`, abreviarGrupo(g), `${th} text-right`))}
             </tr>
           </thead>
           <tbody>
-            {lojas.map((f) => {
+            {lojasOrd.map((f) => {
               const d = data.get(f)!;
               const u = porId.get(f);
               const res = d.rec - d.desp;

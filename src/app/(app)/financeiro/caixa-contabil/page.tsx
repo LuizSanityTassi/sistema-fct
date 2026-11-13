@@ -121,6 +121,8 @@ export default async function DrePage({ searchParams }: PageProps<"/financeiro/c
         {aba === "ranking" && dados && <MetricaSelect metrica={metrica ?? ""} />}
         {aba === "ranking" && dados && dados.meses.length > 0 && <MesSelect meses={dados.meses} mes={mes} />}
         {aba === "resumo" && dados && dados.meses.length > 0 && <PeriodoSelect meses={dados.meses} periodo={periodo} ano={escopo.ano} />}
+        {aba === "resumo" && s("ordem") && <input type="hidden" name="ordem" value={s("ordem")} />}
+        {aba === "resumo" && s("dir") && <input type="hidden" name="dir" value={s("dir")} />}
         {aba === "comparativo" && dre && dre.mesesTotal.length > 1 && <MesSelect meses={dre.mesesTotal.slice(1)} mes={mes} />}
         <Button type="submit" variant="outline">
           Aplicar
@@ -131,7 +133,9 @@ export default async function DrePage({ searchParams }: PageProps<"/financeiro/c
       </form>
 
       {aba === "ranking" && dados && <RankingView dados={dados} escopo={escopo} metrica={metrica ?? ""} mes={mes} />}
-      {aba === "resumo" && dados && <ResumoLojasView dados={dados} escopo={escopo} periodo={periodo} />}
+      {aba === "resumo" && dados && (
+        <ResumoLojasView dados={dados} escopo={escopo} periodo={periodo} ordem={s("ordem") || undefined} dir={s("dir") || undefined} link={(p) => link({ periodo: s("periodo") || undefined, ...p })} />
+      )}
       {aba === "comparativo" && dre && <ComparativoView dre={dre} mes={mes} link={link} />}
 
       {aba === "demonstrativo" && dre && (
