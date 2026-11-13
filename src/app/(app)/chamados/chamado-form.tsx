@@ -7,7 +7,7 @@ import { BotaoSalvar } from "@/components/form/botao-salvar";
 import { Campo, ErroFormulario, SelectNativo } from "@/components/form/campo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CATEGORIA_CHAMADO_LABEL, PRIORIDADE_LABEL, type CategoriaChamado } from "@/lib/chamados/rotulos";
+import { CATEGORIA_CHAMADO_LABEL, type CategoriaChamado } from "@/lib/chamados/rotulos";
 import { TIPO_PADRAO_DA_CATEGORIA, TIPOS_CHAMADO, tipoDoValor } from "@/lib/chamados/tipos";
 import { ACCEPT_ARQUIVO } from "@/lib/rh/arquivos";
 import type { EstadoChamado } from "./actions";
@@ -64,15 +64,6 @@ export function ChamadoForm({ action, unidades, unidadePadrao, inicial = {} }: P
               {TIPOS_CHAMADO.map((t) => (
                 <option key={t.valor} value={t.valor}>
                   {t.rotulo}
-                </option>
-              ))}
-            </SelectNativo>
-          </Campo>
-          <Campo id="prioridade" label="Prioridade" erro={erro("prioridade")} dica="Crítica = loja parada ou risco imediato">
-            <SelectNativo id="prioridade" name="prioridade" defaultValue="normal">
-              {Object.entries(PRIORIDADE_LABEL).map(([valor, rotulo]) => (
-                <option key={valor} value={valor}>
-                  {rotulo}
                 </option>
               ))}
             </SelectNativo>

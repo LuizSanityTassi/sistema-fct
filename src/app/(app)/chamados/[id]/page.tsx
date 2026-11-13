@@ -6,13 +6,13 @@ import { AvisoSucesso } from "@/components/form/campo";
 import { ConfirmarAcao } from "@/components/layout/confirmar-acao";
 import { PageHeader } from "@/components/layout/page-header";
 import { exigirAcesso } from "@/lib/auth/session";
-import { ETAPAS_CHAMADO, papelAtende, PRIORIDADE_LABEL, STATUS_CHAMADO_LABEL, STATUS_ENCERRADOS, TRANSICOES, TRANSICOES_SOLICITANTE } from "@/lib/chamados/rotulos";
+import { ETAPAS_CHAMADO, papelAtende, STATUS_CHAMADO_LABEL, STATUS_ENCERRADOS, TRANSICOES, TRANSICOES_SOLICITANTE } from "@/lib/chamados/rotulos";
 import { COR_SLA, duracao, situacaoSla } from "@/lib/chamados/sla";
 import { linhaDoTempo, listarAtendentes, obterChamado } from "@/lib/data/chamados";
 import { formatarDataHora } from "@/lib/formatos";
 import { alterarStatusChamado, assumirChamado, atribuirChamado, comentarChamado } from "../actions";
 import { AlterarStatusChamado, AtribuirChamado, ComentarioForm } from "../acoes-chamado";
-import { BadgePrioridade, BadgeStatusChamado, BadgeTipo } from "../badges-chamado";
+import { BadgeStatusChamado, BadgeTipo } from "../badges-chamado";
 
 export async function generateMetadata({ params }: PageProps<"/chamados/[id]">): Promise<Metadata> {
   const { id } = await params;
@@ -165,7 +165,7 @@ export default async function ChamadoPage({ params, searchParams }: PageProps<"/
             <h2 className="mb-2 text-sm font-semibold">Prazo de atendimento (SLA)</h2>
             <span className={`inline-block rounded-full border px-2.5 py-1 text-sm font-medium ${COR_SLA[sla.estado]}`}>{sla.texto}</span>
             <p className="mt-2 text-xs text-muted-foreground">
-              Prioridade {PRIORIDADE_LABEL[t.prioridade].toLowerCase()}: primeira resposta em até {duracao(sla.prazoMin)} (tempo corrido). Conta quando quem atende assume, muda a situação ou comenta.
+              Primeira resposta em até {duracao(sla.prazoMin)} (tempo corrido). Conta quando quem atende assume, muda a situação ou comenta.
             </p>
             {tempoResolucao && <p className="mt-2 text-xs text-muted-foreground">Resolvido em {tempoResolucao} desde a abertura.</p>}
           </section>
@@ -174,9 +174,6 @@ export default async function ChamadoPage({ params, searchParams }: PageProps<"/
             <dl className="grid gap-4">
               <Dado rotulo="Categoria">
                 <BadgeTipo subcategoria={t.subcategoria} categoria={t.categoria} />
-              </Dado>
-              <Dado rotulo="Prioridade">
-                <BadgePrioridade prioridade={t.prioridade} />
               </Dado>
               <Dado rotulo="Unidade">
                 {t.unidade ? (

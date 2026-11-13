@@ -7,14 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
-import { CATEGORIA_CHAMADO_LABEL, PRIORIDADE_LABEL, STATUS_CHAMADO_LABEL } from "@/lib/chamados/rotulos";
+import { CATEGORIA_CHAMADO_LABEL, STATUS_CHAMADO_LABEL } from "@/lib/chamados/rotulos";
 import { TIPOS_CHAMADO } from "@/lib/chamados/tipos";
 import { COR_SLA, situacaoSla } from "@/lib/chamados/sla";
 import { podeAcessar } from "@/lib/nav";
 import { lerFiltrosChamados, listarChamados, resumoChamados, TAMANHO_PAGINA } from "@/lib/data/chamados";
 import { listarUnidadesParaSelecao } from "@/lib/data/funcionarios";
 import { formatarDataHora } from "@/lib/formatos";
-import { BadgePrioridade, BadgeStatusChamado, BadgeTipo } from "./badges-chamado";
+import { BadgeStatusChamado, BadgeTipo } from "./badges-chamado";
 
 export const metadata = { title: "Chamados" };
 
@@ -118,14 +118,6 @@ export default async function ChamadosPage({ searchParams }: PageProps<"/chamado
             </option>
           ))}
         </SelectNativo>
-        <SelectNativo name="prioridade" defaultValue={filtros.prioridade ?? ""} aria-label="Prioridade" className="lg:w-32">
-          <option value="">Toda prioridade</option>
-          {Object.entries(PRIORIDADE_LABEL).map(([valor, rotulo]) => (
-            <option key={valor} value={valor}>
-              {rotulo}
-            </option>
-          ))}
-        </SelectNativo>
         <SelectNativo name="filial" defaultValue={filtros.filial ?? ""} aria-label="Unidade" className="lg:w-44">
           <option value="">Toda unidade</option>
           {unidades.map((u) => (
@@ -155,7 +147,6 @@ export default async function ChamadosPage({ searchParams }: PageProps<"/chamado
               <TableHead className="hidden md:table-cell">Unidade</TableHead>
               <TableHead className="hidden lg:table-cell">Solicitante</TableHead>
               <TableHead className="hidden lg:table-cell">Responsável</TableHead>
-              <TableHead className="hidden sm:table-cell">Prioridade</TableHead>
               <TableHead>Situação</TableHead>
               <TableHead className="hidden md:table-cell">SLA (1ª resposta)</TableHead>
               <TableHead className="hidden xl:table-cell">Atualizado</TableHead>
@@ -164,7 +155,7 @@ export default async function ChamadosPage({ searchParams }: PageProps<"/chamado
           <TableBody>
             {resultado.itens.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="vazio">
+                <TableCell colSpan={8} className="vazio">
                   Nenhum chamado encontrado.
                 </TableCell>
               </TableRow>
@@ -191,9 +182,6 @@ export default async function ChamadosPage({ searchParams }: PageProps<"/chamado
                   </TableCell>
                   <TableCell className="hidden lg:table-cell">{t.quem_abriu?.nome ?? "—"}</TableCell>
                   <TableCell className="hidden lg:table-cell">{t.quem_atende?.nome ?? <span className="text-muted-foreground">sem responsável</span>}</TableCell>
-                  <TableCell className="hidden sm:table-cell">
-                    <BadgePrioridade prioridade={t.prioridade} />
-                  </TableCell>
                   <TableCell>
                     <BadgeStatusChamado status={t.status} />
                   </TableCell>
