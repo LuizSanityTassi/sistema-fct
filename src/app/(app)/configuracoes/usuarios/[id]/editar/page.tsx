@@ -45,6 +45,7 @@ export default async function EditarUsuarioPage({ params }: PageProps<"/configur
           employee_id: usuario.employee_id,
           regional: usuario.regional,
           adminSistema: usuario.admin_sistema,
+          telas: usuario.telas,
           modulosBloqueados: normalizarBloqueios(usuario.modulos_bloqueados),
         }}
         funcionarios={opcoesFuncionario}

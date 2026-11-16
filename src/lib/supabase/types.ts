@@ -5638,6 +5638,7 @@ export type Database = {
           modulos_bloqueados: string[]
           nome: string
           papel: Database["public"]["Enums"]["app_role"]
+          papeis_leitura: string[]
           regional: string | null
           ultimo_acesso: string | null
           updated_at: string
@@ -5654,6 +5655,7 @@ export type Database = {
           modulos_bloqueados?: string[]
           nome?: string
           papel?: Database["public"]["Enums"]["app_role"]
+          papeis_leitura?: string[]
           regional?: string | null
           ultimo_acesso?: string | null
           updated_at?: string
@@ -5670,6 +5672,7 @@ export type Database = {
           modulos_bloqueados?: string[]
           nome?: string
           papel?: Database["public"]["Enums"]["app_role"]
+          papeis_leitura?: string[]
           regional?: string | null
           ultimo_acesso?: string | null
           updated_at?: string
@@ -6765,6 +6768,7 @@ export type Database = {
         | "coordenador"
         | "manutencao"
         | "compras"
+        | "diretor_compras"
         | "marketing"
         | "relogio"
       aso_type:
@@ -6951,6 +6955,7 @@ export const Constants = {
         "coordenador",
         "manutencao",
         "compras",
+        "diretor_compras",
         "marketing",
         "relogio",
       ],

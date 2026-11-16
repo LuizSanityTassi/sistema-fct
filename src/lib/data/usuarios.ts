@@ -41,14 +41,15 @@ export async function listarUsuarios(f: FiltrosUsuarios) {
 export const obterUsuario = cache(async (id: string) => {
   if (!ehUuid(id)) return null;
   const supabase = await createClient();
-  const [{ data, error }, { data: acessos }, { data: comite }] = await Promise.all([
+  const [{ data, error }, { data: acessos }, { data: comite }, { data: telas }] = await Promise.all([
     supabase.from("profiles").select("*, unidade:branches!profiles_branch_id_fkey(id, codigo, nome)").eq("id", id).maybeSingle(),
     supabase.from("user_branch_access").select("branch_id").eq("user_id", id),
     supabase.from("denuncia_responsaveis").select("user_id").eq("user_id", id).maybeSingle(),
+    supabase.from("acesso_telas").select("rota").eq("user_id", id),
   ]);
   if (error) throw error;
   if (!data) return null;
-  return { ...data, filiaisAdicionais: (acessos ?? []).map((a) => a.branch_id), respondeDenuncias: !!comite };
+  return { ...data, filiaisAdicionais: (acessos ?? []).map((a) => a.branch_id), respondeDenuncias: !!comite, telas: (telas ?? []).map((t) => t.rota) };
 });
 
 export async function contarPorPapel() {

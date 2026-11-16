@@ -731,7 +731,35 @@ function casaRota(item: NavItem, pathname: string) {
 export function podeVerItem(item: NavItem, papel: AppRole) {
   // login do relógio da filial: nenhum item do menu (só a tela /relogio)
   if (papel === "relogio") return false;
+  // diretor de compras: só as telas que o administrador marcou para ele (acesso_telas, que entram como `extras`)
+  if (papel === "diretor_compras") return false;
   return !item.papeis || item.papeis.includes(papel);
+}
+
+/** Papel cujas telas são escolhidas uma a uma pelo administrador (e que só vê os dados, sem alterar). */
+export const PAPEL_TELAS_ESCOLHIDAS: AppRole = "diretor_compras";
+
+/**
+ * Telas que o administrador pode marcar para o diretor de compras, por grupo do menu. Ficam de fora as ocultas e as só
+ * de administrador (usuários, permissões, integrações, robôs): os dados delas são só do administrador.
+ */
+export const TELAS_ESCOLHIVEIS: { titulo: string; itens: { href: string; label: string }[] }[] = NAV.map((g) => ({
+  titulo: g.titulo ?? "Geral",
+  itens: g.itens.filter((i) => !i.oculto && !(i.papeis && i.papeis.every((p) => p === "admin"))).map((i) => ({ href: i.href, label: i.label })),
+})).filter((g) => g.itens.length > 0);
+
+const ROTAS_ESCOLHIVEIS = new Set(TELAS_ESCOLHIVEIS.flatMap((g) => g.itens.map((i) => i.href)));
+/** Só as rotas que existem na lista de telas escolhíveis (o resto do formulário é ignorado). */
+export const filtrarTelasEscolhiveis = (rotas: readonly unknown[]) => [...new Set(rotas.filter((r): r is string => typeof r === "string" && ROTAS_ESCOLHIVEIS.has(r)))].sort();
+
+/**
+ * Papéis cujos dados o diretor de compras pode LER, a partir das telas marcadas: os papéis que abrem cada tela (sem o
+ * administrador) + compras, que é a área dele. No banco (private.tem_papel) vale só em consulta: nada de alterar.
+ */
+export function papeisDeLeitura(rotas: readonly string[]): string[] {
+  const papeis = new Set<string>(["compras"]);
+  for (const i of TODOS_ITENS) if (rotas.includes(i.href)) for (const p of i.papeis ?? []) if (p !== "admin") papeis.add(p);
+  return [...papeis].sort();
 }
 
 /** Grupos do menu que mudaram de nome: o bloqueio guardado com o nome antigo continua valendo. */

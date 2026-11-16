@@ -7,7 +7,7 @@ import { BotaoSalvar } from "@/components/form/botao-salvar";
 import { Campo, ErroFormulario, SelectNativo } from "@/components/form/campo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MODULOS_BLOQUEAVEIS } from "@/lib/nav";
+import { MODULOS_BLOQUEAVEIS, PAPEL_TELAS_ESCOLHIDAS, TELAS_ESCOLHIVEIS } from "@/lib/nav";
 import { PAPEIS, PAPEL_LABEL, type AppRole } from "@/lib/roles";
 import type { EstadoUsuario } from "./actions";
 
@@ -32,6 +32,8 @@ type Props = {
     regional?: string | null;
     adminSistema?: boolean;
     modulosBloqueados?: string[];
+    /** telas liberadas para a pessoa (acesso_telas); no Diretor de Compras é tudo o que ele vê */
+    telas?: string[];
   };
   funcionarios?: OpcaoFuncionario[];
   ehProprioUsuario?: boolean;
@@ -47,6 +49,7 @@ const DESCRICAO_PAPEL: Record<AppRole, string> = {
   gerente: "Funcionários, chamados e quebras de caixa da unidade principal e das outras filiais marcadas abaixo (sem salários).",
   manutencao: "Atende os chamados de Manutenções (todas as lojas) e abre os próprios.",
   compras: "Atende os chamados de compras e estoque (avarias, notas, inventário, vencidos) de todas as lojas.",
+  diretor_compras: "Vê só as telas que você marcar abaixo, de todas as lojas, sem poder alterar nada (só consulta).",
   marketing: "Atende as Solicitações de Marketing de todas as lojas.",
   usuario: "Abre e acompanha os próprios chamados.",
   relogio: "Só o relógio de ponto da filial (matrícula e PIN). Crie em Ponto Eletrônico → Relógio da filial.",
@@ -63,6 +66,15 @@ export function UsuarioForm({ action, unidades, regionais = [], modo, valores, e
   for (const u of unidades) grupos.set(u.grupo, [...(grupos.get(u.grupo) ?? []), u]);
   const porFilial = papel === "gerente" || papel === "usuario";
   const selecionadas = new Set(valores.filiaisAdicionais ?? []);
+  const telasEscolhidas = papel === PAPEL_TELAS_ESCOLHIDAS;
+  const [telas, setTelas] = React.useState<Set<string>>(() => new Set(valores.telas ?? []));
+  const marcarTelas = (rotas: string[], ligar: boolean) =>
+    setTelas((atual) => {
+      const novo = new Set(atual);
+      for (const r of rotas) if (ligar) novo.add(r);
+      else novo.delete(r);
+      return novo;
+    });
 
   return (
     <form action={formAction} noValidate className="space-y-6">
@@ -147,6 +159,49 @@ export function UsuarioForm({ action, unidades, regionais = [], modo, valores, e
           )}
         </div>
       </section>
+
+      {telasEscolhidas && (
+        <section className="rounded-xl border border-primary/40 bg-card p-5">
+          <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-sm font-semibold">Telas que ele vê</h2>
+            <span className="text-xs text-muted-foreground">
+              {telas.size} {telas.size === 1 ? "tela marcada" : "telas marcadas"}
+            </span>
+          </div>
+          <p className="mb-4 text-xs text-muted-foreground">
+            Marque tudo o que o {PAPEL_LABEL[papel]} pode abrir. O menu dele mostra só essas telas, com os dados de todas as lojas, e ele não consegue alterar nada: só consulta. Telas só de
+            administrador (usuários, permissões, integrações e robôs) não entram na lista.
+          </p>
+          {telas.size === 0 && <p className="mb-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">Nenhuma tela marcada: ele entra no sistema e não vê nada no menu.</p>}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {TELAS_ESCOLHIVEIS.map((g) => {
+              const rotas = g.itens.map((i) => i.href);
+              const todas = rotas.every((r) => telas.has(r));
+              return (
+                <fieldset key={g.titulo} className="rounded-lg border p-3">
+                  <legend className="flex w-full items-center justify-between gap-2 px-1">
+                    <span className="rotulo">{g.titulo}</span>
+                  </legend>
+                  <label className="mb-1.5 flex items-center gap-2 text-xs text-muted-foreground">
+                    <input type="checkbox" checked={todas} onChange={(e) => marcarTelas(rotas, e.target.checked)} className="size-3.5 accent-fct-tinta" />
+                    Marcar todas do grupo
+                  </label>
+                  <ul className="space-y-1">
+                    {g.itens.map((i) => (
+                      <li key={i.href}>
+                        <label className="flex items-center gap-2 text-sm">
+                          <input type="checkbox" name="telas" value={i.href} checked={telas.has(i.href)} onChange={(e) => marcarTelas([i.href], e.target.checked)} className="size-4 accent-fct-tinta" />
+                          {i.label}
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                </fieldset>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {modo === "edicao" && funcionarios && (
         <section className="rounded-xl border bg-card p-5">

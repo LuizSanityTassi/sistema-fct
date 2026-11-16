@@ -8,7 +8,7 @@ import { diferencas, registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { ehUuid } from "@/lib/data/filiais";
 import { convitesPendentes } from "@/lib/data/usuarios";
-import { MODULOS_BLOQUEAVEIS } from "@/lib/nav";
+import { filtrarTelasEscolhiveis, MODULOS_BLOQUEAVEIS, PAPEL_TELAS_ESCOLHIDAS, papeisDeLeitura } from "@/lib/nav";
 import { PAPEIS } from "@/lib/roles";
 import { randomBytes } from "node:crypto";
 import { createClient as createClientPublico } from "@supabase/supabase-js";
@@ -53,6 +53,27 @@ async function regionalDoPapel(papel: string, bruto: string | undefined): Promis
   const { count } = await supabase.from("branches").select("id", { count: "exact", head: true }).eq("regional", bruto);
   if (!count) return { erro: "Nenhuma loja nessa regional." };
   return { regional: bruto };
+}
+
+/**
+ * Diretor de Compras: as telas marcadas viram as linhas de acesso_telas da pessoa (só consulta). Tira as desmarcadas e
+ * põe as novas; devolve o que ficou. Em outro papel não mexe (o Fluxo de caixa compartilhado continua como estava).
+ */
+async function gravarTelas(supabase: Awaited<ReturnType<typeof createClient>>, userId: string, telas: string[], concedidoPor: string) {
+  const { data: atuais, error } = await supabase.from("acesso_telas").select("rota").eq("user_id", userId);
+  if (error) return { erro: error.message, antes: [] as string[] };
+  const antes = (atuais ?? []).map((t) => t.rota).sort();
+  const sair = antes.filter((r) => !telas.includes(r));
+  const entrar = telas.filter((r) => !antes.includes(r));
+  if (sair.length) {
+    const { error: e } = await supabase.from("acesso_telas").delete().eq("user_id", userId).in("rota", sair);
+    if (e) return { erro: e.message, antes };
+  }
+  if (entrar.length) {
+    const { error: e } = await supabase.from("acesso_telas").insert(entrar.map((rota) => ({ user_id: userId, rota, pode_editar: false, concedido_por: concedidoPor })));
+    if (e) return { erro: e.message, antes };
+  }
+  return { erro: null, antes };
 }
 
 async function exigirAdmin() {
@@ -112,11 +133,23 @@ export async function convidarUsuario(_prev: EstadoUsuario, fd: FormData): Promi
 
   // O trigger handle_new_user já criou o perfil; aqui definimos papel e unidade.
   const supabase = await createClient();
+  const telasConvite = r.data.papel === PAPEL_TELAS_ESCOLHIDAS ? filtrarTelasEscolhiveis(fd.getAll("telas")) : [];
   const { error: erroPerfil } = await supabase
     .from("profiles")
-    .update({ nome: r.data.nome, papel: r.data.papel, admin_sistema: r.data.papel !== "admin" && fd.get("admin_sistema") === "on", branch_id: r.data.branch_id ?? null, regional: reg.regional })
+    .update({
+      nome: r.data.nome,
+      papel: r.data.papel,
+      admin_sistema: r.data.papel !== "admin" && fd.get("admin_sistema") === "on",
+      branch_id: r.data.branch_id ?? null,
+      regional: reg.regional,
+      papeis_leitura: r.data.papel === PAPEL_TELAS_ESCOLHIDAS ? papeisDeLeitura(telasConvite) : [],
+    })
     .eq("id", userId);
   if (erroPerfil) return { erro: `Conta criada, mas o perfil não pôde ser ajustado: ${erroPerfil.message}` };
+  if (telasConvite.length) {
+    const t = await gravarTelas(supabase, userId, telasConvite, sessao.id);
+    if (t.erro) return { erro: `Conta criada, mas as telas não foram gravadas: ${t.erro}` };
+  }
   if (filiaisConvite.length && r.data.papel !== "coordenador") {
     const { error: erroAcesso } = await supabase.from("user_branch_access").insert(filiaisConvite.map((branch_id) => ({ user_id: userId, branch_id })));
     if (erroAcesso) return { erro: `Conta criada, mas as outras filiais não foram gravadas: ${erroAcesso.message}` };
@@ -127,7 +160,7 @@ export async function convidarUsuario(_prev: EstadoUsuario, fd: FormData): Promi
     acao: "convidar",
     entidade: "profiles",
     registroId: userId,
-    novo: { email: r.data.email, nome: r.data.nome, papel: r.data.papel, branch_id: r.data.branch_id ?? null, regional: reg.regional, filiais_adicionais: filiaisConvite, modo },
+    novo: { email: r.data.email, nome: r.data.nome, papel: r.data.papel, branch_id: r.data.branch_id ?? null, regional: reg.regional, filiais_adicionais: filiaisConvite, telas: telasConvite, modo },
   });
   revalidatePath("/configuracoes/usuarios");
   redirect(`/configuracoes/usuarios?convidado=1&modo=${modo}`);
@@ -162,7 +195,7 @@ export async function salvarUsuario(id: string, _prev: EstadoUsuario, fd: FormDa
 
   const supabase = await createClient();
   const [{ data: atual }, { data: acessosAtuais }] = await Promise.all([
-    supabase.from("profiles").select("id, nome, papel, admin_sistema, branch_id, ativo, employee_id, regional, modulos_bloqueados").eq("id", id).maybeSingle(),
+    supabase.from("profiles").select("id, nome, papel, admin_sistema, branch_id, ativo, employee_id, regional, modulos_bloqueados, papeis_leitura").eq("id", id).maybeSingle(),
     supabase.from("user_branch_access").select("branch_id").eq("user_id", id),
   ]);
   if (!atual) return { erro: "Usuário não encontrado." };
@@ -175,9 +208,21 @@ export async function salvarUsuario(id: string, _prev: EstadoUsuario, fd: FormDa
   }
   // módulos tirados da pessoa (o próprio usuário não mexe nos dele: o campo nem aparece)
   const modulos_bloqueados = id === sessao.id ? atual.modulos_bloqueados : [...new Set(fd.getAll("modulos_bloqueados").filter((v): v is string => typeof v === "string" && MODULOS_BLOQUEAVEIS.includes(v)))];
-  const patch = { nome: r.data.nome, papel: r.data.papel, admin_sistema, branch_id: r.data.branch_id ?? null, ativo, employee_id, regional: reg.regional, modulos_bloqueados };
+  // Diretor de Compras: o que ele vê são as telas marcadas; os dados que pode LER saem delas (papeis_leitura)
+  const ehDiretor = r.data.papel === PAPEL_TELAS_ESCOLHIDAS;
+  const telas = ehDiretor ? filtrarTelasEscolhiveis(fd.getAll("telas")) : [];
+  const papeis_leitura = ehDiretor ? papeisDeLeitura(telas) : [];
+  const patch = { nome: r.data.nome, papel: r.data.papel, admin_sistema, branch_id: r.data.branch_id ?? null, ativo, employee_id, regional: reg.regional, modulos_bloqueados, papeis_leitura };
   const { error } = await supabase.from("profiles").update(patch).eq("id", id);
   if (error) return { erro: `Não foi possível salvar: ${error.message}` };
+
+  // telas: no diretor, grava as marcadas; deixando de ser diretor, as telas dele saem junto
+  let telasAntes: string[] = [];
+  if (ehDiretor || atual.papel === PAPEL_TELAS_ESCOLHIDAS) {
+    const t = await gravarTelas(supabase, id, telas, sessao.id);
+    if (t.erro) return { erro: `Perfil salvo, mas as telas falharam: ${t.erro}` };
+    telasAntes = t.antes;
+  }
 
   const antes = (acessosAtuais ?? []).map((a) => a.branch_id).sort();
   // coordenador enxerga pela regional: lojas avulsas não se aplicam
@@ -201,7 +246,7 @@ export async function salvarUsuario(id: string, _prev: EstadoUsuario, fd: FormDa
     await registrarAuditoria(supabase, { userId: sessao.id, acao: querComite ? "criar" : "excluir", entidade: "denuncia_responsaveis", registroId: id, novo: { comite: querComite } });
   }
 
-  const dif = diferencas({ ...atual, filiais_adicionais: antes }, { ...patch, filiais_adicionais: depois });
+  const dif = diferencas({ ...atual, filiais_adicionais: antes, telas: telasAntes }, { ...patch, filiais_adicionais: depois, telas: ehDiretor || telasAntes.length ? telas : telasAntes });
   await registrarAuditoria(supabase, {
     userId: sessao.id,
     acao: !atual.ativo && ativo ? "reativar" : atual.ativo && !ativo ? "inativar" : "editar",
