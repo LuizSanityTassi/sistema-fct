@@ -118,6 +118,240 @@ export type Database = {
           },
         ]
       }
+      aud_checklists: {
+        Row: {
+          aberto_em: string
+          anotacoes: string | null
+          auditor_id: string | null
+          auditor_nome: string | null
+          branch_id: string
+          cancelado_em: string | null
+          cancelado_por: string | null
+          criado_em: string
+          finalizado_em: string
+          gerente_nome: string | null
+          id: string
+          motivo_cancelamento: string | null
+          numero: number
+          observacao: string | null
+          respostas: Json
+          situacao: string
+        }
+        Insert: {
+          aberto_em: string
+          anotacoes?: string | null
+          auditor_id?: string | null
+          auditor_nome?: string | null
+          branch_id: string
+          cancelado_em?: string | null
+          cancelado_por?: string | null
+          criado_em?: string
+          finalizado_em?: string
+          gerente_nome?: string | null
+          id?: string
+          motivo_cancelamento?: string | null
+          numero?: never
+          observacao?: string | null
+          respostas: Json
+          situacao?: string
+        }
+        Update: {
+          aberto_em?: string
+          anotacoes?: string | null
+          auditor_id?: string | null
+          auditor_nome?: string | null
+          branch_id?: string
+          cancelado_em?: string | null
+          cancelado_por?: string | null
+          criado_em?: string
+          finalizado_em?: string
+          gerente_nome?: string | null
+          id?: string
+          motivo_cancelamento?: string | null
+          numero?: never
+          observacao?: string | null
+          respostas?: Json
+          situacao?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aud_checklists_auditor_id_fkey"
+            columns: ["auditor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aud_checklists_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aud_checklists_cancelado_por_fkey"
+            columns: ["cancelado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      aud_precificacao_itens: {
+        Row: {
+          codigo: string
+          criado_em: string
+          da_base: boolean
+          diferenca: number | null
+          id: string
+          precificacao_id: string
+          produto: string
+          sistema_confirmado: boolean
+          valor_etiqueta: number
+          valor_sistema: number
+        }
+        Insert: {
+          codigo: string
+          criado_em?: string
+          da_base?: boolean
+          diferenca?: number | null
+          id?: string
+          precificacao_id: string
+          produto: string
+          sistema_confirmado?: boolean
+          valor_etiqueta: number
+          valor_sistema: number
+        }
+        Update: {
+          codigo?: string
+          criado_em?: string
+          da_base?: boolean
+          diferenca?: number | null
+          id?: string
+          precificacao_id?: string
+          produto?: string
+          sistema_confirmado?: boolean
+          valor_etiqueta?: number
+          valor_sistema?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aud_precificacao_itens_precificacao_id_fkey"
+            columns: ["precificacao_id"]
+            isOneToOne: false
+            referencedRelation: "aud_precificacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      aud_precificacoes: {
+        Row: {
+          aberto_em: string
+          auditor_id: string | null
+          auditor_nome: string | null
+          branch_id: string
+          cancelado_em: string | null
+          cancelado_por: string | null
+          finalizado_em: string | null
+          id: string
+          motivo_cancelamento: string | null
+          numero: number
+          observacao: string | null
+          qtd_divergente: number | null
+          qtd_verificada: number | null
+          situacao: string
+        }
+        Insert: {
+          aberto_em?: string
+          auditor_id?: string | null
+          auditor_nome?: string | null
+          branch_id: string
+          cancelado_em?: string | null
+          cancelado_por?: string | null
+          finalizado_em?: string | null
+          id?: string
+          motivo_cancelamento?: string | null
+          numero?: never
+          observacao?: string | null
+          qtd_divergente?: number | null
+          qtd_verificada?: number | null
+          situacao?: string
+        }
+        Update: {
+          aberto_em?: string
+          auditor_id?: string | null
+          auditor_nome?: string | null
+          branch_id?: string
+          cancelado_em?: string | null
+          cancelado_por?: string | null
+          finalizado_em?: string | null
+          id?: string
+          motivo_cancelamento?: string | null
+          numero?: never
+          observacao?: string | null
+          qtd_divergente?: number | null
+          qtd_verificada?: number | null
+          situacao?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aud_precificacoes_auditor_id_fkey"
+            columns: ["auditor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aud_precificacoes_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aud_precificacoes_cancelado_por_fkey"
+            columns: ["cancelado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      aud_precos: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          codigo: string
+          descricao: string
+          ean: string | null
+          preco: number
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          codigo: string
+          descricao: string
+          ean?: string | null
+          preco: number
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          codigo?: string
+          descricao?: string
+          ean?: string | null
+          preco?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aud_precos_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           acao: string
@@ -6116,6 +6350,18 @@ export type Database = {
       }
     }
     Functions: {
+      aud_lojas: {
+        Args: never
+        Returns: {
+          cnpj: string
+          codigo: string
+          gerente: string
+          id: string
+          nome: string
+          razao_social: string
+          regional: string
+        }[]
+      }
       ia_gastos: {
         Args: never
         Returns: {
