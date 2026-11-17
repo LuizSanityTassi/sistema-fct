@@ -6,7 +6,7 @@ import { Status } from "@/components/layout/status";
 import { exigirAcesso } from "@/lib/auth/session";
 import { escalasOficiais, filiaisDaEscala, lotesRecentes } from "@/lib/data/escalas";
 import { diasAbertos } from "@/lib/escalas/motor";
-import { mesCurto, nomeMes, proximoMes } from "@/lib/escalas/resumo";
+import { horarioPendente, mesCurto, nomeMes, proximoMes, textoFuncionamento } from "@/lib/escalas/resumo";
 import { formatarDataHora } from "@/lib/formatos";
 import { AbasEscala } from "../abas";
 import { SimularForm } from "./simular-form";
@@ -37,7 +37,21 @@ export default async function SimuladorPage({ searchParams }: PageProps<"/escala
 
       <Painel titulo="Gerar opções" icone={Sparkles} className="mb-4">
         <SimularForm
-          filiais={filiais.map((f) => ({ id: f.id, codigo: f.codigo, nome: f.nome, folgas: f.config.folgasPermitidas, diasAbertos: diasAbertos(f.config).length }))}
+          filiais={filiais.map((f) => {
+            const ativos = f.equipe.filter((p) => p.situacao === "ativo");
+            return {
+              id: f.id,
+              codigo: f.codigo,
+              nome: f.nome,
+              folgas: f.config.folgasPermitidas,
+              diasAbertos: diasAbertos(f.config).length,
+              funcionamento: textoFuncionamento(f.config),
+              horarioPendente: horarioPendente(f.linha),
+              ativos: ativos.length,
+              farmaceuticos: ativos.filter((p) => p.funcao === "farmaceutico").length,
+              minFarmaceuticos: f.config.minimos.farmaceutico ?? 0,
+            };
+          })}
           filialInicial={filialInicial}
           meses={meses}
           mesInicial={`${ref.ano}-${String(ref.mes).padStart(2, "0")}`}

@@ -2,14 +2,26 @@
 
 import * as React from "react";
 import { useActionState } from "react";
-import { Sparkles } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Sparkles, Users } from "lucide-react";
 import { ErroFormulario, SelectNativo } from "@/components/form/campo";
 import { Button } from "@/components/ui/button";
 import { DIAS, ROTULO_DIA, limiteSemanal } from "@/lib/escalas/motor";
 import { DIAS_SEMANA_ORDEM } from "@/lib/escalas/resumo";
 import { gerarSimulacao } from "../actions";
 
-type FilialOpcao = { id: string; codigo: string; nome: string; folgas: number[]; diasAbertos: number };
+type FilialOpcao = {
+  id: string;
+  codigo: string;
+  nome: string;
+  folgas: number[];
+  diasAbertos: number;
+  funcionamento: string;
+  horarioPendente: boolean;
+  ativos: number;
+  farmaceuticos: number;
+  minFarmaceuticos: number;
+};
 
 /** Gerar as opções do mês: filial (ou todas), mês, jornada, quantas opções e os dias permitidos para folga. */
 export function SimularForm({ filiais, filialInicial, meses, mesInicial }: { filiais: FilialOpcao[]; filialInicial: string; meses: { valor: string; rotulo: string }[]; mesInicial: string }) {
@@ -74,6 +86,22 @@ export function SimularForm({ filiais, filialInicial, meses, mesInicial }: { fil
           </SelectNativo>
         </label>
       </div>
+      {atual && (
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+          <span>
+            <span className="font-medium">Funcionamento:</span>{" "}
+            {atual.horarioPendente ? <span className="font-medium text-amber-700">horário de seg–sex pendente</span> : atual.funcionamento}
+          </span>
+          <span>
+            <span className="font-medium">Equipe:</span> {atual.ativos} ativos · {atual.farmaceuticos} farmacêutico(s) · mínimo {atual.minFarmaceuticos} por hora
+          </span>
+          <Link href={`/escalas/filial/${atual.id}`} className="inline-flex items-center gap-1 font-medium text-primary hover:underline">
+            <Users className="size-3.5" aria-hidden />
+            Equipe e horário
+            <ArrowRight className="size-3.5" aria-hidden />
+          </Link>
+        </div>
+      )}
       {todas ? (
         <p className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
           Com todas as filiais, cada uma usa os dias de folga cadastrados nela. Pode levar alguns segundos.
