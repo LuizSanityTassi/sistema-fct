@@ -178,7 +178,7 @@ export default async function FilialPage({ params, searchParams }: PageProps<"/f
                     {responsavel && <span className="block text-xs text-muted-foreground">{filial.responsavel ? (filial.responsavel.cargo ?? "Funcionário cadastrado") : "Não vinculado a um funcionário da folha"}</span>}
                   </dd>
                 </div>
-                {d.leGestao && <Dado rotulo="Gerentes com acesso" valor={d.gerentes.length ? d.gerentes.join(", ") : "nenhum usuário gerente nesta loja"} />}
+                {d.leGestao && <Dado rotulo="Gerentes e líderes com acesso" valor={d.gerentes.length ? d.gerentes.join(", ") : "nenhum usuário gerente ou líder nesta loja"} />}
                 {d.ve.caixaTudo && (
                   <div>
                     <dt className="sobrescrito">Gestor das quebras de caixa</dt>

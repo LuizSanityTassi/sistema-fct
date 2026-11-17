@@ -1,5 +1,5 @@
 // Papéis do sistema — espelham o enum `app_role` do Postgres (supabase/migrations/0001_core_schema.sql).
-export const PAPEIS = ["admin", "rh", "ti", "financeiro", "contador", "coordenador", "gerente", "manutencao", "compras", "diretor_compras", "marketing", "usuario", "relogio"] as const;
+export const PAPEIS = ["admin", "rh", "ti", "financeiro", "contador", "coordenador", "gerente", "lider_loja", "manutencao", "compras", "diretor_compras", "marketing", "usuario", "relogio"] as const;
 export type AppRole = (typeof PAPEIS)[number];
 
 export const PAPEL_LABEL: Record<AppRole, string> = {
@@ -10,6 +10,7 @@ export const PAPEL_LABEL: Record<AppRole, string> = {
   contador: "Contador",
   coordenador: "Coordenador de vendas",
   gerente: "Gerente",
+  lider_loja: "Líder de loja",
   manutencao: "Manutenção",
   compras: "Compras",
   diretor_compras: "Diretor de Compras",
@@ -25,4 +26,17 @@ export function rotuloCargo(cargo: AppRole, adminSistema = false) {
 
 export function ehPapel(valor: unknown): valor is AppRole {
   return typeof valor === "string" && (PAPEIS as readonly string[]).includes(valor);
+}
+
+/**
+ * Papel que vale para as permissões. Líder de loja tem as mesmas permissões do gerente (no banco, `tem_papel('gerente')`
+ * também responde sim para ele — migração 0148); o cargo dele continua "Líder de loja", um nível abaixo do gerente.
+ */
+export function papelEfetivo(papel: AppRole): AppRole {
+  return papel === "lider_loja" ? "gerente" : papel;
+}
+
+/** Gerente ou líder de loja (quem cuida da loja no dia a dia). */
+export function cuidaDaLoja(papel: string | null | undefined) {
+  return papel === "gerente" || papel === "lider_loja";
 }

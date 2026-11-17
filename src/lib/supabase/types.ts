@@ -7257,6 +7257,7 @@ export type Database = {
         | "ti"
         | "financeiro"
         | "gerente"
+        | "lider_loja"
         | "usuario"
         | "contador"
         | "coordenador"
@@ -7444,6 +7445,7 @@ export const Constants = {
         "ti",
         "financeiro",
         "gerente",
+        "lider_loja",
         "usuario",
         "contador",
         "coordenador",

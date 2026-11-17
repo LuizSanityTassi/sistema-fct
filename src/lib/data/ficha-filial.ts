@@ -125,7 +125,11 @@ export async function carregarFicha360Filial(branchId: string, papel: AppRole) {
   // gestão: gestor das quebras e gerentes da loja
   const listaUsuarios = (usuarios.data ?? []) as { id: string; nome: string; papel: string; branch_id: string | null }[];
   const gestorId = (gestor.data as { profile_id: string } | null)?.profile_id ?? null;
-  const gerentes = listaUsuarios.filter((u) => u.papel === "gerente" && u.branch_id === branchId).map((u) => u.nome);
+  // gerentes primeiro, depois os líderes de loja (um nível abaixo)
+  const gerentes = [
+    ...listaUsuarios.filter((u) => u.papel === "gerente" && u.branch_id === branchId).map((u) => u.nome),
+    ...listaUsuarios.filter((u) => u.papel === "lider_loja" && u.branch_id === branchId).map((u) => `${u.nome} (líder de loja)`),
+  ];
 
   const listaChamados = chamados.data ?? [];
   return {

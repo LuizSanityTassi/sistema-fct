@@ -1,6 +1,6 @@
 // Aviso diário por e-mail das quebras de caixa em aberto (SÓ SERVIDOR). Dois públicos, uma mensagem por e-mail:
 //   - quem justifica (mesma regra de private.pode_justificar_quebra): o gestor definido na quebra ou, sem gestor, os
-//     gerentes ativos da loja (loja principal ou "outras filiais que ele gerencia");
+//     gerentes e líderes de loja ativos da loja (loja principal ou "outras filiais que ele cuida");
 //   - o colaborador da quebra (caixa_diferencas.employee_id), para explicar ao gestor: e-mail do usuário dele no
 //     sistema (profiles.employee_id), só depois de o admin mandar o convite de acesso (ou de ele já ter entrado).
 // Usa o cliente service_role porque roda também sem usuário logado (rotina da manhã); quem chama pela tela
@@ -9,6 +9,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { INICIO_OPERACAO } from "@/lib/operacao";
 import { assuntoAviso, htmlAviso, textoAviso, type Destinatario, type QuebraAviso } from "@/lib/caixa/avisos-email";
 import { configSmtp, remetente, SITE, transporteSmtp } from "@/lib/email";
+import { cuidaDaLoja } from "@/lib/roles";
 import type { Database } from "@/lib/supabase/types";
 
 type Admin = SupabaseClient<Database>;
@@ -112,8 +113,8 @@ export async function montarAvisos(admin: Admin): Promise<PreviaAvisos> {
     s.add(perfil);
     gerentesDaLoja.set(loja, s);
   };
-  for (const p of ativos.values()) if (p.papel === "gerente") ligar(p.branch_id, p.id);
-  for (const a of acessos ?? []) if (ativos.get(a.user_id)?.papel === "gerente") ligar(a.branch_id, a.user_id);
+  for (const p of ativos.values()) if (cuidaDaLoja(p.papel)) ligar(p.branch_id, p.id);
+  for (const a of acessos ?? []) if (cuidaDaLoja(ativos.get(a.user_id)?.papel)) ligar(a.branch_id, a.user_id);
 
   // uma mensagem por e-mail (a mesma pessoa pode ser gestor de umas quebras e colaborador de outras)
   const porEmail = new Map<string, Destinatario>();

@@ -56,7 +56,7 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import type { AppRole } from "@/lib/roles";
+import { papelEfetivo, type AppRole } from "@/lib/roles";
 
 export type NavItem = {
   label: string;
@@ -771,7 +771,8 @@ export function podeVerItem(item: NavItem, papel: AppRole) {
   if (papel === "relogio") return false;
   // diretor de compras: só as telas que o administrador marcou para ele (acesso_telas, que entram como `extras`)
   if (papel === "diretor_compras") return false;
-  return !item.papeis || item.papeis.includes(papel);
+  // líder de loja vê as mesmas telas do gerente
+  return !item.papeis || item.papeis.includes(papelEfetivo(papel));
 }
 
 /** Papel cujas telas são escolhidas uma a uma pelo administrador (e que só vê os dados, sem alterar). */

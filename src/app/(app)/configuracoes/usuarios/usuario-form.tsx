@@ -8,7 +8,7 @@ import { Campo, ErroFormulario, SelectNativo } from "@/components/form/campo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MODULOS_BLOQUEAVEIS, PAPEL_TELAS_ESCOLHIDAS, TELAS_ESCOLHIVEIS } from "@/lib/nav";
-import { PAPEIS, PAPEL_LABEL, type AppRole } from "@/lib/roles";
+import { cuidaDaLoja, PAPEIS, PAPEL_LABEL, type AppRole } from "@/lib/roles";
 import type { EstadoUsuario } from "./actions";
 
 export type OpcaoUnidade = { id: string; codigo: string; nome: string; ativo: boolean; grupo: string };
@@ -47,6 +47,7 @@ const DESCRICAO_PAPEL: Record<AppRole, string> = {
   contador: "Financeiro de todas as unidades (lança, importa e classifica; não exclui nem fecha mês).",
   coordenador: "Indicadores do financeiro, chamados e quebras de caixa de TODAS as lojas da regional dele (quebras só para ver; não vê funcionários nem salários).",
   gerente: "Funcionários, chamados e quebras de caixa da unidade principal e das outras filiais marcadas abaixo (sem salários).",
+  lider_loja: "Um nível abaixo do gerente, com as mesmas permissões: funcionários, chamados e quebras de caixa da unidade principal e das outras filiais marcadas abaixo (sem salários).",
   manutencao: "Atende os chamados de Manutenções (todas as lojas) e abre os próprios.",
   compras: "Atende os chamados de compras e estoque (avarias, notas, inventário, vencidos) de todas as lojas.",
   diretor_compras: "Vê só as telas que você marcar abaixo, de todas as lojas, sem poder alterar nada (só consulta).",
@@ -64,7 +65,7 @@ export function UsuarioForm({ action, unidades, regionais = [], modo, valores, e
   const travarAdminSistema = !!ehProprioUsuario && papel !== "admin";
   const grupos = new Map<string, OpcaoUnidade[]>();
   for (const u of unidades) grupos.set(u.grupo, [...(grupos.get(u.grupo) ?? []), u]);
-  const porFilial = papel === "gerente" || papel === "usuario";
+  const porFilial = cuidaDaLoja(papel) || papel === "usuario";
   const selecionadas = new Set(valores.filiaisAdicionais ?? []);
   const telasEscolhidas = papel === PAPEL_TELAS_ESCOLHIDAS;
   const [telas, setTelas] = React.useState<Set<string>>(() => new Set(valores.telas ?? []));
@@ -249,10 +250,10 @@ export function UsuarioForm({ action, unidades, regionais = [], modo, valores, e
 
       {papel !== "coordenador" && (
         <section className="rounded-xl border bg-card p-5">
-          <h2 className="mb-1 text-sm font-semibold">{papel === "gerente" ? "Outras filiais que ele gerencia" : "Unidades adicionais"}</h2>
+          <h2 className="mb-1 text-sm font-semibold">{cuidaDaLoja(papel) ? "Outras filiais que ele cuida" : "Unidades adicionais"}</h2>
           <p className="mb-4 text-xs text-muted-foreground">
-            {papel === "gerente"
-              ? "Gerente de mais de uma loja: marque as outras filiais além da principal. Ele vê funcionários, chamados e quebras de caixa delas e justifica as quebras quando a loja não tiver outro gestor."
+            {cuidaDaLoja(papel)
+              ? `${papel === "gerente" ? "Gerente" : "Líder"} de mais de uma loja: marque as outras filiais além da principal. Ele vê funcionários, chamados e quebras de caixa delas e justifica as quebras quando a loja não tiver outro gestor.`
               : porFilial
                 ? "O usuário enxerga a unidade principal e as marcadas aqui."
                 : "Papéis corporativos já enxergam todas as unidades; esta lista não tem efeito para eles."}

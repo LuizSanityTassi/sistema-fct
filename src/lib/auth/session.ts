@@ -2,13 +2,13 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { normalizarBloqueios, podeAcessar, ROTA_FOLHA_EQUIPE, ROTA_MINHAS_VENDAS } from "@/lib/nav";
-import { ehPapel, type AppRole } from "@/lib/roles";
+import { ehPapel, papelEfetivo, type AppRole } from "@/lib/roles";
 
 export type Sessao = {
   id: string;
   email: string;
   nome: string;
-  /** Papel que vale para as PERMISSÕES: "admin" para quem tem a marcação "Administrador do sistema". */
+  /** Papel que vale para as PERMISSÕES: "admin" para quem tem a marcação "Administrador do sistema"; "gerente" para o líder de loja. */
   papel: AppRole;
   /** Cargo cadastrado (o que aparece na tela), ex.: TI. */
   cargo: AppRole;
@@ -54,7 +54,7 @@ export const getSessao = cache(async (): Promise<Sessao> => {
   // vendedor com o código do Trier ligado a ele: vê "Minhas vendas" (só a venda dele, pela função vendas_minhas)
   let vendedor = false;
   if (profile && cargo !== "relogio") {
-    const veFolha = !!profile.employee_id && !adminSistema && cargo !== "admin" && cargo !== "gerente";
+    const veFolha = !!profile.employee_id && !adminSistema && cargo !== "admin" && papelEfetivo(cargo) !== "gerente";
     // o código pode estar ligado à ficha de funcionário ou direto ao login (usuário sem ficha no RH)
     const dono = profile.employee_id ? `employee_id.eq.${profile.employee_id},profile_id.eq.${user.id}` : `profile_id.eq.${user.id}`;
     const [folha, vend] = await Promise.all([
@@ -68,7 +68,7 @@ export const getSessao = cache(async (): Promise<Sessao> => {
     id: user.id,
     email: user.email ?? "",
     nome: profile?.nome?.trim() || user.email?.split("@")[0] || "Usuário",
-    papel: adminSistema ? "admin" : cargo,
+    papel: adminSistema ? "admin" : papelEfetivo(cargo),
     cargo,
     adminSistema,
     branchId: profile?.branch_id ?? null,
