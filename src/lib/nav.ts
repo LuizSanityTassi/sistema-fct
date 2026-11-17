@@ -4,6 +4,7 @@ import {
   BadgeDollarSign,
   CalendarClock,
   CalendarDays,
+  CalendarRange,
   CalendarX2,
   Clock,
   FileClock,
@@ -242,6 +243,13 @@ export const NAV: NavGrupo[] = [
         icon: CalendarDays,
         papeis: ["admin", "rh", "gerente", "coordenador"],
         descricao: "Calendário do mês por funcionário: trocas de horário, folgas e plantões.",
+      },
+      {
+        label: "Simulador de escala 5x2",
+        href: "/escalas",
+        icon: CalendarRange,
+        papeis: ["admin", "rh", "coordenador", "gerente"],
+        descricao: "Folgas 5x2 por filial com cobertura de farmacêutico hora a hora, auditoria de jornada e descanso, ajustes dia a dia, escala oficial do mês e PDF/Excel.",
       },
       {
         label: "Modelos de jornada",

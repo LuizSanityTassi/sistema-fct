@@ -3707,6 +3707,254 @@ export type Database = {
           },
         ]
       }
+      esc_filiais: {
+        Row: {
+          acordo_jornada_estendida: boolean
+          atualizado_em: string
+          atualizado_por: string | null
+          branch_id: string
+          domingo_abre: string | null
+          domingo_fecha: string | null
+          folgas_permitidas: number[]
+          min_farmaceuticos: number
+          origem: string | null
+          sabado_abre: string | null
+          sabado_fecha: string | null
+          semana_abre: string | null
+          semana_fecha: string | null
+        }
+        Insert: {
+          acordo_jornada_estendida?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          branch_id: string
+          domingo_abre?: string | null
+          domingo_fecha?: string | null
+          folgas_permitidas?: number[]
+          min_farmaceuticos?: number
+          origem?: string | null
+          sabado_abre?: string | null
+          sabado_fecha?: string | null
+          semana_abre?: string | null
+          semana_fecha?: string | null
+        }
+        Update: {
+          acordo_jornada_estendida?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          branch_id?: string
+          domingo_abre?: string | null
+          domingo_fecha?: string | null
+          folgas_permitidas?: number[]
+          min_farmaceuticos?: number
+          origem?: string | null
+          sabado_abre?: string | null
+          sabado_fecha?: string | null
+          semana_abre?: string | null
+          semana_fecha?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "esc_filiais_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "esc_filiais_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: true
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      esc_colaboradores: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          branch_id: string
+          cargo_origem: string | null
+          criado_em: string
+          employee_id: string | null
+          funcao: string
+          horario_origem: Json | null
+          horas_dia: number | null
+          id: string
+          intervalo_min: number
+          nome: string
+          observacoes: string | null
+          ordem: number
+          origem: string
+          registro: string | null
+          revisar: boolean
+          situacao: string
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          branch_id: string
+          cargo_origem?: string | null
+          criado_em?: string
+          employee_id?: string | null
+          funcao: string
+          horario_origem?: Json | null
+          horas_dia?: number | null
+          id?: string
+          intervalo_min?: number
+          nome: string
+          observacoes?: string | null
+          ordem?: number
+          origem?: string
+          registro?: string | null
+          revisar?: boolean
+          situacao?: string
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          branch_id?: string
+          cargo_origem?: string | null
+          criado_em?: string
+          employee_id?: string | null
+          funcao?: string
+          horario_origem?: Json | null
+          horas_dia?: number | null
+          id?: string
+          intervalo_min?: number
+          nome?: string
+          observacoes?: string | null
+          ordem?: number
+          origem?: string
+          registro?: string | null
+          revisar?: boolean
+          situacao?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "esc_colaboradores_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "esc_colaboradores_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "esc_colaboradores_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      esc_simulacoes: {
+        Row: {
+          alertas: Json
+          alertas_base: Json | null
+          analisado_em: string | null
+          analise: Json | null
+          analise_pendente: boolean
+          ano: number
+          atualizado_em: string
+          branch_id: string
+          cobertura: Json
+          config: Json
+          criado_em: string
+          criado_por: string | null
+          equipe: Json
+          folgas_permitidas: number[]
+          id: string
+          jornada_semanal: number
+          lote: string
+          mes: number
+          opcao: number
+          publicado_em: string | null
+          publicado_por: string | null
+          qtd_alertas: number | null
+          situacao: string
+        }
+        Insert: {
+          alertas?: Json
+          alertas_base?: Json | null
+          analisado_em?: string | null
+          analise?: Json | null
+          analise_pendente?: boolean
+          ano: number
+          atualizado_em?: string
+          branch_id: string
+          cobertura: Json
+          config: Json
+          criado_em?: string
+          criado_por?: string | null
+          equipe: Json
+          folgas_permitidas: number[]
+          id?: string
+          jornada_semanal: number
+          lote: string
+          mes: number
+          opcao: number
+          publicado_em?: string | null
+          publicado_por?: string | null
+          qtd_alertas?: never
+          situacao?: string
+        }
+        Update: {
+          alertas?: Json
+          alertas_base?: Json | null
+          analisado_em?: string | null
+          analise?: Json | null
+          analise_pendente?: boolean
+          ano?: number
+          atualizado_em?: string
+          branch_id?: string
+          cobertura?: Json
+          config?: Json
+          criado_em?: string
+          criado_por?: string | null
+          equipe?: Json
+          folgas_permitidas?: number[]
+          id?: string
+          jornada_semanal?: number
+          lote?: string
+          mes?: number
+          opcao?: number
+          publicado_em?: string | null
+          publicado_por?: string | null
+          qtd_alertas?: never
+          situacao?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "esc_simulacoes_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "esc_simulacoes_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "esc_simulacoes_publicado_por_fkey"
+            columns: ["publicado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           branch_id: string
