@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DIAS, ROTULO_DIA } from "@/lib/escalas/motor";
 import { DIAS_SEMANA_ORDEM } from "@/lib/escalas/resumo";
-import { salvarFilialEscala } from "../../actions";
+import { salvarFilialEscala } from "../actions";
 
 type Valores = {
   semana_abre: string;
@@ -35,7 +35,18 @@ function Faixa({ nome, rotulo, abre, fecha, dica, erro, podeEditar }: { nome: st
 }
 
 /** Horário de funcionamento, mínimo de farmacêuticos, acordo de jornada e dias permitidos para folga. */
-export function ConfigFilialForm({ branchId, valores, podeEditar }: { branchId: string; valores: Valores; podeEditar: boolean }) {
+export function ConfigFilialForm({
+  branchId,
+  valores,
+  podeEditar,
+  folgasNoSimulador = false,
+}: {
+  branchId: string;
+  valores: Valores;
+  podeEditar: boolean;
+  /** No simulador os dias de folga são marcados no "Gerar opções": aqui só vão os salvos, escondidos. */
+  folgasNoSimulador?: boolean;
+}) {
   const [estado, enviar, pendente] = useActionState(salvarFilialEscala, {});
   const e = estado.erros ?? {};
   return (
@@ -54,6 +65,16 @@ export function ConfigFilialForm({ branchId, valores, podeEditar }: { branchId: 
           <Input type="number" name="min_farmaceuticos" min={0} max={9} defaultValue={valores.min_farmaceuticos} className="w-24" disabled={!podeEditar} aria-invalid={!!e.min_farmaceuticos || undefined} />
           {e.min_farmaceuticos && <span className="text-xs font-medium text-destructive">{e.min_farmaceuticos}</span>}
         </label>
+        {folgasNoSimulador ? (
+          <div className="grid content-start gap-1 text-sm">
+            {valores.folgas.map((d) => (
+              <input key={d} type="hidden" name="folgas" value={d} />
+            ))}
+            <span className="font-medium">Dias permitidos para folga</span>
+            <span className="text-xs text-muted-foreground">Marcados no “Gerar opções”, acima. Ficam salvos como padrão da filial quando você gera.</span>
+            {e.folgas && <span className="text-xs font-medium text-destructive">{e.folgas}</span>}
+          </div>
+        ) : (
         <fieldset className="grid gap-1">
           <legend className="mb-1 text-sm font-medium">Dias permitidos para folga</legend>
           <div className="flex flex-wrap gap-1.5">
@@ -70,6 +91,7 @@ export function ConfigFilialForm({ branchId, valores, podeEditar }: { branchId: 
             <p className="text-xs text-muted-foreground">Loja aberta todos os dias precisa de pelo menos dois dias abertos marcados (duas folgas por semana). Terça, quarta e quinta têm preferência.</p>
           )}
         </fieldset>
+        )}
       </div>
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" name="acordo" defaultChecked={valores.acordo} disabled={!podeEditar} className="size-4 accent-primary" />

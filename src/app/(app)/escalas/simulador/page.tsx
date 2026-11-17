@@ -6,9 +6,10 @@ import { Status } from "@/components/layout/status";
 import { exigirAcesso } from "@/lib/auth/session";
 import { escalasOficiais, filiaisDaEscala, lotesRecentes } from "@/lib/data/escalas";
 import { diasAbertos } from "@/lib/escalas/motor";
-import { horarioPendente, mesCurto, nomeMes, proximoMes, textoFuncionamento } from "@/lib/escalas/resumo";
+import { mesCurto, nomeMes, proximoMes } from "@/lib/escalas/resumo";
 import { formatarDataHora } from "@/lib/formatos";
 import { AbasEscala } from "../abas";
+import { SecoesFilial } from "../_ui/secoes-filial";
 import { SimularForm } from "./simular-form";
 
 export const metadata = { title: "Simulador de escala 5x2" };
@@ -25,6 +26,7 @@ export default async function SimuladorPage({ searchParams }: PageProps<"/escala
     return { valor: `${ano}-${String(mes).padStart(2, "0")}`, rotulo: nomeMes(ano, mes) };
   });
   const filialInicial = typeof sp.filial === "string" && filiais.some((f) => f.id === sp.filial) ? sp.filial : filiais.length === 1 ? filiais[0].id : "";
+  const selecionada = filiais.find((f) => f.id === filialInicial);
 
   return (
     <>
@@ -37,26 +39,14 @@ export default async function SimuladorPage({ searchParams }: PageProps<"/escala
 
       <Painel titulo="Gerar opções" icone={Sparkles} className="mb-4">
         <SimularForm
-          filiais={filiais.map((f) => {
-            const ativos = f.equipe.filter((p) => p.situacao === "ativo");
-            return {
-              id: f.id,
-              codigo: f.codigo,
-              nome: f.nome,
-              folgas: f.config.folgasPermitidas,
-              diasAbertos: diasAbertos(f.config).length,
-              funcionamento: textoFuncionamento(f.config),
-              horarioPendente: horarioPendente(f.linha),
-              ativos: ativos.length,
-              farmaceuticos: ativos.filter((p) => p.funcao === "farmaceutico").length,
-              minFarmaceuticos: f.config.minimos.farmaceutico ?? 0,
-            };
-          })}
+          filiais={filiais.map((f) => ({ id: f.id, codigo: f.codigo, nome: f.nome, folgas: f.config.folgasPermitidas, diasAbertos: diasAbertos(f.config).length }))}
           filialInicial={filialInicial}
           meses={meses}
           mesInicial={`${ref.ano}-${String(ref.mes).padStart(2, "0")}`}
         />
       </Painel>
+
+      {selecionada && <SecoesFilial f={selecionada} folgasNoSimulador />}
 
       <div className="grid gap-4 xl:grid-cols-2">
         <Painel titulo="Gerações recentes" icone={History} descricao="Rascunhos ficam até alguém descartar; a escala oficial fica no histórico.">

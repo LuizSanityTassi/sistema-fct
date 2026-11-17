@@ -14,7 +14,7 @@ import type { ColaboradorDetalhe, FuncionarioRh } from "@/lib/data/escalas";
 import { FUNCOES, ROTULO_FUNCAO, ROTULO_SITUACAO, SITUACOES, ehFuncao, ehSituacao } from "@/lib/escalas/motor";
 import { vinculoRh } from "@/lib/escalas/vinculo";
 import type { Tom } from "@/lib/tons";
-import { excluirColaborador, salvarColaborador, type EstadoEscala } from "../../actions";
+import { excluirColaborador, salvarColaborador, type EstadoEscala } from "../actions";
 
 const TOM_SIT: Record<string, Tom> = { ativo: "sucesso", afastado: "atencao", inativo: "neutro" };
 
