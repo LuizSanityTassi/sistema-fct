@@ -98,8 +98,10 @@ export async function registrarDigitalNoRelogio(desafio: string, dedo: number, a
 }
 
 /** Relógio da filial, passo 2: PIN + tipo. PIN errado conta tentativa (5 erros = 15 minutos bloqueado). */
-export async function registrarNoRelogio(employeeId: string, pin: string, tipo: string | null): Promise<ResultadoRegistro> {
+export async function registrarNoRelogio(employeeId: string, pin: string, tipo: string | null, filial?: string): Promise<ResultadoRegistro> {
   const id = lerUuid(employeeId);
+  // filial do relógio: o funcionário do escritório (unidade com ponto_qualquer_filial) bate em qualquer filial
+  const relogio = filial ? lerUuid(filial) : null;
   if (!id) return { ok: false, erro: "Funcionário inválido." };
   if (!/^\d{4,6}$/.test(pin)) return { ok: false, erro: "Digite o PIN (4 a 6 números)." };
   const t = tipo && (TIPOS_MARCACAO as readonly string[]).includes(tipo) ? tipo : null;
@@ -115,6 +117,7 @@ export async function registrarNoRelogio(employeeId: string, pin: string, tipo: 
     p_latitude: null,
     p_longitude: null,
     p_precisao: null,
+    p_branch: relogio ?? undefined,
   });
   if (error) return { ok: false, erro: mensagemBanco(error, "Não foi possível registrar.") };
   const r = data as { erro?: string; nsr: number; momento: string; tipo: TipoMarcacao; funcionario: string };

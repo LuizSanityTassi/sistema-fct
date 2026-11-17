@@ -450,6 +450,7 @@ export type Database = {
           id: string
           nome: string
           organization_id: string
+          ponto_qualquer_filial: boolean
           razao_social: string | null
           regional: string | null
           responsavel_employee_id: string | null
@@ -469,6 +470,7 @@ export type Database = {
           id?: string
           nome: string
           organization_id: string
+          ponto_qualquer_filial?: boolean
           razao_social?: string | null
           regional?: string | null
           responsavel_employee_id?: string | null
@@ -488,6 +490,7 @@ export type Database = {
           id?: string
           nome?: string
           organization_id?: string
+          ponto_qualquer_filial?: boolean
           razao_social?: string | null
           regional?: string | null
           responsavel_employee_id?: string | null
@@ -2574,6 +2577,7 @@ export type Database = {
           origem: string
           precisao_m: number | null
           registrado_por: string | null
+          relogio_branch_id: string | null
           tipo: string
         }
         Insert: {
@@ -2596,6 +2600,7 @@ export type Database = {
           origem?: string
           precisao_m?: number | null
           registrado_por?: string | null
+          relogio_branch_id?: string | null
           tipo: string
         }
         Update: {
@@ -2618,6 +2623,7 @@ export type Database = {
           origem?: string
           precisao_m?: number | null
           registrado_por?: string | null
+          relogio_branch_id?: string | null
           tipo?: string
         }
         Relationships: [
@@ -6921,6 +6927,7 @@ export type Database = {
       }
       ponto_registrar: {
         Args: {
+          p_branch?: string
           p_dispositivo: string | null
           p_employee: string
           p_ip: string | null

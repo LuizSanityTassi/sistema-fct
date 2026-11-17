@@ -36,10 +36,12 @@ type Props = {
   regionais: string[];
   funcionarios: OpcaoFuncionario[];
   valores?: ValoresFilial;
+  /** Escritório: os funcionários desta unidade batem o ponto no relógio de qualquer filial. */
+  pontoQualquerFilial?: boolean;
   voltarPara: string;
 };
 
-export function FilialForm({ action, organizacoes, regionais, funcionarios, valores = {}, voltarPara }: Props) {
+export function FilialForm({ action, organizacoes, regionais, funcionarios, valores = {}, pontoQualquerFilial = false, voltarPara }: Props) {
   const [estado, formAction] = useActionState(action, {});
   const erro = (campo: string) => estado.erros?.[campo];
   const v = (campo: keyof ValoresFilial) => valores[campo] ?? "";
@@ -171,6 +173,19 @@ export function FilialForm({ action, organizacoes, regionais, funcionarios, valo
             <Input id="responsavel_nome" name="responsavel_nome" defaultValue={v("responsavel_nome")} maxLength={80} />
           </Campo>
         </div>
+      </section>
+
+      <section className="rounded-xl border bg-card p-5">
+        <h2 className="mb-3 text-sm font-semibold">Ponto eletrônico</h2>
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" name="ponto_qualquer_filial" defaultChecked={pontoQualquerFilial} className="mt-0.5 size-4 accent-primary" />
+          <span>
+            Escritório: os funcionários desta unidade batem o ponto no relógio de <strong>qualquer filial</strong>
+            <span className="block text-xs text-muted-foreground">
+              Pela digital ou pela matrícula e PIN. A marcação continua contando nesta unidade; a filial onde bateu fica registrada.
+            </span>
+          </span>
+        </label>
       </section>
 
       <div className="flex items-center gap-2">

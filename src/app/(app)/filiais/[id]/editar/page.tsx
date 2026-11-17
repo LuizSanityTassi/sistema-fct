@@ -48,6 +48,7 @@ export default async function EditarFilialPage({ params }: PageProps<"/filiais/[
           responsavel_employee_id: filial.responsavel_employee_id,
           responsavel_nome: filial.responsavel_nome,
         }}
+        pontoQualquerFilial={!!filial.ponto_qualquer_filial}
         voltarPara={`/filiais/${filial.id}`}
       />
     </>

@@ -14,7 +14,7 @@ import type { LeitorGarantido } from "./actions";
 type Props = {
   filial: { id: string; codigo: string; nome: string };
   identificar: (filial: string, matricula: string) => Promise<Identificado>;
-  registrar: (employeeId: string, pin: string, tipo: string | null) => Promise<ResultadoRegistro>;
+  registrar: (employeeId: string, pin: string, tipo: string | null, filial: string) => Promise<ResultadoRegistro>;
   iniciarLeitura: (filial: string, leitorId: string) => Promise<LeituraAberta>;
   identificarDigital: (desafio: string, employeeId: string, dedo: number, assinatura: string) => Promise<Identificado>;
   registrarDigital: (desafio: string, dedo: number, assinatura: string, tipo: string | null) => Promise<ResultadoRegistro>;
@@ -218,7 +218,8 @@ export function Quiosque({ filial, identificar, registrar, iniciarLeitura, ident
       if (!pessoa) return;
       setErro(null);
       iniciar(async () => {
-        const r = prova ? await registrarDigital(prova.desafio, prova.dedo, prova.assinatura, tipo) : await registrar(pessoa.id, pin, tipo);
+        // a filial do relógio vai junto: o pessoal do escritório bate o ponto em qualquer filial
+        const r = prova ? await registrarDigital(prova.desafio, prova.dedo, prova.assinatura, tipo) : await registrar(pessoa.id, pin, tipo, filial.id);
         setProva(null);
         if (r.ok) {
           setResultado(r);
@@ -235,7 +236,7 @@ export function Quiosque({ filial, identificar, registrar, iniciarLeitura, ident
         }
       });
     },
-    [inicio, pessoa, pin, prova, registrar, registrarDigital],
+    [inicio, pessoa, pin, prova, registrar, registrarDigital, filial.id],
   );
 
   const tecla = useCallback(

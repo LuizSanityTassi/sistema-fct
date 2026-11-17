@@ -131,6 +131,8 @@ export async function salvarFilial(
     email: d.email ?? null,
     responsavel_employee_id: d.responsavel_employee_id ?? null,
     responsavel_nome: d.responsavel_employee_id ? null : (d.responsavel_nome ?? null),
+    // escritório: funcionários batem o ponto em qualquer filial (migração 0149)
+    ponto_qualquer_filial: fd.get("ponto_qualquer_filial") === "on",
   };
 
   const supabase = await createClient();
