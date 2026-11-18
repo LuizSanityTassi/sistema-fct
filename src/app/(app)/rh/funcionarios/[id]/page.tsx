@@ -20,7 +20,9 @@ import { PAPEL_LABEL, ehPapel } from "@/lib/roles";
 import { STATUS_ATIVO_LABEL, TIPO_ATIVO_LABEL } from "@/lib/ti/rotulos";
 import { anosDesde, descreverPeriodo, formatarData, formatarDataHora, formatarMoeda } from "@/lib/formatos";
 import { mascararCpf } from "@/lib/validacao/cpf";
-import { alterarStatusFuncionario, marcarItemDesligamento } from "../actions";
+import { diasEntre, hojeLocal, somarDias } from "@/lib/ponto/calculo";
+import { createClient } from "@/lib/supabase/server";
+import { alterarStatusFuncionario, cancelarFeriasAgendadas, marcarItemDesligamento } from "../actions";
 import { AlterarStatusFuncionario } from "../alterar-status";
 import { ChecklistDesligamento, type ItemAutomatico, type ItemManual } from "./checklist-desligamento";
 import { DocumentosEAso } from "./documentos-aso";
@@ -65,6 +67,10 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
   const aba: Aba = abas.some((a) => a.chave === sp.aba) ? (sp.aba as Aba) : "geral";
   const [ficha, salarios, folhas] = await Promise.all([carregarFicha360(id, sessao.papel), podeEditar ? listarSalarios(id) : Promise.resolve([]), podeEditar ? listarFolhaDoFuncionario(id) : Promise.resolve([])]);
   const vigente = salarios.find((s) => !s.vigencia_fim) ?? salarios[0];
+  // férias em andamento e agendadas (ficam nas ausências do ponto; a situação muda sozinha nas datas)
+  const hoje = hojeLocal();
+  const { data: ferias } = await (await createClient()).from("ponto_ausencias").select("id, inicio, fim").eq("employee_id", id).eq("tipo", "ferias").gte("fim", hoje).order("inicio");
+  const feriasAtual = (ferias ?? []).find((x) => x.inicio <= hoje) ?? null;
 
   const unidade = f.unidade;
   const grupo = unidade?.organizations?.nome_fantasia ?? "";
@@ -157,7 +163,7 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
                 <Pencil data-icon="inline-start" />
                 Editar
               </Button>
-              <AlterarStatusFuncionario id={f.id} statusAtual={f.status} dataDesligamento={f.data_desligamento} action={alterarStatusFuncionario} />
+              <AlterarStatusFuncionario id={f.id} statusAtual={f.status} dataDesligamento={f.data_desligamento} feriasAtual={feriasAtual} action={alterarStatusFuncionario} />
             </>
           ) : undefined
         }
@@ -173,6 +179,39 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
             }
           />
         </div>
+      )}
+
+      {(ferias ?? []).length > 0 && (
+        <ul className="mb-4 space-y-2" aria-label="Férias">
+          {(ferias ?? []).map((x) => {
+            const retorno = somarDias(x.fim, 1);
+            const emAndamento = x.inicio <= hoje;
+            return (
+              <li key={x.id} className={`flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-3 py-2 text-sm ${emAndamento ? "border-violet-200 bg-violet-50 text-violet-900" : "border-sky-200 bg-sky-50 text-sky-900"}`}>
+                <span>
+                  {emAndamento ? (
+                    <>
+                      <strong>Em férias</strong> desde {formatarData(x.inicio)} · volta em {formatarData(retorno)} (a situação volta sozinha para Ativo nesse dia)
+                    </>
+                  ) : (
+                    <>
+                      <strong>Férias agendadas</strong>: {formatarData(x.inicio)} a {formatarData(x.fim)} ({diasEntre(x.inicio, retorno)} dias) · volta em {formatarData(retorno)}. A situação muda sozinha para Férias no dia do início.
+                    </>
+                  )}
+                </span>
+                {!emAndamento && podeEditar && (
+                  <form action={cancelarFeriasAgendadas} className="ml-auto">
+                    <input type="hidden" name="ausencia_id" value={x.id} />
+                    <input type="hidden" name="employee_id" value={f.id} />
+                    <Button type="submit" size="sm" variant="ghost">
+                      Cancelar
+                    </Button>
+                  </form>
+                )}
+              </li>
+            );
+          })}
+        </ul>
       )}
 
       <nav aria-label="Seções da ficha" className="mb-4 flex gap-1 overflow-x-auto border-b">

@@ -7,6 +7,7 @@ import { z } from "zod";
 import { diferencas, registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { hojeIso, lerDecimal } from "@/lib/formatos";
+import { diasEntre, hojeLocal, somarDias } from "@/lib/ponto/calculo";
 import { createClient } from "@/lib/supabase/server";
 import { Constants } from "@/lib/supabase/types";
 import { cpfValido, formatarCpf } from "@/lib/validacao/cpf";
@@ -309,16 +310,59 @@ export async function salvarFuncionario(
   redirect(`/rh/funcionarios/${destino}?salvo=1${mudouFilial ? "&folha=1" : ""}`);
 }
 
+const MAX_DIAS_FERIAS = 60;
+
 const esquemaStatus = z
   .object({
     id: z.uuid(),
     status: z.enum(Constants.public.Enums.employee_status, { error: "Situação inválida." }),
     data_desligamento: dataOpcional,
+    ferias_inicio: dataOpcional,
+    ferias_retorno: dataOpcional,
   })
   .refine((v) => v.status !== "desligado" || !!v.data_desligamento, {
     error: "Informe a data do desligamento.",
     path: ["data_desligamento"],
+  })
+  .refine((v) => v.status !== "ferias" || !!v.ferias_inicio, { error: "Informe o início das férias.", path: ["ferias_inicio"] })
+  .refine((v) => v.status !== "ferias" || !!v.ferias_retorno, { error: "Informe a data de retorno.", path: ["ferias_retorno"] })
+  .refine((v) => v.status !== "ferias" || !v.ferias_inicio || !v.ferias_retorno || v.ferias_retorno > v.ferias_inicio, {
+    error: "O retorno tem que ser depois do início.",
+    path: ["ferias_retorno"],
+  })
+  .refine((v) => v.status !== "ferias" || !v.ferias_inicio || !v.ferias_retorno || diasEntre(v.ferias_inicio, v.ferias_retorno) <= MAX_DIAS_FERIAS, {
+    error: `No máximo ${MAX_DIAS_FERIAS} dias de férias de uma vez.`,
+    path: ["ferias_retorno"],
   });
+
+/**
+ * Férias: grava o período (início e retorno) nas ausências do ponto, que também não contam falta. A situação muda
+ * sozinha: na hora, se as férias já começaram; senão no dia do início (rotina diária das 00:05), e volta para Ativo
+ * no dia do retorno (migração 0151).
+ */
+async function agendarFerias(supabase: Awaited<ReturnType<typeof createClient>>, sessaoId: string, id: string, inicio: string, retorno: string): Promise<EstadoFormulario> {
+  const fim = somarDias(retorno, -1);
+  const { data: sobrepostas } = await supabase.from("ponto_ausencias").select("tipo, inicio, fim").eq("employee_id", id).lte("inicio", fim).gte("fim", inicio).limit(1);
+  if (sobrepostas?.length) {
+    const o = sobrepostas[0];
+    return { erro: `Já existe ${o.tipo === "ferias" ? "férias" : "uma ausência"} lançada de ${o.inicio.split("-").reverse().join("/")} a ${o.fim.split("-").reverse().join("/")} que cruza esse período. Remova ou ajuste em Ponto → Ausências.` };
+  }
+  const { error } = await supabase
+    .from("ponto_ausencias")
+    .insert({ employee_id: id, tipo: "ferias", inicio, fim, observacao: `Férias lançadas na ficha do RH (retorno ${retorno.split("-").reverse().join("/")})`, registrado_por: sessaoId });
+  if (error) return { erro: error.code === "P0001" ? error.message : mensagemErroBanco(error) };
+  return {};
+}
+
+/** Volta antes da hora: as férias em andamento passam a terminar ontem (ou somem, se começariam hoje). */
+async function anteciparRetorno(supabase: Awaited<ReturnType<typeof createClient>>, id: string, hoje: string): Promise<EstadoFormulario> {
+  const { data: emAndamento } = await supabase.from("ponto_ausencias").select("id, inicio").eq("employee_id", id).eq("tipo", "ferias").lte("inicio", hoje).gte("fim", hoje);
+  for (const a of emAndamento ?? []) {
+    const { error } = a.inicio < hoje ? await supabase.from("ponto_ausencias").update({ fim: somarDias(hoje, -1) }).eq("id", a.id) : await supabase.from("ponto_ausencias").delete().eq("id", a.id);
+    if (error) return { erro: error.code === "P0001" ? error.message : mensagemErroBanco(error) };
+  }
+  return {};
+}
 
 /** Muda a situação (ativo/afastado/férias/desligado). Só admin/RH. */
 export async function alterarStatusFuncionario(_prev: EstadoFormulario, fd: FormData): Promise<EstadoFormulario> {
@@ -330,6 +374,8 @@ export async function alterarStatusFuncionario(_prev: EstadoFormulario, fd: Form
     id: texto(fd, "id"),
     status: texto(fd, "status"),
     data_desligamento: texto(fd, "data_desligamento"),
+    ferias_inicio: texto(fd, "ferias_inicio"),
+    ferias_retorno: texto(fd, "ferias_retorno"),
   });
   if (!r.success) return { erro: "Confira os campos.", erros: errosDoZod(r.error) };
   const { id, status } = r.data;
@@ -342,6 +388,23 @@ export async function alterarStatusFuncionario(_prev: EstadoFormulario, fd: Form
     .eq("id", id)
     .maybeSingle();
   if (!atual) return { erro: "Funcionário não encontrado." };
+
+  if (status === "ferias") {
+    // a situação não é gravada aqui: o banco muda sozinho na data (e na hora, se já começou)
+    const res = await agendarFerias(supabase, sessao.id, id, r.data.ferias_inicio!, r.data.ferias_retorno!);
+    if (res.erro) return res;
+    revalidatePath("/rh/funcionarios");
+    revalidatePath(`/rh/funcionarios/${id}`);
+    revalidatePath(`/filiais/${atual.branch_id}`);
+    revalidatePath("/ponto", "layout");
+    return { erro: undefined };
+  }
+
+  if (atual.status === "ferias") {
+    const res = await anteciparRetorno(supabase, id, hojeLocal());
+    if (res.erro) return res;
+    revalidatePath("/ponto", "layout");
+  }
 
   const { error } = await supabase.from("employees").update({ status, data_desligamento }).eq("id", id);
   if (error) return { erro: mensagemErroBanco(error) };
@@ -375,4 +438,17 @@ export async function marcarItemDesligamento(employeeId: string, item: string, f
   await registrarAuditoria(supabase, { userId: sessao.id, acao: "editar", entidade: "employees", registroId: employeeId, novo: { desligamento: item, feito } });
   revalidatePath(`/rh/funcionarios/${employeeId}`);
   return {};
+}
+
+/** Cancela férias agendadas que ainda não começaram (as em andamento se encerram mudando a situação). Só admin/RH. */
+export async function cancelarFeriasAgendadas(fd: FormData) {
+  const sessao = await getSessao();
+  if (!PAPEIS_RH.includes(sessao.papel as (typeof PAPEIS_RH)[number])) return;
+  const ausencia = z.uuid().safeParse(texto(fd, "ausencia_id"));
+  const employee = z.uuid().safeParse(texto(fd, "employee_id"));
+  if (!ausencia.success || !employee.success) return;
+  const supabase = await createClient();
+  await supabase.from("ponto_ausencias").delete().eq("id", ausencia.data).eq("employee_id", employee.data).eq("tipo", "ferias").gt("inicio", hojeLocal());
+  revalidatePath(`/rh/funcionarios/${employee.data}`);
+  revalidatePath("/ponto", "layout");
 }
