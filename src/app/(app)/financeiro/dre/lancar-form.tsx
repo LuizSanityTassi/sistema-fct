@@ -5,6 +5,7 @@ import { useActionState } from "react";
 import { BotaoSalvar } from "@/components/form/botao-salvar";
 import { AvisoSucesso, ErroFormulario } from "@/components/form/campo";
 import { lerConta } from "@/lib/financeiro/conta";
+import { sinalManual, valorDaDigitacao, type LinhaDre } from "@/lib/financeiro/dre-contabil";
 import type { EstadoManual } from "./actions";
 
 const reais = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -17,19 +18,19 @@ type Props = {
   rotuloMes: string;
   /** chave = id da filial ou "empresa" (valor da empresa, sem filial) */
   filiais: { chave: string; codigo: string; nome: string }[];
-  contas: { linha: string; rotulo: string }[];
+  contas: { linha: LinhaDre; rotulo: string }[];
   /** valores iniciais já sem sinal, como na planilha ("12.345,67"; vazio = 0), por "chave:conta" */
   iniciais: Record<string, string>;
 };
 
-/** Número ou conta digitada ("1.200+350-80"), para o total ao vivo. */
-const numero = (t: string) => (t.trim() ? (lerConta(t)?.valor ?? 0) : 0);
+/** Número ou conta digitada ("1.200+350-80"), sem sinal como na planilha, para o total ao vivo ("-" na frente = sinal da tela). */
+const numero = (linha: LinhaDre, t: string) => (t.trim() ? valorDaDigitacao(linha, t, lerConta(t)?.valor ?? 0) * sinalManual(linha) : 0);
 
 /** Grade do lançamento à mão: filiais nas linhas, contas amarelas nas colunas, total de cada conta no rodapé. */
 export function LancarForm({ action, empresa, mes, rotuloMes, filiais, contas, iniciais }: Props) {
   const [estado, enviar] = useActionState(action, {});
   const [valores, setValores] = React.useState(iniciais);
-  const total = (linha: string) => filiais.reduce((t, f) => t + numero(valores[`${f.chave}:${linha}`] ?? ""), 0);
+  const total = (linha: LinhaDre) => filiais.reduce((t, f) => t + numero(linha, valores[`${f.chave}:${linha}`] ?? ""), 0);
   return (
     <form action={enviar} className="space-y-3">
       <input type="hidden" name="empresa" value={empresa} />

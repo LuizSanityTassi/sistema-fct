@@ -130,7 +130,7 @@ export function Demonstrativo({ meses, porMes, editar }: { meses: string[]; porM
                         classe="whitespace-nowrap px-3 py-1.5"
                         podeEditar
                         dicaEditar="Clique para alterar: digite o valor ou continue a conta (ex.: +200 ou -100). Apague para zerar."
-                        dicaCampo="Digite o valor sem sinal, como na planilha, ou continue a conta: +200, -100, *2… Apague tudo para zerar."
+                        dicaCampo="Digite o valor (imposto, dedução e despesa ficam negativos com ou sem o “-”) ou continue a conta: +200, -100, *2… Apague tudo para zerar."
                       />
                     );
                   }

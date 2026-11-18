@@ -338,7 +338,8 @@ export type LinhaManual = (typeof LINHAS_MANUAIS)[number];
 export const ehLinhaManual = (v: unknown): v is LinhaManual => typeof v === "string" && (LINHAS_MANUAIS as readonly string[]).includes(v);
 /**
  * Sinal de cada conta ao digitar, como na planilha (sem sinal): receitas entram positivas, deduções e despesas
- * negativas; um "-" na frente inverte (estorno). O Crédito CMV é digitado com o sinal que tem.
+ * negativas. Com "-" na frente o valor já vem com o sinal da tela (ver valorDaDigitacao). O Crédito CMV é digitado com
+ * o sinal que tem.
  */
 export const SINAL_DIGITADO: Record<LinhaDre, 1 | -1> = {
   vendas: 1,
@@ -359,6 +360,15 @@ export const SINAL_DIGITADO: Record<LinhaDre, 1 | -1> = {
   ir_csll: -1,
 };
 export const sinalManual = (linha: LinhaDre) => SINAL_DIGITADO[linha];
+
+/**
+ * Valor gravado a partir do que foi digitado (o resultado da conta). Sem sinal na frente vale a planilha: dedução e
+ * despesa entram negativas, receita positiva. Com "-" na frente o valor vem com o sinal que aparece na DRE: "-33.573"
+ * num imposto grava −33.573, igual a "33.573" (antes o "-" invertia e o imposto ficava positivo — out/2026, F004 e F006).
+ */
+export function valorDaDigitacao(linha: LinhaDre, digitado: string, lido: number) {
+  return /^\s*[-−–]/.test(digitado) ? lido : SINAL_DIGITADO[linha] * lido;
+}
 
 /** Os itens que a planilha rateia hoje (PIS/COFINS, ICMS e despesa financeira). */
 export const SUGESTOES_RATEIO: { item: string; linha: LinhaRateio }[] = [

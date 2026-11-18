@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { valoresGravados } from "@/lib/data/dre-contabil";
-import { comSinalDaConta, ehLinhaDre, ehLinhaRateio, ehMesManual, ROTULO_LINHA, sinalManual, type LinhaDre } from "@/lib/financeiro/dre-contabil";
+import { comSinalDaConta, ehLinhaDre, ehLinhaRateio, ehMesManual, ROTULO_LINHA, valorDaDigitacao, type LinhaDre } from "@/lib/financeiro/dre-contabil";
 import { lerConta } from "@/lib/financeiro/conta";
 import { CHAVE_LEMBRETE_DRE } from "@/lib/financeiro/dre-lembrete";
 import { lerValor } from "@/lib/sangrias/rotulos";
@@ -72,10 +72,10 @@ export async function lancarManual(_prev: EstadoManual, fd: FormData): Promise<E
     if (!m || typeof bruto !== "string") continue;
     const [, filial, linha, mes] = m;
     if (!ehLinhaDre(linha) || !MES.test(mes) || (filial !== "empresa" && !UUID.test(filial))) return { erro: "Campo inválido." };
-    // número ou conta ("1.200+350-80"), sem sinal como na planilha; a conta fica guardada (memória de cálculo)
+    // número ou conta ("1.200+350-80"), sem sinal como na planilha ou com o "-" da tela; a conta fica guardada (memória de cálculo)
     const lido = bruto.trim() ? lerConta(bruto.slice(0, 500)) : { valor: 0, conta: null };
     if (!lido) return { erro: `Valor inválido em ${ROTULO_LINHA[linha]} (${mes}): "${bruto}". Use 12.345,67 ou uma conta como 1.200+350-80.` };
-    pedidos.push({ branch: filial === "empresa" ? null : filial, linha, mes, valor: Math.round(sinalManual(linha) * lido.valor * 100) / 100, formula: lido.conta });
+    pedidos.push({ branch: filial === "empresa" ? null : filial, linha, mes, valor: Math.round(valorDaDigitacao(linha, bruto, lido.valor) * 100) / 100, formula: lido.conta });
   }
   const meses = [...new Set(pedidos.map((p) => p.mes))];
   const atuais = await valoresGravados(empresa, meses);

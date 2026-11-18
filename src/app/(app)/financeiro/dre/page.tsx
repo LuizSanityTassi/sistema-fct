@@ -244,8 +244,8 @@ async function Lancar({ s, base, empresas, todas, mapa, filiais }: Props) {
         </div>
         <p className="w-full text-sm text-muted-foreground">
           {rotuloCompetencia(mes)}: as contas em amarelo vêm do Omie pelo plano de contas (categoria → conta da DRE), filial por filial, e podem ser corrigidas aqui; a
-          importação da planilha não mexe nelas. Comissões vêm da categoria Premiação; a Depreciação é digitada. Digite sem sinal, como na planilha (despesas e deduções entram negativas, receitas
-          positivas); um “-” na frente inverte (estorno). Itajaí está na Varela, Blumenau na Nazário e as terceirizadas em TERC.
+          importação da planilha não mexe nelas. Comissões vêm da categoria Premiação; a Depreciação é digitada. Digite como na planilha: despesas e deduções entram negativas com ou sem o “-” na
+          frente; receitas, positivas. Itajaí está na Varela, Blumenau na Nazário e as terceirizadas em TERC.
         </p>
       </div>
       {lista.length ? (
@@ -636,7 +636,7 @@ async function VerDemonstrativo({ s, base, empresas, todas, anos, mesesDoAno, ma
         </header>
         {editar && filial ? (
           <p className="border-t px-5 py-2.5 text-sm text-muted-foreground">
-            Clique no valor de uma conta para alterar: digite sem sinal, como na planilha, ou continue a conta (+200, -100). Enter ou sair do campo salva; Esc cancela. O que for digitado vale mais que a
+            Clique no valor de uma conta para alterar: digite o valor (imposto, dedução e despesa ficam negativos com ou sem o “-”) ou continue a conta (+200, -100). Enter ou sair do campo salva; Esc cancela. O que for digitado vale mais que a
             planilha: reimportar o mês não passa por cima.{editar.destacar ? " Células amarelas = valor digitado." : ""}
           </p>
         ) : podeEditar && !filial ? (
