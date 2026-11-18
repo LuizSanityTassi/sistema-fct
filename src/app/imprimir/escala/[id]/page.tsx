@@ -4,29 +4,47 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BotaoImprimir } from "@/app/etiquetas/ti/imprimir";
 import { exigirAcesso } from "@/lib/auth/session";
-import { simulacao } from "@/lib/data/escalas";
-import { ROTULO_DIA, ROTULO_FUNCAO, diaChave } from "@/lib/escalas/motor";
-import { agruparAlertas, celula, datasTexto, mesCurto, nomeMes, rotuloDias, textoFuncionamento } from "@/lib/escalas/resumo";
+import { escalaVigente, simulacao } from "@/lib/data/escalas";
+import { ROTULO_DIA, ROTULO_FUNCAO, rotuloData, type Escala } from "@/lib/escalas/motor";
+import { agruparAlertas, celula, datasTexto, lerMesAno, nomeMes, rotuloCompetencia, rotuloDias, textoFuncionamento, textoPeriodo } from "@/lib/escalas/resumo";
 
 export const metadata: Metadata = { title: "Escala 5x2" };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const COR: Record<string, string> = { trabalho: "#e4f1ea", folga: "#fff0cc", fechado: "#f0f2f0", afastamento: "#ede9fe", inativo: "#f0f2f0" };
 
-/** Escala do mês no papel (A4 deitado): grade, turnos com almoço, horas e pendências. ?pessoa= para a individual. */
+/**
+ * Escala do período no papel (A4 deitado): grade, turnos com almoço, horas e pendências. ?pessoa= para a individual.
+ * ?mes=AAAA-MM numa oficial que "segue até ser alterada": a mesma escala levada para aquele período.
+ */
 export default async function ImprimirEscalaPage({ params, searchParams }: PageProps<"/imprimir/escala/[id]">) {
   const [, { id }, sp] = await Promise.all([exigirAcesso("/escalas"), params, searchParams]);
   if (!UUID.test(id)) notFound();
   const s = await simulacao(id);
   if (!s) notFound();
+  // período pedido (escala que segue): só para a oficial marcada e para depois do período dela
+  const pedido = lerMesAno(sp.mes);
+  let e: Escala = s;
+  let projetada = false;
+  let aviso: string | null = null;
+  if (pedido && (pedido.ano !== s.ano || pedido.mes !== s.mes)) {
+    const depois = pedido.ano * 12 + pedido.mes > s.ano * 12 + s.mes;
+    const vigente = depois && s.situacao === "oficial" && s.continua ? await escalaVigente(s.branchId, pedido.ano, pedido.mes) : null;
+    if (vigente && vigente.base.id === s.id) {
+      e = vigente.escala;
+      projetada = true;
+    } else {
+      aviso = vigente
+        ? `Em ${rotuloCompetencia(pedido.ano, pedido.mes)} vale outra escala oficial; abaixo, a escala original.`
+        : `Esta escala não segue para ${rotuloCompetencia(pedido.ano, pedido.mes)} (só a oficial marcada “seguir até ser alterada”, de ${rotuloCompetencia(s.ano, s.mes)} em diante); abaixo, a escala original.`;
+    }
+  }
   const pessoaId = typeof sp.pessoa === "string" ? sp.pessoa : "";
-  const equipe = pessoaId ? s.equipe.filter((p) => p.id === pessoaId) : s.equipe;
+  const equipe = pessoaId ? e.equipe.filter((p) => p.id === pessoaId) : e.equipe;
   if (pessoaId && !equipe.length) notFound();
-  const alertas = pessoaId ? s.alertas.filter((a) => !a.pessoaId || a.pessoaId === pessoaId) : s.alertas;
+  const alertas = pessoaId ? e.alertas.filter((a) => !a.pessoaId || a.pessoaId === pessoaId) : e.alertas;
   const grupos = agruparAlertas(alertas);
   const oficial = s.situacao === "oficial";
-  const dias = s.cobertura.map((c) => c.data);
-  const mm = String(s.mes).padStart(2, "0");
 
   return (
     <main className="mx-auto w-full max-w-[297mm] bg-white p-6 text-[10px] text-black print:p-0">
@@ -45,8 +63,12 @@ export default async function ImprimirEscalaPage({ params, searchParams }: PageP
         <Image src="/marca/fct-emblema.png" alt="Farmácia do Trabalhador" width={56} height={50} className="h-auto" />
         <div className="flex-1">
           <h1 className="text-base font-bold">
-            ESCALA 5x2 · {s.filial.codigo} {s.filial.nome} · {nomeMes(s.ano, s.mes).toUpperCase()}
+            ESCALA 5x2 · {s.filial.codigo} {s.filial.nome} · {nomeMes(e.ano, e.mes).toUpperCase()}
           </h1>
+          <p className="font-semibold">
+            Período: {textoPeriodo(e)}
+            {projetada ? ` · segue a escala oficial de ${rotuloCompetencia(s.ano, s.mes)} (até ser alterada)` : ""}
+          </p>
           <p>
             Opção {s.opcao} · {s.jornadaSemanal} h/semana · folgas em {rotuloDias(s.folgasPermitidas)} · {textoFuncionamento(s.config)} · mínimo de {s.config.minimos.farmaceutico ?? 0} farmacêutico(s) por hora
           </p>
@@ -60,17 +82,18 @@ export default async function ImprimirEscalaPage({ params, searchParams }: PageP
           {oficial ? "ESCALA OFICIAL" : s.situacao === "substituida" ? "SUBSTITUÍDA" : "RASCUNHO"}
         </div>
       </header>
+      {aviso && <p className="mb-2 font-semibold text-amber-800">{aviso}</p>}
       {!oficial && alertas.length > 0 && <p className="mb-2 font-semibold text-red-700">Rascunho para análise: há {alertas.length} pendência(s) de auditoria (lista no fim). Não publicar antes de revisar.</p>}
 
       <table className="w-full border-collapse [&_td]:border [&_td]:border-gray-300 [&_th]:border [&_th]:border-gray-300">
         <thead>
           <tr className="bg-[#123f35] text-white">
             <th className="w-40 px-1 py-0.5 text-left">Colaborador / função</th>
-            {dias.map((d) => (
-              <th key={d} className="px-0 py-0.5 text-center text-[8px] leading-tight font-medium">
-                {d}
+            {e.cobertura.map((c) => (
+              <th key={c.data} className="px-0 py-0.5 text-center text-[8px] leading-tight font-medium">
+                {c.data}
                 <br />
-                {ROTULO_DIA[diaChave(s.ano, s.mes, d)]}
+                {ROTULO_DIA[c.dia]}
               </th>
             ))}
             <th className="w-10 px-1 text-right">Horas</th>
@@ -106,7 +129,7 @@ export default async function ImprimirEscalaPage({ params, searchParams }: PageP
                 <thead>
                   <tr>
                     <th colSpan={6} className="bg-gray-100 py-0.5">
-                      {p.nome} · {ROTULO_FUNCAO[p.funcao]} · {p.totalHoras.toFixed(1)} h no mês · média {p.mediaSemanal.toFixed(1)} h/semana{p.excedente ? ` · excedente ${p.excedente.toFixed(1)} h` : ""}
+                      {p.nome} · {ROTULO_FUNCAO[p.funcao]} · {p.totalHoras.toFixed(1)} h no período · média {p.mediaSemanal.toFixed(1)} h/semana{p.excedente ? ` · excedente ${p.excedente.toFixed(1)} h` : ""}
                     </th>
                   </tr>
                   <tr className="text-[8px] text-gray-600">
@@ -124,7 +147,7 @@ export default async function ImprimirEscalaPage({ params, searchParams }: PageP
                     .map((t) => (
                       <tr key={t.data} className="tabular-nums">
                         <td>
-                          {String(t.data).padStart(2, "0")}/{mm} {ROTULO_DIA[t.dia]}
+                          {rotuloData(e, t.data)} {ROTULO_DIA[t.dia]}
                           {t.ajustado ? " *" : ""}
                         </td>
                         <td>{t.inicio}</td>
@@ -153,7 +176,7 @@ export default async function ImprimirEscalaPage({ params, searchParams }: PageP
               <li key={i} className="break-inside-avoid">
                 <span className={g.severidade === "alta" ? "font-semibold text-red-700" : "font-semibold text-amber-700"}>[{g.severidade === "alta" ? "alta" : "média"}]</span> {g.mensagem}
                 <span className="block text-[8px] text-gray-600">
-                  Datas: {datasTexto(g.datas, s.mes)}
+                  Datas: {datasTexto(g.datas, e)}
                   {g.faixasTodas.length ? ` · faixas sem cobertura: ${g.faixasTodas.join(", ")}` : ""}
                 </span>
                 {g.sugestoesTodas.slice(0, 3).map((x, k) => (
@@ -167,7 +190,7 @@ export default async function ImprimirEscalaPage({ params, searchParams }: PageP
         )}
       </section>
       <p className="mt-4 text-[8px] text-gray-600">
-        Escala {mesCurto(s.ano, s.mes)} gerada pelo Sistema FCT. A auditoria depende do horário, da equipe e dos mínimos cadastrados; valide acordos coletivos, feriados e exigências do CRF com o RH. Impresso em{" "}
+        Escala de {textoPeriodo(e)} gerada pelo Sistema FCT{projetada ? ` (repete as semanas da oficial de ${textoPeriodo(s)})` : ""}. A auditoria depende do horário, da equipe e dos mínimos cadastrados; valide acordos coletivos, feriados e exigências do CRF com o RH. Impresso em{" "}
         {new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}.
       </p>
     </main>

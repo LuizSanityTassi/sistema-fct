@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { filiaisDaEscala, filialDaEscala, simulacao } from "@/lib/data/escalas";
-import { ajustarMesmoHorario, ajustarTurno, ehFuncao, ehSituacao, erroFolgas, gerarOpcoes, horaValida, limiteSemanal, minutos, reanalisar, type AjusteTurno, type Funcao } from "@/lib/escalas/motor";
+import { ajustarMesmoHorario, ajustarTurno, ehFuncao, rotuloData, rotuloPeriodo, ehSituacao, erroFolgas, gerarOpcoes, horaValida, limiteSemanal, minutos, reanalisar, type AjusteTurno, type Funcao } from "@/lib/escalas/motor";
 import { lerMesAno } from "@/lib/escalas/resumo";
 import { podeAcessar } from "@/lib/nav";
 import { createClient } from "@/lib/supabase/server";
@@ -285,6 +285,7 @@ export async function gerarSimulacao(_prev: EstadoEscala, fd: FormData): Promise
     opcao: number;
     ano: number;
     mes: number;
+    inicio: string | null;
     jornada_semanal: number;
     folgas_permitidas: number[];
     config: Json;
@@ -309,6 +310,7 @@ export async function gerarSimulacao(_prev: EstadoEscala, fd: FormData): Promise
           opcao: i + 1,
           ano: o.ano,
           mes: o.mes,
+          inicio: o.inicio ?? null,
           jornada_semanal: o.jornadaSemanal,
           folgas_permitidas: o.folgasPermitidas,
           config: { ...f.config, folgasPermitidas: o.folgasPermitidas } as unknown as Json,
@@ -377,9 +379,8 @@ export async function ajustarDia(simId: string, ajuste: AjusteTurno, replicar = 
     .eq("id", simId);
   if (error) return { erro: msgBanco(error.message) };
   revalidatePath(`${ROTA}/simulacao/${s.lote}`);
-  const mm = String(s.mes).padStart(2, "0");
-  const replicados = outrosDias.length ? ` Mesmo horário aplicado em mais ${outrosDias.length} dia(s): ${outrosDias.map((d) => String(d).padStart(2, "0")).join(", ")}.` : "";
-  return { ok: `Ajuste salvo.${replicados} Cobertura e pendências recalculadas.${movidaDe ? ` Folga trocada: ${String(movidaDe).padStart(2, "0")}/${mm} → ${String(ajuste.data).padStart(2, "0")}/${mm}.` : ""}`, movidaDe };
+  const replicados = outrosDias.length ? ` Mesmo horário aplicado em mais ${outrosDias.length} dia(s): ${outrosDias.map((d) => rotuloData(s, d)).join(", ")}.` : "";
+  return { ok: `Ajuste salvo.${replicados} Cobertura e pendências recalculadas.${movidaDe ? ` Folga trocada: ${rotuloData(s, movidaDe)} → ${rotuloData(s, ajuste.data)}.` : ""}`, movidaDe };
 }
 
 /** "Atualizar pendências": registra o que foi resolvido, o que continua e o que é novo. */
@@ -410,7 +411,10 @@ export async function reanalisarSimulacao(fd: FormData): Promise<void> {
   redirect(comMsg(volta, "ok", a && a.atuais === 0 ? "Pendências atualizadas: nenhuma pendência nesta opção." : `Pendências atualizadas: ${a?.resolvidas ?? 0} resolvida(s), ${a?.continuam ?? 0} continuam e ${a?.novas ?? 0} nova(s).`));
 }
 
-/** Publica a opção como escala oficial do mês da filial (a anterior vira "substituída"). */
+/**
+ * Publica a opção como escala oficial do período da filial (a anterior do mesmo período vira "substituída"). Com
+ * "segue até ser alterada", ela continua valendo nos próximos períodos até outra ser publicada.
+ */
 export async function publicarSimulacao(fd: FormData): Promise<void> {
   const sessao = await sessaoComAcesso();
   const id = texto(fd, "id");
@@ -426,14 +430,38 @@ export async function publicarSimulacao(fd: FormData): Promise<void> {
     const { error } = await supabase.from("esc_simulacoes").update({ situacao: "substituida" }).eq("id", anterior.id);
     if (error) redirect(comMsg(volta, "erro", msgBanco(error.message)));
   }
-  const { error } = await supabase.from("esc_simulacoes").update({ situacao: "oficial" }).eq("id", id);
+  const continua = texto(fd, "continua") === "1";
+  const { error } = await supabase.from("esc_simulacoes").update({ situacao: "oficial", continua }).eq("id", id);
   if (error) {
     // devolve a anterior para oficial não dá (substituída não volta): avisa para publicar de novo
     redirect(comMsg(volta, "erro", `Não publiquei: ${msgBanco(error.message)}`));
   }
-  await registrarAuditoria(supabase, { userId: sessao.id, acao: "editar", entidade: "esc_simulacoes", registroId: id, novo: { situacao: "oficial", filial: s.filial.codigo, ano: s.ano, mes: s.mes, substituiu: anterior?.id ?? null } });
+  await registrarAuditoria(supabase, { userId: sessao.id, acao: "editar", entidade: "esc_simulacoes", registroId: id, novo: { situacao: "oficial", continua, filial: s.filial.codigo, ano: s.ano, mes: s.mes, substituiu: anterior?.id ?? null } });
   revalidatePath(ROTA, "layout");
-  redirect(comMsg(volta, "ok", `Escala oficial de ${String(s.mes).padStart(2, "0")}/${s.ano} publicada para ${s.filial.codigo}.${anterior ? " A anterior ficou como substituída." : ""}`));
+  redirect(
+    comMsg(
+      volta,
+      "ok",
+      `Escala oficial de ${rotuloPeriodo(s)} publicada para ${s.filial.codigo}.${continua ? " Ela segue valendo nos próximos períodos até outra ser publicada." : ""}${anterior ? " A anterior ficou como substituída." : ""}`,
+    ),
+  );
+}
+
+/** Liga ou desliga o "segue até ser alterada" de uma escala oficial. */
+export async function alternarContinua(fd: FormData): Promise<void> {
+  const sessao = await sessaoComAcesso();
+  const id = texto(fd, "id");
+  if (!UUID.test(id)) return;
+  const s = await simulacao(id);
+  if (!s || s.situacao !== "oficial") return;
+  const volta = voltaDe(fd, s.lote);
+  const continua = texto(fd, "continua") === "1";
+  const supabase = await createClient();
+  const { error } = await supabase.from("esc_simulacoes").update({ continua }).eq("id", id);
+  if (error) redirect(comMsg(volta, "erro", msgBanco(error.message)));
+  await registrarAuditoria(supabase, { userId: sessao.id, acao: "editar", entidade: "esc_simulacoes", registroId: id, anterior: { continua: s.continua }, novo: { continua } });
+  revalidatePath(ROTA, "layout");
+  redirect(comMsg(volta, "ok", continua ? "A escala segue valendo nos próximos períodos até outra ser publicada." : "A escala deixou de seguir: vale só para o período dela."));
 }
 
 /** Apaga os rascunhos do lote (a escala oficial, se houver, fica). */

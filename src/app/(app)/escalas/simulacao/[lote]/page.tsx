@@ -10,11 +10,11 @@ import { Status } from "@/components/layout/status";
 import { Button } from "@/components/ui/button";
 import { exigirAcesso } from "@/lib/auth/session";
 import { opcoesDoLote, simulacoesDaFilial, type Simulacao } from "@/lib/data/escalas";
-import { DIAS, ROTULO_DIA, type Dia } from "@/lib/escalas/motor";
-import { agruparAlertas, datasTexto, estatFolgas, excedenteEquipe, horasEquipe, lacunas, mesCurto, nomeMes, rotuloDias, textoFuncionamento } from "@/lib/escalas/resumo";
+import { DIAS, ROTULO_DIA, rotuloData, type Dia } from "@/lib/escalas/motor";
+import { agruparAlertas, datasTexto, estatFolgas, excedenteEquipe, horasEquipe, lacunas, mesCurto, nomeMes, rotuloCompetencia, rotuloDias, textoFuncionamento, textoPeriodo } from "@/lib/escalas/resumo";
 import { formatarDataHora } from "@/lib/formatos";
 import { cn } from "@/lib/utils";
-import { descartarLote, publicarSimulacao, reanalisarSimulacao } from "../../actions";
+import { alternarContinua, descartarLote, publicarSimulacao, reanalisarSimulacao } from "../../actions";
 import { AbasEscala } from "../../abas";
 import { Calendario } from "./calendario";
 import { ExportarIndividual } from "./exportar";
@@ -36,7 +36,7 @@ function diferencas(s: Simulacao, base: Simulacao) {
       const a = turnos.get(t.data);
       if (!a || (["status", "inicio", "fim", "intervaloInicio", "intervaloFim"] as const).every((k) => (t[k] ?? "") === (a[k] ?? ""))) continue;
       const txt = (x: typeof t) => (x.status === "trabalho" ? x.inicio || "trabalho" : x.status);
-      mudancas.push(`${p.nome} · ${String(t.data).padStart(2, "0")} ${ROTULO_DIA[t.dia]}: ${a.status !== t.status ? `${txt(a)} → ${txt(t)}` : `${a.inicio}–${a.fim} → ${t.inicio}–${t.fim}`}`);
+      mudancas.push(`${p.nome} · ${rotuloData(s, t.data)} ${ROTULO_DIA[t.dia]}: ${a.status !== t.status ? `${txt(a)} → ${txt(t)}` : `${a.inicio}–${a.fim} → ${t.inicio}–${t.fim}`}`);
     }
   }
   return mudancas;
@@ -69,7 +69,7 @@ export default async function SimulacaoPage({ params, searchParams }: PageProps<
     <>
       <PageHeader
         eyebrow="Escala 5x2 · opções"
-        titulo={`${sel.filial.codigo} · ${sel.filial.nome} · ${nomeMes(sel.ano, sel.mes)}`}
+        titulo={`${sel.filial.codigo} · ${sel.filial.nome} · ${sel.inicio ? `${nomeMes(sel.ano, sel.mes)} · ${textoPeriodo(sel)}` : nomeMes(sel.ano, sel.mes)}`}
         descricao={`${sel.jornadaSemanal} h/semana · folgas em ${rotuloDias(sel.folgasPermitidas)} · ${textoFuncionamento(sel.config)} · gerado em ${formatarDataHora(sel.criadoEm)}${sel.autor ? ` por ${sel.autor}` : ""}`}
         acoes={
           rascunho ? (
@@ -185,11 +185,11 @@ export default async function SimulacaoPage({ params, searchParams }: PageProps<
       </section>
 
       <Painel
-        titulo={`Opção ${sel.opcao} · ${mesCurto(sel.ano, sel.mes)}`}
+        titulo={`Opção ${sel.opcao} · ${sel.inicio ? rotuloCompetencia(sel.ano, sel.mes) : mesCurto(sel.ano, sel.mes)}`}
         icone={CalendarRange}
         descricao={
           sel.situacao === "oficial"
-            ? `Escala oficial publicada ${sel.publicadoEm ? formatarDataHora(sel.publicadoEm) : ""}${sel.publicador ? ` por ${sel.publicador}` : ""}. Não muda mais.`
+            ? `Escala oficial publicada ${sel.publicadoEm ? formatarDataHora(sel.publicadoEm) : ""}${sel.publicador ? ` por ${sel.publicador}` : ""}. Não muda mais.${sel.continua ? " Segue valendo nos próximos períodos até outra ser publicada." : ""}`
             : sel.situacao === "substituida"
               ? "Esta escala foi oficial e depois substituída por outra publicação."
               : `Folgas marcadas: ${folgas.preferidas}/${folgas.total} em terça–quinta (${folgas.pct}%) · ${folgas.venda} em segunda/sexta.`
@@ -223,13 +223,47 @@ export default async function SimulacaoPage({ params, searchParams }: PageProps<
               ) : (
                 <ConfirmarAcao
                   titulo="Publicar como escala oficial?"
-                  descricao={`Vira a escala oficial de ${mesCurto(sel.ano, sel.mes)} da ${sel.filial.codigo}. Se já houver uma oficial neste mês, ela fica como substituída. A oficial não pode ser alterada depois.`}
+                  descricao={`Vira a escala oficial de ${textoPeriodo(sel)} da ${sel.filial.codigo}. Se já houver uma oficial neste período, ela fica como substituída. A oficial não pode ser alterada depois.`}
                   rotuloBotao="Publicar oficial"
                   rotuloConfirmar="Publicar"
                   action={publicarSimulacao}
                   campos={{ id: sel.id, volta }}
-                />
+                >
+                  <label className="mb-4 flex items-start gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
+                    <input type="checkbox" name="continua" value="1" className="mt-0.5 size-4 accent-primary" />
+                    <span>
+                      <strong>Seguir até ser alterada</strong>: a escala continua valendo nos próximos períodos (as semanas dela se repetem, no mesmo dia da semana)
+                      até outra ser publicada para a {sel.filial.codigo}.
+                    </span>
+                  </label>
+                </ConfirmarAcao>
               ))}
+            {sel.situacao === "oficial" && (
+              <form action={alternarContinua} className="flex items-center gap-2">
+                <input type="hidden" name="id" value={sel.id} />
+                <input type="hidden" name="volta" value={volta} />
+                <input type="hidden" name="continua" value={sel.continua ? "0" : "1"} />
+                {sel.continua && <Status tom="info">Segue até ser alterada</Status>}
+                <Button type="submit" variant="ghost" size="sm">
+                  {sel.continua ? "Parar de seguir" : "Seguir até ser alterada"}
+                </Button>
+              </form>
+            )}
+            {sel.situacao === "oficial" && sel.continua && (
+              <span className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+                PDF seguindo em:
+                {[1, 2, 3].map((n) => {
+                  const t = sel.ano * 12 + (sel.mes - 1) + n;
+                  const a = Math.floor(t / 12);
+                  const m = (t % 12) + 1;
+                  return (
+                    <a key={n} href={`/imprimir/escala/${sel.id}?mes=${a}-${String(m).padStart(2, "0")}`} target="_blank" rel="noopener" className="font-medium text-primary underline">
+                      {rotuloCompetencia(a, m).split(" ")[0]}
+                    </a>
+                  );
+                })}
+              </span>
+            )}
           </div>
         }
         className="mb-4"
@@ -267,6 +301,7 @@ export default async function SimulacaoPage({ params, searchParams }: PageProps<
           simId={sel.id}
           ano={sel.ano}
           mes={sel.mes}
+          inicio={sel.inicio ?? null}
           jornadaSemanal={sel.jornadaSemanal}
           equipe={sel.equipe}
           cobertura={sel.cobertura}
@@ -287,7 +322,7 @@ export default async function SimulacaoPage({ params, searchParams }: PageProps<
                   <div className="min-w-0">
                     <p>{g.mensagem}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      {g.ocorrencias} ocorrência(s) · datas: {datasTexto(g.datas, sel.mes)}
+                      {g.ocorrencias} ocorrência(s) · datas: {datasTexto(g.datas, sel)}
                     </p>
                     {g.faixasTodas.length > 0 && <p className="text-xs text-muted-foreground">Faixas sem cobertura (1 h cada): {g.faixasTodas.join(", ")}</p>}
                     {g.sugestoesTodas.length > 0 && (

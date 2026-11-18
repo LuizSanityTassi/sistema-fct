@@ -6,7 +6,7 @@ import { AvisoSucesso, ErroFormulario, SelectNativo } from "@/components/form/ca
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { ROTULO_DIA, ROTULO_FUNCAO, diaChave, diasComMesmoHorario, hora, minutos, type DiaCobertura, type PessoaEscala, type Turno } from "@/lib/escalas/motor";
+import { ROTULO_DIA, ROTULO_FUNCAO, diasComMesmoHorario, diasDoPeriodo, hora, minutos, rotuloData, type DiaCobertura, type PeriodoEscala, type PessoaEscala, type Turno } from "@/lib/escalas/motor";
 import { celula } from "@/lib/escalas/resumo";
 import { cn } from "@/lib/utils";
 import { ajustarDia } from "../../actions";
@@ -15,6 +15,8 @@ type Props = {
   simId: string;
   ano: number;
   mes: number;
+  /** 1º dia do período (nulo nas escalas antigas, do mês civil) */
+  inicio: string | null;
   jornadaSemanal: number;
   equipe: PessoaEscala[];
   cobertura: DiaCobertura[];
@@ -30,15 +32,18 @@ const COR: Record<string, string> = {
   inativo: "bg-muted text-muted-foreground",
 };
 
-function dica(p: PessoaEscala, t: Turno, mes: number) {
-  const data = `${String(t.data).padStart(2, "0")}/${String(mes).padStart(2, "0")} (${ROTULO_DIA[t.dia]})`;
+function dica(p: PessoaEscala, t: Turno, periodo: PeriodoEscala) {
+  const data = `${rotuloData(periodo, t.data)} (${ROTULO_DIA[t.dia]})`;
   if (t.status !== "trabalho") return `${p.nome} · ${data} · ${t.status}${t.ajustado ? " · ajuste manual" : ""}`;
   const almoco = t.intervaloInicio ? ` · almoço ${t.intervaloInicio}–${t.intervaloFim}` : " · sem almoço";
   return `${p.nome} · ${data} · entrada ${t.inicio}${almoco} · saída ${t.fim} · ${t.horas.toFixed(1)} h${t.ajustado ? " · ajuste manual" : ""}`;
 }
 
 /** Calendário do mês (uma linha por pessoa). Clique num dia aberto para trocar folga ou horário. */
-export function Calendario({ simId, ano, mes, jornadaSemanal, equipe, cobertura, abertura, editavel }: Props) {
+export function Calendario({ simId, ano, mes, inicio, jornadaSemanal, equipe, cobertura, abertura, editavel }: Props) {
+  const periodo: PeriodoEscala = { ano, mes, inicio };
+  // mês de cada dia do período (o período da folha atravessa dois meses)
+  const mesDoDia = new Map(diasDoPeriodo(periodo).map((d) => [d.data, d]));
   const router = useRouter();
   const [aberto, setAberto] = React.useState<{ p: PessoaEscala; t: Turno } | null>(null);
   const [status, setStatus] = React.useState<"trabalho" | "folga">("trabalho");
@@ -108,12 +113,17 @@ export function Calendario({ simId, ano, mes, jornadaSemanal, equipe, cobertura,
           <thead>
             <tr>
               <th className="sticky left-0 z-10 min-w-52 border-r border-b bg-card px-3 py-2 text-left font-medium text-muted-foreground">Pessoa / função</th>
-              {dias.map((d) => {
-                const dia = diaChave(ano, mes, d);
+              {cobertura.map((c) => {
+                const virada = c.data === 1 && dias[0] !== 1;
                 return (
-                  <th key={d} className={cn("min-w-11 border-r border-b px-0.5 py-1 text-center font-medium", !abertoNoDia.get(d) && "bg-muted/60 text-muted-foreground")}>
-                    <span className="block text-sm text-foreground">{d}</span>
-                    {ROTULO_DIA[dia]}
+                  <th
+                    key={c.data}
+                    title={rotuloData(periodo, c.data)}
+                    className={cn("min-w-11 border-r border-b px-0.5 py-1 text-center font-medium", !abertoNoDia.get(c.data) && "bg-muted/60 text-muted-foreground", virada && "border-l-2 border-l-foreground/40")}
+                  >
+                    <span className="block text-sm text-foreground">{c.data}</span>
+                    {ROTULO_DIA[c.dia]}
+                    {(virada || c === cobertura[0]) && <span className="block text-[10px] text-muted-foreground">{String(mesDoDia.get(c.data)?.mes ?? mes).padStart(2, "0")}</span>}
                   </th>
                 );
               })}
@@ -138,8 +148,8 @@ export function Calendario({ simId, ano, mes, jornadaSemanal, equipe, cobertura,
                         type="button"
                         disabled={!pode}
                         onClick={() => abrir(p, t)}
-                        title={dica(p, t, mes)}
-                        aria-label={`${pode ? "Ajustar" : "Ver"} ${dica(p, t, mes)}`}
+                        title={dica(p, t, periodo)}
+                        aria-label={`${pode ? "Ajustar" : "Ver"} ${dica(p, t, periodo)}`}
                         className={cn("h-full w-full px-0.5", pode && "cursor-pointer hover:bg-black/5", t.ajustado && "ring-2 ring-sky-400 ring-inset")}
                       >
                         {celula(t.status, t.inicio)}
@@ -165,7 +175,7 @@ export function Calendario({ simId, ano, mes, jornadaSemanal, equipe, cobertura,
               <DialogHeader>
                 <DialogTitle>{aberto.p.nome}</DialogTitle>
                 <DialogDescription>
-                  {ROTULO_DIA[aberto.t.dia]} · {String(aberto.t.data).padStart(2, "0")}/{String(mes).padStart(2, "0")}/{ano} · {ROTULO_FUNCAO[aberto.p.funcao]}
+                  {ROTULO_DIA[aberto.t.dia]} · {rotuloData(periodo, aberto.t.data)}/{mesDoDia.get(aberto.t.data)?.ano ?? ano} · {ROTULO_FUNCAO[aberto.p.funcao]}
                 </DialogDescription>
               </DialogHeader>
               <form action={salvar} className="grid gap-3">
@@ -202,7 +212,7 @@ export function Calendario({ simId, ano, mes, jornadaSemanal, equipe, cobertura,
                     <input type="checkbox" checked={replicar} onChange={(e) => setReplicar(e.target.checked)} className="mt-0.5 size-4 accent-primary" />
                     <span>
                       Aplicar também nos outros <strong>{iguais.length} dia(s)</strong> em que {aberto.p.nome.split(" ")[0]} trabalha no mesmo horário ({aberto.t.inicio} às {aberto.t.fim}):{" "}
-                      <span className="tabular-nums">{iguais.map((d) => String(d).padStart(2, "0")).join(", ")}</span>.
+                      <span className="tabular-nums">{iguais.map((d) => rotuloData(periodo, d)).join(", ")}</span>.
                       <span className="block text-xs text-sky-800/80">
                         O almoço de cada dia anda o mesmo tanto que o deste dia (o revezamento continua). Folgas e dias com outro horário (ex.: sábado) não mudam.
                       </span>

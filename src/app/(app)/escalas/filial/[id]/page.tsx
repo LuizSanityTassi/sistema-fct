@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { exigirAcesso } from "@/lib/auth/session";
 import { escalasOficiais, filialDaEscala } from "@/lib/data/escalas";
 import { preAnalise } from "@/lib/escalas/motor";
-import { mesCurto, proximoMes } from "@/lib/escalas/resumo";
+import { mesCurto, proximoMes, rotuloCompetencia } from "@/lib/escalas/resumo";
 import { formatarDataHora } from "@/lib/formatos";
 import { AbasEscala } from "../../abas";
 import { SecoesFilial } from "../../_ui/secoes-filial";
@@ -31,7 +31,7 @@ export default async function FilialEscalaPage({ params, searchParams }: PagePro
       <PageHeader
         eyebrow="Escala 5x2 · filial"
         titulo={`${f.codigo} · ${f.nome}`}
-        descricao={`${f.regional ?? "Sem regional"} · ${f.equipe.filter((p) => p.situacao === "ativo").length} pessoas ativas na escala. Pré-análise de ${mesCurto(ref.ano, ref.mes)}: ${pre.rotulo.toLowerCase()}.`}
+        descricao={`${f.regional ?? "Sem regional"} · ${f.equipe.filter((p) => p.situacao === "ativo").length} pessoas ativas na escala. Pré-análise de ${rotuloCompetencia(ref.ano, ref.mes)}: ${pre.rotulo.toLowerCase()}.`}
         acoes={
           <Button render={<Link href={`/escalas/simulador?filial=${id}`} />} nativeButton={false}>
             <CalendarRange data-icon="inline-start" />

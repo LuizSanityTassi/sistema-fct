@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { exigirAcesso } from "@/lib/auth/session";
 import { filiaisDaEscala, filiaisForaDaEscala } from "@/lib/data/escalas";
 import { preAnalise, ROTULO_PRE, type PreAnalise } from "@/lib/escalas/motor";
-import { horarioPendente, mesCurto, modeloFilial, proximoMes, rotuloDias, textoFuncionamento } from "@/lib/escalas/resumo";
+import { horarioPendente, modeloFilial, proximoMes, rotuloCompetencia, rotuloDias, textoFuncionamento } from "@/lib/escalas/resumo";
 import type { Tom } from "@/lib/tons";
 import { AbasEscala } from "./abas";
 import { IncluirFilial } from "./incluir-filial";
@@ -74,7 +74,7 @@ export default async function EscalasPage({ searchParams }: PageProps<"/escalas"
       </section>
 
       <Painel
-        titulo={`Pré-análise de ${mesCurto(ref.ano, ref.mes)}`}
+        titulo={`Pré-análise de ${rotuloCompetencia(ref.ano, ref.mes)}`}
         descricao="Melhor de três opções automáticas, 40 h/semana e os dias de folga de cada filial. Passe o mouse na situação para ver o motivo."
         className="mb-4"
       >

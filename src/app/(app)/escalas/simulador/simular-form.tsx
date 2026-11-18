@@ -56,7 +56,7 @@ export function SimularForm({ filiais, filialInicial, meses, mesInicial }: { fil
           </SelectNativo>
         </label>
         <label className="grid gap-1 text-sm">
-          <span className="font-medium">Mês</span>
+          <span className="font-medium">Período (21 a 20)</span>
           <SelectNativo name="periodo" value={periodo} onChange={(e) => setPeriodo(e.target.value)}>
             {meses.map((m) => (
               <option key={m.valor} value={m.valor}>

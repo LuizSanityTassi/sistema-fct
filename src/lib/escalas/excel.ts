@@ -3,8 +3,8 @@
 import "server-only";
 import * as XLSX from "xlsx";
 import type { Simulacao } from "@/lib/data/escalas";
-import { ROTULO_DIA, ROTULO_FUNCAO, ROTULO_SITUACAO, diaChave, type Funcao } from "./motor";
-import { celula, excedenteEquipe, horasEquipe, mesCurto, rotuloDias, textoFuncionamento } from "./resumo";
+import { ROTULO_DIA, ROTULO_FUNCAO, ROTULO_SITUACAO, rotuloData, type Funcao } from "./motor";
+import { celula, excedenteEquipe, horasEquipe, rotuloDias, textoFuncionamento, textoPeriodo } from "./resumo";
 
 type Celula = string | number | boolean | null | { t: "n"; v: number; f: string };
 
@@ -24,7 +24,6 @@ function aba(wb: XLSX.WorkBook, nome: string, linhas: Celula[][], larguras: numb
   XLSX.utils.book_append_sheet(wb, ws, nome);
 }
 
-const dm = (d: number, m: number) => `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}`;
 
 export function gerarExcelEscala(sims: Simulacao[], pessoaId?: string): Buffer {
   const wb = XLSX.utils.book_new();
@@ -45,7 +44,7 @@ export function gerarExcelEscala(sims: Simulacao[], pessoaId?: string): Buffer {
     resumo.push([
       s.filial.codigo,
       s.filial.nome,
-      mesCurto(s.ano, s.mes),
+      textoPeriodo(s),
       s.opcao,
       s.situacao === "oficial" ? "Oficial" : s.situacao === "substituida" ? "Substituída" : "Rascunho",
       s.equipe.filter((p) => p.situacao === "ativo").length,
@@ -63,8 +62,8 @@ export function gerarExcelEscala(sims: Simulacao[], pessoaId?: string): Buffer {
   for (const s of lista) {
     const n = s.cobertura.length;
     escala.push([]);
-    escala.push([`${s.filial.codigo} · ${s.filial.nome} · opção ${s.opcao} · ${mesCurto(s.ano, s.mes)} · folgas em ${rotuloDias(s.folgasPermitidas)}`]);
-    escala.push(["Colaborador", "Função", ...s.cobertura.map((c) => `${c.data} ${ROTULO_DIA[diaChave(s.ano, s.mes, c.data)]}`), "Horas"]);
+    escala.push([`${s.filial.codigo} · ${s.filial.nome} · opção ${s.opcao} · ${textoPeriodo(s)} · folgas em ${rotuloDias(s.folgasPermitidas)}`]);
+    escala.push(["Colaborador", "Função", ...s.cobertura.map((c) => `${rotuloData(s, c.data)} ${ROTULO_DIA[c.dia]}`), "Horas"]);
     for (const p of s.equipe) {
       const turnos = new Map(p.turnos.map((t) => [t.data, t]));
       escala.push([p.nome, ROTULO_FUNCAO[p.funcao], ...s.cobertura.map((c) => celula(turnos.get(c.data)?.status ?? "fechado", turnos.get(c.data)?.inicio)), Number(p.totalHoras.toFixed(1))]);
@@ -87,8 +86,8 @@ export function gerarExcelEscala(sims: Simulacao[], pessoaId?: string): Buffer {
     for (const p of s.equipe) {
       pessoas.push([cod, p.nome, ROTULO_FUNCAO[p.funcao], ROTULO_SITUACAO[p.situacao], p.horasDia ?? s.jornadaSemanal / 5, p.intervaloMin, p.registro ?? ""]);
       for (const t of p.turnos) {
-        if (t.status === "trabalho") turnos.push([cod, p.nome, dm(t.data, s.mes), ROTULO_DIA[t.dia], t.inicio ?? "", t.intervaloInicio || "—", t.intervaloFim || "—", t.fim ?? "", Number(t.horas.toFixed(2)), t.ajustado ? "Sim" : ""]);
-        if (t.status === "folga") folgas.push([cod, p.nome, dm(t.data, s.mes), ROTULO_DIA[t.dia]]);
+        if (t.status === "trabalho") turnos.push([cod, p.nome, rotuloData(s, t.data), ROTULO_DIA[t.dia], t.inicio ?? "", t.intervaloInicio || "—", t.intervaloFim || "—", t.fim ?? "", Number(t.horas.toFixed(2)), t.ajustado ? "Sim" : ""]);
+        if (t.status === "folga") folgas.push([cod, p.nome, rotuloData(s, t.data), ROTULO_DIA[t.dia]]);
       }
       const r = horas.length + 1;
       const ref = celulaHoras.get(`${s.id}:${p.id}`);
@@ -107,12 +106,12 @@ export function gerarExcelEscala(sims: Simulacao[], pessoaId?: string): Buffer {
         const faixas = d.faixas.length ? d.faixas : [{ hora: "—", porFuncao: d.porFuncao }];
         for (const f of faixas) {
           const por = Object.entries(f.porFuncao) as [Funcao, number][];
-          cobertura.push([cod, dm(d.data, s.mes), ROTULO_DIA[d.dia], d.aberto ? "Sim" : "Não", f.hora, por.reduce((x, [, q]) => x + q, 0), por.map(([fn, q]) => `${ROTULO_FUNCAO[fn]}: ${q}`).join(" | ") || "Ninguém"]);
+          cobertura.push([cod, rotuloData(s, d.data), ROTULO_DIA[d.dia], d.aberto ? "Sim" : "Não", f.hora, por.reduce((x, [, q]) => x + q, 0), por.map(([fn, q]) => `${ROTULO_FUNCAO[fn]}: ${q}`).join(" | ") || "Ninguém"]);
         }
       }
     for (const a of s.alertas) {
       if (pessoaId && a.pessoaId && a.pessoaId !== pessoaId) continue;
-      auditoria.push([cod, a.severidade === "alta" ? "Alta" : "Média", a.pessoaId ? (nomes.get(a.pessoaId) ?? "") : "", a.data ? dm(a.data, s.mes) : "", a.mensagem, (a.faixas ?? []).join(", "), (a.sugestoes ?? []).join(" | ")]);
+      auditoria.push([cod, a.severidade === "alta" ? "Alta" : "Média", a.pessoaId ? (nomes.get(a.pessoaId) ?? "") : "", a.data ? rotuloData(s, a.data) : "", a.mensagem, (a.faixas ?? []).join(", "), (a.sugestoes ?? []).join(" | ")]);
     }
     config.push([cod, s.filial.nome, textoFuncionamento(s.config), s.config.minimos.farmaceutico ?? 0, s.config.acordoJornadaEstendida ? "Sim" : "Não", s.jornadaSemanal, rotuloDias(s.folgasPermitidas), s.situacao]);
   }

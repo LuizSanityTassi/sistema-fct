@@ -12,6 +12,11 @@ import {
   type Escala,
   type Faixa,
   type Funcao,
+  type PeriodoEscala,
+  inicioFolha,
+  ordenarDatas,
+  rotuloData,
+  rotuloPeriodo,
 } from "./motor";
 
 export type LinhaFilialEscala = {
@@ -106,8 +111,8 @@ export function agruparAlertas(alertas: Alerta[]): GrupoAlerta[] {
     .sort((a, b) => Number(b.severidade === "alta") - Number(a.severidade === "alta"));
 }
 
-export const datasTexto = (datas: number[], mes: number) =>
-  datas.length ? datas.map((d) => `${String(d).padStart(2, "0")}/${String(mes).padStart(2, "0")}`).join(", ") : "sem data específica";
+/** Datas do período em texto, na ordem do período: "21/11, 25/11, 02/12". */
+export const datasTexto = (datas: number[], p: PeriodoEscala) => (datas.length ? ordenarDatas(p, datas).map((d) => rotuloData(p, d)).join(", ") : "sem data específica");
 
 /** Folgas da equipe ativa: quantas caem em ter–qui (preferência) e quantas em seg/sex (dias de venda). */
 export function estatFolgas(e: Pick<Escala, "equipe">) {
@@ -153,11 +158,28 @@ export function celula(status: string, inicio?: string) {
 export const nomeMes = (ano: number, mes: number) => new Date(Date.UTC(ano, mes - 1, 15)).toLocaleDateString("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" });
 export const mesCurto = (ano: number, mes: number) => `${String(mes).padStart(2, "0")}/${ano}`;
 
-/** Próximo mês no fuso de Brasília (padrão do simulador e da pré-análise). */
-export function proximoMes(agora = new Date()) {
-  const [a, m] = agora.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }).split("-").map(Number);
+/** Competência do período que está correndo hoje (Brasília): do dia 21 em diante já é a do mês seguinte, como a folha. */
+export function competenciaAtual(agora = new Date()) {
+  const [a, m, d] = agora.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }).split("-").map(Number);
+  if (d < 21) return { ano: a, mes: m };
   return m === 12 ? { ano: a + 1, mes: 1 } : { ano: a, mes: m + 1 };
 }
+
+/** Próximo período a planejar (o seguinte ao que está correndo): padrão do simulador e da pré-análise. */
+export function proximoMes(agora = new Date()) {
+  const { ano, mes } = competenciaAtual(agora);
+  return mes === 12 ? { ano: ano + 1, mes: 1 } : { ano, mes: mes + 1 };
+}
+
+/** Competência com o período da folha: "dez/2026 (21/11 a 20/12)". */
+export function rotuloCompetencia(ano: number, mes: number) {
+  const nome = new Date(Date.UTC(ano, mes - 1, 15)).toLocaleDateString("pt-BR", { month: "short", timeZone: "UTC" }).replace(".", "");
+  const [de, ate] = rotuloPeriodo({ ano, mes, inicio: inicioFolha(ano, mes) }).split(" a ");
+  return `${nome}/${ano} (${de.slice(0, 5)} a ${ate.slice(0, 5)})`;
+}
+
+/** Período de uma escala em texto: "21/11/2026 a 20/12/2026" (as antigas, do mês civil: "01/11/2026 a 30/11/2026"). */
+export const textoPeriodo = (p: PeriodoEscala) => rotuloPeriodo(p);
 
 /** Lê "AAAA-MM". */
 export function lerMesAno(v: unknown): { ano: number; mes: number } | null {

@@ -21,6 +21,8 @@ type Props = {
   /** Server Action que recebe os campos ocultos. */
   action: (formData: FormData) => Promise<void>;
   campos?: Record<string, string>;
+  /** Campos extras dentro do formulário (ex.: uma opção marcável). */
+  children?: React.ReactNode;
 };
 
 /** Botão que abre um diálogo de confirmação antes de executar uma Server Action. */
@@ -32,6 +34,7 @@ export function ConfirmarAcao({
   variant = "outline",
   action,
   campos = {},
+  children,
 }: Props) {
   const [aberto, setAberto] = React.useState(false);
   const [pendente, iniciar] = React.useTransition();
@@ -58,6 +61,7 @@ export function ConfirmarAcao({
             {Object.entries(campos).map(([nome, valor]) => (
               <input key={nome} type="hidden" name={nome} value={valor} />
             ))}
+            {children}
             <DialogFooter>
               <DialogClose render={<Button type="button" variant="outline" />}>Cancelar</DialogClose>
               <Button

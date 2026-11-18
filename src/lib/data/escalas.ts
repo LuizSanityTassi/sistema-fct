@@ -2,7 +2,7 @@
 // gerente a filial dele).
 import "server-only";
 import { colaboradorDaLinha, configDaLinha, type LinhaFilialEscala } from "@/lib/escalas/resumo";
-import type { Alerta, Analise, Colaborador, ConfigFilial, DiaCobertura, Escala, PessoaEscala } from "@/lib/escalas/motor";
+import { projetarEscala, type Alerta, type Analise, type Colaborador, type ConfigFilial, type DiaCobertura, type Escala, type PessoaEscala } from "@/lib/escalas/motor";
 import { createClient } from "@/lib/supabase/server";
 
 export type FilialEscala = {
@@ -118,6 +118,8 @@ export type ResumoSimulacao = {
   opcao: number;
   ano: number;
   mes: number;
+  inicio: string | null;
+  continua: boolean;
   jornada_semanal: number;
   folgas_permitidas: number[];
   situacao: string;
@@ -131,7 +133,7 @@ export type ResumoSimulacao = {
 };
 
 const COLS_RESUMO =
-  "id, lote, branch_id, opcao, ano, mes, jornada_semanal, folgas_permitidas, situacao, qtd_alertas, analise_pendente, criado_em, publicado_em, filial:branches!inner(id, codigo, nome), autor:profiles!esc_simulacoes_criado_por_fkey(nome), publicador:profiles!esc_simulacoes_publicado_por_fkey(nome)";
+  "id, lote, branch_id, opcao, ano, mes, inicio, continua, jornada_semanal, folgas_permitidas, situacao, qtd_alertas, analise_pendente, criado_em, publicado_em, filial:branches!inner(id, codigo, nome), autor:profiles!esc_simulacoes_criado_por_fkey(nome), publicador:profiles!esc_simulacoes_publicado_por_fkey(nome)";
 
 export async function opcoesDoLote(lote: string): Promise<ResumoSimulacao[]> {
   const supabase = await createClient();
@@ -146,6 +148,8 @@ export type Simulacao = Escala & {
   branchId: string;
   opcao: number;
   situacao: "rascunho" | "oficial" | "substituida";
+  /** oficial que segue valendo nos próximos períodos até outra ser publicada */
+  continua: boolean;
   config: ConfigFilial;
   analisadoEm: string | null;
   criadoEm: string;
@@ -162,6 +166,8 @@ type LinhaSim = {
   opcao: number;
   ano: number;
   mes: number;
+  inicio: string | null;
+  continua: boolean;
   jornada_semanal: number;
   folgas_permitidas: number[];
   situacao: string;
@@ -188,6 +194,8 @@ export function simulacaoDaLinha(l: LinhaSim): Simulacao {
     opcao: l.opcao,
     ano: l.ano,
     mes: l.mes,
+    inicio: l.inicio,
+    continua: !!l.continua,
     jornadaSemanal: l.jornada_semanal,
     folgasPermitidas: l.folgas_permitidas,
     situacao: l.situacao as Simulacao["situacao"],
@@ -208,7 +216,7 @@ export function simulacaoDaLinha(l: LinhaSim): Simulacao {
 }
 
 const COLS_SIM =
-  "id, lote, branch_id, opcao, ano, mes, jornada_semanal, folgas_permitidas, situacao, config, equipe, cobertura, alertas, alertas_base, analise, analise_pendente, analisado_em, criado_em, publicado_em, filial:branches!inner(id, codigo, nome), autor:profiles!esc_simulacoes_criado_por_fkey(nome), publicador:profiles!esc_simulacoes_publicado_por_fkey(nome)";
+  "id, lote, branch_id, opcao, ano, mes, inicio, continua, jornada_semanal, folgas_permitidas, situacao, config, equipe, cobertura, alertas, alertas_base, analise, analise_pendente, analisado_em, criado_em, publicado_em, filial:branches!inner(id, codigo, nome), autor:profiles!esc_simulacoes_criado_por_fkey(nome), publicador:profiles!esc_simulacoes_publicado_por_fkey(nome)";
 
 /** Opções completas (com a escala) de uma filial dentro do lote. */
 export async function simulacoesDaFilial(lote: string, branchId: string): Promise<Simulacao[]> {
@@ -236,6 +244,7 @@ export type LoteRecente = {
   autor: string | null;
   ano: number;
   mes: number;
+  inicio: string | null;
   jornada: number;
   filiais: { codigo: string; nome: string }[];
   opcoes: number;
@@ -249,7 +258,7 @@ export async function lotesRecentes(limite = 15): Promise<LoteRecente[]> {
   const { data } = await supabase.from("esc_simulacoes").select(COLS_RESUMO).order("criado_em", { ascending: false }).limit(600);
   const lotes = new Map<string, LoteRecente>();
   for (const s of (data ?? []) as ResumoSimulacao[]) {
-    const l = lotes.get(s.lote) ?? { lote: s.lote, criadoEm: s.criado_em, autor: s.autor?.nome ?? null, ano: s.ano, mes: s.mes, jornada: s.jornada_semanal, filiais: [], opcoes: 0, semPendencia: 0, oficiais: 0 };
+    const l = lotes.get(s.lote) ?? { lote: s.lote, criadoEm: s.criado_em, autor: s.autor?.nome ?? null, ano: s.ano, mes: s.mes, inicio: s.inicio, jornada: s.jornada_semanal, filiais: [], opcoes: 0, semPendencia: 0, oficiais: 0 };
     if (!l.filiais.some((f) => f.codigo === s.filial.codigo)) l.filiais.push({ codigo: s.filial.codigo, nome: s.filial.nome });
     l.opcoes += 1;
     if (!s.qtd_alertas) l.semPendencia += 1;
@@ -264,4 +273,30 @@ export async function escalasOficiais(): Promise<ResumoSimulacao[]> {
   const supabase = await createClient();
   const { data } = await supabase.from("esc_simulacoes").select(COLS_RESUMO).eq("situacao", "oficial").order("ano", { ascending: false }).order("mes", { ascending: false }).limit(300);
   return ((data ?? []) as ResumoSimulacao[]).sort((a, b) => b.ano - a.ano || b.mes - a.mes || a.filial.codigo.localeCompare(b.filial.codigo, "pt-BR", { numeric: true }));
+}
+
+export type EscalaVigente = { base: Simulacao; escala: Escala; projetada: boolean };
+
+/**
+ * Escala oficial que vale para a filial na competência: a publicada para ela ou, se não houver, a última publicada antes
+ * marcada como "segue até ser alterada" (levada para o período pedido). Nulo se nenhuma vale.
+ */
+export async function escalaVigente(branchId: string, ano: number, mes: number): Promise<EscalaVigente | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("esc_simulacoes")
+    .select("id, ano, mes, continua")
+    .eq("branch_id", branchId)
+    .eq("situacao", "oficial")
+    .or(`ano.lt.${ano},and(ano.eq.${ano},mes.lte.${mes})`)
+    .order("ano", { ascending: false })
+    .order("mes", { ascending: false })
+    .limit(1);
+  const ultima = data?.[0];
+  if (!ultima) return null;
+  const exata = ultima.ano === ano && ultima.mes === mes;
+  if (!exata && !ultima.continua) return null;
+  const base = await simulacao(ultima.id);
+  if (!base) return null;
+  return exata ? { base, escala: base, projetada: false } : { base, escala: projetarEscala(base.config, base, ano, mes), projetada: true };
 }

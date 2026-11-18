@@ -3877,6 +3877,8 @@ export type Database = {
           criado_por: string | null
           equipe: Json
           folgas_permitidas: number[]
+          continua: boolean
+          inicio: string | null
           id: string
           jornada_semanal: number
           lote: string
@@ -3902,6 +3904,8 @@ export type Database = {
           criado_por?: string | null
           equipe: Json
           folgas_permitidas: number[]
+          continua?: boolean
+          inicio?: string | null
           id?: string
           jornada_semanal: number
           lote: string
@@ -3927,6 +3931,8 @@ export type Database = {
           criado_por?: string | null
           equipe?: Json
           folgas_permitidas?: number[]
+          continua?: boolean
+          inicio?: string | null
           id?: string
           jornada_semanal?: number
           lote?: string

@@ -101,10 +101,13 @@ export type Analise = {
   mudancas: { mensagem: string; antes: number; agora: number }[];
 };
 
-/** Uma opção de escala do mês (o que fica gravado em esc_simulacoes). */
+/** Uma opção de escala do período (o que fica gravado em esc_simulacoes). */
 export type Escala = {
+  /** competência: o período vai do dia 21 do mês anterior ao dia 20 deste mês (ver `diasDoPeriodo`) */
   ano: number;
   mes: number;
+  /** 1º dia do período (AAAA-MM-DD). Ausente nas opções antigas, que eram do mês civil. */
+  inicio?: string | null;
   jornadaSemanal: number;
   folgasPermitidas: number[];
   equipe: PessoaEscala[];
@@ -131,10 +134,56 @@ export function hora(min: number) {
 export const diasNoMes = (ano: number, mes: number) => new Date(Date.UTC(ano, mes, 0)).getUTCDate();
 export const diaDaSemana = (ano: number, mes: number, data: number) => new Date(Date.UTC(ano, mes - 1, data)).getUTCDay();
 export const diaChave = (ano: number, mes: number, data: number): Dia => DIAS[diaDaSemana(ano, mes, data)];
-/** Semanas começam na segunda: a semana de um dia do mês (0 = a semana do dia 1). */
-const deslocamento = (ano: number, mes: number) => (diaDaSemana(ano, mes, 1) + 6) % 7;
-export const semanaDoMes = (ano: number, mes: number, data: number) => Math.floor((data - 1 + deslocamento(ano, mes)) / 7);
-const fmtDia = (data: number, mes: number) => `${String(data).padStart(2, "0")}/${String(mes).padStart(2, "0")}`;
+// ---------------------------------------------------------------------------------------------------------------
+// Período da escala
+// ---------------------------------------------------------------------------------------------------------------
+// As escalas seguem o período da folha: do dia 21 do mês anterior ao dia 20 do mês (competência = mês do dia 20).
+// As opções antigas (sem `inicio`) eram do mês civil e continuam assim. Em qualquer caso `data` é o dia do mês e não
+// se repete dentro do período (21…31 de um mês e 1…20 do outro); a ordem e a semana vêm de `diasDoPeriodo`.
+
+export type PeriodoEscala = { ano: number; mes: number; inicio?: string | null };
+export type DiaPeriodo = { data: number; ano: number; mes: number; iso: string; dia: Dia; pos: number };
+
+const isoUTC = (d: Date) => d.toISOString().slice(0, 10);
+/** 1º dia do período da competência (dia 21 do mês anterior). */
+export const inicioFolha = (ano: number, mes: number) => isoUTC(new Date(Date.UTC(ano, mes - 2, 21)));
+
+const cachePeriodo = new Map<string, DiaPeriodo[]>();
+/** Dias do período em ordem (não altere o que volta: é compartilhado). */
+export function diasDoPeriodo(p: PeriodoEscala): DiaPeriodo[] {
+  const chave = `${p.ano}-${p.mes}-${p.inicio ?? ""}`;
+  const pronto = cachePeriodo.get(chave);
+  if (pronto) return pronto;
+  const ini = p.inicio ? new Date(`${p.inicio.slice(0, 10)}T00:00:00Z`) : new Date(Date.UTC(p.ano, p.mes - 1, 1));
+  const fim = p.inicio ? new Date(Date.UTC(p.ano, p.mes - 1, 20)) : new Date(Date.UTC(p.ano, p.mes, 0));
+  const dias: DiaPeriodo[] = [];
+  for (const d = new Date(ini); d <= fim && dias.length < 62; d.setUTCDate(d.getUTCDate() + 1)) {
+    dias.push({ data: d.getUTCDate(), ano: d.getUTCFullYear(), mes: d.getUTCMonth() + 1, iso: isoUTC(d), dia: DIAS[d.getUTCDay()], pos: dias.length });
+  }
+  cachePeriodo.set(chave, dias);
+  return dias;
+}
+const diaDoPeriodo = (p: PeriodoEscala, data: number) => diasDoPeriodo(p).find((d) => d.data === data);
+/** Posição do dia no período (0 = primeiro dia). */
+export const posicaoNoPeriodo = (p: PeriodoEscala, data: number) => diaDoPeriodo(p, data)?.pos ?? data - 1;
+/** Semanas começam na segunda: quantos dias do 1º dia até a segunda daquela semana. */
+const deslocamentoPeriodo = (p: PeriodoEscala) => {
+  const d = diasDoPeriodo(p)[0];
+  return d ? (DIAS.indexOf(d.dia) + 6) % 7 : 0;
+};
+/** Semana do período (0 = a semana do 1º dia), começando na segunda. */
+export const semanaDoPeriodo = (p: PeriodoEscala, data: number) => Math.floor((posicaoNoPeriodo(p, data) + deslocamentoPeriodo(p)) / 7);
+export const semanasDoPeriodo = (p: PeriodoEscala) => Math.ceil((diasDoPeriodo(p).length + deslocamentoPeriodo(p)) / 7);
+/** "21/11" (com o mês certo do dia dentro do período). */
+export const rotuloData = (p: PeriodoEscala, data: number) => `${String(data).padStart(2, "0")}/${String(diaDoPeriodo(p, data)?.mes ?? p.mes).padStart(2, "0")}`;
+/** "21/11/2026 a 20/12/2026". */
+export function rotuloPeriodo(p: PeriodoEscala) {
+  const ds = diasDoPeriodo(p);
+  const f = (d: DiaPeriodo) => `${String(d.data).padStart(2, "0")}/${String(d.mes).padStart(2, "0")}/${d.ano}`;
+  return ds.length ? `${f(ds[0])} a ${f(ds[ds.length - 1])}` : "";
+}
+/** Ordena números de dia na ordem do período (21…31, 1…20). */
+export const ordenarDatas = (p: PeriodoEscala, datas: number[]) => [...datas].sort((a, b) => posicaoNoPeriodo(p, a) - posicaoNoPeriodo(p, b));
 
 export const aberto = (cfg: ConfigFilial, dia: Dia) => cfg.horarios[dia] !== null;
 const faixaDoDia = (cfg: ConfigFilial, dia: Dia) => {
@@ -239,8 +288,9 @@ export function gerarOpcoes(
   const erro = erroFolgas(cfg, escolhidas);
   if (erro) throw new Error(erro);
   const horasPadrao = jornadaSemanal / 5;
-  const nDias = diasNoMes(ano, mes);
-  const nSemanas = Math.ceil((nDias + deslocamento(ano, mes)) / 7);
+  // período da folha: do dia 21 do mês anterior ao dia 20 da competência
+  const periodo: PeriodoEscala = { ano, mes, inicio: inicioFolha(ano, mes) };
+  const nSemanas = semanasDoPeriodo(periodo);
   const resultado: Escala[] = [];
 
   for (let opcao = 0; opcao < opcoes; opcao += 1) {
@@ -248,10 +298,9 @@ export function gerarOpcoes(
     const pessoas: PessoaEscala[] = equipe.map((p) => ({ ...p, turnos: [], totalHoras: 0, mediaSemanal: 0, excedente: 0 }));
     const cobertura: DiaCobertura[] = [];
 
-    for (let data = 1; data <= nDias; data += 1) {
-      const dia = diaChave(ano, mes, data);
+    for (const { data, dia } of diasDoPeriodo(periodo)) {
       const indiceDia = DIAS.indexOf(dia);
-      const semana = semanaDoMes(ano, mes, data);
+      const semana = semanaDoPeriodo(periodo, data);
       const abre = aberto(cfg, dia);
       const faixa = faixaDoDia(cfg, dia);
       const trabalhando = pessoas.filter((p) => naEscala(p) && abre && !(folgasSemana.get(semana)?.get(p.id) ?? []).includes(indiceDia));
@@ -302,7 +351,7 @@ export function gerarOpcoes(
       cobertura.push(coberturaDoDia(cfg, data, dia, pessoas));
     }
     for (const p of pessoas) resumirPessoa(p, jornadaSemanal, nSemanas);
-    const escala: Escala = { ano, mes, jornadaSemanal, folgasPermitidas: escolhidas, equipe: pessoas, cobertura, alertas: [] };
+    const escala: Escala = { ano, mes, inicio: periodo.inicio, jornadaSemanal, folgasPermitidas: escolhidas, equipe: pessoas, cobertura, alertas: [] };
     escala.alertas = auditar(cfg, escala);
     escala.alertasBase = structuredClone(escala.alertas);
     resultado.push(escala);
@@ -410,9 +459,9 @@ export function ajustarTurno(cfg: ConfigFilial, escala: Escala, a: AjusteTurno):
 
   if (a.status === "folga") {
     if (t.status === "trabalho") {
-      const semana = semanaDoMes(escala.ano, escala.mes, a.data);
+      const semana = semanaDoPeriodo(escala, a.data);
       const outra = p.turnos.find(
-        (x) => x.data !== a.data && x.status === "folga" && semanaDoMes(escala.ano, escala.mes, x.data) === semana && escala.cobertura.find((c) => c.data === x.data)?.aberto,
+        (x) => x.data !== a.data && x.status === "folga" && semanaDoPeriodo(escala, x.data) === semana && escala.cobertura.find((c) => c.data === x.data)?.aberto,
       );
       if (outra) {
         if (outra.horasBase === undefined) outra.horasBase = Number(outra.horas || 0);
@@ -457,10 +506,56 @@ export function ajustarTurno(cfg: ConfigFilial, escala: Escala, a: AjusteTurno):
 
 /** Recalcula horas, cobertura e alertas depois de ajustes. */
 export function recalcular(cfg: ConfigFilial, escala: Escala) {
-  const nSemanas = Math.ceil((escala.cobertura.length + deslocamento(escala.ano, escala.mes)) / 7);
+  const nSemanas = semanasDoPeriodo(escala);
   for (const p of escala.equipe) resumirPessoa(p, escala.jornadaSemanal, nSemanas);
   escala.cobertura = escala.cobertura.map((c) => coberturaDoDia(cfg, c.data, c.dia, escala.equipe));
   escala.alertas = auditar(cfg, escala);
+  return escala;
+}
+
+/**
+ * Escala que "segue até ser alterada": leva o desenho de uma escala para outro período. As semanas completas dela
+ * (segunda a domingo) se repetem em ciclo, cada dia no mesmo dia da semana: horários, almoços e o revezamento das
+ * folgas continuam iguais. A equipe é a da escala base (quem entrou depois precisa de uma escala nova).
+ */
+export function projetarEscala(cfg: ConfigFilial, base: Escala, ano: number, mes: number): Escala {
+  const destino: PeriodoEscala = { ano, mes, inicio: inicioFolha(ano, mes) };
+  const porSemana = new Map<number, DiaPeriodo[]>();
+  for (const d of diasDoPeriodo(base)) {
+    const s = semanaDoPeriodo(base, d.data);
+    porSemana.set(s, [...(porSemana.get(s) ?? []), d]);
+  }
+  const semanas = [...porSemana.entries()].sort((a, b) => a[0] - b[0]).map(([, ds]) => ds).filter((ds) => ds.length === 7);
+  if (!semanas.length) throw new Error("A escala base não tem uma semana completa (segunda a domingo) para repetir.");
+  // referência: a segunda-feira da 1ª semana completa da base; cada data do destino cai numa semana do ciclo
+  const ref = Date.parse(`${semanas[0][0].iso}T00:00:00Z`);
+  const diasDestino = diasDoPeriodo(destino);
+  const modeloDe = new Map(
+    diasDestino.map((d) => {
+      const desde = Math.floor((Date.parse(`${d.iso}T00:00:00Z`) - ref) / (7 * 86_400_000));
+      const ciclo = ((desde % semanas.length) + semanas.length) % semanas.length;
+      return [d.data, semanas[ciclo].find((x) => x.dia === d.dia)!.data];
+    }),
+  );
+  const equipe: PessoaEscala[] = base.equipe.map((p) => ({
+    ...p,
+    turnos: diasDestino.map((d) => {
+      const t = p.turnos.find((x) => x.data === modeloDe.get(d.data));
+      return { ...(t ?? { status: "fechado" as StatusTurno, horas: 0 }), data: d.data, dia: d.dia };
+    }),
+  }));
+  const escala: Escala = {
+    ano,
+    mes,
+    inicio: destino.inicio,
+    jornadaSemanal: base.jornadaSemanal,
+    folgasPermitidas: base.folgasPermitidas,
+    equipe,
+    cobertura: diasDestino.map((d) => ({ data: d.data, dia: d.dia, aberto: aberto(cfg, d.dia), porFuncao: {}, total: 0, faixas: [] })),
+    alertas: [],
+  };
+  recalcular(cfg, escala);
+  escala.alertasBase = structuredClone(escala.alertas);
   return escala;
 }
 
@@ -546,22 +641,24 @@ function auditar(cfg: ConfigFilial, escala: Escala): Alerta[] {
       alertas.push({ severidade: "media", pessoaId: p.id, mensagem: `${p.nome}: média de ${p.mediaSemanal.toFixed(1)} h/semana, acima da jornada de ${jornadaSemanal} h.` });
     if (Number(p.horasDia || jornadaSemanal / 5) > 8 && !cfg.acordoJornadaEstendida)
       alertas.push({ severidade: "media", pessoaId: p.id, mensagem: `${p.nome}: jornada diária acima de 8 horas sem acordo/convenção coletiva marcado na filial.` });
-    const dias = p.turnos.filter((t) => t.status === "trabalho").sort((x, y) => x.data - y.data);
+    const pos = (t: Turno) => posicaoNoPeriodo(escala, t.data);
+    const fmtDia = (data: number) => rotuloData(escala, data);
+    const dias = p.turnos.filter((t) => t.status === "trabalho").sort((x, y) => pos(x) - pos(y));
     for (const t of dias) {
       if (t.ajustado && t.horas > 8 && !cfg.acordoJornadaEstendida)
-        alertas.push({ severidade: "media", data: t.data, pessoaId: p.id, mensagem: `${p.nome}: turno ajustado para ${t.horas.toFixed(1)} horas trabalhadas em ${fmtDia(t.data, mes)}; confira o limite e o acordo coletivo.` });
+        alertas.push({ severidade: "media", data: t.data, pessoaId: p.id, mensagem: `${p.nome}: turno ajustado para ${t.horas.toFixed(1)} horas trabalhadas em ${fmtDia(t.data)}; confira o limite e o acordo coletivo.` });
       if (t.horas > 6 && Number(t.intervaloMin ?? 0) < 60)
-        alertas.push({ severidade: "media", data: t.data, pessoaId: p.id, mensagem: `${p.nome}: intervalo de ${Number(t.intervaloMin ?? 0)} min em jornada de mais de 6 horas (${fmtDia(t.data, mes)}). O mínimo é 1 hora.` });
+        alertas.push({ severidade: "media", data: t.data, pessoaId: p.id, mensagem: `${p.nome}: intervalo de ${Number(t.intervaloMin ?? 0)} min em jornada de mais de 6 horas (${fmtDia(t.data)}). O mínimo é 1 hora.` });
     }
     for (let i = 1; i < dias.length; i += 1) {
-      if (dias[i].data - dias[i - 1].data !== 1 || !dias[i - 1].fim || !dias[i].inicio) continue;
+      if (pos(dias[i]) - pos(dias[i - 1]) !== 1 || !dias[i - 1].fim || !dias[i].inicio) continue;
       const descanso = 1440 - minutos(dias[i - 1].fim!) + minutos(dias[i].inicio!);
       if (descanso < 660)
         alertas.push({
           severidade: "alta",
           pessoaId: p.id,
           data: dias[i].data,
-          mensagem: `${p.nome}: descanso entre jornadas de ${Math.floor(descanso / 60)}h${String(descanso % 60).padStart(2, "0")} antes de ${fmtDia(dias[i].data, mes)} (o mínimo é 11 horas).`,
+          mensagem: `${p.nome}: descanso entre jornadas de ${Math.floor(descanso / 60)}h${String(descanso % 60).padStart(2, "0")} antes de ${fmtDia(dias[i].data)} (o mínimo é 11 horas).`,
         });
     }
   }
