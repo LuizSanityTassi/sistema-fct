@@ -119,6 +119,9 @@ export default async function PainelPontoPage({ searchParams }: PageProps<"/pont
         descricao={`${equipe.length} funcionário(s) · ${rotuloMes(mes)}${mesCorrente ? " até hoje" : ""}. Os números vêm das marcações, com as mesmas regras do espelho.`}
         acoes={
           <>
+            <Button variant="outline" nativeButton={false} render={<Link href={`/ponto/filial?mes=${mes}${filtros.filial ? `&filial=${filtros.filial}` : ""}`} />}>
+              Ponto por filial
+            </Button>
             <Button variant="outline" nativeButton={false} render={<Link href="/ponto/relatorios" />}>
               Relatórios
             </Button>

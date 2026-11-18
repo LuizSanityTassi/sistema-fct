@@ -40,6 +40,7 @@ import {
   MonitorCog,
   ScrollText,
   ShieldAlert,
+  Sheet,
   Signature,
   Send,
   Workflow,
@@ -222,6 +223,13 @@ export const NAV: NavGrupo[] = [
         icon: Gauge,
         papeis: ["admin", "rh", "gerente", "coordenador"],
         descricao: "Quem está trabalhando, faltas, atrasos, extras, banco e alertas por filial.",
+      },
+      {
+        label: "Ponto por filial",
+        href: "/ponto/filial",
+        icon: Sheet,
+        papeis: ["admin", "rh", "gerente", "coordenador"],
+        descricao: "Todos os colaboradores da filial lado a lado com as marcações de cada dia do período, faltas, extras e saldo.",
       },
       {
         label: "Relógio da filial",

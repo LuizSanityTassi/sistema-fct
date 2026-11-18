@@ -47,6 +47,11 @@ export default async function EspelhoPage({ searchParams }: PageProps<"/ponto/es
       <Button type="submit" variant="outline">
         Ver
       </Button>
+      {gestor && (
+        <Button variant="ghost" nativeButton={false} render={<Link href={`/ponto/filial?mes=${mes}${filialEquipe ? `&filial=${filialEquipe}` : ""}`} />}>
+          Ver a filial inteira
+        </Button>
+      )}
       {func && (
         <span className="ml-auto flex gap-1">
           <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={`/ponto/espelho?mes=${mesAnterior(mes)}${pedido ? `&funcionario=${func.id}` : ""}`} />}>
@@ -69,7 +74,7 @@ export default async function EspelhoPage({ searchParams }: PageProps<"/ponto/es
           <EstadoVazio
             icone={gestor ? FileClock : UserX}
             titulo={gestor ? "Escolha um funcionário" : "Seu usuário não está ligado a um funcionário"}
-            descricao={gestor ? "Escolha acima o funcionário e o mês. Para ver a equipe toda, use os relatórios do ponto." : "Peça ao administrador para ligar o seu usuário ao seu cadastro no RH."}
+            descricao={gestor ? "Escolha acima o funcionário e o mês. Para ver todos da filial juntos, use “Ver a filial inteira”." : "Peça ao administrador para ligar o seu usuário ao seu cadastro no RH."}
           />
         </Painel>
       </>
