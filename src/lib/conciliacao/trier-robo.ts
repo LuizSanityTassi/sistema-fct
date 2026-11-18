@@ -931,9 +931,43 @@ export type DiagProdutoTrier = {
   rastro: PassoTrier0010[];
   valores?: Record<string, string>;
   mensagem?: string;
-  resposta?: string;
+  passos: { passo: string; resposta: string }[];
   html?: string;
 };
+
+// a resposta de uma etapa pode pedir outra: doSearch (consulta do campo) ou doAction. O robô segue só as de busca.
+const SEGUE_ACAO = /busca|carreg|load|find|consult|exib|preench|produto|redbarra|reduz|search/i;
+const NAO_SEGUE = /sav|salv|grav|exclu|delet|remov|inclu|insert|alter|confirm|novo|new|limp|cancel|copi|dupli|import|export|envi|atualiz|updat|proces|exec|run|print|imprim|bloq|ativ|vincul|sincron|abrir/i;
+type PassoProduto = { tipo: "acao"; nome: string } | { tipo: "consulta"; campo: string; foco: string };
+
+/** Próximas etapas que a resposta pede (na ordem em que aparecem). */
+function proximosPassos(js: string): PassoProduto[] {
+  const out: PassoProduto[] = [];
+  for (const m of js.matchAll(/doSearch\(\s*'(\w+)'(?:\s*,\s*'(\w+)')?\s*\)|doAction\(\s*'([\w.]+)'/g)) {
+    if (m[1]) out.push({ tipo: "consulta", campo: m[1], foco: m[2] ?? "" });
+    else if (m[3] && SEGUE_ACAO.test(m[3]) && !NAO_SEGUE.test(m[3])) out.push({ tipo: "acao", nome: m[3] });
+  }
+  return out;
+}
+
+/** Nome da consulta ligada a um campo de busca: o value do botão "<campo>Consulta" (ex.: conCad_0020Cod_reduzido). */
+function consultaDoCampo(html: string, campo: string) {
+  const tag = new RegExp(`<button\\b[^>]*\\bname\\s*=\\s*"${campo}Consulta"[^>]*>`, "i").exec(html)?.[0] ?? "";
+  return atributo(tag, "value");
+}
+
+let seqConsulta = 0;
+/** doSearch da tela (pfw ajax.js): ./ConsultaWebJS?controller=…&query=…&field=…&<campo>=<valor>&focus=… + o formulário. */
+async function trierConsulta(base: string, serial: string, consulta: string, campo: string, valor: string, foco: string, form: Record<string, string>, ck: Cookies, timeoutMs: number, pagina: string) {
+  const aid = `${Date.now()}_c${++seqConsulta}`;
+  const primeiros: Record<string, string> = { actionId: aid, controller: serial, query: consulta, field: campo, [campo]: valor, ...(foco ? { focus: foco } : {}) };
+  const resto = Object.fromEntries(Object.entries(form).filter(([k]) => !(k in primeiros)));
+  const corpo = `${query(primeiros)}&${query(resto)}`;
+  const u = new URL(base);
+  const r = await httpPedido("POST", `${base}ConsultaWebJS?actionId=${aid}`, corpo, ck, timeoutMs, { Origin: `${u.protocol}//${u.host}`, Referer: base + pagina, "X-Requested-With": "XMLHttpRequest" });
+  if (r.cod >= 400) throw new TrierErro(`o Trier respondeu erro ${r.cod} na consulta ${consulta}`);
+  return texto(r.corpo);
+}
 
 /** Valores que a resposta de uma ação escreve na tela ($el('x').value = '...'). */
 function valoresDaResposta(js: string) {
@@ -976,7 +1010,7 @@ export function produtoDaResposta(valores: Record<string, string>, codigo: strin
 export async function buscarProdutoTrier(cred: CredenciaisTrier, codigo: string, prazoMs = 40_000): Promise<{ produto: ProdutoTrier | null; motivo?: string; diag: DiagProdutoTrier }> {
   const comeco = Date.now();
   const resta = () => prazoMs - (Date.now() - comeco);
-  const diag: DiagProdutoTrier = { tela: TELA_PRODUTOS_TRIER, rastro: [] };
+  const diag: DiagProdutoTrier = { tela: TELA_PRODUTOS_TRIER, rastro: [], passos: [] };
   const anota = (etapa: string, info?: string) => diag.rastro.push({ etapa, ms: Date.now() - comeco, ...(info ? { info: corta(info, 2000) } : {}) });
   const ck: Cookies = {};
   let base = "";
@@ -990,15 +1024,42 @@ export async function buscarProdutoTrier(cred: CredenciaisTrier, codigo: string,
     }
     const inicio = await trierAcao(base, p.serial, "httpStart", { attributes: trierAtributos(p.html) }, ck, 20_000, TELA_PRODUTOS_TRIER);
     anota("httpStart", trierMsg(inicio) || undefined);
-    const form = { ...camposTentativa(camposDaTela(p.html), padroesDoInicio(inicio)), cod_redbarraEntrada: codigo, cod_redbarra: codigo };
-    const r = await trierAcao(base, p.serial, ACAO_BUSCA_PRODUTO, form, ck, Math.max(8_000, Math.min(25_000, resta() - 3_000)), TELA_PRODUTOS_TRIER);
-    const valores = valoresDaResposta(r);
-    diag.mensagem = trierMsg(r);
-    diag.valores = Object.fromEntries(Object.entries(valores).map(([k, v]) => [k, v.slice(0, 200)]));
-    diag.resposta = corta(r, 60_000);
-    anota(ACAO_BUSCA_PRODUTO, diag.mensagem || `${Object.keys(valores).length} campos`);
-    const produto = produtoDaResposta(valores, codigo);
-    if (produto) return { produto, diag };
+    // o estado da tela: o formulário + o que cada resposta escreve nos campos
+    const form: Record<string, string> = { ...camposTentativa(camposDaTela(p.html), padroesDoInicio(inicio)), cod_redbarraEntrada: codigo, cod_redbarra: codigo };
+    const valores: Record<string, string> = {};
+    const fila: PassoProduto[] = [{ tipo: "acao", nome: ACAO_BUSCA_PRODUTO }];
+    const feitos = new Set<string>();
+    for (let i = 0; i < 6 && fila.length && resta() > 6_000; i++) {
+      const passo = fila.shift()!;
+      const chave = passo.tipo === "acao" ? `acao:${passo.nome}` : `consulta:${passo.campo}`;
+      if (feitos.has(chave)) continue;
+      feitos.add(chave);
+      const prazo = Math.max(6_000, Math.min(20_000, resta() - 3_000));
+      let r: string;
+      if (passo.tipo === "acao") r = await trierAcao(base, p.serial, passo.nome, form, ck, prazo, TELA_PRODUTOS_TRIER);
+      else {
+        const consulta = consultaDoCampo(p.html, passo.campo);
+        if (!consulta) {
+          anota(`consulta ${passo.campo}`, "a tela não tem o botão de consulta desse campo");
+          continue;
+        }
+        r = await trierConsulta(base, p.serial, consulta, passo.campo, form[`${passo.campo}Entrada`] ?? form[passo.campo] ?? codigo, passo.foco, form, ck, prazo, TELA_PRODUTOS_TRIER);
+      }
+      const v = valoresDaResposta(r);
+      Object.assign(valores, v);
+      Object.assign(form, v);
+      const msg = trierMsg(r);
+      if (msg) diag.mensagem = msg;
+      diag.passos.push({ passo: chave, resposta: corta(r, 40_000) });
+      anota(chave, msg || `${Object.keys(v).length} campos`);
+      const produto = produtoDaResposta(valores, codigo);
+      if (produto) {
+        diag.valores = Object.fromEntries(Object.entries(valores).map(([k, x]) => [k, x.slice(0, 200)]));
+        return { produto, diag };
+      }
+      fila.push(...proximosPassos(r));
+    }
+    diag.valores = Object.fromEntries(Object.entries(valores).map(([k, x]) => [k, x.slice(0, 200)]));
     if (diag.mensagem) return { produto: null, motivo: `Trier: ${diag.mensagem}`, diag };
     return { produto: null, motivo: valores.nom_produto ? "o Trier não mostrou o preço de venda desse produto" : "o Trier não achou esse código", diag };
   } catch (e) {
@@ -1009,4 +1070,4 @@ export async function buscarProdutoTrier(cred: CredenciaisTrier, codigo: string,
   }
 }
 
-export const _testeProduto = { valoresDaResposta, numeroTrier, produtoDaResposta };
+export const _testeProduto = { valoresDaResposta, numeroTrier, produtoDaResposta, proximosPassos, consultaDoCampo };
