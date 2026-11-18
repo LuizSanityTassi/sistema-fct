@@ -972,8 +972,9 @@ async function trierConsulta(base: string, serial: string, consulta: string, cam
 /** Valores que a resposta de uma ação escreve na tela ($el('x').value = '...'). */
 function valoresDaResposta(js: string) {
   const out: Record<string, string> = {};
-  for (const m of js.matchAll(/\$el\('([^']+)'\)\.(?:value|innerHTML|innerText|textContent)\s*=\s*'((?:[^'\\]|\\.)*)'/g)) out[m[1]] = desescapar(m[2]);
-  for (const m of js.matchAll(/(?:setValue|setVal|setText)\(\s*'([^']+)'\s*,\s*'((?:[^'\\]|\\.)*)'/g)) out[m[1]] ??= desescapar(m[2]);
+  // na ordem da resposta: o último valor escrito num campo é o que fica (a consulta escreve cod_redbarra duas vezes)
+  const re = /\$el\('([^']+)'\)\.(?:value|innerHTML|innerText|textContent)\s*=\s*'((?:[^'\\]|\\.)*)'|(?:doSetElementValue|setValue|setVal|setText)\(\s*'([^']+)'\s*,\s*'((?:[^'\\]|\\.)*)'/g;
+  for (const m of js.matchAll(re)) out[m[1] ?? m[3]] = desescapar(m[2] ?? m[4]);
   return out;
 }
 
@@ -1054,7 +1055,9 @@ export async function buscarProdutoTrier(cred: CredenciaisTrier, codigo: string,
       anota(chave, msg || `${Object.keys(v).length} campos`);
       const produto = produtoDaResposta(valores, codigo);
       if (produto) {
-        diag.valores = Object.fromEntries(Object.entries(valores).map(([k, x]) => [k, x.slice(0, 200)]));
+        // deu certo: guarda só o essencial (a resposta inteira traz nomes de usuários do Trier)
+        diag.valores = Object.fromEntries(["id_cod_reduzido", "nom_produto", "vlr_venda", "vlr_vendaliq", "vlr_vendaant", "dat_alterpreco"].filter((k) => k in valores).map((k) => [k, valores[k].slice(0, 200)]));
+        diag.passos = diag.passos.map((x) => ({ passo: x.passo, resposta: `${x.resposta.length} caracteres` }));
         return { produto, diag };
       }
       fila.push(...proximosPassos(r));
