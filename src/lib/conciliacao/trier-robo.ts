@@ -914,3 +914,146 @@ export async function gerarRelatorioAvulsoTrier(cred: CredenciaisTrier, cfg: Rel
     await trierSair(base, ck);
   }
 }
+
+// ---------- produto: Cadastros >> Produtos e Fornecedores >> Produtos (Cad_0020), consulta pelo código reduzido ----------
+
+/** Tela que o Luiz usa para conferir preço × etiqueta (caminho passado em 18/11/2026; nome da tela visto no menu). */
+export const TELA_PRODUTOS_TRIER = "Cad_0020.pod";
+// ações que gravam/alteram/geram: o robô NUNCA chama numa tela de cadastro (só consulta)
+const ACAO_PERIGOSA = /sav|salv|grav|exclu|delet|remov|inclu|insert|alter|confirm|novo|new|limp|cancel|copi|dupli|import|export|envi|atualiz|updat|proces|exec|run|print|imprim|bloq|ativ/i;
+// ações da tela que costumam carregar o registro depois de digitar o código
+const ACAO_BUSCA = /busc|consult|carreg|load|find|pesq|localiz|exib|get|change|exit|blur|lost|valid|preench|codigo|produto/i;
+
+export type CampoAcaoTrier = { nome: string; tipo: string; acoes: string[] };
+export type ProdutoTrier = { codigo: string; descricao: string; preco: number; campoDescricao: string; campoPreco: string };
+export type DiagProdutoTrier = {
+  tela: string;
+  rastro: PassoTrier0010[];
+  campos?: string[];
+  acoesDaPagina?: string[];
+  campoCodigo?: string;
+  tentativas: { acao: string; mensagem: string; valores: Record<string, string>; resposta: string }[];
+  html?: string;
+  js?: string;
+};
+
+/** Campos da tela com as ações (doAction) que cada um dispara ao digitar/sair. */
+function acoesDosCampos(html: string): CampoAcaoTrier[] {
+  const out: CampoAcaoTrier[] = [];
+  for (const m of html.matchAll(/<(input|select|textarea)\b[^>]*>/gi)) {
+    const tag = m[0];
+    const nome = atributo(tag, "name");
+    if (!nome) continue;
+    const acoes = new Set<string>();
+    for (const a of tag.matchAll(/\bon\w+\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)) for (const d of (a[1] ?? a[2] ?? "").matchAll(/doAction\(\s*['"]([\w.]+)['"]/g)) acoes.add(d[1]);
+    out.push({ nome, tipo: /^<select/i.test(tag) ? "select" : /^<textarea/i.test(tag) ? "textarea" : (atributo(tag, "type") || "text").toLowerCase(), acoes: [...acoes] });
+  }
+  return out;
+}
+
+/** O campo onde se digita o código reduzido do produto. */
+function campoCodigoProduto(campos: CampoAcaoTrier[]) {
+  const digitaveis = campos.filter((c) => ["text", "number", "tel", "search"].includes(c.tipo));
+  return digitaveis.find((c) => /reduz/i.test(c.nome)) ?? digitaveis.find((c) => /^(id_)?cod_?produ/i.test(c.nome)) ?? digitaveis.find((c) => /cod/i.test(c.nome) && c.acoes.length > 0) ?? null;
+}
+
+/** Valores que a resposta de uma ação escreve na tela ($el('x').value = '...'). */
+function valoresDaResposta(js: string) {
+  const out: Record<string, string> = {};
+  for (const m of js.matchAll(/\$el\('([^']+)'\)\.(?:value|innerHTML|innerText|textContent)\s*=\s*'((?:[^'\\]|\\.)*)'/g)) out[m[1]] = desescapar(m[2]);
+  for (const m of js.matchAll(/(?:setValue|setVal|setText)\(\s*'([^']+)'\s*,\s*'((?:[^'\\]|\\.)*)'/g)) out[m[1]] ??= desescapar(m[2]);
+  return out;
+}
+
+/** "1.234,56" / "12,90" / "12.90" → número; vazio ou inválido → null. */
+function numeroTrier(v: string) {
+  const s = v.trim().replace(/[R$\s]/g, "");
+  if (!/^-?[\d.,]+$/.test(s)) return null;
+  const n = Number(/,\d{1,4}$/.test(s) ? s.replace(/\./g, "").replace(",", ".") : s.replace(/,/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
+const CAMPO_DESCRICAO = /(nom|des|desc)[a-z]*_?produ|descri/i;
+const CAMPO_PRECO = /(vlr|val|vl|pre|prc|preco)[a-z]*_?(venda|vda|vend)|pre(c|ç)o_?venda/i;
+const PRECO_OUTRO = /promo|custo|compra|antig|anter|ult|minim|maxim|sugerid|fabric|pmc|desc|oferta|tabloide|atacad|futur|nov/i;
+
+/**
+ * Descrição e preço de venda na resposta. Só devolve quando não há dúvida: um campo de descrição preenchido e um único
+ * preço de venda (sem promoção/custo/PMC). Senão, null (o auditor digita e o diagnóstico mostra o que veio).
+ */
+export function produtoDaResposta(valores: Record<string, string>, codigo: string): ProdutoTrier | null {
+  const desc = Object.entries(valores)
+    .filter(([k, v]) => CAMPO_DESCRICAO.test(k) && !/labor|fornec|grupo|categ|depart|princ|fabric/i.test(k) && v.trim() && numeroTrier(v) === null)
+    .sort((a, b) => a[0].length - b[0].length)[0];
+  const precos = Object.entries(valores).filter(([k, v]) => CAMPO_PRECO.test(k) && !PRECO_OUTRO.test(k.replace(CAMPO_PRECO, "")) && (numeroTrier(v) ?? 0) > 0);
+  const distintos = new Set(precos.map(([, v]) => numeroTrier(v)));
+  if (!desc || precos.length === 0 || distintos.size !== 1) return null;
+  return { codigo, descricao: desc[1].replace(/\s+/g, " ").trim().slice(0, 200), preco: numeroTrier(precos[0][1])!, campoDescricao: desc[0], campoPreco: precos[0][0] };
+}
+
+/**
+ * Abre no Trier Cadastros > Produtos e Fornecedores > Produtos, digita o código reduzido e lê a descrição e o preço de
+ * venda que a tela mostra. Só consulta: nunca chama ação de gravar/alterar/excluir. Devolve também o diagnóstico (campos,
+ * ações tentadas e respostas) para entender quando não achar.
+ */
+export async function buscarProdutoTrier(cred: CredenciaisTrier, codigo: string, prazoMs = 40_000): Promise<{ produto: ProdutoTrier | null; motivo?: string; diag: DiagProdutoTrier }> {
+  const comeco = Date.now();
+  const resta = () => prazoMs - (Date.now() - comeco);
+  const diag: DiagProdutoTrier = { tela: TELA_PRODUTOS_TRIER, rastro: [], tentativas: [] };
+  const anota = (etapa: string, info?: string) => diag.rastro.push({ etapa, ms: Date.now() - comeco, ...(info ? { info: corta(info, 2000) } : {}) });
+  const ck: Cookies = {};
+  let base = "";
+  try {
+    base = await trierEntrar(cred, ck);
+    anota("login");
+    const p = await trierPagina(base, TELA_PRODUTOS_TRIER, ck);
+    if (!p.serial) {
+      diag.html = corta(p.html || p.redir, 20_000);
+      return { produto: null, motivo: "o usuário do robô no Trier não abre Cadastros > Produtos (Cad_0020)", diag };
+    }
+    const inicio = await trierAcao(base, p.serial, "httpStart", { attributes: trierAtributos(p.html) }, ck, 20_000, TELA_PRODUTOS_TRIER);
+    anota("httpStart", trierMsg(inicio) || undefined);
+    const campos = acoesDosCampos(p.html);
+    const acoesDaPagina = [...new Set([...p.html.matchAll(/doAction\(\s*['"]([\w.]+)['"]/g)].map((m) => m[1]))];
+    diag.campos = campos.map((c) => `${c.nome}:${c.tipo}${c.acoes.length ? `→${c.acoes.join("|")}` : ""}`);
+    diag.acoesDaPagina = acoesDaPagina;
+    const falhou = async (motivo: string) => {
+      diag.html = corta(p.html, 150_000);
+      try {
+        const r = await httpPedido("GET", `${base}js/${TELA_PRODUTOS_TRIER.replace(/\.pod$/i, ".js")}`, null, ck, 10_000);
+        if (r.cod === 200) diag.js = corta(r.corpo.toString("latin1"), 150_000);
+      } catch {
+        /* o script só ajuda a entender a tela */
+      }
+      return { produto: null, motivo, diag };
+    };
+    const cc = campoCodigoProduto(campos);
+    if (!cc) return await falhou("não achei na tela do Trier o campo do código do produto");
+    diag.campoCodigo = cc.nome;
+    const form = camposTentativa(camposDaTela(p.html), padroesDoInicio(inicio));
+    form[cc.nome] = codigo;
+    if (cc.nome.endsWith("Entrada")) form[cc.nome.slice(0, -"Entrada".length)] = codigo;
+    else if (`${cc.nome}Entrada` in form) form[`${cc.nome}Entrada`] = codigo;
+    const candidatas = [...new Set([...cc.acoes, ...acoesDaPagina.filter((a) => ACAO_BUSCA.test(a))])].filter((a) => !ACAO_PERIGOSA.test(a)).slice(0, 4);
+    if (!candidatas.length) return await falhou("não achei na tela do Trier a ação que busca o produto pelo código");
+    for (const acao of candidatas) {
+      if (resta() < 8_000) break;
+      const r = await trierAcao(base, p.serial, acao, form, ck, Math.min(20_000, resta() - 3_000), TELA_PRODUTOS_TRIER);
+      const valores = valoresDaResposta(r);
+      const mensagem = trierMsg(r);
+      diag.tentativas.push({ acao, mensagem, valores: Object.fromEntries(Object.entries(valores).map(([k, v]) => [k, v.slice(0, 200)])), resposta: corta(r, 30_000) });
+      anota(acao, mensagem || `${Object.keys(valores).length} campos`);
+      const produto = produtoDaResposta(valores, codigo);
+      if (produto) return { produto, diag };
+      if (/n[aã]o (cadastrad|encontrad|existe|localizad)|inexistente|inv[aá]lid/i.test(mensagem)) return { produto: null, motivo: `Trier: ${mensagem}`, diag };
+    }
+    return await falhou("o Trier respondeu, mas não reconheci a descrição e o preço de venda na tela");
+  } catch (e) {
+    anota("erro", e instanceof Error ? e.message : String(e));
+    return { produto: null, motivo: e instanceof Error ? e.message : String(e), diag };
+  } finally {
+    if (base) await trierSair(base, ck);
+  }
+}
+
+export const _testeProduto = { acoesDosCampos, campoCodigoProduto, valoresDaResposta, numeroTrier, produtoDaResposta };

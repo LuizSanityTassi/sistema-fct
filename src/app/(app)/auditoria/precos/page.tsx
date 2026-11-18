@@ -5,6 +5,8 @@ import { resumoBasePrecos } from "@/lib/data/auditoria-lojas";
 import { AbasAuditoria } from "../abas";
 import { ConsultarPreco, ImportarPrecos } from "./importar";
 
+// a busca do código consulta o Trier ao vivo (login + tela de produtos)
+export const maxDuration = 60;
 export const metadata = { title: "Base de preços" };
 
 export default async function BasePrecosPage() {

@@ -6,8 +6,12 @@ import { registrarAuditoria } from "@/lib/auditoria";
 import { campoComentario, campoItem, ehResposta, PERGUNTAS_CHECKLIST, type RespostaGravada } from "@/lib/auditoria/checklist";
 import { lerPlanilhaPrecos } from "@/lib/auditoria/precos-planilha";
 import { getSessao } from "@/lib/auth/session";
+import { buscarProdutoTrier } from "@/lib/conciliacao/trier-robo";
 import { lerDecimal } from "@/lib/formatos";
+import { credenciaisTrierServico } from "@/lib/integracoes/segredos";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import type { Json } from "@/lib/supabase/types";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ROTA = "/auditoria";
@@ -94,20 +98,47 @@ export async function abrirPrecificacao(_prev: EstadoAud, fd: FormData): Promise
   redirect(`${ROTA_PREC}/${data.id}`);
 }
 
-/** Código reduzido → produto e preço de venda na base carregada do Trier. */
-export async function buscarPreco(codigo: string): Promise<{ codigo: string; descricao: string; preco: number } | null> {
-  await getSessao();
+export type PrecoAchado = { codigo: string; descricao: string; preco: number; origem: "trier" | "base" };
+export type ResultadoPreco = { produto: PrecoAchado | null; motivo?: string };
+
+// quem audita (admin, financeiro, coordenador) consulta o Trier ao vivo; o robô usa o login guardado em Integrações
+const PAPEIS_TRIER = new Set(["admin", "financeiro", "coordenador"]);
+
+/**
+ * Código reduzido → produto e preço de venda. Primeiro no Trier, ao vivo (Cadastros > Produtos e Fornecedores > Produtos);
+ * se o Trier não responder, na base carregada por planilha. Cada consulta ao Trier fica anotada em integracao_diagnosticos
+ * (tema produto_trier) para conferir o que a tela devolveu.
+ */
+export async function buscarPreco(codigo: string): Promise<ResultadoPreco> {
+  const sessao = await getSessao();
   const c = normalizarCodigo(codigo);
-  if (!c) return null;
+  if (!c) return { produto: null };
+  let motivoTrier = "";
+  const admin = PAPEIS_TRIER.has(sessao.papel) ? createAdminClient() : null;
+  if (admin) {
+    const t0 = Date.now();
+    const cred = await credenciaisTrierServico(admin);
+    if (cred.usuario && cred.senha) {
+      const r = await buscarProdutoTrier(cred, c);
+      motivoTrier = r.motivo ?? "";
+      await admin.from("integracao_diagnosticos").insert({
+        sistema: "trier",
+        criado_por: sessao.id,
+        resumo: { tema: "produto_trier", codigo: c, ok: !!r.produto, motivo: r.motivo ?? null, campo_preco: r.produto?.campoPreco ?? null, ms: Date.now() - t0 },
+        dados: r.diag as unknown as Json,
+      });
+      if (r.produto) return { produto: { codigo: c, descricao: r.produto.descricao, preco: r.produto.preco, origem: "trier" } };
+    } else motivoTrier = "login do Trier não configurado em Integrações";
+  }
   const supabase = await createClient();
   const { data } = await supabase.from("aud_precos").select("codigo, descricao, preco").eq("codigo", c).maybeSingle();
-  if (data) return { codigo: data.codigo, descricao: data.descricao, preco: Number(data.preco) };
+  if (data) return { produto: { codigo: data.codigo, descricao: data.descricao, preco: Number(data.preco), origem: "base" }, motivo: motivoTrier || undefined };
   // também pelo código de barras
   if (/^\d{8,14}$/.test(c)) {
     const { data: porEan } = await supabase.from("aud_precos").select("codigo, descricao, preco").eq("ean", c).limit(1).maybeSingle();
-    if (porEan) return { codigo: porEan.codigo, descricao: porEan.descricao, preco: Number(porEan.preco) };
+    if (porEan) return { produto: { codigo: porEan.codigo, descricao: porEan.descricao, preco: Number(porEan.preco), origem: "base" }, motivo: motivoTrier || undefined };
   }
-  return null;
+  return { produto: null, motivo: motivoTrier || undefined };
 }
 
 /** "Adicionar": lança o produto com divergência (etiqueta × sistema). */

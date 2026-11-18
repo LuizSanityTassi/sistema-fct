@@ -77,15 +77,19 @@ export function ProdutosPrecificacao({ id, filial, itens }: Props) {
     setBuscando(true);
     setAviso(null);
     try {
-      const p = await buscarPreco(c);
+      const { produto: p, motivo } = await buscarPreco(c);
       if (p) {
         setProduto(p.descricao);
         setSistema(moeda2(p.preco));
         setDaBase(true);
-        setAviso(`Valor do sistema (base de preços): R$ ${moeda2(p.preco)}. Confira antes de confirmar.`);
+        setAviso(
+          p.origem === "trier"
+            ? `Valor no Trier (Cadastros > Produtos): R$ ${moeda2(p.preco)}. Confira antes de confirmar.`
+            : `Valor da base de preços (planilha): R$ ${moeda2(p.preco)}${motivo ? ` — o Trier não respondeu (${motivo})` : ""}. Confira antes de confirmar.`,
+        );
       } else {
         setDaBase(false);
-        setAviso("Código não está na base de preços: digite o produto e o valor no sistema.");
+        setAviso(`Não achei o código${motivo ? ` (${motivo})` : ""}: digite o produto e o valor no sistema.`);
       }
     } catch {
       setAviso("Não consegui buscar o código agora: digite o produto e o valor no sistema.");

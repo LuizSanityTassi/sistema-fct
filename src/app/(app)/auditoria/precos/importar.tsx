@@ -41,8 +41,12 @@ export function ConsultarPreco() {
   const consultar = (e: React.FormEvent) => {
     e.preventDefault();
     start(async () => {
-      const p = await buscarPreco(codigo);
-      setResultado(p ? `${p.codigo} — ${p.descricao}: ${formatarMoeda(p.preco)}` : "Código não encontrado na base.");
+      const { produto: p, motivo } = await buscarPreco(codigo);
+      setResultado(
+        p
+          ? `${p.codigo} — ${p.descricao}: ${formatarMoeda(p.preco)} (${p.origem === "trier" ? "Trier, ao vivo" : "base de preços"})`
+          : `Código não encontrado${motivo ? ` (${motivo})` : ""}.`,
+      );
     });
   };
   return (

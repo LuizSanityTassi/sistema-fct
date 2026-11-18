@@ -13,6 +13,8 @@ import { cancelarPrecificacao } from "../../actions";
 import { CancelarAuditoria } from "../../cancelar";
 import { ProdutosPrecificacao } from "./produtos";
 
+// a busca do código consulta o Trier ao vivo (login + tela de produtos)
+export const maxDuration = 60;
 export const metadata = { title: "Auditoria de precificação" };
 
 export default async function PrecificacaoDetalhePage({ params }: PageProps<"/auditoria/precificacao/[id]">) {
