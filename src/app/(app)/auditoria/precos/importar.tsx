@@ -16,8 +16,9 @@ export function ImportarPrecos() {
     <form action={enviar} className="space-y-3 rounded-xl border bg-card p-5">
       <h2 className="text-sm font-semibold">Atualizar a base com a planilha do Trier</h2>
       <p className="text-xs text-muted-foreground">
-        Exporte do Trier a lista de produtos com <strong>código reduzido</strong>, <strong>descrição</strong> e <strong>preço de venda</strong> (o código de barras é opcional) em Excel ou CSV. O
-        sistema acha as colunas sozinho, atualiza os produtos que já existem e inclui os novos. Nada é apagado.
+        No Trier: <strong>Cadastros → Produtos e Fornecedores → Produtos</strong>, informe os códigos dos itens e exporte a lista com <strong>código reduzido</strong>,{" "}
+        <strong>descrição</strong> e <strong>preço de venda</strong> (o código de barras é opcional) em Excel ou CSV. O sistema acha as colunas sozinho, atualiza os produtos que já
+        existem e inclui os novos. Nada é apagado.
       </p>
       <ErroFormulario mensagem={estado.erro} />
       {estado.ok && <AvisoSucesso mensagem={estado.ok} />}
