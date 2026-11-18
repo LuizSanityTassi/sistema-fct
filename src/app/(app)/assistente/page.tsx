@@ -10,7 +10,8 @@ export const metadata = { title: "Assistente IA" };
 
 const SUGESTOES = ["Qual filial mais caiu em venda este mês, comparando com o mês passado?", "Quais lojas estão em situação crítica e por quê?", "Quais fornecedores têm mais pendências em aberto?", "O que mudou na DRE de setembro para agosto?"];
 const SUGESTOES_RH = ["Quem foi admitido ou desligado este mês?", "Quais lojas têm mais horas extras este mês?", "Quem está com ASO vencido ou sem ASO?", "Quanto deu a folha do mês passado?"];
-const sugestoesDe = (papel: string) => (papel === "rh" ? SUGESTOES_RH : papel === "admin" ? [...SUGESTOES.slice(0, 3), SUGESTOES_RH[1]] : SUGESTOES);
+const SUGESTOES_CONTADOR = ["Qual foi o resultado do caixa contábil da Varela em outubro, mês a mês desde julho?", "Quais lojas tiveram o pior resultado no caixa contábil em outubro?", "Quanto deu Despesas com Pessoal no caixa contábil de setembro e outubro, por grupo?", "O que mudou na DRE de setembro para outubro?"];
+const sugestoesDe = (papel: string) => (papel === "rh" ? SUGESTOES_RH : papel === "contador" ? SUGESTOES_CONTADOR : papel === "admin" ? [...SUGESTOES.slice(0, 3), SUGESTOES_RH[1]] : SUGESTOES);
 
 /** O que aparece na tela de cada mensagem guardada: o texto (a pergunta é o último bloco; o primeiro traz a data). */
 function paraTela(papel: string, conteudo: string): MensagemChat | null {

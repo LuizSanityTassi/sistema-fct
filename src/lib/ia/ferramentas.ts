@@ -5,7 +5,9 @@
 import { z } from "zod";
 import { registrarAuditoria } from "@/lib/auditoria";
 import type { Sessao } from "@/lib/auth/session";
+import { dadosAnalise } from "@/lib/data/analise";
 import { carregarFiliaisOperacao, REGRA_STATUS, ROTULO_STATUS } from "@/lib/data/dashboard-filiais";
+import { dreDoPeriodo, lerEscopo } from "@/lib/data/dre";
 import { listarAsos, listarDocumentos } from "@/lib/data/documentos";
 import { contas, empresasDre, juntarMapas, lancamentosDre, somar as somarDre } from "@/lib/data/dre-contabil";
 import { contarSemRegistro, listarFolha, resumoFolha } from "@/lib/data/folha";
@@ -34,6 +36,7 @@ const MES = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Use aaaa-mm");
 const DIA = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/, "Use aaaa-mm-dd");
 const CODIGO_FILIAL = z.string().min(2).max(20).describe("Código da filial, ex.: F001. Use listar_filiais para achar pelo nome.");
 const REGIONAL = z.enum(["Sul", "Serra", "Oeste", "Televendas"]);
+const GRUPO_CAIXA = z.enum(["TODOS", "VARELA", "ITAJAÍ", "NAZÁRIO", "BLUMENAU", "VARELA + ITAJAÍ", "NAZÁRIO + BLUMENAU"]);
 
 const r2 = (v: number | null | undefined) => (v === null || v === undefined ? null : Math.round(v * 100) / 100);
 const pct = (v: number | null | undefined) => (v === null || v === undefined ? null : Math.round(v * 1000) / 10);
@@ -106,6 +109,18 @@ async function anotarConsulta(sessao: Sessao, consulta: string, detalhe: Record<
   await registrarAuditoria(await createClient(), { userId: sessao.id, acao: "exportar", entidade: "ia_consulta", novo: { consulta, ...detalhe } });
 }
 
+/** Série do caixa contábil só nos meses pedidos (mês sem valor fica de fora) e o total deles. */
+const serieCaixa = (porMes: Record<string, number | null | undefined>, meses: string[]) => ({
+  por_mes: Object.fromEntries(meses.flatMap((m) => (porMes[m] ? [[m, r2(porMes[m])]] : []))),
+  total: r2(meses.reduce((s, m) => s + (porMes[m] ?? 0), 0)),
+});
+
+/** Saldo do mês (não soma entre meses): caixinha, contas correntes, acumulado… */
+const saldoCaixa = (porMes: Record<string, number | null> | undefined, meses: string[]) => {
+  const r = Object.fromEntries(meses.flatMap((m) => (porMes?.[m] != null ? [[m, r2(porMes[m])]] : [])));
+  return Object.keys(r).length ? r : undefined;
+};
+
 function mesesEntre(de: string, ate: string) {
   const meses: string[] = [];
   for (let m = de; m <= ate; m = somarMeses(m, 1)) meses.push(m);
@@ -153,6 +168,130 @@ export function ferramentasDe(sessao: Sessao): Ferramenta[] {
           total: linhas.length,
           ausencias: linhas.slice(0, MAX_LINHAS).map((a) => ({ funcionario: pessoas.get(a.employee_id)?.nome, filial: pessoas.get(a.employee_id)?.filialCodigo, tipo: AUSENCIA_LABEL[a.tipo], inicio: a.inicio, fim: a.fim, observacao: a.observacao })),
           linhas_sem_mostrar: Math.max(0, linhas.length - MAX_LINHAS) || undefined,
+        };
+      },
+    }),
+    criar({
+      nome: "caixa_contabil",
+      rota: "/financeiro/caixa-contabil",
+      status: "Consultando o caixa contábil",
+      descricao:
+        "Caixa contábil (demonstrativo pelo que entrou e saiu no caixa, com os ajustes do contador já somados) de um grupo ou de uma unidade, mês a mês dentro de um ano: receitas, custo da mercadoria, despesas, saídas, resultado do mês, ajuste do contador no resultado, saldo inicial, resultado acumulado, caixinha, contas correntes, limites, capacidade e payback. detalhe: familias (padrão), grupos (ex.: Despesas com Pessoal) ou categorias (cada categoria do Omie; até 3 meses). Valores sem sinal: receitas entram, custo e despesas saem; resultado = receitas − saídas + ajuste. Para comparar anos, chame uma vez para cada.",
+      esquema: z.object({
+        ano: z.string().regex(/^\d{4}$/, "Use aaaa"),
+        de: MES.optional().describe("Primeiro mês, do mesmo ano. Padrão: janeiro."),
+        ate: MES.optional().describe("Último mês, do mesmo ano. Padrão: dezembro."),
+        grupo: GRUPO_CAIXA.optional().describe("Padrão: TODOS. Aqui ITAJAÍ e BLUMENAU são grupos à parte; VARELA + ITAJAÍ e NAZÁRIO + BLUMENAU juntam."),
+        filial: CODIGO_FILIAL.optional().describe("Uma unidade; no lugar do grupo."),
+        detalhe: z.enum(["familias", "grupos", "categorias"]).optional(),
+      }),
+      executar: async ({ ano, de, ate, grupo, filial, detalhe }) => {
+        const ini = de ?? `${ano}-01`;
+        const fim = ate ?? `${ano}-12`;
+        if (!ini.startsWith(ano) || !fim.startsWith(ano)) throw new Error("de e ate precisam ser do ano pedido.");
+        if (fim < ini) throw new Error("O mês final vem antes do inicial.");
+        const nivel = detalhe ?? "familias";
+        const unidade = filial ? await idDaFilial(filial) : undefined;
+        const dre = await dreDoPeriodo(lerEscopo({ grupo: grupo ?? "TODOS", filial: unidade?.id }), ano);
+        const meses = dre.meses.filter((m) => m >= ini && m <= fim);
+        const recorte = unidade ? `${unidade.codigo} ${unidade.nome}` : (grupo ?? "TODOS");
+        if (!meses.length) return { recorte, aviso: "Sem movimento no caixa contábil nesse período.", meses_com_dados: dre.meses };
+        if (nivel === "categorias" && meses.length > 3) throw new Error("Com detalhe por categoria, peça até 3 meses.");
+        const s = (porMes: Record<string, number>) => serieCaixa(porMes, meses);
+        const tem = (x: { total: number | null; por_mes: Record<string, unknown> }) => !!x.total || Object.keys(x.por_mes).length > 0;
+        const familias = dre.familias
+          .map((f) => ({
+            familia: f.nome,
+            entra_ou_sai: f.sinal >= 0 ? "entra" : "sai",
+            ...s(f.porMes),
+            grupos:
+              nivel === "familias"
+                ? undefined
+                : f.grupos
+                    .map((g) => ({
+                      grupo: g.nome,
+                      ...s(g.porMes),
+                      categorias:
+                        nivel === "categorias"
+                          ? g.categorias
+                              .map((c) => {
+                                const ajustado = meses.filter((m) => c.porMes[m]?.ajustado);
+                                return {
+                                  categoria: c.nome,
+                                  ...s(Object.fromEntries(meses.map((m) => [m, c.porMes[m]?.valor ?? 0]))),
+                                  ajustado_pelo_contador_em: ajustado.length ? ajustado : undefined,
+                                };
+                              })
+                              .filter(tem)
+                          : undefined,
+                    }))
+                    .filter(tem),
+          }))
+          .filter(tem);
+        const ajuste = s(dre.ajusteResultado.porMes);
+        return {
+          recorte,
+          periodo: { de: meses[0], ate: meses[meses.length - 1] },
+          meses_com_dados_no_ano: dre.meses,
+          receitas: s(dre.receitas.porMes),
+          familias,
+          saidas: s(dre.saidas.porMes),
+          ajuste_do_contador_no_resultado: tem(ajuste) ? ajuste : undefined,
+          resultado: s(dre.resultado.porMes),
+          saldo_inicial: saldoCaixa(dre.saldoInicial, meses),
+          resultado_acumulado: saldoCaixa(dre.acumulado, meses),
+          caixinha: saldoCaixa(dre.saldos.caixinha, meses),
+          contas_correntes: saldoCaixa(dre.saldos.contas_correntes, meses),
+          limites_bancos: saldoCaixa(dre.saldos.limites_bancos, meses),
+          capacidade: saldoCaixa(dre.capacidade, meses),
+          payback: saldoCaixa(dre.payback, meses),
+        };
+      },
+    }),
+    criar({
+      nome: "caixa_contabil_lojas",
+      rota: "/financeiro/caixa-contabil",
+      status: "Comparando as lojas no caixa contábil",
+      descricao:
+        "Resumo e ranking das unidades no caixa contábil num mês ou na soma de vários (mesmo ano): receitas, despesas (com os grupos de despesa que mais pesaram) e resultado de cada unidade, do maior para o menor resultado, mais o consolidado. Vem dos lançamentos, SEM os ajustes do contador (o caixa_contabil de uma unidade traz com ajuste).",
+      esquema: z.object({ de: MES, ate: MES.optional().describe("Último mês da soma, do mesmo ano; sem ele, só o mês de."), grupo: GRUPO_CAIXA.optional().describe("Padrão: TODOS.") }),
+      executar: async ({ de, ate, grupo }) => {
+        const fim = ate ?? de;
+        if (fim < de) throw new Error("O mês final vem antes do inicial.");
+        if (fim.slice(0, 4) !== de.slice(0, 4)) throw new Error("Peça meses do mesmo ano.");
+        const { linhas, porId } = await dadosAnalise(lerEscopo({ grupo: grupo ?? "TODOS" }), de.slice(0, 4));
+        const porLoja = new Map<string, { rec: number; desp: number; grupos: Record<string, number> }>();
+        for (const l of linhas) {
+          if (l.competencia < de || l.competencia > fim) continue;
+          const d = porLoja.get(l.branch_id) ?? { rec: 0, desp: 0, grupos: {} };
+          if (l.tipo === "receber") d.rec += l.total;
+          else {
+            d.desp += l.total;
+            d.grupos[l.grupo] = (d.grupos[l.grupo] ?? 0) + l.total;
+          }
+          porLoja.set(l.branch_id, d);
+        }
+        if (!porLoja.size) return { aviso: "Sem movimento no caixa contábil nesse período." };
+        const principais = (g: Record<string, number>) =>
+          Object.fromEntries(
+            Object.entries(g)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 5)
+              .map(([k, v]) => [k, r2(v)]),
+          );
+        const lojas = [...porLoja]
+          .map(([id, d]) => ({ unidade: porId.get(id)?.codigo ?? "?", nome: porId.get(id)?.nome ?? "", grupo: porId.get(id)?.grupo ?? null, receitas: r2(d.rec), despesas: r2(d.desp), resultado: r2(d.rec - d.desp) ?? 0, principais_despesas: principais(d.grupos) }))
+          .sort((a, b) => b.resultado - a.resultado);
+        const tot = [...porLoja.values()].reduce((t, d) => ({ rec: t.rec + d.rec, desp: t.desp + d.desp }), { rec: 0, desp: 0 });
+        const gruposTot: Record<string, number> = {};
+        for (const d of porLoja.values()) for (const [k, v] of Object.entries(d.grupos)) gruposTot[k] = (gruposTot[k] ?? 0) + v;
+        return {
+          periodo: { de, ate: fim },
+          recorte: grupo ?? "TODOS",
+          ajustes_do_contador: "não incluídos",
+          consolidado: { unidades: lojas.length, receitas: r2(tot.rec), despesas: r2(tot.desp), resultado: r2(tot.rec - tot.desp), principais_despesas: principais(gruposTot) },
+          unidades: lojas.slice(0, MAX_LINHAS),
+          linhas_sem_mostrar: Math.max(0, lojas.length - MAX_LINHAS) || undefined,
         };
       },
     }),
@@ -479,5 +618,6 @@ Como a rede funciona:
 - Quebra de caixa: diferença entre o declarado e o movimentado no caixa, acima da tolerância; o gestor da loja justifica.
 - Conciliação: boletos do banco (DDA) contra as contas a pagar do Trier (o sistema das lojas). Pendência é o que não bateu.
 - DRE: planilha do contador por filial, mais as contas do Omie (o sistema financeiro) pela data de pagamento.
+- Caixa contábil: outro demonstrativo, montado dos lançamentos do Omie (o que entrou e saiu no mês), por grupo (VARELA, ITAJAÍ, NAZÁRIO, BLUMENAU) e unidade, com os ajustes que o contador digita e a cadeia de saldo (saldo inicial, resultado acumulado, caixinha, contas correntes, limites). Não é a DRE: se perguntarem "caixa contábil", use as consultas caixa_contabil; se perguntarem "DRE", a dre.
 - Folha de pagamento: registros de cada funcionário por competência (aaaa-mm). Lançamentos da folha: horas extras, quebra de caixa e outros eventos que vão para a contabilidade na planilha da Domínio.
 - Ponto: batido só no relógio da loja. Banco de horas: saldo acumulado; o mês entra no banco quando é fechado. ASO: exame ocupacional, com validade.`;
