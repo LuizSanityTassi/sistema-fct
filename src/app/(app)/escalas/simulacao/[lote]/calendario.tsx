@@ -6,7 +6,7 @@ import { AvisoSucesso, ErroFormulario, SelectNativo } from "@/components/form/ca
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { ROTULO_DIA, ROTULO_FUNCAO, diaChave, hora, minutos, type DiaCobertura, type PessoaEscala, type Turno } from "@/lib/escalas/motor";
+import { ROTULO_DIA, ROTULO_FUNCAO, diaChave, diasComMesmoHorario, hora, minutos, type DiaCobertura, type PessoaEscala, type Turno } from "@/lib/escalas/motor";
 import { celula } from "@/lib/escalas/resumo";
 import { cn } from "@/lib/utils";
 import { ajustarDia } from "../../actions";
@@ -44,28 +44,36 @@ export function Calendario({ simId, ano, mes, jornadaSemanal, equipe, cobertura,
   const [status, setStatus] = React.useState<"trabalho" | "folga">("trabalho");
   const [erro, setErro] = React.useState<string | undefined>();
   const [aviso, setAviso] = React.useState<string | undefined>();
+  const [replicar, setReplicar] = React.useState(true);
   const [pendente, iniciar] = React.useTransition();
   const dias = cobertura.map((c) => c.data);
   const abertoNoDia = new Map(cobertura.map((c) => [c.data, c.aberto]));
+  // outros dias da pessoa com o mesmo horário do dia clicado (recebem o novo horário junto, se marcado)
+  const iguais = aberto ? diasComMesmoHorario({ equipe, cobertura }, aberto.p.id, aberto.t.data) : [];
 
   const abrir = (p: PessoaEscala, t: Turno) => {
     setAberto({ p, t });
     setStatus(t.status === "folga" ? "folga" : "trabalho");
+    setReplicar(true);
     setErro(undefined);
   };
   const salvar = (fd: FormData) => {
     if (!aberto) return;
     const v = (n: string) => String(fd.get(n) ?? "");
     iniciar(async () => {
-      const r = await ajustarDia(simId, {
-        pessoaId: aberto.p.id,
-        data: aberto.t.data,
-        status,
-        inicio: v("inicio"),
-        fim: v("fim"),
-        intervaloInicio: v("intervaloInicio"),
-        intervaloFim: v("intervaloFim"),
-      });
+      const r = await ajustarDia(
+        simId,
+        {
+          pessoaId: aberto.p.id,
+          data: aberto.t.data,
+          status,
+          inicio: v("inicio"),
+          fim: v("fim"),
+          intervaloInicio: v("intervaloInicio"),
+          intervaloFim: v("intervaloFim"),
+        },
+        status === "trabalho" && replicar && iguais.length > 0,
+      );
       if (r.erro) {
         setErro(r.erro);
         return;
@@ -189,6 +197,18 @@ export function Calendario({ simId, ano, mes, jornadaSemanal, equipe, cobertura,
                     </label>
                   </div>
                 ) : null}
+                {status === "trabalho" && iguais.length > 0 && (
+                  <label className="flex items-start gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
+                    <input type="checkbox" checked={replicar} onChange={(e) => setReplicar(e.target.checked)} className="mt-0.5 size-4 accent-primary" />
+                    <span>
+                      Aplicar também nos outros <strong>{iguais.length} dia(s)</strong> em que {aberto.p.nome.split(" ")[0]} trabalha no mesmo horário ({aberto.t.inicio} às {aberto.t.fim}):{" "}
+                      <span className="tabular-nums">{iguais.map((d) => String(d).padStart(2, "0")).join(", ")}</span>.
+                      <span className="block text-xs text-sky-800/80">
+                        O almoço de cada dia anda o mesmo tanto que o deste dia (o revezamento continua). Folgas e dias com outro horário (ex.: sábado) não mudam.
+                      </span>
+                    </span>
+                  </label>
+                )}
                 <p className="text-xs text-muted-foreground">
                   {status === "folga"
                     ? aberto.t.status === "trabalho"

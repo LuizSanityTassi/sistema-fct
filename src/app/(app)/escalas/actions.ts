@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { filiaisDaEscala, filialDaEscala, simulacao } from "@/lib/data/escalas";
-import { ajustarTurno, ehFuncao, ehSituacao, erroFolgas, gerarOpcoes, horaValida, limiteSemanal, minutos, reanalisar, type AjusteTurno, type Funcao } from "@/lib/escalas/motor";
+import { ajustarMesmoHorario, ajustarTurno, ehFuncao, ehSituacao, erroFolgas, gerarOpcoes, horaValida, limiteSemanal, minutos, reanalisar, type AjusteTurno, type Funcao } from "@/lib/escalas/motor";
 import { lerMesAno } from "@/lib/escalas/resumo";
 import { podeAcessar } from "@/lib/nav";
 import { createClient } from "@/lib/supabase/server";
@@ -345,8 +345,11 @@ export async function gerarSimulacao(_prev: EstadoEscala, fd: FormData): Promise
 
 export type RespostaAjuste = { erro?: string; ok?: string; movidaDe?: number | null };
 
-/** Ajuste de um dia no calendário: recalcula horas, cobertura e pendências e grava. */
-export async function ajustarDia(simId: string, ajuste: AjusteTurno): Promise<RespostaAjuste> {
+/**
+ * Ajuste de um dia no calendário: recalcula horas, cobertura e pendências e grava. Com `replicar`, o novo horário vale
+ * também para os outros dias em que a pessoa trabalhava no mesmo horário do dia escolhido (folga não replica).
+ */
+export async function ajustarDia(simId: string, ajuste: AjusteTurno, replicar = false): Promise<RespostaAjuste> {
   await sessaoComAcesso();
   if (!UUID.test(simId) || !UUID.test(ajuste.pessoaId) || !Number.isInteger(ajuste.data)) return { erro: "Dados inválidos." };
   if (ajuste.status !== "trabalho" && ajuste.status !== "folga") return { erro: "Escolha trabalho ou folga." };
@@ -354,8 +357,10 @@ export async function ajustarDia(simId: string, ajuste: AjusteTurno): Promise<Re
   if (!s) return { erro: "Opção não encontrada." };
   if (s.situacao !== "rascunho") return { erro: "Escala oficial não muda. Gere uma nova opção." };
   let movidaDe: number | null = null;
+  let outrosDias: number[] = [];
   try {
-    movidaDe = ajustarTurno(s.config, s, ajuste).movidaDe;
+    if (replicar && ajuste.status === "trabalho") ({ movidaDe, outrosDias } = ajustarMesmoHorario(s.config, s, ajuste));
+    else movidaDe = ajustarTurno(s.config, s, ajuste).movidaDe;
   } catch (e) {
     return { erro: e instanceof Error ? e.message : "Não deu para ajustar esse dia." };
   }
@@ -373,7 +378,8 @@ export async function ajustarDia(simId: string, ajuste: AjusteTurno): Promise<Re
   if (error) return { erro: msgBanco(error.message) };
   revalidatePath(`${ROTA}/simulacao/${s.lote}`);
   const mm = String(s.mes).padStart(2, "0");
-  return { ok: `Ajuste salvo. Cobertura e pendências recalculadas.${movidaDe ? ` Folga trocada: ${String(movidaDe).padStart(2, "0")}/${mm} → ${String(ajuste.data).padStart(2, "0")}/${mm}.` : ""}`, movidaDe };
+  const replicados = outrosDias.length ? ` Mesmo horário aplicado em mais ${outrosDias.length} dia(s): ${outrosDias.map((d) => String(d).padStart(2, "0")).join(", ")}.` : "";
+  return { ok: `Ajuste salvo.${replicados} Cobertura e pendências recalculadas.${movidaDe ? ` Folga trocada: ${String(movidaDe).padStart(2, "0")}/${mm} → ${String(ajuste.data).padStart(2, "0")}/${mm}.` : ""}`, movidaDe };
 }
 
 /** "Atualizar pendências": registra o que foi resolvido, o que continua e o que é novo. */
