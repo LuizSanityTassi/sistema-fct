@@ -98,7 +98,7 @@ export async function abrirPrecificacao(_prev: EstadoAud, fd: FormData): Promise
   redirect(`${ROTA_PREC}/${data.id}`);
 }
 
-export type PrecoAchado = { codigo: string; descricao: string; preco: number; origem: "trier" | "base" };
+export type PrecoAchado = { codigo: string; descricao: string; preco: number; origem: "trier" | "base"; precoLiquido?: number | null };
 export type ResultadoPreco = { produto: PrecoAchado | null; motivo?: string };
 
 // quem audita (admin, financeiro, coordenador) consulta o Trier ao vivo; o robô usa o login guardado em Integrações
@@ -124,10 +124,10 @@ export async function buscarPreco(codigo: string): Promise<ResultadoPreco> {
       await admin.from("integracao_diagnosticos").insert({
         sistema: "trier",
         criado_por: sessao.id,
-        resumo: { tema: "produto_trier", codigo: c, ok: !!r.produto, motivo: r.motivo ?? null, campo_preco: r.produto?.campoPreco ?? null, ms: Date.now() - t0 },
+        resumo: { tema: "produto_trier", codigo: c, ok: !!r.produto, motivo: r.motivo ?? null, preco: r.produto?.preco ?? null, ms: Date.now() - t0 },
         dados: r.diag as unknown as Json,
       });
-      if (r.produto) return { produto: { codigo: c, descricao: r.produto.descricao, preco: r.produto.preco, origem: "trier" } };
+      if (r.produto) return { produto: { codigo: c, descricao: r.produto.descricao, preco: r.produto.preco, precoLiquido: r.produto.precoLiquido, origem: "trier" } };
     } else motivoTrier = "login do Trier não configurado em Integrações";
   }
   const supabase = await createClient();

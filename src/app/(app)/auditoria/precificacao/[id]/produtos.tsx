@@ -84,7 +84,7 @@ export function ProdutosPrecificacao({ id, filial, itens }: Props) {
         setDaBase(true);
         setAviso(
           p.origem === "trier"
-            ? `Valor no Trier (Cadastros > Produtos): R$ ${moeda2(p.preco)}. Confira antes de confirmar.`
+            ? `Valor no Trier (Cadastros > Produtos): R$ ${moeda2(p.preco)}${p.precoLiquido ? ` — com desconto no Trier: R$ ${moeda2(p.precoLiquido)}` : ""}. Confira antes de confirmar.`
             : `Valor da base de preços (planilha): R$ ${moeda2(p.preco)}${motivo ? ` — o Trier não respondeu (${motivo})` : ""}. Confira antes de confirmar.`,
         );
       } else {
