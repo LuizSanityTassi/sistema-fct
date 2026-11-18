@@ -61,7 +61,12 @@ export async function SecoesFilial({ f, folgasNoSimulador = false }: { f: Filial
       </Painel>
 
       {(divergentes.length > 0 || foraDaEscala.length > 0) && (
-        <Painel titulo="Conferência com o cadastro do RH" icone={ShieldAlert} descricao="O que está diferente entre a equipe da escala e as fichas do RH." className="mb-4">
+        <Painel
+          titulo="Conferência com o cadastro do RH"
+          icone={ShieldAlert}
+          descricao="A equipe segue o RH sozinha: quem é cadastrado nesta filial entra, quem é desligado sai e quem muda de filial vai junto. Aqui fica só o que o sistema não decide sozinho."
+          className="mb-4"
+        >
           <div className="grid gap-4 px-5 pb-5 lg:grid-cols-2">
             {divergentes.length > 0 && (
               <div>
@@ -81,10 +86,13 @@ export async function SecoesFilial({ f, folgasNoSimulador = false }: { f: Filial
               <form action={trazerDoRh}>
                 <input type="hidden" name="branch_id" value={f.id} />
                 <h3 className="mb-2 text-sm font-semibold">No RH desta filial, fora da escala ({foraDaEscala.length})</h3>
+                <p className="mb-2 text-xs text-muted-foreground">
+                  Não entraram sozinhos porque já estão na escala de outra filial ou parecem já estar na equipe com o nome escrito diferente (sem ficha ligada). Se for a mesma pessoa, edite quem está na equipe e ligue à ficha do RH; só traga se for outra pessoa.
+                </p>
                 <ul className="space-y-1 text-sm">
                   {foraDaEscala.map((e) => (
                     <li key={e.id} className="flex items-center gap-2 border-b pb-1 last:border-0">
-                      <input type="checkbox" name="employee_id" value={e.id} defaultChecked={e.status === "ativo"} className="size-4 accent-primary" aria-label={`Trazer ${e.nome}`} />
+                      <input type="checkbox" name="employee_id" value={e.id} className="size-4 accent-primary" aria-label={`Trazer ${e.nome}`} />
                       <span className="flex-1">{e.nome}</span>
                       <span className="text-xs text-muted-foreground">
                         {e.cargo ?? "sem cargo"}
