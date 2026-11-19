@@ -647,62 +647,8 @@ export const NAV: NavGrupo[] = [
       },
     ],
   },
-  {
-    titulo: "Conciliação GI",
-    descricao: "A conciliação da GI (outra empresa), separada da nossa.",
-    icone: Building2,
-    itens: [
-      {
-        label: "Painel GI",
-        href: "/conciliacao-gi",
-        icon: Scale,
-        papeis: ["admin", "financeiro", "contador"],
-        descricao: "Conciliação da GI (outra empresa), separada da nossa: DDA × Trier, resultado e pendências.",
-      },
-      {
-        label: "Arquivos GI",
-        href: "/conciliacao-gi/arquivos",
-        icon: FolderOpen,
-        papeis: ["admin", "financeiro", "contador"],
-        descricao: "Arquivos do banco e relatórios do Trier da GI.",
-      },
-      {
-        label: "Pendências GI",
-        href: "/conciliacao-gi/pendencias",
-        icon: ClipboardList,
-        papeis: ["admin", "financeiro", "contador"],
-        descricao: "Divergências da GI a tratar, com prioridade, responsável e histórico.",
-      },
-      {
-        label: "De-para GI",
-        href: "/conciliacao-gi/de-para",
-        icon: ArrowLeftRight,
-        papeis: ["admin", "financeiro", "contador"],
-        descricao: "De-para e correspondências aprendidas só da GI.",
-      },
-      {
-        label: "Regras GI",
-        href: "/conciliacao-gi/regras",
-        icon: Workflow,
-        papeis: ["admin", "financeiro", "contador"],
-        descricao: "Regras automáticas só da GI.",
-      },
-      {
-        label: "Fornecedores GI",
-        href: "/conciliacao-gi/fornecedores",
-        icon: Store,
-        papeis: ["admin", "financeiro", "contador"],
-        descricao: "Ficha por fornecedor com o histórico de boletos da GI.",
-      },
-      {
-        label: "Filiais da GI",
-        href: "/conciliacao-gi/filiais",
-        icon: Building2,
-        papeis: ["admin", "financeiro", "contador"],
-        descricao: "Número de cada filial no Trier da GI, nome e CNPJ.",
-      },
-    ],
-  },
+  // "Conciliação GI" saiu do menu em 19/11/2026 (Luiz: "não vamos usar mais"). Telas desligadas em
+  // app/(app)/conciliacao-gi/layout.tsx; tabelas gi_conc_* e arquivos continuam guardados no banco.
   {
     titulo: "Automações",
     descricao: "Robôs que buscam os relatórios do Trier e o agente do Itaú.",

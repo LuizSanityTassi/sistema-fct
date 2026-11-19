@@ -4,8 +4,12 @@ import { obterArquivo } from "@/lib/data/conciliacao-gi";
 import { getSessao } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 
+// Conciliação GI desligada em 19/11/2026 (ver app/(app)/conciliacao-gi/layout.tsx): o download também não abre.
+const DESLIGADA = true;
+
 // Download de um arquivo da Conciliação GI (tabela gi_conc_arquivos): URL assinada de 60 s. O RLS (tabela + Storage) decide quem pode.
 export async function GET(_req: Request, ctx: RouteContext<"/api/conciliacao-gi/arquivo/[id]">) {
+  if (DESLIGADA) return new NextResponse("A Conciliação GI foi desligada.", { status: 404 });
   const { id } = await ctx.params;
   const supabase = await createClient();
   // getSessao: sem login vai para /login; usuário desativado tem a sessão encerrada (não basta ter um token válido)
