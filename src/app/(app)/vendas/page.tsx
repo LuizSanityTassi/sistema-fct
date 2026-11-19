@@ -171,7 +171,7 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
   const fatias: FatiaComposicao[] = [
     { chave: "gen", rotulo: "Genéricos", valor: tMes.generico, cor: "text-emerald-600", ponto: "bg-emerald-600" },
     { chave: "sim", rotulo: "Similares", valor: tMes.similares, cor: "text-sky-600", ponto: "bg-sky-600" },
-    { chave: "pre", rotulo: "Premium G47", valor: tMes.premium, cor: "text-violet-600", ponto: "bg-violet-600" },
+    { chave: "pre", rotulo: "Alta rentabilidade G113", valor: tMes.premium, cor: "text-violet-600", ponto: "bg-violet-600" },
     { chave: "ref", rotulo: "Referência", valor: tMes.referencia, cor: "text-amber-500", ponto: "bg-amber-500" },
     { chave: "out", rotulo: "Outros (perfumaria, conveniência…)", valor: outros, cor: "text-foreground/15", ponto: "bg-foreground/15" },
   ];
@@ -231,7 +231,7 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
   if (maiorQueda && maiorQueda.v < -3) destaques.push({ tipo: "ruim", peso: 6, texto: <>Maior queda: {loja(maiorQueda.l)}, −{decimal(Math.abs(maiorQueda.v), 1)}% sobre {nomeMesAnt}.</> });
   if (vCmv !== null && Math.abs(vCmv) >= 0.1) destaques.push({ tipo: vCmv < 0 ? "bom" : "ruim", peso: 5, texto: <>CMV em {pct(tMes.cmv, 1)}: {vCmv < 0 ? "caiu" : "subiu"} {decimal(Math.abs(vCmv), 1)} p.p. sobre {nomeMesAnt}.</> });
   if (vTicket !== null && Math.abs(vTicket) >= 0.5) destaques.push({ tipo: vTicket > 0 ? "bom" : "ruim", peso: 4, texto: <>Ticket médio de {moeda(tMes.ticket)}, {vTicket > 0 ? "+" : "−"}{decimal(Math.abs(vTicket), 1)}% sobre {nomeMesAnt}.</> });
-  if (vPremium !== null && Math.abs(vPremium) >= 0.1) destaques.push({ tipo: vPremium > 0 ? "bom" : "ruim", peso: 3, texto: <>Premium em {pct(tMes.pctPremium, 1)} da venda ({vPremium > 0 ? "+" : "−"}{decimal(Math.abs(vPremium), 1)} p.p.).</> });
+  if (vPremium !== null && Math.abs(vPremium) >= 0.1) destaques.push({ tipo: vPremium > 0 ? "bom" : "ruim", peso: 3, texto: <>Alta rentabilidade (G113) em {pct(tMes.pctPremium, 1)} da venda ({vPremium > 0 ? "+" : "−"}{decimal(Math.abs(vPremium), 1)} p.p.).</> });
   if (vGenSim !== null && Math.abs(vGenSim) >= 0.1) destaques.push({ tipo: vGenSim > 0 ? "bom" : "ruim", peso: 3, texto: <>Genéricos + similares em {pct(tMes.pctGenSim, 1)} da venda ({vGenSim > 0 ? "+" : "−"}{decimal(Math.abs(vGenSim), 1)} p.p.).</> });
   if (vOntem !== null) destaques.push({ tipo: vOntem >= 0 ? "bom" : "ruim", peso: 2, texto: <>Ontem ({DIAS_SEMANA[diaDaSemana(ontem)].toLowerCase()}) vendeu {moedaCurta(vendaOntem)}, {vOntem >= 0 ? "+" : "−"}{decimal(Math.abs(vOntem), 1)}% sobre a semana passada.</> });
   const bons = destaques.filter((d) => d.tipo !== "ruim").sort((a, b) => b.peso - a.peso).slice(0, 4);
@@ -499,7 +499,7 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
                   <p className="font-heading text-2xl font-semibold tabular-nums">{pct(parte(foco), 1)}</p>
                   <p className="text-[10px] leading-tight text-muted-foreground">
                     gen + sim
-                    <br />+ premium
+                    <br />+ alta rentab.
                   </p>
                 </div>
               }
@@ -507,8 +507,8 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
             <div className="space-y-3">
               {[
                 { rotulo: "Genéricos + similares", valor: tMes.genSim, ant: tMesAnt.genSim, cor: "bg-linear-to-r from-emerald-600 to-sky-600" },
-                { rotulo: "Premium G47", valor: tMes.premium, ant: tMesAnt.premium, cor: "bg-violet-600" },
-                { rotulo: "Total gen + sim + premium", valor: foco, ant: focoAnt, cor: "bg-fct-red", forte: true },
+                { rotulo: "Alta rentabilidade G113", valor: tMes.premium, ant: tMesAnt.premium, cor: "bg-violet-600" },
+                { rotulo: "Total gen + sim + alta rentab.", valor: foco, ant: focoAnt, cor: "bg-fct-red", forte: true },
               ].map((g) => (
                 <div key={g.rotulo} className={cn(g.forte && "rounded-lg bg-muted/60 p-2.5")}>
                   <div className="flex flex-wrap items-baseline justify-between gap-x-2">

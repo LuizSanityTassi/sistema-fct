@@ -411,14 +411,14 @@ export const NAV: NavGrupo[] = [
         href: "/vendas",
         icon: ChartColumn,
         papeis: ["admin", "financeiro", "coordenador", "gerente"],
-        descricao: "Venda do ano, do mês e de ontem, por regional, genéricos + similares, premium, CMV e projeção do mês.",
+        descricao: "Venda do ano, do mês e de ontem, por regional, genéricos + similares, alta rentabilidade (G113), CMV e projeção do mês.",
       },
       {
         label: "Venda por filial",
         href: "/vendas/filiais",
         icon: Trophy,
         papeis: ["admin", "financeiro", "coordenador"],
-        descricao: "Ranking das lojas no mês ou nos dias escolhidos: venda, atendimentos, ticket, unidades, Fortvigor, premium, gen+sim e CMV.",
+        descricao: "Ranking das lojas no mês ou nos dias escolhidos: venda, atendimentos, ticket, unidades, Fortvigor, alta rentabilidade, gen+sim e CMV.",
       },
       {
         label: "Televendas",

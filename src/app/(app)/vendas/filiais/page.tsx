@@ -20,7 +20,7 @@ const ORDENS = {
   ticket: { rotulo: "Ticket médio", valor: (l: LinhaFilialVendas) => l.ticket ?? 0 },
   sacola: { rotulo: "Unidades por atendimento", valor: (l: LinhaFilialVendas) => l.sacola ?? 0 },
   fortvigor: { rotulo: "Unidades Fortvigor", valor: (l: LinhaFilialVendas) => l.fortvigor },
-  premium: { rotulo: "% premium", valor: (l: LinhaFilialVendas) => l.pctPremium ?? 0 },
+  premium: { rotulo: "% alta rentabilidade (G113)", valor: (l: LinhaFilialVendas) => l.pctPremium ?? 0 },
   gensim: { rotulo: "% genérico + similar", valor: (l: LinhaFilialVendas) => l.pctGenSim ?? 0 },
   cmv: { rotulo: "Menor CMV", valor: (l: LinhaFilialVendas) => -(l.cmv ?? 999) },
 } as const;
@@ -53,7 +53,7 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
 
   return (
     <>
-      <PageHeader eyebrow="Vendas" titulo="Venda por filial" descricao="Ranking das lojas no período: venda, atendimentos, ticket médio, unidades, Fortvigor, premium, genérico + similar e CMV. Números do Trier (vendas menos devoluções), lidos a cada 10 minutos das 7h às 23h50 (o dia de hoje é parcial) e o dia inteiro de novo de madrugada." />
+      <PageHeader eyebrow="Vendas" titulo="Venda por filial" descricao="Ranking das lojas no período: venda, atendimentos, ticket médio, unidades, Fortvigor, alta rentabilidade (grupo 113), genérico + similar e CMV. Números do Trier (vendas menos devoluções), lidos a cada 10 minutos das 7h às 23h50 (o dia de hoje é parcial) e o dia inteiro de novo de madrugada." />
       <AbasVendas ativa="/vendas/filiais" papel={sessao.papel} />
       <AtualizaSozinho />
       <AvisoDiasFaltando faltam={faltam.length} texto={`(${faixasDeDias(faltam)})`} admin={sessao.papel === "admin"} />
@@ -124,8 +124,8 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
                 <TableHead className="hidden text-right md:table-cell">Unid. vendidas</TableHead>
                 <TableHead className="hidden text-right md:table-cell">Unid. sacola</TableHead>
                 <TableHead className="hidden text-right lg:table-cell">Unid. Fortvigor</TableHead>
-                <TableHead className="hidden text-right lg:table-cell">Valor premium</TableHead>
-                <TableHead className="text-right">% premium</TableHead>
+                <TableHead className="hidden text-right lg:table-cell">Alta rentab. R$</TableHead>
+                <TableHead className="text-right" title="Grupo 113 do Trier (Alta Rentabilidade). Antes de 04/11/2026: Premium G47 + Marca Própria, que o Trier juntou no 113.">% alta rentab.</TableHead>
                 <TableHead className="hidden text-right lg:table-cell">Valor gen+sim</TableHead>
                 <TableHead className="text-right">% gen+sim</TableHead>
                 <TableHead className="text-right">CMV</TableHead>
@@ -197,11 +197,11 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
         )}
       </section>
       <p className="mt-2 text-xs text-muted-foreground">
-        Tele R$ = quanto a filial vendeu no tele-entrega (Trier: Relação de Vendas, sem o tipo de cartão 30 e sem os vendedores da central de televendas); % tele = parte da venda da filial. Unid. sacola = unidades por atendimento. CMV = custo do cadastro do produto ÷ venda. % rentab. = 100% − CMV. Fortvigor = laboratórios Fortvigor/FCT e Agape/Fortvigor.
+        Tele R$ = quanto a filial vendeu no tele-entrega (Trier: Relação de Vendas, sem o tipo de cartão 30 e sem os vendedores da central de televendas); % tele = parte da venda da filial. Unid. sacola = unidades por atendimento. CMV = custo do cadastro do produto ÷ venda. % rentab. = 100% − CMV. Fortvigor = laboratórios Fortvigor/FCT e Agape/Fortvigor. Alta rentab. = grupo 113 do Trier (Alta Rentabilidade); antes de 04/11/2026, Premium G47 + Marca Própria, que o Trier juntou no 113.
         {temTele && (
           <>
             {" "}
-            TELE = o que cada central de tele-vendas vendeu: essa venda sai da filial onde o Trier lançou e fica só na linha da central, que conta na regional dela (premium, gen+sim e unidades na proporção do mês de cada vendedor);{" "}
+            TELE = o que cada central de tele-vendas vendeu: essa venda sai da filial onde o Trier lançou e fica só na linha da central, que conta na regional dela (alta rentabilidade, gen+sim e unidades na proporção do mês de cada vendedor);{" "}
             <Link href={`/vendas/televendas?ver=${periodo.ver}&mes=${periodo.mes}&de=${de}&ate=${ate}`} className="underline">
               ver por vendedor
             </Link>

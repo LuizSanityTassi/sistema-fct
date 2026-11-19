@@ -86,7 +86,8 @@ const metricasVenda = (m: MetricasVendas) => ({
   ticket_medio: r2(m.ticket),
   cmv_pct: r2(m.cmv),
   genericos_similares_pct: r2(m.pctGenSim),
-  premium_pct: r2(m.pctPremium),
+  // grupo 113 do Trier (Alta Rentabilidade); antes de 04/11/2026, Premium G47 + Marca Própria
+  alta_rentabilidade_g113_pct: r2(m.pctPremium),
 });
 
 const contasDre = (c: ContasDre) => ({

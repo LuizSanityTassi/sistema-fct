@@ -26,11 +26,13 @@ const GRUPOS_TAXA: { chave: string; rotulo: string; codigos: number[]; destaque?
   { chave: "102", rotulo: "Genéricos", codigos: [102] },
   { chave: "103", rotulo: "Similares", codigos: [103] },
   { chave: "gensim", rotulo: "Genérico + similar", codigos: [102, 103], destaque: true },
-  { chave: "47", rotulo: "Premium G47", codigos: [47], destaque: true },
-  { chave: "113", rotulo: "Marca própria", codigos: [113] },
+  // grupo 113 = Alta Rentabilidade; até 03/11/2026 eram o Premium (47) e a Marca Própria (113), que o Trier juntou
+  { chave: "113", rotulo: "Alta rentabilidade G113", codigos: [47, 113], destaque: true },
   { chave: "104", rotulo: "Suplementos", codigos: [104] },
   { chave: "101", rotulo: "Referências", codigos: [101] },
 ];
+/** Alta rentabilidade: grupo 113 (com o antigo Premium 47, para comparar com os meses antes da mudança). */
+const ALTA = [47, 113];
 const JA_NA_LISTA = new Set(GRUPOS_TAXA.flatMap((g) => g.codigos));
 const nomeGrupo = (n: string) => n.toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
 
@@ -135,7 +137,7 @@ export default async function TelevendasPage({ searchParams }: PageProps<"/venda
             <MiniKpi rotulo="Participação na rede" valor={vendaRede ? pct((t.venda / vendaRede) * 100, 2) : "—"} detalhe={`de ${moedaCurta(vendaRede)} das lojas`} />
             <MiniKpi rotulo="Com tele-entrega" valor={moeda(t.teleVenda)} detalhe={t.venda ? `${pct((t.teleVenda / t.venda) * 100, 1)} da venda · ${inteiro(t.teleAtendimentos)} entregas` : undefined} />
             <MiniKpi rotulo="Genérico + similar" valor={pct(mixEquipe.taxa([102, 103]), 1)} comparacao={<Comparacao atual={mixEquipe.taxa([102, 103])} anterior={mixEquipeAnt.taxa([102, 103])} rotulo={rotuloAnt} formato="pp" />} detalhe={moeda(mixEquipe.venda([102, 103]))} />
-            <MiniKpi rotulo="Premium G47" valor={pct(mixEquipe.taxa([47]), 1)} comparacao={<Comparacao atual={mixEquipe.taxa([47])} anterior={mixEquipeAnt.taxa([47])} rotulo={rotuloAnt} formato="pp" />} detalhe={moeda(mixEquipe.venda([47]))} />
+            <MiniKpi rotulo="Alta rentabilidade G113" valor={pct(mixEquipe.taxa(ALTA), 1)} comparacao={<Comparacao atual={mixEquipe.taxa(ALTA)} anterior={mixEquipeAnt.taxa(ALTA)} rotulo={rotuloAnt} formato="pp" />} detalhe={moeda(mixEquipe.venda(ALTA))} />
           </div>
 
           <Secao titulo="Ranking dos vendedores" icone={Trophy} subtitulo={`Venda de cada vendedor em todas as filiais · comparado com os mesmos dias de ${mesAnt}`} className="mb-4">
@@ -216,7 +218,7 @@ export default async function TelevendasPage({ searchParams }: PageProps<"/venda
           </Secao>
 
           {colunasMix.length > 0 && (
-            <Secao titulo="Taxas por grupo" icone={Layers} subtitulo="Parte de cada grupo na venda de cada vendedor (genérico, similar, G47 e todos os outros grupos do Trier)" className="mb-4">
+            <Secao titulo="Taxas por grupo" icone={Layers} subtitulo="Parte de cada grupo na venda de cada vendedor (genérico, similar, alta rentabilidade G113 e todos os outros grupos do Trier)" className="mb-4">
               <div className="-mx-5 overflow-x-auto sm:-mx-6">
                 <Table>
                   <TableHeader>
