@@ -5777,6 +5777,36 @@ export type Database = {
         }
         Relationships: []
       }
+      ia_materiais: {
+        Row: {
+          busca: unknown
+          chave: string
+          criado_em: string
+          id: number
+          material: string
+          pagina: number
+          texto: string
+        }
+        Insert: {
+          busca?: unknown
+          chave: string
+          criado_em?: string
+          id?: never
+          material: string
+          pagina: number
+          texto: string
+        }
+        Update: {
+          busca?: unknown
+          chave?: string
+          criado_em?: string
+          id?: never
+          material?: string
+          pagina?: number
+          texto?: string
+        }
+        Relationships: []
+      }
       ia_conversas: {
         Row: {
           atualizado_em: string
@@ -6627,6 +6657,16 @@ export type Database = {
         Returns: {
           hoje_usuario: number
           mes_total: number
+        }[]
+      }
+      ia_buscar_materiais: {
+        Args: { p_busca: string; p_chave?: string; p_limite?: number }
+        Returns: {
+          chave: string
+          material: string
+          pagina: number
+          texto: string
+          relevancia: number
         }[]
       }
       fin_fluxo_importar_pagar: {
