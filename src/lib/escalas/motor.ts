@@ -413,29 +413,63 @@ export function diasComMesmoHorario(escala: Pick<Escala, "equipe" | "cobertura">
   return p.turnos.filter((x) => x.data !== data && aberto.has(x.data) && mesmoHorario(x, base)).map((x) => x.data);
 }
 
+/** Grupos de dias para levar um horário junto: segunda a sexta, sábados ou domingos (pedido da Angela, DP). */
+export type GrupoDias = "seg_sex" | "sabados" | "domingos";
+export const ROTULO_GRUPO: Record<GrupoDias, string> = { seg_sex: "de segunda a sexta", sabados: "sábados", domingos: "domingos" };
+export function grupoDoDia(dia: Dia): GrupoDias {
+  return dia === "sab" ? "sabados" : dia === "dom" ? "domingos" : "seg_sex";
+}
+
 /**
- * Ajusta o dia escolhido e leva o novo horário para os outros dias com o mesmo horário (entrada e saída). O almoço de
- * cada dia anda o mesmo tanto que o almoço do dia escolhido andou (o revezamento continua); se não couber no turno
- * novo, fica o almoço do dia escolhido. Devolve os outros dias ajustados.
+ * Outros dias do período (com a loja aberta) do mesmo grupo do dia escolhido — segunda a sexta, sábados ou domingos —
+ * em que a pessoa trabalha. Folga não entra (continua folga).
  */
-export function ajustarMesmoHorario(cfg: ConfigFilial, escala: Escala, a: AjusteTurno): { movidaDe: number | null; outrosDias: number[] } {
+export function diasDoMesmoGrupo(escala: Pick<Escala, "equipe" | "cobertura">, pessoaId: string, data: number): number[] {
+  const p = escala.equipe.find((x) => x.id === pessoaId);
+  const base = p?.turnos.find((x) => x.data === data);
+  if (!p || !base) return [];
+  const grupo = grupoDoDia(base.dia);
+  const aberto = new Set(escala.cobertura.filter((c) => c.aberto).map((c) => c.data));
+  return p.turnos.filter((x) => x.data !== data && aberto.has(x.data) && x.status === "trabalho" && grupoDoDia(x.dia) === grupo).map((x) => x.data);
+}
+
+/** Onde o ajuste vale: só no dia, nos dias com o mesmo horário ou em todos os dias do grupo (seg a sex / sábados / domingos). */
+export type ModoAjuste = "dia" | "mesmo_horario" | "grupo";
+
+export function diasParaReplicar(escala: Pick<Escala, "equipe" | "cobertura">, a: Pick<AjusteTurno, "pessoaId" | "data" | "status">, modo: ModoAjuste): number[] {
+  if (a.status !== "trabalho" || modo === "dia") return [];
+  return modo === "grupo" ? diasDoMesmoGrupo(escala, a.pessoaId, a.data) : diasComMesmoHorario(escala, a.pessoaId, a.data);
+}
+
+/**
+ * Ajusta o dia escolhido e leva o novo horário (entrada e saída) para os outros dias do modo escolhido. O almoço de cada
+ * dia guarda a distância que tinha da entrada, mais o que o almoço do dia escolhido andou (o revezamento continua; nos
+ * dias com o mesmo horário é o mesmo que andar o mesmo tanto); se não couber no turno novo, fica o almoço do dia
+ * escolhido. Devolve os outros dias ajustados.
+ */
+export function ajustarVariosDias(cfg: ConfigFilial, escala: Escala, a: AjusteTurno, modo: ModoAjuste): { movidaDe: number | null; outrosDias: number[] } {
   const p = escala.equipe.find((x) => x.id === a.pessoaId);
   const original = p?.turnos.find((x) => x.data === a.data);
-  const outrosDias = a.status === "trabalho" ? diasComMesmoHorario(escala, a.pessoaId, a.data) : [];
-  const antes = new Map((p?.turnos ?? []).filter((x) => outrosDias.includes(x.data)).map((x) => [x.data, { ii: x.intervaloInicio ?? "", fi: x.intervaloFim ?? "" }]));
-  const origII = original?.intervaloInicio ?? "";
+  const outrosDias = diasParaReplicar(escala, a, modo);
+  const antes = new Map(
+    (p?.turnos ?? []).filter((x) => outrosDias.includes(x.data)).map((x) => [x.data, { ini: x.inicio ?? "", ii: x.intervaloInicio ?? "", fi: x.intervaloFim ?? "" }]),
+  );
+  const origIni = original?.status === "trabalho" ? (original.inicio ?? "") : "";
+  const origII = original?.status === "trabalho" ? (original.intervaloInicio ?? "") : "";
   const { movidaDe } = ajustarTurno(cfg, escala, a);
+  const novoIni = String(a.inicio ?? "");
   const novoII = String(a.intervaloInicio ?? "");
   const novoFI = String(a.intervaloFim ?? "");
-  const delta = novoII && origII ? minutos(novoII) - minutos(origII) : null;
+  // quanto o almoço do dia escolhido mudou de lugar em relação à entrada
+  const mudou = novoII && origII && origIni ? minutos(novoII) - minutos(novoIni) - (minutos(origII) - minutos(origIni)) : null;
   const duracao = novoII && novoFI ? minutos(novoFI) - minutos(novoII) : 0;
   for (const data of outrosDias) {
     let ii = novoII;
     let fi = novoFI;
     const dele = antes.get(data);
-    if (delta !== null && dele?.ii) {
-      const ini = minutos(dele.ii) + delta;
-      if (ini >= minutos(String(a.inicio)) && ini + duracao <= minutos(String(a.fim))) {
+    if (mudou !== null && dele?.ii && dele.ini) {
+      const ini = minutos(novoIni) + (minutos(dele.ii) - minutos(dele.ini)) + mudou;
+      if (ini >= minutos(novoIni) && ini + duracao <= minutos(String(a.fim))) {
         ii = hora(ini);
         fi = hora(ini + duracao);
       }
@@ -443,6 +477,11 @@ export function ajustarMesmoHorario(cfg: ConfigFilial, escala: Escala, a: Ajuste
     ajustarTurno(cfg, escala, { ...a, data, intervaloInicio: ii, intervaloFim: fi });
   }
   return { movidaDe, outrosDias };
+}
+
+/** Atalho do modo "mesmo horário" (mantido para quem já chamava). */
+export function ajustarMesmoHorario(cfg: ConfigFilial, escala: Escala, a: AjusteTurno) {
+  return ajustarVariosDias(cfg, escala, a, "mesmo_horario");
 }
 
 /** Ajuste de um dia na tela. Folga num dia de trabalho troca com a folga que já existia na mesma semana. */

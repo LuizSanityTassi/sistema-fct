@@ -6,7 +6,23 @@ import { AvisoSucesso, ErroFormulario, SelectNativo } from "@/components/form/ca
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { ROTULO_DIA, ROTULO_FUNCAO, diasComMesmoHorario, diasDoPeriodo, hora, minutos, rotuloData, type DiaCobertura, type PeriodoEscala, type PessoaEscala, type Turno } from "@/lib/escalas/motor";
+import {
+  ROTULO_DIA,
+  ROTULO_FUNCAO,
+  ROTULO_GRUPO,
+  diasComMesmoHorario,
+  diasDoMesmoGrupo,
+  diasDoPeriodo,
+  grupoDoDia,
+  hora,
+  minutos,
+  rotuloData,
+  type DiaCobertura,
+  type ModoAjuste,
+  type PeriodoEscala,
+  type PessoaEscala,
+  type Turno,
+} from "@/lib/escalas/motor";
 import { celula } from "@/lib/escalas/resumo";
 import { cn } from "@/lib/utils";
 import { ajustarDia } from "../../actions";
@@ -49,17 +65,23 @@ export function Calendario({ simId, ano, mes, inicio, jornadaSemanal, equipe, co
   const [status, setStatus] = React.useState<"trabalho" | "folga">("trabalho");
   const [erro, setErro] = React.useState<string | undefined>();
   const [aviso, setAviso] = React.useState<string | undefined>();
-  const [replicar, setReplicar] = React.useState(true);
+  const [modo, setModo] = React.useState<ModoAjuste>("grupo");
   const [pendente, iniciar] = React.useTransition();
   const dias = cobertura.map((c) => c.data);
   const abertoNoDia = new Map(cobertura.map((c) => [c.data, c.aberto]));
-  // outros dias da pessoa com o mesmo horário do dia clicado (recebem o novo horário junto, se marcado)
+  // outros dias da pessoa que podem receber o novo horário junto: todos do grupo (seg a sex / sábados / domingos) ou só os de mesmo horário
+  const doGrupo = aberto ? diasDoMesmoGrupo({ equipe, cobertura }, aberto.p.id, aberto.t.data) : [];
   const iguais = aberto ? diasComMesmoHorario({ equipe, cobertura }, aberto.p.id, aberto.t.data) : [];
+  const grupo = aberto ? grupoDoDia(aberto.t.dia) : "seg_sex";
+  // "mesmo horário" só aparece quando dá um conjunto diferente do grupo
+  const mostraIguais = iguais.length > 0 && iguais.join() !== doGrupo.join();
+  const modoValido: ModoAjuste = modo === "grupo" && doGrupo.length ? "grupo" : modo === "mesmo_horario" && iguais.length ? "mesmo_horario" : "dia";
+  const datas = (ds: number[]) => ds.map((d) => rotuloData(periodo, d)).join(", ");
 
   const abrir = (p: PessoaEscala, t: Turno) => {
     setAberto({ p, t });
     setStatus(t.status === "folga" ? "folga" : "trabalho");
-    setReplicar(true);
+    setModo("grupo");
     setErro(undefined);
   };
   const salvar = (fd: FormData) => {
@@ -77,7 +99,7 @@ export function Calendario({ simId, ano, mes, inicio, jornadaSemanal, equipe, co
           intervaloInicio: v("intervaloInicio"),
           intervaloFim: v("intervaloFim"),
         },
-        status === "trabalho" && replicar && iguais.length > 0,
+        status === "trabalho" ? modoValido : "dia",
       );
       if (r.erro) {
         setErro(r.erro);
@@ -207,17 +229,44 @@ export function Calendario({ simId, ano, mes, inicio, jornadaSemanal, equipe, co
                     </label>
                   </div>
                 ) : null}
-                {status === "trabalho" && iguais.length > 0 && (
-                  <label className="flex items-start gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
-                    <input type="checkbox" checked={replicar} onChange={(e) => setReplicar(e.target.checked)} className="mt-0.5 size-4 accent-primary" />
-                    <span>
-                      Aplicar também nos outros <strong>{iguais.length} dia(s)</strong> em que {aberto.p.nome.split(" ")[0]} trabalha no mesmo horário ({aberto.t.inicio} às {aberto.t.fim}):{" "}
-                      <span className="tabular-nums">{iguais.map((d) => rotuloData(periodo, d)).join(", ")}</span>.
-                      <span className="block text-xs text-sky-800/80">
-                        O almoço de cada dia anda o mesmo tanto que o deste dia (o revezamento continua). Folgas e dias com outro horário (ex.: sábado) não mudam.
-                      </span>
+                {status === "trabalho" && (doGrupo.length > 0 || iguais.length > 0) && (
+                  <fieldset className="grid gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
+                    <legend className="sr-only">Onde aplicar este horário</legend>
+                    <span className="font-medium">Aplicar este horário em</span>
+                    {doGrupo.length > 0 && (
+                      <label className="flex cursor-pointer items-start gap-2">
+                        <input type="radio" name="modo" checked={modoValido === "grupo"} onChange={() => setModo("grupo")} className="mt-0.5 size-4 accent-primary" />
+                        <span>
+                          {grupo === "seg_sex" ? (
+                            <>
+                              <strong>Todos os dias de segunda a sexta</strong> do período
+                            </>
+                          ) : (
+                            <>
+                              <strong>Todos os {ROTULO_GRUPO[grupo]}</strong> do período
+                            </>
+                          )}{" "}
+                          em que {aberto.p.nome.split(" ")[0]} trabalha (mais {doGrupo.length}): <span className="tabular-nums">{datas(doGrupo)}</span>.
+                        </span>
+                      </label>
+                    )}
+                    {mostraIguais && (
+                      <label className="flex cursor-pointer items-start gap-2">
+                        <input type="radio" name="modo" checked={modoValido === "mesmo_horario"} onChange={() => setModo("mesmo_horario")} className="mt-0.5 size-4 accent-primary" />
+                        <span>
+                          Só os dias com o mesmo horário ({aberto.t.inicio} às {aberto.t.fim}, mais {iguais.length}): <span className="tabular-nums">{datas(iguais)}</span>.
+                        </span>
+                      </label>
+                    )}
+                    <label className="flex cursor-pointer items-start gap-2">
+                      <input type="radio" name="modo" checked={modoValido === "dia"} onChange={() => setModo("dia")} className="mt-0.5 size-4 accent-primary" />
+                      <span>Só neste dia</span>
+                    </label>
+                    <span className="text-xs text-sky-800/80">
+                      O almoço de cada dia anda junto com o deste dia (o revezamento continua). Folgas não mudam
+                      {grupo === "seg_sex" ? "; sábado e domingo ficam como estão — ajuste um sábado para levar o horário a todos os sábados." : "; segunda a sexta ficam como estão."}
                     </span>
-                  </label>
+                  </fieldset>
                 )}
                 <p className="text-xs text-muted-foreground">
                   {status === "folga"

@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { filiaisDaEscala, filialDaEscala, simulacao } from "@/lib/data/escalas";
-import { ajustarMesmoHorario, ajustarTurno, ehFuncao, rotuloData, rotuloPeriodo, ehSituacao, erroFolgas, gerarOpcoes, horaValida, limiteSemanal, minutos, reanalisar, type AjusteTurno, type Funcao } from "@/lib/escalas/motor";
+import { ROTULO_GRUPO, ajustarTurno, ajustarVariosDias, ehFuncao, grupoDoDia, type ModoAjuste, rotuloData, rotuloPeriodo, ehSituacao, erroFolgas, gerarOpcoes, horaValida, limiteSemanal, minutos, reanalisar, type AjusteTurno, type Funcao } from "@/lib/escalas/motor";
 import { lerMesAno } from "@/lib/escalas/resumo";
 import { podeAcessar } from "@/lib/nav";
 import { createClient } from "@/lib/supabase/server";
@@ -348,20 +348,23 @@ export async function gerarSimulacao(_prev: EstadoEscala, fd: FormData): Promise
 export type RespostaAjuste = { erro?: string; ok?: string; movidaDe?: number | null };
 
 /**
- * Ajuste de um dia no calendário: recalcula horas, cobertura e pendências e grava. Com `replicar`, o novo horário vale
- * também para os outros dias em que a pessoa trabalhava no mesmo horário do dia escolhido (folga não replica).
+ * Ajuste de um dia no calendário: recalcula horas, cobertura e pendências e grava. O `modo` leva o novo horário também
+ * para os outros dias da pessoa: "mesmo_horario" (dias com a mesma entrada e saída) ou "grupo" (todos os dias de
+ * segunda a sexta, todos os sábados ou todos os domingos do período, conforme o dia escolhido). Folga não replica.
  */
-export async function ajustarDia(simId: string, ajuste: AjusteTurno, replicar = false): Promise<RespostaAjuste> {
+export async function ajustarDia(simId: string, ajuste: AjusteTurno, modo: ModoAjuste | boolean = "dia"): Promise<RespostaAjuste> {
   await sessaoComAcesso();
   if (!UUID.test(simId) || !UUID.test(ajuste.pessoaId) || !Number.isInteger(ajuste.data)) return { erro: "Dados inválidos." };
   if (ajuste.status !== "trabalho" && ajuste.status !== "folga") return { erro: "Escolha trabalho ou folga." };
+  const m: ModoAjuste = modo === true ? "mesmo_horario" : modo === "mesmo_horario" || modo === "grupo" ? modo : "dia";
   const s = await simulacao(simId);
   if (!s) return { erro: "Opção não encontrada." };
   if (s.situacao !== "rascunho") return { erro: "Escala oficial não muda. Gere uma nova opção." };
   let movidaDe: number | null = null;
   let outrosDias: number[] = [];
+  const grupo = grupoDoDia(s.cobertura.find((c) => c.data === ajuste.data)?.dia ?? "seg");
   try {
-    if (replicar && ajuste.status === "trabalho") ({ movidaDe, outrosDias } = ajustarMesmoHorario(s.config, s, ajuste));
+    if (m !== "dia" && ajuste.status === "trabalho") ({ movidaDe, outrosDias } = ajustarVariosDias(s.config, s, ajuste, m));
     else movidaDe = ajustarTurno(s.config, s, ajuste).movidaDe;
   } catch (e) {
     return { erro: e instanceof Error ? e.message : "Não deu para ajustar esse dia." };
@@ -379,7 +382,8 @@ export async function ajustarDia(simId: string, ajuste: AjusteTurno, replicar = 
     .eq("id", simId);
   if (error) return { erro: msgBanco(error.message) };
   revalidatePath(`${ROTA}/simulacao/${s.lote}`);
-  const replicados = outrosDias.length ? ` Mesmo horário aplicado em mais ${outrosDias.length} dia(s): ${outrosDias.map((d) => rotuloData(s, d)).join(", ")}.` : "";
+  const onde = m === "grupo" ? (grupo === "seg_sex" ? " (segunda a sexta)" : ` (${ROTULO_GRUPO[grupo]})`) : "";
+  const replicados = outrosDias.length ? ` Mesmo horário aplicado em mais ${outrosDias.length} dia(s)${onde}: ${outrosDias.map((d) => rotuloData(s, d)).join(", ")}.` : "";
   return { ok: `Ajuste salvo.${replicados} Cobertura e pendências recalculadas.${movidaDe ? ` Folga trocada: ${rotuloData(s, movidaDe)} → ${rotuloData(s, ajuste.data)}.` : ""}`, movidaDe };
 }
 
