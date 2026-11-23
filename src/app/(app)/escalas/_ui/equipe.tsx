@@ -48,7 +48,9 @@ function FormPessoa({ branchId, pessoa, funcionarios, aoSalvar }: { branchId: st
             </option>
           ))}
         </SelectNativo>
-        <span className="text-xs text-muted-foreground">Ligar à ficha mostra quando o RH muda a situação ou a filial da pessoa.</span>
+        <span className="text-xs text-muted-foreground">
+          Só aparecem as fichas com a filial do ponto nesta loja. Pessoa de outra filial: troque a “Filial do ponto” na ficha do RH e ela vem para cá sozinha.
+        </span>
       </label>
       <label className="grid gap-1 text-sm">
         <span className="font-medium">Nome</span>

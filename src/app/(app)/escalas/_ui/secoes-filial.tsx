@@ -17,7 +17,8 @@ const hm = (t: string | null) => (t ? t.slice(0, 5) : "");
  * simulador). `folgasNoSimulador`: os dias de folga são marcados no "Gerar opções", não aqui.
  */
 export async function SecoesFilial({ f, folgasNoSimulador = false }: { f: FilialEscala; folgasNoSimulador?: boolean }) {
-  const [equipe, todosRh, rhDaFilial] = await Promise.all([equipeDetalhada(f.id), funcionariosRh(), funcionariosRh(f.id)]);
+  // a escala só liga fichas do RH desta filial (filial do ponto): as filiais da escala e do RH ficam sempre iguais
+  const [equipe, rhDaFilial] = await Promise.all([equipeDetalhada(f.id), funcionariosRh(f.id)]);
   const naEscala = new Set(equipe.map((c) => c.employee_id).filter(Boolean));
   const foraDaEscala = rhDaFilial.filter((e) => !naEscala.has(e.id));
   const divergentes = equipe.map((c) => ({ c, v: vinculoRh(c, f.id) })).filter(({ v }) => v.tom !== "sucesso");
@@ -57,7 +58,7 @@ export async function SecoesFilial({ f, folgasNoSimulador = false }: { f: Filial
         descricao={`${equipe.length} pessoas · ${ativos.length} ativas · ${ativos.filter((p) => p.funcao === "farmaceutico").length} farmacêutico(s) ativo(s). Os horários de origem vieram da planilha e ficam só como referência.`}
         className="mb-4"
       >
-        <EquipeEscala branchId={f.id} equipe={equipe} funcionarios={todosRh} />
+        <EquipeEscala branchId={f.id} equipe={equipe} funcionarios={rhDaFilial} />
       </Painel>
 
       {(divergentes.length > 0 || foraDaEscala.length > 0) && (
