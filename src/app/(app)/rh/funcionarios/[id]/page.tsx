@@ -12,7 +12,7 @@ import { COR_SITUACAO, ROTULO_CURTO, situacaoDoCaixa, textoDiferenca } from "@/l
 import { ACOES_AUDITADAS, ENTIDADES_AUDITADAS } from "@/lib/data/auditoria";
 import { carregarFicha360, ITENS_DESLIGAMENTO } from "@/lib/data/ficha-funcionario";
 import { listarFolhaDoFuncionario } from "@/lib/data/folha";
-import { listarSalarios, obterFuncionario } from "@/lib/data/funcionarios";
+import { listarSalarios, obterFuncionario, pontoEGerente } from "@/lib/data/funcionarios";
 import { podeAcessar } from "@/lib/nav";
 import { rotuloCompetencia } from "@/lib/rh/competencia";
 import { ASO_TIPO_LABEL, CONTRATO_LABEL, FOLHA_STATUS_LABEL } from "@/lib/rh/rotulos";
@@ -65,7 +65,7 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
   const podeEditar = sessao.papel === "admin" || sessao.papel === "rh";
   const abas = ABAS.filter((a) => !a.soRh || podeEditar);
   const aba: Aba = abas.some((a) => a.chave === sp.aba) ? (sp.aba as Aba) : "geral";
-  const [ficha, salarios, folhas] = await Promise.all([carregarFicha360(id, sessao.papel), podeEditar ? listarSalarios(id) : Promise.resolve([]), podeEditar ? listarFolhaDoFuncionario(id) : Promise.resolve([])]);
+  const [ficha, salarios, folhas, vinculo] = await Promise.all([carregarFicha360(id, sessao.papel), podeEditar ? listarSalarios(id) : Promise.resolve([]), podeEditar ? listarFolhaDoFuncionario(id) : Promise.resolve([]), pontoEGerente(f)]);
   const vigente = salarios.find((s) => !s.vigencia_fim) ?? salarios[0];
   // férias em andamento e agendadas (ficam nas ausências do ponto; a situação muda sozinha nas datas)
   const hoje = hojeLocal();
@@ -254,7 +254,12 @@ export default async function FuncionarioPage({ params, searchParams }: PageProp
               <dl className="grid gap-4">
                 <Dado rotulo="Admissão" valor={f.data_admissao ? `${formatarData(f.data_admissao)}${tempoCasa ? ` · ${tempoCasa}` : ""}` : null} />
                 {f.status === "desligado" && <Dado rotulo="Desligamento" valor={formatarData(f.data_desligamento)} />}
-                <Dado rotulo="Unidade" valor={unidade ? `${unidade.codigo} — ${unidade.nome}${unidade.regional ? ` (${unidade.regional})` : ""}` : null} />
+                <Dado rotulo="Filial da folha" valor={unidade ? `${unidade.codigo} — ${unidade.nome}${unidade.regional ? ` (${unidade.regional})` : ""}` : null} />
+                <Dado rotulo="Filial do ponto" valor={vinculo.filialPonto ? `${vinculo.filialPonto.codigo} — ${vinculo.filialPonto.nome}` : "A mesma da folha"} />
+                <Dado
+                  rotulo="Gerente responsável"
+                  valor={vinculo.gerente ? vinculo.gerente.nome : vinculo.gerentePadrao ? `${vinculo.gerentePadrao.nome} (responsável da filial do ponto)` : "Sem responsável na filial do ponto"}
+                />
                 <Dado rotulo="Departamento" valor={f.departamento?.nome} />
               </dl>
               {unidade && (

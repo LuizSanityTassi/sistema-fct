@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { exigirAcesso } from "@/lib/auth/session";
-import { listarSalarios, listarUnidadesParaSelecao, obterFuncionario } from "@/lib/data/funcionarios";
+import { listarGerentesOpcoes, listarSalarios, listarUnidadesParaSelecao, obterFuncionario } from "@/lib/data/funcionarios";
 import { salvarFuncionario } from "../../actions";
 import { FuncionarioForm } from "../../funcionario-form";
 
@@ -13,7 +13,7 @@ export default async function EditarFuncionarioPage({ params }: PageProps<"/rh/f
 
   const f = await obterFuncionario(id);
   if (!f) notFound();
-  const [unidades, salarios] = await Promise.all([listarUnidadesParaSelecao(), listarSalarios(id)]);
+  const [unidades, salarios, gerentes] = await Promise.all([listarUnidadesParaSelecao(), listarSalarios(id), listarGerentesOpcoes(f.gerente_employee_id)]);
   const vigente = salarios.find((s) => !s.vigencia_fim) ?? salarios[0];
 
   return (
@@ -21,9 +21,12 @@ export default async function EditarFuncionarioPage({ params }: PageProps<"/rh/f
       <PageHeader eyebrow="Pessoas" titulo={`Editar ${f.nome}`} />
       <FuncionarioForm
         action={salvarFuncionario.bind(null, f.id)}
-        unidades={unidades.filter((u) => u.ativo || u.id === f.branch_id)}
+        unidades={unidades.filter((u) => u.ativo || u.id === f.branch_id || u.id === f.ponto_branch_id)}
+        gerentes={gerentes.filter((g) => g.id !== f.id)}
         valores={{
           branch_id: f.branch_id,
+          ponto_branch_id: f.ponto_branch_id,
+          gerente_employee_id: f.gerente_employee_id,
           nome: f.nome,
           matricula: f.matricula,
           cpf: f.cpf,

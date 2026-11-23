@@ -55,15 +55,16 @@ async function empresaDaFilial(filial: string): Promise<EmpresaFolha | null> {
 
 /** CPF e PIS vêm direto de employees (RLS: admin, RH e gerente da filial; o coordenador vê a folha sem eles). */
 async function documentos(ids: string[]) {
-  const mapa = new Map<string, { cpf: string; pis: string }>();
+  const mapa = new Map<string, { cpf: string; pis: string; filialFolha: string }>();
   if (!ids.length) return mapa;
   const supabase = await createClient();
-  const { data } = await supabase.from("employees").select("id, cpf, pis").in("id", ids);
-  for (const e of data ?? []) mapa.set(e.id, { cpf: e.cpf ? formatarCpf(e.cpf) : "", pis: e.pis ?? "" });
+  const { data } = await supabase.from("employees").select("id, cpf, pis, branch_id").in("id", ids);
+  for (const e of data ?? []) mapa.set(e.id, { cpf: e.cpf ? formatarCpf(e.cpf) : "", pis: e.pis ?? "", filialFolha: e.branch_id });
   return mapa;
 }
 
-export type FolhaFunc = { func: FuncPonto; cpf: string; pis: string; jornada: string | null; folha: FolhaMontada; totais: TotaisPeriodo };
+/** `empresa` = a da filial da FOLHA da pessoa (quem registrou), quando é diferente da filial do ponto escolhida. */
+export type FolhaFunc = { func: FuncPonto; cpf: string; pis: string; jornada: string | null; folha: FolhaMontada; totais: TotaisPeriodo; empresa: EmpresaFolha | null };
 
 /** Uma folha por colaborador (todos da filial ou só o escolhido), com a apuração do módulo no período. */
 export async function montarFolhasAssinatura(p: ParamsFolha): Promise<{ empresa: EmpresaFolha | null; folhas: FolhaFunc[] }> {
@@ -72,8 +73,22 @@ export async function montarFolhasAssinatura(p: ParamsFolha): Promise<{ empresa:
   const funcs = p.funcionario ? lista.filter((f) => f.id === p.funcionario) : lista;
   if (!funcs.length) return { empresa, folhas: [] };
   const [aps, docs] = await Promise.all([apurar(funcs, p.de, p.ate), documentos(funcs.map((f) => f.id))]);
+  // quem bate o ponto aqui mas é registrado em outra filial: o cabeçalho leva a empresa/CNPJ da filial da folha
+  const outras = [...new Set([...docs.values()].map((d) => d.filialFolha).filter((b) => b !== p.filial))];
+  const empresas = new Map(await Promise.all(outras.map(async (b) => [b, await empresaDaFilial(b)] as const)));
   return {
     empresa,
-    folhas: aps.map((a) => ({ func: a.func, cpf: docs.get(a.func.id)?.cpf ?? "", pis: docs.get(a.func.id)?.pis ?? "", jornada: a.jornadaAtual, folha: montarFolha(a.dias, a.totais), totais: a.totais })),
+    folhas: aps.map((a) => {
+      const doc = docs.get(a.func.id);
+      return {
+        func: a.func,
+        cpf: doc?.cpf ?? "",
+        pis: doc?.pis ?? "",
+        jornada: a.jornadaAtual,
+        folha: montarFolha(a.dias, a.totais),
+        totais: a.totais,
+        empresa: (doc && empresas.get(doc.filialFolha)) ?? null,
+      };
+    }),
   };
 }

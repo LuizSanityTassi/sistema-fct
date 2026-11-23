@@ -59,6 +59,8 @@ const inteiroOpcional = (max: number) =>
 
 const CAMPOS = [
   "branch_id",
+  "ponto_branch_id",
+  "gerente_employee_id",
   "nome",
   "matricula",
   "cpf",
@@ -106,7 +108,9 @@ const CAMPOS = [
 ] as const;
 
 const esquema = z.object({
-  branch_id: z.uuid({ error: "Selecione a unidade." }),
+  branch_id: z.uuid({ error: "Selecione a filial da folha." }),
+  ponto_branch_id: z.uuid({ error: "Filial do ponto inválida." }).optional(),
+  gerente_employee_id: z.uuid({ error: "Gerente inválido." }).optional(),
   nome: z
     .string({ error: "Informe o nome." })
     .trim()
@@ -180,8 +184,13 @@ export async function salvarFuncionario(
   if (!r.success) return { erro: "Confira os campos destacados.", erros: errosDoZod(r.error) };
   const d = r.data;
 
+  if (id && d.gerente_employee_id === id) return { erro: "Confira os campos destacados.", erros: { gerente_employee_id: "A pessoa não pode ser gerente dela mesma." } };
+
   const registro = {
     branch_id: d.branch_id,
+    // filial do ponto igual à da folha fica vazia (segue a folha se a filial da folha mudar)
+    ponto_branch_id: d.ponto_branch_id && d.ponto_branch_id !== d.branch_id ? d.ponto_branch_id : null,
+    gerente_employee_id: d.gerente_employee_id ?? null,
     nome: d.nome,
     matricula: d.matricula ?? null,
     cpf: d.cpf ?? null,

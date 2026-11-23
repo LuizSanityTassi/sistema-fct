@@ -45,7 +45,7 @@ export default async function ImprimirFolhaPage({ searchParams }: PageProps<"/im
       {!p.filial && <p className="text-sm">Escolha a filial na tela anterior.</p>}
       {p.filial && folhas.length === 0 && <p className="text-sm">Nenhum colaborador neste filtro.</p>}
       {folhas.map((f) => (
-        <Folha key={f.func.id} f={f} empresa={empresa} emitido={emitido} />
+        <Folha key={f.func.id} f={f} empresa={f.empresa ?? empresa} emitido={emitido} />
       ))}
     </main>
   );
@@ -59,7 +59,8 @@ function Folha({ f, empresa, emitido }: { f: FolhaFunc; empresa: EmpresaFolha | 
   const { linhas, semana, totais } = f.folha;
   const func = f.func;
   const setor = [func.cargo, func.departamento].filter(Boolean).join(" - ");
-  const nomeEmpresa = [empresa?.razaoSocial, `${func.filialCodigo} ${func.filialNome}`].filter(Boolean).join(" ");
+  // f.empresa = filial da folha (registrada em outra filial): mostra a dela; senão a filial do ponto
+  const nomeEmpresa = [empresa?.razaoSocial, f.empresa ? `${f.empresa.filialCodigo} ${f.empresa.filialNome}` : `${func.filialCodigo} ${func.filialNome}`].filter(Boolean).join(" ");
   return (
     <section className="folha mb-10 last:mb-0 print:mb-0">
       <div className="mb-2 grid grid-cols-[1fr_auto] gap-2">

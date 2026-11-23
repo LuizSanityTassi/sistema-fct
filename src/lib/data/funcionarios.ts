@@ -97,6 +97,50 @@ export async function listarFuncionarios(f: FiltrosFuncionarios) {
 
 export type FuncionarioLista = Awaited<ReturnType<typeof listarFuncionarios>>["itens"][number];
 
+export type OpcaoGerente = { id: string; nome: string; cargo: string | null; filial: string; responsavelDe: string | null; temLogin: boolean };
+
+/**
+ * Quem pode ser escolhido como gerente responsável na ficha (admin e RH): cargo ou papel de gestão, ou responsável de
+ * alguma filial. Se a ficha já tem um gerente fora da lista, ele entra também (para não sumir ao editar).
+ */
+export async function listarGerentesOpcoes(atual?: string | null): Promise<OpcaoGerente[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("rh_gerentes_opcoes");
+  if (error) throw error;
+  const lista: OpcaoGerente[] = (data ?? []).map((g) => ({
+    id: g.id,
+    nome: g.nome,
+    cargo: g.cargo,
+    filial: g.filial_codigo,
+    responsavelDe: g.responsavel_de,
+    temLogin: g.tem_login,
+  }));
+  if (atual && !lista.some((g) => g.id === atual)) {
+    const { data: e } = await supabase.from("employees").select("id, nome, cargo, unidade:branches!employees_branch_id_fkey(codigo)").eq("id", atual).maybeSingle();
+    if (e) lista.push({ id: e.id, nome: e.nome, cargo: e.cargo, filial: e.unidade?.codigo ?? "", responsavelDe: null, temLogin: false });
+  }
+  return lista;
+}
+
+/** Filial do ponto (quando diferente da folha) e gerente responsável de um funcionário, com o padrão de cada um. */
+export async function pontoEGerente(f: { ponto_branch_id: string | null; ponto_filial_id: string | null; gerente_employee_id: string | null }) {
+  const supabase = await createClient();
+  const [filialPonto, gerente, responsavel] = await Promise.all([
+    f.ponto_branch_id ? supabase.from("branches").select("id, codigo, nome").eq("id", f.ponto_branch_id).maybeSingle() : null,
+    f.gerente_employee_id ? supabase.from("employees").select("id, nome").eq("id", f.gerente_employee_id).maybeSingle() : null,
+    !f.gerente_employee_id && f.ponto_filial_id
+      ? supabase.from("branches").select("responsavel_nome, responsavel:employees!branches_responsavel_employee_id_fkey(id, nome)").eq("id", f.ponto_filial_id).maybeSingle()
+      : null,
+  ]);
+  const resp = responsavel?.data;
+  return {
+    filialPonto: filialPonto?.data ?? null,
+    gerente: gerente?.data ?? null,
+    /** sem gerente escolhido: o responsável da filial do ponto */
+    gerentePadrao: resp ? (resp.responsavel ? { id: resp.responsavel.id as string | null, nome: resp.responsavel.nome } : resp.responsavel_nome ? { id: null, nome: resp.responsavel_nome } : null) : null,
+  };
+}
+
 export const obterFuncionario = cache(async (id: string) => {
   if (!ehUuid(id)) return null;
   const supabase = await createClient();

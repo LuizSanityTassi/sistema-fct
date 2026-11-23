@@ -138,7 +138,8 @@ export async function incluirFilialEscala(_prev: EstadoEscala, fd: FormData): Pr
   const supabase = await createClient();
   const { error } = await supabase.from("esc_filiais").insert({ branch_id, origem: "Incluída no portal" });
   if (error) return { erro: /duplicate key/i.test(error.message) ? "Essa filial já está na escala." : msgBanco(error.message) };
-  const { data: rh } = await supabase.from("employees").select("id, nome, cargo, status").eq("branch_id", branch_id).in("status", ["ativo", "afastado", "ferias"]).order("nome");
+  // a escala segue a filial do PONTO (vazia = a da folha)
+  const { data: rh } = await supabase.from("employees").select("id, nome, cargo, status").eq("ponto_filial_id", branch_id).in("status", ["ativo", "afastado", "ferias"]).order("nome");
   if (rh?.length) {
     await supabase.from("esc_colaboradores").insert(
       rh.map((e, i) => ({

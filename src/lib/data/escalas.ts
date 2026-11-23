@@ -91,7 +91,7 @@ export type FuncionarioRh = { id: string; nome: string; cargo: string | null; st
 export async function funcionariosRh(branchId?: string): Promise<FuncionarioRh[]> {
   const supabase = await createClient();
   let q = supabase.from("employees").select("id, nome, cargo, status, filial:branches!employees_branch_id_fkey(codigo)").in("status", ["ativo", "afastado", "ferias"]).order("nome").limit(3000);
-  if (branchId) q = q.eq("branch_id", branchId);
+  if (branchId) q = q.eq("ponto_filial_id", branchId); // escala segue a filial do ponto
   const { data } = await q;
   return (data ?? []).map((e) => ({ ...e, status: String(e.status) }));
 }

@@ -24,9 +24,10 @@ export async function aplicarJornada(_prev: EstadoPonto, fd: FormData): Promise<
   if (!inicio || !DATA_RE.test(inicio)) return { erro: "Informe a partir de quando vale." };
 
   const supabase = await createClient();
-  const { data: funcs } = await supabase.from("employees").select("id, nome, branch_id").in("id", ids);
+  // fechamento é da filial do PONTO (pode ser diferente da filial da folha)
+  const { data: funcs } = await supabase.from("employees").select("id, nome, ponto_filial_id").in("id", ids);
   const fechados = new Set((await listarFechamentos([`${inicio.slice(0, 7)}-01`])).filter((f) => f.status === "fechado").map((f) => f.branch_id));
-  const bloqueados = (funcs ?? []).filter((f) => fechados.has(f.branch_id));
+  const bloqueados = (funcs ?? []).filter((f) => !!f.ponto_filial_id && fechados.has(f.ponto_filial_id));
   if (bloqueados.length) return { erro: `O ponto de ${inicio.slice(5, 7)}/${inicio.slice(0, 4)} está fechado para a filial de ${bloqueados[0].nome}. Escolha uma data num mês aberto.` };
 
   const { data: atuais, error } = await supabase.from("ponto_vinculos").select("id, employee_id, inicio, fim").in("employee_id", ids);

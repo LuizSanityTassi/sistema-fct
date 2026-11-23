@@ -6,6 +6,7 @@ import { BotaoSalvar } from "@/components/form/botao-salvar";
 import { Campo, ErroFormulario, SelectNativo } from "@/components/form/campo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import type { OpcaoGerente } from "@/lib/data/funcionarios";
 import { CONTRATO_LABEL, ESCOLARIDADES, ESTADOS_CIVIS, RACAS_CORES } from "@/lib/rh/rotulos";
 import type { EstadoFormulario } from "./actions";
 
@@ -13,6 +14,8 @@ export type OpcaoUnidade = { id: string; codigo: string; nome: string; ativo: bo
 
 export type ValoresFuncionario = Partial<{
   branch_id: string | null;
+  ponto_branch_id: string | null;
+  gerente_employee_id: string | null;
   nome: string | null;
   matricula: string | null;
   cpf: string | null;
@@ -64,6 +67,8 @@ export type ValoresFuncionario = Partial<{
 type Props = {
   action: (prev: EstadoFormulario, fd: FormData) => Promise<EstadoFormulario>;
   unidades: OpcaoUnidade[];
+  /** opções do "Gerente responsável" (cargo/papel de gestão ou responsável de filial) */
+  gerentes: OpcaoGerente[];
   valores?: ValoresFuncionario;
   /** Mostra o campo de salário (admin/RH). */
   podeSalario: boolean;
@@ -72,7 +77,7 @@ type Props = {
 
 const CATEGORIAS = ["Mensalista", "Horista", "Diarista", "Tarefeiro"];
 
-export function FuncionarioForm({ action, unidades, valores = {}, podeSalario, voltarPara }: Props) {
+export function FuncionarioForm({ action, unidades, gerentes, valores = {}, podeSalario, voltarPara }: Props) {
   const [estado, formAction] = useActionState(action, {});
   const erro = (campo: string) => estado.erros?.[campo];
   const v = (campo: keyof ValoresFuncionario) => {
@@ -82,6 +87,16 @@ export function FuncionarioForm({ action, unidades, valores = {}, podeSalario, v
 
   const grupos = new Map<string, OpcaoUnidade[]>();
   for (const u of unidades) grupos.set(u.grupo, [...(grupos.get(u.grupo) ?? []), u]);
+  const opcoesUnidades = [...grupos.entries()].map(([grupo, lista]) => (
+    <optgroup key={grupo} label={grupo}>
+      {lista.map((u) => (
+        <option key={u.id} value={u.id}>
+          {u.codigo} — {u.nome}
+          {u.ativo ? "" : " (inativa)"}
+        </option>
+      ))}
+    </optgroup>
+  ));
 
   const texto = (campo: keyof ValoresFuncionario, label: string, maxLength: number, className?: string) => (
     <Campo id={campo} label={label} erro={erro(campo)} className={className}>
@@ -119,18 +134,28 @@ export function FuncionarioForm({ action, unidades, valores = {}, podeSalario, v
       <section className="rounded-xl border bg-card p-5">
         <h2 className="mb-4 text-sm font-semibold">Vínculo</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Campo id="branch_id" label="Unidade" obrigatorio erro={erro("branch_id")}>
+          <Campo id="branch_id" label="Filial da folha" obrigatorio erro={erro("branch_id")} dica="Empresa/CNPJ da folha, Domínio e lançamentos">
             <SelectNativo id="branch_id" name="branch_id" defaultValue={v("branch_id")} aria-invalid={!!erro("branch_id")}>
               <option value="">Selecione…</option>
-              {[...grupos.entries()].map(([grupo, lista]) => (
-                <optgroup key={grupo} label={grupo}>
-                  {lista.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.codigo} — {u.nome}
-                      {u.ativo ? "" : " (inativa)"}
-                    </option>
-                  ))}
-                </optgroup>
+              {opcoesUnidades}
+            </SelectNativo>
+          </Campo>
+          <Campo id="ponto_branch_id" label="Filial do ponto" erro={erro("ponto_branch_id")} dica="Onde bate o ponto, escala e espelho. Vazio = a mesma da folha">
+            <SelectNativo id="ponto_branch_id" name="ponto_branch_id" defaultValue={v("ponto_branch_id")} aria-invalid={!!erro("ponto_branch_id")}>
+              <option value="">A mesma da folha</option>
+              {opcoesUnidades}
+            </SelectNativo>
+          </Campo>
+          <Campo id="gerente_employee_id" label="Gerente responsável" erro={erro("gerente_employee_id")} dica="Vê e aprova o ponto da pessoa. Vazio = o responsável da filial do ponto">
+            <SelectNativo id="gerente_employee_id" name="gerente_employee_id" defaultValue={v("gerente_employee_id")} aria-invalid={!!erro("gerente_employee_id")}>
+              <option value="">O responsável da filial do ponto</option>
+              {gerentes.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.nome} — {g.filial}
+                  {g.cargo ? ` · ${g.cargo}` : ""}
+                  {g.responsavelDe ? ` · responsável ${g.responsavelDe}` : ""}
+                  {g.temLogin ? "" : " (sem login)"}
+                </option>
               ))}
             </SelectNativo>
           </Campo>

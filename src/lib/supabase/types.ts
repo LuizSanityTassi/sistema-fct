@@ -3969,6 +3969,9 @@ export type Database = {
       }
       employees: {
         Row: {
+          gerente_employee_id: string | null
+          ponto_branch_id: string | null
+          ponto_filial_id: string | null
           branch_id: string
           cargo: string | null
           categoria: string | null
@@ -4023,6 +4026,9 @@ export type Database = {
           adicionais: string | null
         }
         Insert: {
+          gerente_employee_id?: string | null
+          ponto_branch_id?: string | null
+          ponto_filial_id?: never
           branch_id: string
           cargo?: string | null
           categoria?: string | null
@@ -4077,6 +4083,9 @@ export type Database = {
           adicionais?: string | null
         }
         Update: {
+          gerente_employee_id?: string | null
+          ponto_branch_id?: string | null
+          ponto_filial_id?: never
           branch_id?: string
           cargo?: string | null
           categoria?: string | null
@@ -4131,6 +4140,20 @@ export type Database = {
           adicionais?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "employees_gerente_employee_id_fkey"
+            columns: ["gerente_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_ponto_branch_id_fkey"
+            columns: ["ponto_branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "employees_branch_id_fkey"
             columns: ["branch_id"]
@@ -7007,6 +7030,17 @@ export type Database = {
       rh_documento_devolver_assinado: { Args: { p_documento: string; p_caminho: string }; Returns: undefined }
       ponto_remover_digital: { Args: { p_employee: string; p_dedo: number }; Returns: undefined }
       ponto_tem_pin: { Args: { p_employees: string[] }; Returns: string[] }
+      rh_gerentes_opcoes: {
+        Args: never
+        Returns: {
+          cargo: string
+          filial_codigo: string
+          id: string
+          nome: string
+          responsavel_de: string
+          tem_login: boolean
+        }[]
+      }
       rh_historico_funcionario: {
         Args: { p_employee: string }
         Returns: {
