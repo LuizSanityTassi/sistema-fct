@@ -4,6 +4,7 @@ import {
   DIAS,
   ROTULO_DIA,
   ehFuncao,
+  ehRegime,
   ehSituacao,
   type Alerta,
   type Colaborador,
@@ -39,6 +40,7 @@ export type LinhaColaborador = {
   horas_dia: number | null;
   intervalo_min: number;
   registro: string | null;
+  regime?: string | null;
 };
 
 const hm = (t: string | null) => (t ? t.slice(0, 5) : "");
@@ -67,6 +69,7 @@ export function colaboradorDaLinha(l: LinhaColaborador): Colaborador {
     horasDia: l.horas_dia === null ? null : Number(l.horas_dia),
     intervaloMin: Number(l.intervalo_min ?? 60),
     registro: l.registro,
+    regime: ehRegime(l.regime) ? l.regime : "5x2",
   };
 }
 

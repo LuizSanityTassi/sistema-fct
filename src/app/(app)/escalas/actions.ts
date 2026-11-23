@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { filiaisDaEscala, filialDaEscala, simulacao } from "@/lib/data/escalas";
-import { ROTULO_GRUPO, ajustarTurno, ajustarVariosDias, ehFuncao, grupoDoDia, type ModoAjuste, rotuloData, rotuloPeriodo, ehSituacao, erroFolgas, gerarOpcoes, horaValida, limiteSemanal, minutos, reanalisar, type AjusteTurno, type Funcao } from "@/lib/escalas/motor";
+import { REGIMES, ROTULO_GRUPO, ajustarTurno, ajustarVariosDias, ehFuncao, ehRegime, type Regime, grupoDoDia, type ModoAjuste, rotuloData, rotuloPeriodo, ehSituacao, erroFolgas, gerarOpcoes, horaValida, limiteSemanal, minutos, reanalisar, type AjusteTurno, type Funcao } from "@/lib/escalas/motor";
 import { lerMesAno } from "@/lib/escalas/resumo";
 import { podeAcessar } from "@/lib/nav";
 import { createClient } from "@/lib/supabase/server";
@@ -182,6 +182,8 @@ export async function salvarColaborador(_prev: EstadoEscala, fd: FormData): Prom
   if (horas_dia !== null && (!Number.isFinite(horas_dia) || horas_dia < 1 || horas_dia > 12)) erros.horas_dia = "Entre 1 e 12 horas (vazio = jornada ÷ 5).";
   const intervalo_min = Number(texto(fd, "intervalo_min") || 60);
   if (!Number.isInteger(intervalo_min) || intervalo_min < 0 || intervalo_min > 240) erros.intervalo_min = "De 0 a 240 minutos.";
+  const regime = texto(fd, "regime") || "5x2";
+  if (!ehRegime(regime)) erros.regime = "Escolha o regime.";
   const employee = texto(fd, "employee_id");
   if (employee && !UUID.test(employee)) erros.employee_id = "Ficha inválida.";
   if (Object.keys(erros).length) return { erro: "Confira os campos destacados.", erros };
@@ -192,6 +194,7 @@ export async function salvarColaborador(_prev: EstadoEscala, fd: FormData): Prom
     situacao,
     horas_dia,
     intervalo_min,
+    regime: regime as Regime,
     registro: texto(fd, "registro").slice(0, 40) || null,
     observacoes: texto(fd, "observacoes").slice(0, 500) || null,
     employee_id: employee || null,
@@ -278,6 +281,32 @@ export async function gerarSimulacao(_prev: EstadoEscala, fd: FormData): Promise
     if (!folgasForm.length) return { erro: "Marque pelo menos um dia permitido para folga.", erros: { folgas: "Marque pelo menos um dia." } };
     const erro = erroFolgas(alvos[0].config, folgasForm);
     if (erro) return { erro, erros: { folgas: erro } };
+  }
+
+  // uma filial: quem o RH marcou como 12x36 no "Gerar opções" fica salvo na equipe e já entra nesta geração
+  if (alvo !== "todas" && texto(fd, "doze_presente") === "1") {
+    const marcados = new Set(fd.getAll("doze").map(String).filter((v) => UUID.test(v)));
+    const f = alvos[0];
+    const novoRegime = (id: string): Regime => (marcados.has(id) ? "12x36" : "5x2");
+    const mudar = f.equipe.filter((p) => p.situacao === "ativo" && novoRegime(p.id) !== (p.regime ?? "5x2"));
+    if (mudar.length) {
+      const sb = await createClient();
+      for (const regime of REGIMES) {
+        const ids = mudar.filter((p) => novoRegime(p.id) === regime).map((p) => p.id);
+        if (!ids.length) continue;
+        const { error } = await sb.from("esc_colaboradores").update({ regime }).in("id", ids).eq("branch_id", f.id);
+        if (error) return { erro: msgBanco(error.message) };
+      }
+      await registrarAuditoria(sb, {
+        userId: sessao.id,
+        acao: "editar",
+        entidade: "esc_colaboradores",
+        registroId: f.id,
+        anterior: { regime: mudar.map((p) => ({ id: p.id, nome: p.nome, regime: p.regime ?? "5x2" })) },
+        novo: { regime: mudar.map((p) => ({ id: p.id, nome: p.nome, regime: novoRegime(p.id) })) },
+      });
+      for (const p of mudar) p.regime = novoRegime(p.id);
+    }
   }
 
   const lote = crypto.randomUUID();

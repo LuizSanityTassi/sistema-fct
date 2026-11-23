@@ -43,6 +43,14 @@ export type Situacao = (typeof SITUACOES)[number];
 export const ROTULO_SITUACAO: Record<Situacao, string> = { ativo: "Ativo", afastado: "Afastado", inativo: "Inativo" };
 export const ehSituacao = (v: unknown): v is Situacao => typeof v === "string" && (SITUACOES as readonly string[]).includes(v);
 
+/** Regime da pessoa: 5x2 (cinco dias e duas folgas na semana) ou 12x36 (um dia sim, um dia não, 12 horas corridas). */
+export const REGIMES = ["5x2", "12x36"] as const;
+export type Regime = (typeof REGIMES)[number];
+export const ehRegime = (v: unknown): v is Regime => typeof v === "string" && (REGIMES as readonly string[]).includes(v);
+export const eh12x36 = (p: { regime?: string | null }) => p.regime === "12x36";
+/** Turno do 12x36: 12 horas da entrada à saída, com o intervalo dentro. */
+const MINUTOS_12X36 = 720;
+
 /** Horário de um dia. `null` = loja fechada; abre/fecha vazios = aberta, mas com o horário ainda não informado. */
 export type Faixa = { abre: string; fecha: string } | null;
 
@@ -64,6 +72,8 @@ export type Colaborador = {
   horasDia: number | null;
   intervaloMin: number;
   registro?: string | null;
+  /** Ausente nas escalas antigas = 5x2. */
+  regime?: Regime;
 };
 
 export type StatusTurno = "trabalho" | "folga" | "fechado" | "afastamento" | "inativo";
@@ -202,6 +212,12 @@ export const horasAbertas = (cfg: ConfigFilial, dia: Dia) => {
 export const diasAbertos = (cfg: ConfigFilial) => DIAS.map((_, i) => i).filter((i) => aberto(cfg, DIAS[i]));
 const naEscala = (p: { situacao: Situacao }) => p.situacao === "ativo";
 
+/** Horas trabalhadas no dia: 12x36 = 12 h corridas menos o intervalo; 5x2 = horas da pessoa ou jornada ÷ 5. */
+export const horasDoTurno = (p: Pick<Colaborador, "horasDia" | "intervaloMin" | "regime">, horasPadrao: number) =>
+  eh12x36(p) ? Math.max(1, (MINUTOS_12X36 - Number(p.intervaloMin ?? 60)) / 60) : Number(p.horasDia || horasPadrao);
+/** Dias corridos desde 01/01/1970: o revezamento do 12x36 segue de um período para o outro sem quebrar. */
+const diaCorrido = (iso: string) => Math.floor(Date.parse(`${iso.slice(0, 10)}T00:00:00Z`) / 86_400_000);
+
 /** Limite semanal pela transição da EC 141/2026: 44 h até nov/2026, 42 h de dez/2026 a nov/2027 e 40 h a partir de dez/2027. */
 export function limiteSemanal(ano: number, mes: number) {
   if (ano > 2027 || (ano === 2027 && mes >= 12)) return 40;
@@ -224,19 +240,23 @@ export function erroFolgas(cfg: ConfigFilial, folgas: number[]): string | null {
 
 type Pessoa = Colaborador;
 
-function distribuirFolgas(equipe: Pessoa[], abertos: number[], opcao: number, semana: number, candidatos: number[]) {
+/** Quem do 12x36 está fora em cada dia da semana (0 = domingo): as folgas do 5x2 evitam esses dias. */
+type Ausentes12x36 = { total: Map<number, number>; farm: Map<number, number>; farmNoRegime: number };
+
+function distribuirFolgas(equipe: Pessoa[], abertos: number[], opcao: number, semana: number, candidatos: number[], ausentes?: Ausentes12x36) {
   const folgas = new Map<string, number[]>();
   const todos = [0, 1, 2, 3, 4, 5, 6];
   const fechados = todos.filter((d) => !abertos.includes(d));
   // terça, quarta e quinta primeiro; sábado e domingo depois; segunda e sexta (dias de venda) por último
   const penalidade = (d: number) => ([2, 3, 4].includes(d) ? 0 : [0, 6].includes(d) ? 0.5 : 1.5);
-  const total = new Map(todos.map((d) => [d, 0]));
-  const farm = new Map(todos.map((d) => [d, 0]));
+  const total = new Map(todos.map((d) => [d, ausentes?.total.get(d) ?? 0]));
+  const farm = new Map(todos.map((d) => [d, ausentes?.farm.get(d) ?? 0]));
+  // o 12x36 não entra no rodízio de folgas: trabalha um dia sim, um dia não
   const ativos = equipe
     .map((pessoa, indice) => ({ pessoa, indice }))
-    .filter(({ pessoa }) => naEscala(pessoa))
+    .filter(({ pessoa }) => naEscala(pessoa) && !eh12x36(pessoa))
     .sort((a, b) => Number(contaComoFarmaceutico(b.pessoa.funcao)) - Number(contaComoFarmaceutico(a.pessoa.funcao)) || a.indice - b.indice);
-  const qtdFarm = ativos.filter(({ pessoa }) => contaComoFarmaceutico(pessoa.funcao)).length;
+  const qtdFarm = ativos.filter(({ pessoa }) => contaComoFarmaceutico(pessoa.funcao)).length + (ausentes?.farmNoRegime ?? 0);
   const marcar = (p: Pessoa, dias: number[]) => {
     folgas.set(p.id, dias);
     for (const d of dias) {
@@ -297,29 +317,54 @@ export function gerarOpcoes(
   const periodo: PeriodoEscala = { ano, mes, inicio: inicioFolha(ano, mes) };
   const nSemanas = semanasDoPeriodo(periodo);
   const resultado: Escala[] = [];
+  // 12x36: quem é da mesma função se reveza (um trabalha no dia em que o outro está fora); cada opção troca os dias
+  const doze = equipe.filter((p) => naEscala(p) && eh12x36(p));
+  const fase = new Map<string, number>();
+  const porFuncao12 = new Map<Funcao, number>();
+  for (const p of doze) {
+    const f = funcaoNaCobertura(p.funcao);
+    fase.set(p.id, porFuncao12.get(f) ?? 0);
+    porFuncao12.set(f, (porFuncao12.get(f) ?? 0) + 1);
+  }
+  const farmNoRegime = doze.filter((p) => contaComoFarmaceutico(p.funcao)).length;
 
   for (let opcao = 0; opcao < opcoes; opcao += 1) {
-    const folgasSemana = new Map(Array.from({ length: nSemanas }, (_, s) => [s, distribuirFolgas(equipe, abertos, opcao, s, candidatos)]));
+    const trabalha12 = (p: Pessoa, iso: string) => (diaCorrido(iso) + (fase.get(p.id) ?? 0) + opcao) % 2 === 0;
+    const ausentesDaSemana = (s: number): Ausentes12x36 => {
+      const a: Ausentes12x36 = { total: new Map(), farm: new Map(), farmNoRegime };
+      for (const d of diasDoPeriodo(periodo)) {
+        if (semanaDoPeriodo(periodo, d.data) !== s) continue;
+        const i = DIAS.indexOf(d.dia);
+        for (const p of doze) {
+          if (trabalha12(p, d.iso)) continue;
+          a.total.set(i, (a.total.get(i) ?? 0) + 1);
+          if (contaComoFarmaceutico(p.funcao)) a.farm.set(i, (a.farm.get(i) ?? 0) + 1);
+        }
+      }
+      return a;
+    };
+    const folgasSemana = new Map(Array.from({ length: nSemanas }, (_, s) => [s, distribuirFolgas(equipe, abertos, opcao, s, candidatos, doze.length ? ausentesDaSemana(s) : undefined)]));
     const pessoas: PessoaEscala[] = equipe.map((p) => ({ ...p, turnos: [], totalHoras: 0, mediaSemanal: 0, excedente: 0 }));
     const cobertura: DiaCobertura[] = [];
 
-    for (const { data, dia } of diasDoPeriodo(periodo)) {
+    for (const { data, dia, iso } of diasDoPeriodo(periodo)) {
       const indiceDia = DIAS.indexOf(dia);
       const semana = semanaDoPeriodo(periodo, data);
       const abre = aberto(cfg, dia);
       const faixa = faixaDoDia(cfg, dia);
-      const trabalhando = pessoas.filter((p) => naEscala(p) && abre && !(folgasSemana.get(semana)?.get(p.id) ?? []).includes(indiceDia));
+      const trabalhando = pessoas.filter((p) => naEscala(p) && abre && (eh12x36(p) ? trabalha12(p, iso) : !(folgasSemana.get(semana)?.get(p.id) ?? []).includes(indiceDia)));
 
       for (const p of trabalhando) {
-        const duracao = Number(p.horasDia || horasPadrao);
+        const duracao = horasDoTurno(p, horasPadrao);
         const intervalo = Number(p.intervaloMin ?? 60);
-        const mesmaFuncao = trabalhando.filter((c) => funcaoNaCobertura(c.funcao) === funcaoNaCobertura(p.funcao));
+        // o 12x36 vem primeiro: entra na abertura todo dia (horário fixo); o 5x2 escalona depois dele
+        const mesmaFuncao = trabalhando.filter((c) => funcaoNaCobertura(c.funcao) === funcaoNaCobertura(p.funcao)).sort((a, b) => Number(eh12x36(b)) - Number(eh12x36(a)));
         const posicao = mesmaFuncao.findIndex((c) => c.id === p.id);
         const turno: Turno = { data, dia, status: "trabalho", horas: duracao, intervaloMin: intervalo, inicio: "", fim: "", intervaloInicio: "", intervaloFim: "" };
         if (faixa) {
           // entradas escalonadas entre a abertura e a última entrada que ainda cobre o fechamento
           const turnos = mesmaFuncao.map((c, i) => {
-            const dur = Number(c.horasDia || horasPadrao);
+            const dur = horasDoTurno(c, horasPadrao);
             const int = Number(c.intervaloMin ?? 60);
             const ultima = Math.max(minutos(faixa.abre), minutos(faixa.fecha) - (dur * 60 + int));
             const ini = mesmaFuncao.length > 1 ? minutos(faixa.abre) + Math.round(((ultima - minutos(faixa.abre)) * i) / (mesmaFuncao.length - 1)) : minutos(faixa.abre);
@@ -349,8 +394,8 @@ export function gerarOpcoes(
         p.turnos.push(turno);
       }
       for (const p of pessoas.filter((x) => !trabalhando.includes(x))) {
-        const folgas = folgasSemana.get(semana)?.get(p.id) ?? [];
-        const status: StatusTurno = p.situacao === "afastado" ? "afastamento" : p.situacao === "inativo" ? "inativo" : folgas.includes(indiceDia) && abre ? "folga" : "fechado";
+        const deFolga = eh12x36(p) || (folgasSemana.get(semana)?.get(p.id) ?? []).includes(indiceDia);
+        const status: StatusTurno = p.situacao === "afastado" ? "afastamento" : p.situacao === "inativo" ? "inativo" : deFolga && abre ? "folga" : "fechado";
         p.turnos.push({ data, dia, status, horas: 0 });
       }
       cobertura.push(coberturaDoDia(cfg, data, dia, pessoas));
@@ -394,6 +439,12 @@ function coberturaDoDia(cfg: ConfigFilial, data: number, dia: Dia, pessoas: Pess
 function resumirPessoa(p: PessoaEscala, jornadaSemanal: number, nSemanas: number) {
   const horasDia = Number(p.horasDia || jornadaSemanal / 5);
   p.totalHoras = Number(p.turnos.reduce((s, t) => s + (t.status === "trabalho" ? Number(t.horas || 0) : 0), 0).toFixed(1));
+  if (eh12x36(p)) {
+    // 12x36: média pelas horas do período; o próprio regime compensa as horas (CLT art. 59-A), sem excedente semanal
+    p.mediaSemanal = naEscala(p) ? Number(((p.totalHoras * 7) / Math.max(p.turnos.length, 1)).toFixed(1)) : 0;
+    p.excedente = 0;
+    return;
+  }
   // um ciclo completo tem cinco dias de trabalho: a primeira e a última semana do mês (parciais) não viram hora extra
   const ajuste = p.turnos.filter((t) => t.ajustado).reduce((s, t) => s + Number(t.horas || 0) - Number(t.horasBase ?? 0), 0);
   p.mediaSemanal = naEscala(p) ? Number((horasDia * 5 + ajuste / Math.max(nSemanas, 1)).toFixed(1)) : 0;
@@ -506,7 +557,8 @@ export function ajustarTurno(cfg: ConfigFilial, escala: Escala, a: AjusteTurno):
   let movidaDe: number | null = null;
 
   if (a.status === "folga") {
-    if (t.status === "trabalho") {
+    // no 5x2 a folga troca com a outra folga da semana; no 12x36 não há folga da semana para trocar
+    if (t.status === "trabalho" && !eh12x36(p)) {
       const semana = semanaDoPeriodo(escala, a.data);
       const outra = p.turnos.find(
         (x) => x.data !== a.data && x.status === "folga" && semanaDoPeriodo(escala, x.data) === semana && escala.cobertura.find((c) => c.data === x.data)?.aberto,
@@ -585,13 +637,31 @@ export function projetarEscala(cfg: ConfigFilial, base: Escala, ano: number, mes
       return [d.data, semanas[ciclo].find((x) => x.dia === d.dia)!.data];
     }),
   );
-  const equipe: PessoaEscala[] = base.equipe.map((p) => ({
-    ...p,
-    turnos: diasDestino.map((d) => {
-      const t = p.turnos.find((x) => x.data === modeloDe.get(d.data));
-      return { ...(t ?? { status: "fechado" as StatusTurno, horas: 0 }), data: d.data, dia: d.dia };
-    }),
-  }));
+  const isoDaBase = new Map(diasDoPeriodo(base).map((d) => [d.data, d.iso]));
+  const equipe: PessoaEscala[] = base.equipe.map((p) => {
+    const trabalho = p.turnos.filter((t) => t.status === "trabalho" && isoDaBase.has(t.data));
+    if (eh12x36(p) && naEscala(p) && trabalho.length) {
+      // 12x36: o dia sim, dia não continua contado em dias corridos (não segue o ciclo das semanas)
+      const par = diaCorrido(isoDaBase.get(trabalho[0].data)!) % 2;
+      return {
+        ...p,
+        turnos: diasDestino.map((d): Turno => {
+          const abre = aberto(cfg, d.dia);
+          if (!abre) return { data: d.data, dia: d.dia, status: "fechado", horas: 0 };
+          if (diaCorrido(d.iso) % 2 !== par) return { data: d.data, dia: d.dia, status: "folga", horas: 0 };
+          const modelo = trabalho.find((t) => t.dia === d.dia && !t.ajustado) ?? trabalho.find((t) => !t.ajustado) ?? trabalho[0];
+          return { ...modelo, data: d.data, dia: d.dia };
+        }),
+      };
+    }
+    return {
+      ...p,
+      turnos: diasDestino.map((d) => {
+        const t = p.turnos.find((x) => x.data === modeloDe.get(d.data));
+        return { ...(t ?? { status: "fechado" as StatusTurno, horas: 0 }), data: d.data, dia: d.dia };
+      }),
+    };
+  });
   const escala: Escala = {
     ano,
     mes,
@@ -685,20 +755,31 @@ function auditar(cfg: ConfigFilial, escala: Escala): Alerta[] {
 
   for (const p of equipe) {
     if (!naEscala(p)) continue;
-    if (p.mediaSemanal > jornadaSemanal + 0.01)
+    const doze = eh12x36(p);
+    if (!doze && p.mediaSemanal > jornadaSemanal + 0.01)
       alertas.push({ severidade: "media", pessoaId: p.id, mensagem: `${p.nome}: média de ${p.mediaSemanal.toFixed(1)} h/semana, acima da jornada de ${jornadaSemanal} h.` });
-    if (Number(p.horasDia || jornadaSemanal / 5) > 8 && !cfg.acordoJornadaEstendida)
+    if (doze && !cfg.acordoJornadaEstendida)
+      alertas.push({ severidade: "media", pessoaId: p.id, mensagem: `${p.nome}: 12x36 só vale com acordo escrito (individual ou coletivo). Marque o acordo/convenção coletiva na filial.` });
+    if (!doze && Number(p.horasDia || jornadaSemanal / 5) > 8 && !cfg.acordoJornadaEstendida)
       alertas.push({ severidade: "media", pessoaId: p.id, mensagem: `${p.nome}: jornada diária acima de 8 horas sem acordo/convenção coletiva marcado na filial.` });
     const pos = (t: Turno) => posicaoNoPeriodo(escala, t.data);
     const fmtDia = (data: number) => rotuloData(escala, data);
     const dias = p.turnos.filter((t) => t.status === "trabalho").sort((x, y) => pos(x) - pos(y));
     for (const t of dias) {
-      if (t.ajustado && t.horas > 8 && !cfg.acordoJornadaEstendida)
+      if (!doze && t.ajustado && t.horas > 8 && !cfg.acordoJornadaEstendida)
         alertas.push({ severidade: "media", data: t.data, pessoaId: p.id, mensagem: `${p.nome}: turno ajustado para ${t.horas.toFixed(1)} horas trabalhadas em ${fmtDia(t.data)}; confira o limite e o acordo coletivo.` });
-      if (t.horas > 6 && Number(t.intervaloMin ?? 0) < 60)
+      // no 12x36 o intervalo pode ser indenizado (CLT art. 59-A)
+      if (!doze && t.horas > 6 && Number(t.intervaloMin ?? 0) < 60)
         alertas.push({ severidade: "media", data: t.data, pessoaId: p.id, mensagem: `${p.nome}: intervalo de ${Number(t.intervaloMin ?? 0)} min em jornada de mais de 6 horas (${fmtDia(t.data)}). O mínimo é 1 hora.` });
     }
     for (let i = 1; i < dias.length; i += 1) {
+      if (doze && pos(dias[i]) - pos(dias[i - 1]) === 1)
+        alertas.push({
+          severidade: "alta",
+          pessoaId: p.id,
+          data: dias[i].data,
+          mensagem: `${p.nome}: 12x36 com dois dias seguidos (${fmtDia(dias[i - 1].data)} e ${fmtDia(dias[i].data)}). Depois de cada turno de 12 horas o descanso é de 36 horas.`,
+        });
       if (pos(dias[i]) - pos(dias[i - 1]) !== 1 || !dias[i - 1].fim || !dias[i].inicio) continue;
       const descanso = 1440 - minutos(dias[i - 1].fim!) + minutos(dias[i].inicio!);
       if (descanso < 660)
@@ -818,14 +899,16 @@ export function preAnalise(cfg: ConfigFilial, equipe: Colaborador[], { ano, mes,
     const farm = equipe.filter((p) => contaComoFarmaceutico(p.funcao) && naEscala(p));
     const abertos = diasAbertos(cfg);
     const horasSemana = abertos.reduce((s, i) => s + horasAbertas(cfg, DIAS[i]), 0);
-    const capacidade = farm.reduce((s, p) => s + Number(p.horasDia || jornadaSemanal / 5) * 5, 0);
+    // dias por semana: 5 no 5x2 e 3,5 em média no 12x36
+    const diasSemana = (p: Colaborador) => (eh12x36(p) ? 3.5 : 5);
+    const capacidade = farm.reduce((s, p) => s + horasDoTurno(p, jornadaSemanal / 5) * diasSemana(p), 0);
     const necessidade = horasSemana * minimo;
-    const faltaDias = farm.length * 5 < minimo * abertos.length;
+    const faltaDias = farm.reduce((s, p) => s + diasSemana(p), 0) < minimo * abertos.length;
     const faltaHoras = capacidade + 0.01 < necessidade;
     if (!minimo || faltaDias || faltaHoras) {
       const motivos: string[] = [];
       if (!minimo) motivos.push("mínimo de farmacêuticos por horário não cadastrado");
-      if (faltaDias) motivos.push(`${farm.length} farmacêutico(s) ativo(s) não cobrem ${abertos.length} dias de funcionamento no 5x2`);
+      if (faltaDias) motivos.push(`${farm.length} farmacêutico(s) ativo(s) não cobrem ${abertos.length} dias de funcionamento`);
       if (faltaHoras) motivos.push(`capacidade de ${capacidade.toFixed(0)} h/semana abaixo da necessidade da loja (${necessidade.toFixed(0)} h)`);
       return { status: "equipe", rotulo: ROTULO_PRE.equipe, detalhe: `${motivos.join("; ")}. A equipe atual não alcança a cobertura mínima, mesmo antes de otimizar entradas e folgas.`, alertas: melhor.alertas.length };
     }

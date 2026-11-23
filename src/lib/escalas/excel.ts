@@ -3,7 +3,7 @@
 import "server-only";
 import * as XLSX from "xlsx";
 import type { Simulacao } from "@/lib/data/escalas";
-import { ROTULO_DIA, ROTULO_FUNCAO, ROTULO_SITUACAO, rotuloData, type Funcao } from "./motor";
+import { ROTULO_DIA, ROTULO_FUNCAO, ROTULO_SITUACAO, eh12x36, horasDoTurno, rotuloData, type Funcao } from "./motor";
 import { celula, excedenteEquipe, horasEquipe, rotuloDias, textoFuncionamento, textoPeriodo } from "./resumo";
 
 type Celula = string | number | boolean | null | { t: "n"; v: number; f: string };
@@ -66,13 +66,13 @@ export function gerarExcelEscala(sims: Simulacao[], pessoaId?: string): Buffer {
     escala.push(["Colaborador", "Função", ...s.cobertura.map((c) => `${rotuloData(s, c.data)} ${ROTULO_DIA[c.dia]}`), "Horas"]);
     for (const p of s.equipe) {
       const turnos = new Map(p.turnos.map((t) => [t.data, t]));
-      escala.push([p.nome, ROTULO_FUNCAO[p.funcao], ...s.cobertura.map((c) => celula(turnos.get(c.data)?.status ?? "fechado", turnos.get(c.data)?.inicio)), Number(p.totalHoras.toFixed(1))]);
+      escala.push([p.nome, `${ROTULO_FUNCAO[p.funcao]}${eh12x36(p) ? " (12x36)" : ""}`, ...s.cobertura.map((c) => celula(turnos.get(c.data)?.status ?? "fechado", turnos.get(c.data)?.inicio)), Number(p.totalHoras.toFixed(1))]);
       celulaHoras.set(`${s.id}:${p.id}`, XLSX.utils.encode_cell({ r: escala.length - 1, c: n + 2 }));
     }
   }
   aba(wb, "ESCALA MENSAL", escala, [30, 15, ...Array.from({ length: 31 }, () => 7), 8]);
 
-  const pessoas: Celula[][] = [["Filial", "Nome", "Função", "Situação", "Horas/dia", "Intervalo (min)", "Registro (CRF)"]];
+  const pessoas: Celula[][] = [["Filial", "Nome", "Função", "Situação", "Regime", "Horas/dia", "Intervalo (min)", "Registro (CRF)"]];
   const turnos: Celula[][] = [["Filial", "Nome", "Data", "Dia", "Entrada", "Saída p/ almoço", "Retorno", "Saída final", "Horas", "Ajuste manual"]];
   const folgas: Celula[][] = [["Filial", "Nome", "Data", "Dia"]];
   const horas: Celula[][] = [["Filial", "Nome", "Função", "Horas no mês", "Média semanal (h)", "Jornada (h/sem)", "Excedente semanal (h)"]];
@@ -84,7 +84,7 @@ export function gerarExcelEscala(sims: Simulacao[], pessoaId?: string): Buffer {
     const cod = s.filial.codigo;
     const nomes = new Map(s.equipe.map((p) => [p.id, p.nome]));
     for (const p of s.equipe) {
-      pessoas.push([cod, p.nome, ROTULO_FUNCAO[p.funcao], ROTULO_SITUACAO[p.situacao], p.horasDia ?? s.jornadaSemanal / 5, p.intervaloMin, p.registro ?? ""]);
+      pessoas.push([cod, p.nome, ROTULO_FUNCAO[p.funcao], ROTULO_SITUACAO[p.situacao], eh12x36(p) ? "12x36" : "5x2", horasDoTurno(p, s.jornadaSemanal / 5), p.intervaloMin, p.registro ?? ""]);
       for (const t of p.turnos) {
         if (t.status === "trabalho") turnos.push([cod, p.nome, rotuloData(s, t.data), ROTULO_DIA[t.dia], t.inicio ?? "", t.intervaloInicio || "—", t.intervaloFim || "—", t.fim ?? "", Number(t.horas.toFixed(2)), t.ajustado ? "Sim" : ""]);
         if (t.status === "folga") folgas.push([cod, p.nome, rotuloData(s, t.data), ROTULO_DIA[t.dia]]);

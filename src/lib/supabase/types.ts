@@ -3854,6 +3854,7 @@ export type Database = {
           observacoes: string | null
           ordem: number
           origem: string
+          regime: string
           registro: string | null
           revisar: boolean
           situacao: string
@@ -3874,6 +3875,7 @@ export type Database = {
           observacoes?: string | null
           ordem?: number
           origem?: string
+          regime?: string
           registro?: string | null
           revisar?: boolean
           situacao?: string
@@ -3894,6 +3896,7 @@ export type Database = {
           observacoes?: string | null
           ordem?: number
           origem?: string
+          regime?: string
           registro?: string | null
           revisar?: boolean
           situacao?: string

@@ -15,7 +15,7 @@ export type FilialEscala = {
   equipe: Colaborador[];
 };
 
-const COLS_COLAB = "id, branch_id, nome, funcao, situacao, horas_dia, intervalo_min, registro";
+const COLS_COLAB = "id, branch_id, nome, funcao, situacao, horas_dia, intervalo_min, registro, regime";
 
 /** Filiais com escala configurada (que a pessoa vê) e a equipe de cada uma. */
 export async function filiaisDaEscala(): Promise<FilialEscala[]> {
@@ -63,6 +63,7 @@ export type ColaboradorDetalhe = {
   horas_dia: number | null;
   intervalo_min: number;
   registro: string | null;
+  regime: string;
   observacoes: string | null;
   cargo_origem: string | null;
   horario_origem: { semana?: string; sabado?: string; domingo?: string } | null;
@@ -77,7 +78,7 @@ export async function equipeDetalhada(branchId: string): Promise<ColaboradorDeta
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("esc_colaboradores")
-    .select("id, nome, funcao, situacao, horas_dia, intervalo_min, registro, observacoes, cargo_origem, horario_origem, origem, revisar, employee_id, rh:employees!esc_colaboradores_employee_id_fkey(id, nome, status, cargo, filial:branches!employees_branch_id_fkey(id, codigo))")
+    .select("id, nome, funcao, situacao, horas_dia, intervalo_min, registro, regime, observacoes, cargo_origem, horario_origem, origem, revisar, employee_id, rh:employees!esc_colaboradores_employee_id_fkey(id, nome, status, cargo, filial:branches!employees_branch_id_fkey(id, codigo))")
     .eq("branch_id", branchId)
     .order("ordem")
     .order("nome");

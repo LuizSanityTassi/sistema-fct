@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { BotaoImprimir } from "@/app/etiquetas/ti/imprimir";
 import { exigirAcesso } from "@/lib/auth/session";
 import { escalaVigente, simulacao } from "@/lib/data/escalas";
-import { ROTULO_DIA, ROTULO_FUNCAO, rotuloData, type Escala } from "@/lib/escalas/motor";
+import { ROTULO_DIA, ROTULO_FUNCAO, eh12x36, rotuloData, type Escala } from "@/lib/escalas/motor";
 import { agruparAlertas, celula, datasTexto, lerMesAno, nomeMes, rotuloCompetencia, rotuloDias, textoFuncionamento, textoPeriodo } from "@/lib/escalas/resumo";
 
 export const metadata: Metadata = { title: "Escala 5x2" };
@@ -105,7 +105,10 @@ export default async function ImprimirEscalaPage({ params, searchParams }: PageP
               <td className="px-1 py-0.5 leading-tight">
                 <b>{p.nome}</b>
                 <br />
-                <span className="text-[8px] text-gray-600">{ROTULO_FUNCAO[p.funcao]}</span>
+                <span className="text-[8px] text-gray-600">
+                  {ROTULO_FUNCAO[p.funcao]}
+                  {eh12x36(p) ? " · 12x36" : ""}
+                </span>
               </td>
               {p.turnos.map((t) => (
                 <td key={t.data} className="px-0 py-0.5 text-center text-[8px] tabular-nums" style={{ background: COR[t.status] }}>
@@ -129,7 +132,7 @@ export default async function ImprimirEscalaPage({ params, searchParams }: PageP
                 <thead>
                   <tr>
                     <th colSpan={6} className="bg-gray-100 py-0.5">
-                      {p.nome} · {ROTULO_FUNCAO[p.funcao]} · {p.totalHoras.toFixed(1)} h no período · média {p.mediaSemanal.toFixed(1)} h/semana{p.excedente ? ` · excedente ${p.excedente.toFixed(1)} h` : ""}
+                      {p.nome} · {ROTULO_FUNCAO[p.funcao]}{eh12x36(p) ? " (12x36)" : ""} · {p.totalHoras.toFixed(1)} h no período · média {p.mediaSemanal.toFixed(1)} h/semana{p.excedente ? ` · excedente ${p.excedente.toFixed(1)} h` : ""}
                     </th>
                   </tr>
                   <tr className="text-[8px] text-gray-600">

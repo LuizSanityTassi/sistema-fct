@@ -78,6 +78,14 @@ function FormPessoa({ branchId, pessoa, funcionarios, aoSalvar }: { branchId: st
             ))}
           </SelectNativo>
         </label>
+        <label className="grid gap-1 text-sm sm:col-span-2">
+          <span className="font-medium">Regime</span>
+          <SelectNativo name="regime" defaultValue={pessoa?.regime === "12x36" ? "12x36" : "5x2"}>
+            <option value="5x2">5x2 · cinco dias e duas folgas na semana</option>
+            <option value="12x36">12x36 · um dia sim, um dia não, 12 horas corridas</option>
+          </SelectNativo>
+          <span className="text-xs text-muted-foreground">No 12x36 o turno vai da entrada à saída em 12 horas, com o intervalo dentro, e as “Horas por dia” não valem.</span>
+        </label>
         <label className="grid gap-1 text-sm">
           <span className="font-medium">Horas por dia</span>
           <Input name="horas_dia" type="number" min={1} max={12} step={0.1} defaultValue={pessoa?.horas_dia ?? ""} placeholder="jornada ÷ 5" aria-invalid={!!e.horas_dia || undefined} />
@@ -177,7 +185,10 @@ export function EquipeEscala({ branchId, equipe, funcionarios }: { branchId: str
                     </p>
                     {c.revisar && <p className="text-xs font-medium text-amber-700">Revisar: a planilha cita outra filial.</p>}
                   </td>
-                  <td className="px-3 py-2 whitespace-nowrap">{ROTULO_FUNCAO[ehFuncao(c.funcao) ? c.funcao : "outros"]}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    {ROTULO_FUNCAO[ehFuncao(c.funcao) ? c.funcao : "outros"]}
+                    {c.regime === "12x36" && <span className="block text-xs font-medium text-sky-700">12x36</span>}
+                  </td>
                   <td className="px-3 py-2">
                     <Status tom={TOM_SIT[c.situacao] ?? "neutro"}>{ROTULO_SITUACAO[ehSituacao(c.situacao) ? c.situacao : "ativo"]}</Status>
                   </td>

@@ -16,6 +16,8 @@ type FilialOpcao = {
   nome: string;
   folgas: number[];
   diasAbertos: number;
+  /** Equipe ativa: funcao já em texto; doze = está no 12x36. */
+  equipe: { id: string; nome: string; funcao: string; doze: boolean }[];
 };
 
 /** Gerar as opções do mês: filial (ou todas), mês, jornada, quantas opções e os dias permitidos para folga. */
@@ -26,6 +28,7 @@ export function SimularForm({ filiais, filialInicial, meses, mesInicial }: { fil
   const [periodo, setPeriodo] = React.useState(mesInicial);
   const atual = filiais.find((f) => f.id === filial);
   const [folgas, setFolgas] = React.useState<number[]>(atual?.folgas ?? [2, 3, 4]);
+  const [doze, setDoze] = React.useState<string[]>(atual?.equipe.filter((p) => p.doze).map((p) => p.id) ?? []);
   const [ano, mes] = periodo.split("-").map(Number);
   const limite = limiteSemanal(ano, mes);
   const jornadas = [40, 42, 44].filter((h) => h <= limite);
@@ -33,11 +36,15 @@ export function SimularForm({ filiais, filialInicial, meses, mesInicial }: { fil
   const trocarFilial = (id: string) => {
     setFilial(id);
     const f = filiais.find((x) => x.id === id);
-    if (f) setFolgas(f.folgas);
+    if (f) {
+      setFolgas(f.folgas);
+      setDoze(f.equipe.filter((p) => p.doze).map((p) => p.id));
+    }
     // abre embaixo o funcionamento e a equipe da filial escolhida
     router.replace(f ? `/escalas/simulador?filial=${f.id}` : "/escalas/simulador", { scroll: false });
   };
   const alternar = (d: number) => setFolgas((l) => (l.includes(d) ? l.filter((x) => x !== d) : [...l, d]));
+  const alternarDoze = (id: string) => setDoze((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]));
   const todas = filial === "todas";
   return (
     <form action={enviar} className="space-y-4 px-5 pb-5">
@@ -104,6 +111,25 @@ export function SimularForm({ filiais, filialInicial, meses, mesInicial }: { fil
               (atual?.diasAbertos === 7
                 ? "Esta loja abre todos os dias: marque pelo menos dois dias para as duas folgas da semana. A escolha fica salva como padrão da filial."
                 : "Marque pelo menos um dia em que a loja abre. A escolha fica salva como padrão da filial.")}
+          </p>
+        </fieldset>
+      )}
+      {!todas && atual && atual.equipe.length > 0 && (
+        <fieldset className="grid gap-1">
+          <input type="hidden" name="doze_presente" value="1" />
+          <legend className="mb-1 text-sm font-medium">Quem trabalha 12x36</legend>
+          <div className="flex flex-wrap gap-1.5">
+            {atual.equipe.map((p) => (
+              <label key={p.id} className="flex cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1 text-sm has-checked:border-primary has-checked:bg-primary/10">
+                <input type="checkbox" name="doze" value={p.id} checked={doze.includes(p.id)} onChange={() => alternarDoze(p.id)} className="accent-primary" />
+                {p.nome}
+                <span className="text-xs text-muted-foreground">· {p.funcao}</span>
+              </label>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Marcados trabalham um dia sim, um dia não, 12 horas da entrada à saída (com o intervalo dentro), e ficam fora do rodízio de folgas; os outros seguem no 5x2. Dois da mesma função em 12x36 se revezam. A
+            escolha fica salva na equipe da filial. O 12x36 precisa do acordo escrito marcado no funcionamento da filial.
           </p>
         </fieldset>
       )}

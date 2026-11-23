@@ -13,8 +13,10 @@ import {
   diasComMesmoHorario,
   diasDoMesmoGrupo,
   diasDoPeriodo,
+  eh12x36,
   grupoDoDia,
   hora,
+  horasDoTurno,
   minutos,
   rotuloData,
   type DiaCobertura,
@@ -117,7 +119,7 @@ export function Calendario({ simId, ano, mes, inicio, jornadaSemanal, equipe, co
     const { p, t } = aberto;
     if (t.status === "trabalho" && t.inicio) return { inicio: t.inicio, fim: t.fim ?? "", ii: t.intervaloInicio ?? "", fi: t.intervaloFim ?? "" };
     const ini = minutos(abertura[t.dia] || "08:00");
-    const horas = Number(p.horasDia || jornadaSemanal / 5);
+    const horas = horasDoTurno(p, jornadaSemanal / 5);
     const int = Number(p.intervaloMin ?? 60);
     const almoco = ini + Math.round((horas * 60 - int) / 2);
     return { inicio: hora(ini), fim: hora(ini + horas * 60 + int), ii: int ? hora(almoco) : "", fi: int ? hora(almoco + int) : "" };
@@ -159,6 +161,7 @@ export function Calendario({ simId, ano, mes, inicio, jornadaSemanal, equipe, co
                   <span className="block max-w-48 truncate text-sm font-medium">{p.nome}</span>
                   <span className="text-muted-foreground">
                     {ROTULO_FUNCAO[p.funcao]}
+                    {eh12x36(p) ? " · 12x36" : ""}
                     {p.situacao !== "ativo" ? ` · ${p.situacao}` : ""}
                   </span>
                 </th>
