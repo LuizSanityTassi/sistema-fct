@@ -3397,6 +3397,64 @@ export type Database = {
           },
         ]
       }
+      relogio_links: {
+        Row: {
+          branch_id: string
+          criado_em: string
+          criado_por: string | null
+          id: string
+          revogado_em: string | null
+          revogado_por: string | null
+          token_hash: string
+          ultimo_uso: string | null
+          usos: number
+        }
+        Insert: {
+          branch_id: string
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          revogado_em?: string | null
+          revogado_por?: string | null
+          token_hash: string
+          ultimo_uso?: string | null
+          usos?: number
+        }
+        Update: {
+          branch_id?: string
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          revogado_em?: string | null
+          revogado_por?: string | null
+          token_hash?: string
+          ultimo_uso?: string | null
+          usos?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relogio_links_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "relogio_links_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "relogio_links_revogado_por_fkey"
+            columns: ["revogado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sangria_anexos: {
         Row: {
           criado_em: string
@@ -7030,6 +7088,7 @@ export type Database = {
       rh_documento_devolver_assinado: { Args: { p_documento: string; p_caminho: string }; Returns: undefined }
       ponto_remover_digital: { Args: { p_employee: string; p_dedo: number }; Returns: undefined }
       ponto_tem_pin: { Args: { p_employees: string[] }; Returns: string[] }
+      relogio_desconectar: { Args: { p_branch: string }; Returns: number }
       rh_gerentes_opcoes: {
         Args: never
         Returns: {

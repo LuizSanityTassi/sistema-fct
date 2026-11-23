@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { Lock, TriangleAlert } from "lucide-react";
 import { CampoSenha } from "@/components/form/campo-senha";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogClose,
@@ -62,18 +63,27 @@ export function SairDoRelogio({ acao, doRelogio, conta }: Props) {
               {doRelogio ? "Desconectar o relógio" : "Sair do relógio"}
             </DialogTitle>
             <DialogDescription>
-              Só sai com a senha de <strong>{conta}</strong>.
-              {doRelogio
-                ? " Depois, para religar, entre de novo com o login do relógio."
-                : ""}
+              {doRelogio ? (
+                <>
+                  Entre com o e-mail e a senha de um gestor (gerente, coordenador, RH, TI ou administrador). Depois, para
+                  religar, abra de novo o link do relógio da filial.
+                </>
+              ) : (
+                <>
+                  Só sai com a senha de <strong>{conta}</strong>.
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
           <form action={enviar} className="space-y-3">
+            {doRelogio && (
+              <Input name="email" type="email" autoComplete="off" required autoFocus placeholder="E-mail do gestor" aria-label="E-mail do gestor" className="h-10" />
+            )}
             <CampoSenha
               name="senha"
               autoComplete="off"
               required
-              autoFocus
+              autoFocus={!doRelogio}
               aria-label="Senha"
               className="h-10"
             />
