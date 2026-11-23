@@ -11,6 +11,12 @@ export type SituacaoComprovante = keyof typeof SITUACOES_COMPROVANTE;
 export const ehSituacaoComprovante = (v: unknown): v is SituacaoComprovante => typeof v === "string" && v in SITUACOES_COMPROVANTE;
 export const TOM_COMPROVANTE: Record<SituacaoComprovante, Tom> = { ativo: "sucesso", cancelado: "neutro" };
 
+/** Conferência do financeiro: a conferir · conferido · com problema (a loja corrige anexando o arquivo certo). */
+export const CONFERENCIAS = { pendente: "A conferir", divergente: "Com problema", conferido: "Conferido" } as const;
+export type Conferencia = keyof typeof CONFERENCIAS;
+export const ehConferencia = (v: unknown): v is Conferencia => typeof v === "string" && v in CONFERENCIAS;
+export const TOM_CONFERENCIA: Record<Conferencia, Tom> = { pendente: "atencao", divergente: "perigo", conferido: "sucesso" };
+
 export const MAX_PARCELAS = 24;
 
 // anexo: bucket "documentos", pasta comprovantes/<id>/ (as mesmas regras de arquivo dos anexos de caixa)

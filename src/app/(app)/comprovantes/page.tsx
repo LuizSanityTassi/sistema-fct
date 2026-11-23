@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
-import { TIPOS_VENDA, type TipoVenda } from "@/lib/comprovantes/rotulos";
+import { CONFERENCIAS, TIPOS_VENDA, TOM_CONFERENCIA, type Conferencia, type TipoVenda } from "@/lib/comprovantes/rotulos";
+import { Status } from "@/components/layout/status";
 import { lerFiltrosComprovantes, listarComprovantes, opcoesDeFiltro, paramsDosFiltros, TAMANHO_PAGINA_COMPROVANTES } from "@/lib/data/comprovantes";
 import { formatarData, formatarMoeda } from "@/lib/formatos";
 import { formatarCnpj } from "@/lib/validacao/cnpj";
@@ -83,6 +84,17 @@ export default async function ComprovantesPage({ searchParams }: PageProps<"/com
           </SelectNativo>
         </label>
         <label className="grid gap-1 text-sm">
+          <span className="font-medium">Conferência do financeiro</span>
+          <SelectNativo name="conferencia" defaultValue={filtros.conferencia ?? "todas"}>
+            <option value="todas">Todas</option>
+            {(Object.keys(CONFERENCIAS) as Conferencia[]).map((c) => (
+              <option key={c} value={c}>
+                {CONFERENCIAS[c]}
+              </option>
+            ))}
+          </SelectNativo>
+        </label>
+        <label className="grid gap-1 text-sm">
           <span className="font-medium">Cliente, empresa ou nº da venda</span>
           <Input type="search" name="busca" defaultValue={filtros.busca ?? ""} maxLength={60} placeholder="Ex.: Salvaro" />
         </label>
@@ -137,6 +149,7 @@ export default async function ComprovantesPage({ searchParams }: PageProps<"/com
                   <TableHead className="hidden text-right sm:table-cell">Parcelas</TableHead>
                   <TableHead>Compra</TableHead>
                   <TableHead className="text-center">Anexo</TableHead>
+                  <TableHead className="hidden md:table-cell">Conferência</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -187,6 +200,20 @@ export default async function ComprovantesPage({ searchParams }: PageProps<"/com
                                 </a>
                               );
                             })}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {cancelado ? (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        ) : (
+                          <Link href={`/comprovantes/${c.id}`} className="hover:underline">
+                            <Status tom={TOM_CONFERENCIA[c.conferencia as Conferencia] ?? "neutro"}>{CONFERENCIAS[c.conferencia as Conferencia] ?? c.conferencia}</Status>
+                          </Link>
+                        )}
+                        {!cancelado && c.conferencia === "divergente" && c.conferencia_obs && (
+                          <span className="mt-0.5 block max-w-52 truncate text-[11px] text-red-800" title={c.conferencia_obs}>
+                            {c.conferencia_obs}
                           </span>
                         )}
                       </TableCell>

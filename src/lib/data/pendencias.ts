@@ -432,6 +432,44 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
     );
   }
 
+  // ---------- Comprovantes de venda: a conferir (financeiro) e com problema (loja) ----------
+  if (financeiro && pode("/financeiro/comprovantes")) {
+    tarefas.push(
+      (async () => {
+        const aConferir = await contar(supabase.from("venda_comprovantes").select("id", { count: "exact", head: true }).eq("situacao", "ativo").eq("conferencia", "pendente"));
+        if (aConferir)
+          out.push({
+            id: "comprovantes-conferir",
+            severidade: "atencao",
+            area: "Caixa",
+            quantidade: aConferir,
+            minha: true,
+            href: `/financeiro/comprovantes?conferencia=pendente&de=${ha120dias}`,
+            titulo: `${aConferir} ${plural(aConferir, "comprovante de venda a conferir", "comprovantes de venda a conferir")}`,
+          });
+      })(),
+    );
+  }
+  if (!financeiro && (sessao.papel === "gerente" || sessao.papel === "lider_loja" || sessao.papel === "usuario") && pode("/comprovantes")) {
+    tarefas.push(
+      (async () => {
+        // o RLS deixa contar só os da loja da pessoa
+        const comProblema = await contar(supabase.from("venda_comprovantes").select("id", { count: "exact", head: true }).eq("situacao", "ativo").eq("conferencia", "divergente"));
+        if (comProblema)
+          out.push({
+            id: "comprovantes-problema",
+            severidade: "alto",
+            area: "Caixa",
+            quantidade: comProblema,
+            minha: true,
+            href: `/comprovantes?conferencia=divergente&situacao=ativo&de=${ha120dias}`,
+            titulo: `${comProblema} ${plural(comProblema, "comprovante de venda com problema", "comprovantes de venda com problema")} apontado pelo financeiro`,
+            detalhe: "Abra, veja o que falta e anexe o comprovante certo.",
+          });
+      })(),
+    );
+  }
+
   // ---------- DRE do contador que já devia ter chegado (quem importa: admin, financeiro, contador) ----------
   if (pode("/financeiro/dre") && (financeiro || sessao.papel === "contador")) {
     tarefas.push(

@@ -1,6 +1,6 @@
 // Consultas dos comprovantes de venda (servidor). O RLS decide o que cada um vê: a loja vê os dela; financeiro,
 // contador e administrador veem todos; o coordenador, os da regional.
-import { ehSituacaoComprovante, ehTipoVenda, limparBusca, type SituacaoComprovante, type TipoVenda } from "@/lib/comprovantes/rotulos";
+import { ehConferencia, ehSituacaoComprovante, ehTipoVenda, limparBusca, type Conferencia, type SituacaoComprovante, type TipoVenda } from "@/lib/comprovantes/rotulos";
 import { createClient } from "@/lib/supabase/server";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -18,16 +18,19 @@ export type FiltrosComprovantes = {
   /** ausente = todos (ativos e cancelados) */
   situacao?: SituacaoComprovante;
   busca?: string;
+  /** ausente = todas */
+  conferencia?: Conferencia;
   pagina: number;
 };
 
 const hojeBrasil = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
 
-export function lerFiltrosComprovantes(sp: Record<string, string | string[] | undefined>): FiltrosComprovantes {
+export function lerFiltrosComprovantes(sp: Record<string, string | string[] | undefined>, padrao: { de?: string; conferencia?: Conferencia } = {}): FiltrosComprovantes {
   const s = (k: string) => (typeof sp[k] === "string" ? sp[k].trim() : "");
   const hoje = hojeBrasil();
   const pagina = Number.parseInt(s("pagina"), 10);
-  const de = DATA.test(s("de")) ? s("de") : `${hoje.slice(0, 8)}01`;
+  const de = DATA.test(s("de")) ? s("de") : (padrao.de ?? `${hoje.slice(0, 8)}01`);
+  const conferencia = s("conferencia") || padrao.conferencia || "";
   const ate = DATA.test(s("ate")) ? s("ate") : hoje;
   const situacao = s("situacao");
   const busca = limparBusca(s("busca"));
@@ -41,17 +44,18 @@ export function lerFiltrosComprovantes(sp: Record<string, string | string[] | un
     // padrão: só os ativos; "todos" mostra os cancelados junto
     situacao: situacao === "todos" ? undefined : ehSituacaoComprovante(situacao) ? situacao : "ativo",
     busca: busca.length >= 2 ? busca : undefined,
+    conferencia: ehConferencia(conferencia) ? conferencia : undefined,
     pagina: Number.isFinite(pagina) && pagina > 0 ? pagina : 1,
   };
 }
 
 /** Parâmetros da URL dos filtros (para paginação, cartões e planilha). */
 export function paramsDosFiltros(f: FiltrosComprovantes): Record<string, string | undefined> {
-  return { rede: f.rede, filial: f.filial, de: f.de, ate: f.ate, tipo: f.tipo, situacao: f.situacao ?? "todos", busca: f.busca };
+  return { rede: f.rede, filial: f.filial, de: f.de, ate: f.ate, tipo: f.tipo, situacao: f.situacao ?? "todos", busca: f.busca, conferencia: f.conferencia ?? "todas" };
 }
 
 const COLUNAS =
-  "id, branch_id, tipo, empresa, cliente, valor, parcelas, data_compra, numero_venda, observacao, situacao, criada_por, criada_por_nome, criada_em, cancelada_por_nome, cancelada_em, motivo_cancelamento, filial:branches!inner(codigo, nome, cnpj, organization_id, rede:organizations(nome_fantasia))";
+  "id, branch_id, tipo, empresa, cliente, valor, parcelas, data_compra, numero_venda, observacao, situacao, criada_por, criada_por_nome, criada_em, cancelada_por_nome, cancelada_em, motivo_cancelamento, conferencia, conferido_por_nome, conferido_em, conferencia_obs, filial:branches!inner(codigo, nome, cnpj, organization_id, rede:organizations(nome_fantasia))";
 
 type Filtravel<Q> = {
   eq: (c: string, v: string) => Q;
@@ -66,14 +70,20 @@ function filtrar<Q extends Filtravel<Q>>(q: Q, f: FiltrosComprovantes): Q {
   if (f.filial) c = c.eq("branch_id", f.filial);
   if (f.tipo) c = c.eq("tipo", f.tipo);
   if (f.situacao) c = c.eq("situacao", f.situacao);
+  if (f.conferencia) c = c.eq("conferencia", f.conferencia);
   // entre aspas: ponto e dois-pontos no texto não quebram o filtro
   if (f.busca) c = c.or(`cliente.ilike."%${f.busca}%",empresa.ilike."%${f.busca}%",numero_venda.ilike."%${f.busca}%"`);
   return c;
 }
 
-export type TotaisComprovantes = Record<TipoVenda, { qtd: number; valor: number }> & { total: { qtd: number; valor: number } };
+type Soma = { qtd: number; valor: number };
+export type TotaisComprovantes = Record<TipoVenda, Soma> & { total: Soma; conferencia: Record<Conferencia, Soma> };
+const somar = (s: Soma, qtd: number, valor: number) => {
+  s.qtd += qtd;
+  s.valor = Math.round((s.valor + valor) * 100) / 100;
+};
 
-async function totais(f: FiltrosComprovantes): Promise<TotaisComprovantes> {
+export async function totaisComprovantes(f: FiltrosComprovantes): Promise<TotaisComprovantes> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("comprovantes_totais", {
     p_de: f.de,
@@ -83,29 +93,33 @@ async function totais(f: FiltrosComprovantes): Promise<TotaisComprovantes> {
     p_tipo: f.tipo,
     p_situacao: f.situacao,
     p_busca: f.busca,
+    p_conferencia: f.conferencia,
   });
   if (error) throw new Error(error.message);
-  const t: TotaisComprovantes = { convenio: { qtd: 0, valor: 0 }, crediario: { qtd: 0, valor: 0 }, total: { qtd: 0, valor: 0 } };
+  const zero = () => ({ qtd: 0, valor: 0 });
+  const t: TotaisComprovantes = { convenio: zero(), crediario: zero(), total: zero(), conferencia: { pendente: zero(), divergente: zero(), conferido: zero() } };
   for (const l of data ?? []) {
-    if (!ehTipoVenda(l.tipo)) continue;
-    t[l.tipo] = { qtd: Number(l.qtd), valor: Number(l.valor) };
-    t.total.qtd += Number(l.qtd);
-    t.total.valor = Math.round((t.total.valor + Number(l.valor)) * 100) / 100;
+    const qtd = Number(l.qtd);
+    const valor = Number(l.valor);
+    if (ehTipoVenda(l.tipo)) somar(t[l.tipo], qtd, valor);
+    if (ehConferencia(l.conferencia)) somar(t.conferencia[l.conferencia], qtd, valor);
+    somar(t.total, qtd, valor);
   }
   return t;
 }
 
 export type AnexoResumo = { id: string; nome: string; mime: string | null };
 
-export async function listarComprovantes(f: FiltrosComprovantes) {
+export async function listarComprovantes(f: FiltrosComprovantes, opcoes: { antigosPrimeiro?: boolean } = {}) {
   const supabase = await createClient();
   const de = (f.pagina - 1) * TAMANHO_PAGINA_COMPROVANTES;
   const [lista, somas] = await Promise.all([
     filtrar(supabase.from("venda_comprovantes").select(COLUNAS, { count: "exact" }), f)
-      .order("data_compra", { ascending: false })
-      .order("criada_em", { ascending: false })
+      // a fila da conferência vai da compra mais antiga para a mais nova
+      .order("data_compra", { ascending: !!opcoes.antigosPrimeiro })
+      .order("criada_em", { ascending: !!opcoes.antigosPrimeiro })
       .range(de, de + TAMANHO_PAGINA_COMPROVANTES - 1),
-    totais(f),
+    totaisComprovantes(f),
   ]);
   if (lista.error) throw new Error(lista.error.message);
   const itens = lista.data ?? [];
@@ -186,6 +200,21 @@ export async function comprovanteParecido(c: { branch_id: string; data_compra: s
     .eq("valor", c.valor)
     .eq("situacao", "ativo")
     .ilike("cliente", limparBusca(c.cliente).replace(/ /g, "%") || "-")
+    .limit(1);
+  return data?.[0]?.id ?? null;
+}
+
+/** Próximo comprovante a conferir depois deste (mesma ordem da fila: compra mais antiga primeiro), para seguir sem voltar à lista. */
+export async function proximoAConferir(atual: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("venda_comprovantes")
+    .select("id")
+    .eq("situacao", "ativo")
+    .eq("conferencia", "pendente")
+    .neq("id", atual)
+    .order("data_compra")
+    .order("criada_em")
     .limit(1);
   return data?.[0]?.id ?? null;
 }

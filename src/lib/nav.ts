@@ -20,6 +20,7 @@ import {
   Bot,
   Banknote,
   Receipt,
+  ReceiptText,
   Building2,
   ChartColumn,
   ClipboardCheck,
@@ -519,6 +520,13 @@ export const NAV: NavGrupo[] = [
         icon: ClipboardCheck,
         papeis: ["admin", "financeiro", "contador"],
         descricao: "O financeiro confere com o extrato as sangrias lançadas pelas lojas.",
+      },
+      {
+        label: "Conferência de comprovantes",
+        href: "/financeiro/comprovantes",
+        icon: ReceiptText,
+        papeis: ["admin", "financeiro", "contador"],
+        descricao: "O financeiro confere os comprovantes de venda no convênio e no crediário enviados pelas lojas.",
       },
       {
         label: "Retiradas de caixa",

@@ -12,10 +12,17 @@ import { createClient } from "@/lib/supabase/server";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATA = /^\d{4}-\d{2}-\d{2}$/;
 const ROTA = "/comprovantes";
+const ROTA_CONFERENCIA = "/financeiro/comprovantes";
+// cadastro (loja) e conferência (financeiro) mostram o mesmo comprovante: atualiza as duas telas
 const revalidar = (id?: string) => {
   revalidatePath(ROTA);
-  if (id) revalidatePath(`${ROTA}/${id}`);
+  revalidatePath(ROTA_CONFERENCIA);
+  if (id) {
+    revalidatePath(`${ROTA}/${id}`);
+    revalidatePath(`${ROTA_CONFERENCIA}/${id}`);
+  }
 };
+const ehFinanceiro = (papel: string) => papel === "admin" || papel === "financeiro";
 
 export type EstadoComprovante = { erro?: string; erros?: Record<string, string>; id?: string; parecido?: string };
 export type EstadoAcao = { erro?: string; ok?: string };
@@ -134,4 +141,60 @@ export async function cancelarComprovante(id: string, _prev: EstadoAcao, fd: For
   await registrarAuditoria(supabase, { userId: sessao.id, acao: "inativar", entidade: "venda_comprovantes", registroId: id, anterior: { situacao: "ativo" }, novo: { situacao: "cancelado", motivo } });
   revalidar(id);
   return { ok: "Comprovante cancelado." };
+}
+
+/**
+ * Conferência de um comprovante (financeiro): conferido (observação opcional), com problema (o que a loja precisa
+ * corrigir, obrigatório) ou desfazer (volta para a conferir). O banco confere quem pode e carimba quem conferiu.
+ */
+export async function conferirComprovante(id: string, _prev: EstadoAcao, fd: FormData): Promise<EstadoAcao> {
+  const sessao = await getSessao();
+  if (!ehFinanceiro(sessao.papel)) return { erro: "Só o financeiro confere comprovantes." };
+  if (!UUID.test(id)) return { erro: "Comprovante inválido." };
+  const acao = texto(fd, "acao");
+  const nota = texto(fd, "nota").slice(0, 500);
+  let patch: { conferencia: string; conferencia_obs?: string | null };
+  if (acao === "conferir") patch = { conferencia: "conferido", conferencia_obs: nota || null };
+  else if (acao === "problema") {
+    if (nota.length < 5) return { erro: "Conte qual é o problema (ex.: sem assinatura do cliente, valor diferente do cupom)." };
+    patch = { conferencia: "divergente", conferencia_obs: nota };
+  } else if (acao === "desfazer") patch = { conferencia: "pendente" };
+  else return { erro: "Ação inválida." };
+
+  const supabase = await createClient();
+  const { data: antes } = await supabase.from("venda_comprovantes").select("conferencia, conferencia_obs").eq("id", id).maybeSingle();
+  const { data, error } = await supabase.from("venda_comprovantes").update(patch).eq("id", id).eq("situacao", "ativo").select("conferencia").maybeSingle();
+  if (error) return { erro: error.message };
+  if (!data) return { erro: "Este comprovante não pode ser conferido (foi cancelado?)." };
+  await registrarAuditoria(supabase, { userId: sessao.id, acao: "editar", entidade: "venda_comprovantes", registroId: id, anterior: antes ?? undefined, novo: { conferencia: data.conferencia, conferencia_obs: patch.conferencia_obs ?? null } });
+  revalidar(id);
+  return { ok: acao === "conferir" ? "Comprovante conferido." : acao === "problema" ? "Problema apontado: a loja vê o aviso e corrige anexando o arquivo certo." : "Conferência desfeita: voltou para a conferir." };
+}
+
+/** Conferência em lote: marca como conferidos os escolhidos que ainda estão a conferir e têm anexo. */
+export async function conferirComprovantes(_prev: EstadoAcao, fd: FormData): Promise<EstadoAcao> {
+  const sessao = await getSessao();
+  if (!ehFinanceiro(sessao.papel)) return { erro: "Só o financeiro confere comprovantes." };
+  const ids = [...new Set(fd.getAll("ids").filter((v): v is string => typeof v === "string" && UUID.test(v)))];
+  if (!ids.length) return { erro: "Marque pelo menos um comprovante." };
+  if (ids.length > 200) return { erro: "No máximo 200 por vez." };
+  const supabase = await createClient();
+  // só os que têm anexo: conferir sem ver o comprovante não vale
+  const { data: comAnexo } = await supabase.from("venda_comprovante_anexos").select("comprovante_id").in("comprovante_id", ids);
+  const validos = [...new Set((comAnexo ?? []).map((a) => a.comprovante_id))];
+  if (!validos.length) return { erro: "Nenhum dos marcados tem anexo." };
+  const { data, error } = await supabase
+    .from("venda_comprovantes")
+    // sem observação: limpa o problema apontado antes (a loja já corrigiu)
+    .update({ conferencia: "conferido", conferencia_obs: null })
+    .in("id", validos)
+    .eq("situacao", "ativo")
+    .eq("conferencia", "pendente")
+    .select("id");
+  if (error) return { erro: error.message };
+  const n = data?.length ?? 0;
+  await registrarAuditoria(supabase, { userId: sessao.id, acao: "editar", entidade: "venda_comprovantes", novo: { conferidos_em_lote: (data ?? []).map((c) => c.id) } });
+  revalidar();
+  const fora = ids.length - n;
+  return { ok: `${n === 1 ? "1 comprovante conferido" : `${n} comprovantes conferidos`}${fora ? ` · ${fora} ficaram de fora (sem anexo ou já mudaram)` : ""}.` };
 }

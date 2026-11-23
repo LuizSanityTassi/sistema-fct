@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, Download, FileText, ImageIcon, TriangleAlert } from "lucide-react";
+import { ChevronLeft, ClipboardCheck, Download, FileText, ImageIcon, TriangleAlert } from "lucide-react";
 import { AvisoSucesso } from "@/components/form/campo";
 import { PageHeader } from "@/components/layout/page-header";
 import { Painel } from "@/components/layout/painel";
@@ -8,7 +8,8 @@ import { Status } from "@/components/layout/status";
 import { Button } from "@/components/ui/button";
 import { exigirAcesso } from "@/lib/auth/session";
 import { BUCKET_ANEXOS_CAIXA, tamanhoLegivel } from "@/lib/caixa/anexos";
-import { SITUACOES_COMPROVANTE, TIPOS_VENDA, TOM_COMPROVANTE, type SituacaoComprovante, type TipoVenda } from "@/lib/comprovantes/rotulos";
+import { CONFERENCIAS, TIPOS_VENDA, TOM_CONFERENCIA, type Conferencia, type TipoVenda } from "@/lib/comprovantes/rotulos";
+import { podeAcessar } from "@/lib/nav";
 import { obterComprovante } from "@/lib/data/comprovantes";
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formatos";
 import { createClient } from "@/lib/supabase/server";
@@ -25,15 +26,17 @@ export default async function ComprovantePage({ params, searchParams }: PageProp
   const c = await obterComprovante(id);
   if (!c) notFound();
   const filial = c.filial as FilialDoComprovante;
-  const situacao = c.situacao as SituacaoComprovante;
-  const ativo = situacao === "ativo";
-  const financeiro = sessao.papel === "admin" || sessao.papel === "financeiro";
+  const conferencia = c.conferencia as Conferencia;
+  const ativo = c.situacao === "ativo";
+  const conferido = conferencia === "conferido";
+  const veConferencia = podeAcessar(sessao.papel, "/financeiro/comprovantes", sessao.telasExtras, sessao.bloqueios);
+  const financeiro = (sessao.papel === "admin" || sessao.papel === "financeiro") && veConferencia;
   const minha = c.criada_por === sessao.id;
-  const podeCancelar = ativo && (minha || financeiro);
+  const podeCancelar = ativo && !conferido && (minha || financeiro);
   const supabase = await createClient();
-  // anexar: enquanto ativo, quem cadastrou ou quem pode cadastrar nesta loja (a mesma regra do banco)
-  let podeAnexar = ativo && minha;
-  if (ativo && !minha) {
+  // anexar: enquanto ativo e não conferido, quem cadastrou ou quem pode cadastrar nesta loja (a mesma regra do banco)
+  let podeAnexar = ativo && !conferido && minha;
+  if (ativo && !conferido && !minha) {
     const { data: lojas } = await supabase.rpc("lojas_para_comprovante");
     podeAnexar = (lojas ?? []).some((l) => l.id === c.branch_id);
   }
@@ -68,12 +71,28 @@ export default async function ComprovantePage({ params, searchParams }: PageProp
         eyebrow="Operação · Comprovantes de venda"
         titulo={`${TIPOS_VENDA[c.tipo as TipoVenda] ?? "Venda"} · ${c.cliente}`}
         acoes={
-          <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/comprovantes" />}>
-            <ChevronLeft data-icon="inline-start" />
-            Comprovantes
-          </Button>
+          <>
+            {veConferencia && (
+              <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/financeiro/comprovantes/${c.id}`} />}>
+                <ClipboardCheck data-icon="inline-start" />
+                Abrir na conferência
+              </Button>
+            )}
+            <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/comprovantes" />}>
+              <ChevronLeft data-icon="inline-start" />
+              Comprovantes
+            </Button>
+          </>
         }
       />
+      {ativo && conferencia === "divergente" && (
+        <div role="alert" className="mb-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+          <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <p>
+            <span className="font-medium">O financeiro apontou um problema:</span> “{c.conferencia_obs}”. Anexe o comprovante certo em “Comprovante assinado” (ele volta sozinho para a conferência) ou, se a venda saiu errada, cancele e cadastre de novo.
+          </p>
+        </div>
+      )}
       {sp.novo === "1" && (
         <div className="mb-4">
           <AvisoSucesso mensagem="Comprovante cadastrado com o anexo." />
@@ -86,7 +105,11 @@ export default async function ComprovantePage({ params, searchParams }: PageProp
       )}
 
       <div className="grid gap-4 lg:grid-cols-[1fr_24rem]">
-        <Painel id="dados" titulo="Informações da venda" acao={<Status tom={TOM_COMPROVANTE[situacao] ?? "neutro"}>{SITUACOES_COMPROVANTE[situacao] ?? situacao}</Status>}>
+        <Painel
+          id="dados"
+          titulo="Informações da venda"
+          acao={ativo ? <Status tom={TOM_CONFERENCIA[conferencia] ?? "neutro"}>{CONFERENCIAS[conferencia] ?? conferencia}</Status> : <Status tom="neutro">Cancelado</Status>}
+        >
           <dl className="grid gap-x-6 gap-y-3 border-t px-5 py-4 text-sm sm:grid-cols-2">
             {campos.map(([r, v]) => (
               <div key={r}>
@@ -101,7 +124,14 @@ export default async function ComprovantePage({ params, searchParams }: PageProp
               </div>
             )}
           </dl>
-          {situacao === "cancelado" && (
+          {ativo && conferido && (
+            <p className="border-t px-5 py-3 text-sm text-emerald-800">
+              Conferido pelo financeiro: {c.conferido_por_nome ?? "—"} em {formatarDataHora(c.conferido_em)}
+              {c.conferencia_obs ? ` · “${c.conferencia_obs}”` : ""}
+            </p>
+          )}
+          {ativo && conferencia === "pendente" && <p className="border-t px-5 py-3 text-sm text-muted-foreground">Aguardando a conferência do financeiro.</p>}
+          {!ativo && (
             <p className="border-t px-5 py-3 text-sm text-red-800">
               Cancelado por {c.cancelada_por_nome ?? "—"} em {formatarDataHora(c.cancelada_em)}
               {c.motivo_cancelamento ? ` · “${c.motivo_cancelamento}”` : ""}

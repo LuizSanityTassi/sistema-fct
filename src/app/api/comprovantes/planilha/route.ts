@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessao, semAcesso } from "@/lib/auth/session";
-import { TIPOS_VENDA, type TipoVenda } from "@/lib/comprovantes/rotulos";
+import { CONFERENCIAS, TIPOS_VENDA, type Conferencia, type TipoVenda } from "@/lib/comprovantes/rotulos";
 import { lerFiltrosComprovantes, linhasDaPlanilha } from "@/lib/data/comprovantes";
 import { hojeIso } from "@/lib/formatos";
 import { podeAcessar } from "@/lib/nav";
@@ -39,6 +39,9 @@ export async function GET(req: Request) {
       data_compra: c.data_compra,
       numero_venda: c.numero_venda ?? "",
       situacao: c.situacao === "cancelado" ? `Cancelado: ${c.motivo_cancelamento ?? ""}` : "Ativo",
+      conferencia: c.situacao === "cancelado" ? "" : (CONFERENCIAS[c.conferencia as Conferencia] ?? c.conferencia),
+      conferido_por: c.conferido_por_nome ?? "",
+      conferencia_obs: c.conferencia_obs ?? "",
       anexo: arquivos.map((a) => `${origem}/api/arquivos/comprovante/${a.id}`).join(" "),
     };
   });
@@ -60,6 +63,9 @@ export async function GET(req: Request) {
         { chave: "data_compra", titulo: "Data da compra", tipo: "data" },
         { chave: "numero_venda", titulo: "Nº da venda" },
         { chave: "situacao", titulo: "Situação" },
+        { chave: "conferencia", titulo: "Conferência" },
+        { chave: "conferido_por", titulo: "Conferido por" },
+        { chave: "conferencia_obs", titulo: "Obs. da conferência" },
         { chave: "anexo", titulo: "Anexo (link)" },
       ],
       linhas: dados,

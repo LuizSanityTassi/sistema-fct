@@ -3465,6 +3465,11 @@ export type Database = {
           cancelada_por: string | null
           cancelada_por_nome: string | null
           cliente: string
+          conferencia: string
+          conferencia_obs: string | null
+          conferido_em: string | null
+          conferido_por: string | null
+          conferido_por_nome: string | null
           criada_em: string
           criada_por: string | null
           criada_por_nome: string | null
@@ -3485,6 +3490,11 @@ export type Database = {
           cancelada_por?: string | null
           cancelada_por_nome?: string | null
           cliente: string
+          conferencia?: string
+          conferencia_obs?: string | null
+          conferido_em?: string | null
+          conferido_por?: string | null
+          conferido_por_nome?: string | null
           criada_em?: string
           criada_por?: string | null
           criada_por_nome?: string | null
@@ -3505,6 +3515,11 @@ export type Database = {
           cancelada_por?: string | null
           cancelada_por_nome?: string | null
           cliente?: string
+          conferencia?: string
+          conferencia_obs?: string | null
+          conferido_em?: string | null
+          conferido_por?: string | null
+          conferido_por_nome?: string | null
           criada_em?: string
           criada_por?: string | null
           criada_por_nome?: string | null
@@ -3537,6 +3552,13 @@ export type Database = {
           {
             foreignKeyName: "venda_comprovantes_cancelada_por_fkey"
             columns: ["cancelada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venda_comprovantes_conferido_por_fkey"
+            columns: ["conferido_por"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -7646,10 +7668,12 @@ export type Database = {
           p_de: string
           p_filial?: string
           p_rede?: string
+          p_conferencia?: string
           p_situacao?: string
           p_tipo?: string
         }
         Returns: {
+          conferencia: string
           qtd: number
           tipo: string
           valor: number
