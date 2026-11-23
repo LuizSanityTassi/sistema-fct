@@ -19,6 +19,7 @@ import {
   Trophy,
   Bot,
   Banknote,
+  Receipt,
   Building2,
   ChartColumn,
   ClipboardCheck,
@@ -306,7 +307,7 @@ export const NAV: NavGrupo[] = [
   },
   {
     titulo: "Operações",
-    descricao: "Chamados, quebras de caixa, sangrias, filiais e relatórios das lojas.",
+    descricao: "Chamados, quebras de caixa, sangrias, comprovantes de venda, filiais e relatórios das lojas.",
     icone: Store,
     itens: [
       {
@@ -343,6 +344,13 @@ export const NAV: NavGrupo[] = [
         icon: HandCoins,
         papeis: ["admin", "financeiro", "coordenador", "gerente", "usuario"],
         descricao: "A loja lança o dinheiro do caixa depositado no banco, com o comprovante.",
+      },
+      {
+        label: "Comprovantes de venda",
+        href: "/comprovantes",
+        icon: Receipt,
+        papeis: ["admin", "financeiro", "contador", "coordenador", "gerente", "usuario"],
+        descricao: "Vendas no convênio e no crediário com o comprovante assinado: a loja cadastra, o financeiro pesquisa e baixa.",
       },
       {
         label: "Filiais",

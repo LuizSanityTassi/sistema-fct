@@ -3458,6 +3458,142 @@ export type Database = {
           },
         ]
       }
+      venda_comprovantes: {
+        Row: {
+          branch_id: string
+          cancelada_em: string | null
+          cancelada_por: string | null
+          cancelada_por_nome: string | null
+          cliente: string
+          criada_em: string
+          criada_por: string | null
+          criada_por_nome: string | null
+          data_compra: string
+          empresa: string | null
+          id: string
+          motivo_cancelamento: string | null
+          numero_venda: string | null
+          observacao: string | null
+          parcelas: number
+          situacao: string
+          tipo: string
+          valor: number
+        }
+        Insert: {
+          branch_id: string
+          cancelada_em?: string | null
+          cancelada_por?: string | null
+          cancelada_por_nome?: string | null
+          cliente: string
+          criada_em?: string
+          criada_por?: string | null
+          criada_por_nome?: string | null
+          data_compra: string
+          empresa?: string | null
+          id?: string
+          motivo_cancelamento?: string | null
+          numero_venda?: string | null
+          observacao?: string | null
+          parcelas?: number
+          situacao?: string
+          tipo: string
+          valor: number
+        }
+        Update: {
+          branch_id?: string
+          cancelada_em?: string | null
+          cancelada_por?: string | null
+          cancelada_por_nome?: string | null
+          cliente?: string
+          criada_em?: string
+          criada_por?: string | null
+          criada_por_nome?: string | null
+          data_compra?: string
+          empresa?: string | null
+          id?: string
+          motivo_cancelamento?: string | null
+          numero_venda?: string | null
+          observacao?: string | null
+          parcelas?: number
+          situacao?: string
+          tipo?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venda_comprovantes_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venda_comprovantes_criada_por_fkey"
+            columns: ["criada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venda_comprovantes_cancelada_por_fkey"
+            columns: ["cancelada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      venda_comprovante_anexos: {
+        Row: {
+          comprovante_id: string
+          criado_em: string
+          enviado_por: string | null
+          enviado_por_nome: string | null
+          id: string
+          mime: string | null
+          nome: string
+          storage_path: string
+          tamanho: number | null
+        }
+        Insert: {
+          comprovante_id: string
+          criado_em?: string
+          enviado_por?: string | null
+          enviado_por_nome?: string | null
+          id?: string
+          mime?: string | null
+          nome: string
+          storage_path: string
+          tamanho?: number | null
+        }
+        Update: {
+          comprovante_id?: string
+          criado_em?: string
+          enviado_por?: string | null
+          enviado_por_nome?: string | null
+          id?: string
+          mime?: string | null
+          nome?: string
+          storage_path?: string
+          tamanho?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venda_comprovante_anexos_comprovante_id_fkey"
+            columns: ["comprovante_id"]
+            isOneToOne: false
+            referencedRelation: "venda_comprovantes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venda_comprovante_anexos_enviado_por_fkey"
+            columns: ["enviado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sangria_anexos: {
         Row: {
           criado_em: string
@@ -7501,6 +7637,31 @@ export type Database = {
           venda: number
           vendedor_codigo: number
           vendedor_nome: string
+        }[]
+      }
+      comprovantes_totais: {
+        Args: {
+          p_ate: string
+          p_busca?: string
+          p_de: string
+          p_filial?: string
+          p_rede?: string
+          p_situacao?: string
+          p_tipo?: string
+        }
+        Returns: {
+          qtd: number
+          tipo: string
+          valor: number
+        }[]
+      }
+      lojas_para_comprovante: {
+        Args: never
+        Returns: {
+          codigo: string
+          id: string
+          nome: string
+          rede: string | null
         }[]
       }
       lojas_para_sangria: {
