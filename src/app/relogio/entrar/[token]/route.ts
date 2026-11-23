@@ -30,11 +30,17 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ token: 
     .maybeSingle();
   if (!conta?.email) return recusar();
 
+  const supabase = await createClient();
+  // navegador já logado com outra pessoa (ex.: o administrador testando): pergunta antes de trocar o login dela
+  if (request.nextUrl.searchParams.get("confirmar") !== "1") {
+    const { data: atual } = await supabase.auth.getUser();
+    if (atual.user && atual.user.id !== conta.id) return NextResponse.redirect(`${origem}/relogio/entrar/${token}/confirmar`);
+  }
+
   // link de entrada de uso único criado na hora (não manda e-mail); vira a sessão deste navegador
   const { data: gerado, error } = await admin.auth.admin.generateLink({ type: "magiclink", email: conta.email });
   const tokenHash = gerado?.properties?.hashed_token;
   if (error || !tokenHash) return recusar();
-  const supabase = await createClient();
   const { error: erroSessao } = await supabase.auth.verifyOtp({ type: "email", token_hash: tokenHash });
   if (erroSessao) return recusar();
 
