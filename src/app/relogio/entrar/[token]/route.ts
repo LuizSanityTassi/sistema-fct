@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { COOKIE_LINK_RELOGIO } from "../../link";
 
 // Link do relógio da filial (gerado em Ponto → Relógio da filial): entra com o login do relógio da filial, sem senha,
 // e abre o relógio em tela cheia. Esse login só enxerga a tela /relogio. Link desligado ou trocado → volta para o login.
@@ -38,5 +39,8 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ token: 
   if (erroSessao) return recusar();
 
   await admin.from("relogio_links").update({ ultimo_uso: new Date().toISOString(), usos: link.usos + 1 }).eq("id", link.id);
-  return NextResponse.redirect(`${origem}/relogio`);
+  const resposta = NextResponse.redirect(`${origem}/relogio`);
+  // o relógio usa o link para oferecer "Instalar app" (o app abre sempre por ele)
+  resposta.cookies.set(COOKIE_LINK_RELOGIO, token, { httpOnly: true, secure: true, sameSite: "lax", path: "/relogio", maxAge: 60 * 60 * 24 * 3650 });
+  return resposta;
 }

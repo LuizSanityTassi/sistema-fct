@@ -1,8 +1,10 @@
 import type { MetadataRoute } from "next";
 
 // Manifesto do aplicativo (PWA): permite "Instalar" / "Adicionar à tela inicial" no celular e no computador.
-// Fica em /manifest.webmanifest, fora do login (src/proxy.ts), porque o navegador busca sem os cookies.
-export default function manifest(): MetadataRoute.Manifest {
+// Servido em /manifest.webmanifest (app/manifest.webmanifest/route.ts), fora do login (src/proxy.ts), porque o
+// navegador busca sem os cookies. É rota comum (não o arquivo app/manifest.ts) para o relógio poder usar o manifesto
+// dele (metadata.manifest da página /relogio): cada filial instala o "Relógio <filial>" que abre pelo link.
+export function manifestoPortal(): MetadataRoute.Manifest {
   return {
     id: "/",
     name: "Portal de Gestão FCT",

@@ -24,6 +24,8 @@ const archivoBlack = Archivo_Black({
 export const metadata: Metadata = {
   title: { default: "Portal de Gestão FCT", template: "%s · Portal FCT" },
   description: "Sistema interno de gestão — Farmácias FCT",
+  // app instalável; a página do relógio troca pelo manifesto do "Relógio <filial>"
+  manifest: "/manifest.webmanifest",
   // sistema todo em português: o tradutor automático do navegador troca nomes do menu ("Funcionários" vira "/")
   other: { google: "notranslate" },
   // instalado no iPhone ("Adicionar à Tela de Início"): abre em tela cheia, com este nome embaixo do ícone

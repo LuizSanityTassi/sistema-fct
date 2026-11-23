@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Emblema } from "@/components/layout/marca";
 import { getSessao, semAcesso } from "@/lib/auth/session";
@@ -15,9 +17,15 @@ import { garantirLeitorNoRelogio } from "../(app)/ponto/relogio/actions";
 import { filiaisDoRelogio } from "../(app)/ponto/relogio/filiais";
 import { Quiosque } from "../(app)/ponto/relogio/quiosque";
 import { sairDoRelogio } from "./actions";
+import { InstalarRelogio } from "./instalar";
+import { COOKIE_LINK_RELOGIO, linkValido } from "./link";
 import { SairDoRelogio, TravaQuiosque } from "./trava";
 
-export const metadata = { title: "Relógio de ponto" };
+/** Aberto pelo link do relógio: usa o manifesto do app "Relógio <filial>" (abre sempre pelo link). */
+export async function generateMetadata(): Promise<Metadata> {
+  const link = (await cookies()).get(COOKIE_LINK_RELOGIO)?.value;
+  return { title: "Relógio de ponto", ...(linkValido(link) ? { manifest: `/relogio/entrar/${link}/manifest` } : {}) };
+}
 export const dynamic = "force-dynamic";
 
 /**
@@ -67,11 +75,14 @@ export default async function RelogioQuiosquePage({
             Relógio de ponto
           </p>
         </div>
-        <SairDoRelogio
-          acao={sairDoRelogio}
-          doRelogio={doRelogio}
-          conta={sessao.email || sessao.nome}
-        />
+        <div className="flex items-center gap-1">
+          {doRelogio && filial && linkValido((await cookies()).get(COOKIE_LINK_RELOGIO)?.value) && <InstalarRelogio filial={filial.codigo} />}
+          <SairDoRelogio
+            acao={sairDoRelogio}
+            doRelogio={doRelogio}
+            conta={sessao.email || sessao.nome}
+          />
+        </div>
       </header>
       <div className="flex flex-1 items-center justify-center p-4 sm:p-8">
         {filial ? (
