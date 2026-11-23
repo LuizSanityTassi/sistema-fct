@@ -16,7 +16,8 @@ import { exigirAcesso } from "@/lib/auth/session";
 import { lerUuid } from "@/lib/data/ponto";
 import { formatarDataHora } from "@/lib/formatos";
 import { createClient } from "@/lib/supabase/server";
-import { FormAcessoRelogio, FormLinkRelogio } from "./acessos-relogio";
+import { origemDoSistema } from "@/lib/ti/qr";
+import { CopiarLink, FormAcessoRelogio, FormLinkRelogio } from "./acessos-relogio";
 import { desativarLinkRelogio, gerarLinkRelogio, revogarLeitor, salvarAcessoRelogio } from "./actions";
 import { filiaisDoRelogio } from "./filiais";
 
@@ -51,7 +52,7 @@ export default async function RelogioPage({
     ativado_em: string | null;
     ultimo_uso: string | null;
   }[] = [];
-  let links: { branch_id: string; criado_em: string; ultimo_uso: string | null; usos: number }[] = [];
+  let links: { branch_id: string; token: string | null; criado_em: string; ultimo_uso: string | null; usos: number }[] = [];
   if (admin) {
     const supabase = await createClient();
     const [{ data }, { data: dadosLeitores }, { data: dadosLinks }] = await Promise.all([
@@ -61,7 +62,7 @@ export default async function RelogioPage({
         .eq("papel", "relogio")
         .order("email"),
       supabase.rpc("ponto_leitores_lista"),
-      supabase.from("relogio_links").select("branch_id, criado_em, ultimo_uso, usos").is("revogado_em", null),
+      supabase.from("relogio_links").select("branch_id, token, criado_em, ultimo_uso, usos").is("revogado_em", null),
     ]);
     acessos = data ?? [];
     leitores = dadosLeitores ?? [];
@@ -70,6 +71,7 @@ export default async function RelogioPage({
   const filialPorId = new Map(opcoes.map((u) => [u.id, u]));
   const comAcesso = new Set(acessos.map((a) => a.branch_id));
   const comLink = new Set(links.map((l) => l.branch_id));
+  const origem = admin ? await origemDoSistema() : "";
 
   return (
     <>
@@ -144,7 +146,7 @@ export default async function RelogioPage({
           className="mb-6"
           icone={Link2}
           titulo="Link do relógio de cada filial (sem senha)"
-          descricao="Gere o link e abra no computador da loja: ele entra direto no relógio da filial, sem digitar senha, e não dá acesso a mais nada do sistema. Deixe a página aberta (dá para salvar o link como favorito ou atalho). Para sair do relógio, um gestor digita o e-mail e a senha dele. Não abra o link no seu computador: ele troca o seu login pelo do relógio."
+          descricao="Gere o link e abra no computador da loja: ele entra direto no relógio da filial, sem digitar senha, e não dá acesso a mais nada do sistema. O link não vence: vale até alguém gerar outro ou desativar, e fica aqui para copiar quando precisar. Deixe a página aberta (dá para salvar como favorito ou atalho). Para sair do relógio, um gestor digita o e-mail e a senha dele. Não abra o link no seu computador: ele troca o seu login pelo do relógio."
         >
           <FormLinkRelogio
             acao={gerarLinkRelogio}
@@ -156,6 +158,7 @@ export default async function RelogioPage({
                 <TableHeader>
                   <TableRow>
                     <TableHead className="pl-5">Filial</TableHead>
+                    <TableHead>Link</TableHead>
                     <TableHead>Gerado em</TableHead>
                     <TableHead>Último uso</TableHead>
                     <TableHead />
@@ -174,6 +177,9 @@ export default async function RelogioPage({
                           ) : (
                             "—"
                           )}
+                        </TableCell>
+                        <TableCell>
+                          {l.token ? <CopiarLink link={`${origem}/relogio/entrar/${l.token}`} /> : <span className="text-xs text-muted-foreground">gere de novo para ver</span>}
                         </TableCell>
                         <TableCell className="text-sm">{formatarDataHora(l.criado_em)}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">

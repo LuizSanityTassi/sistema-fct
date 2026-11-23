@@ -3405,6 +3405,7 @@ export type Database = {
           id: string
           revogado_em: string | null
           revogado_por: string | null
+          token: string | null
           token_hash: string
           ultimo_uso: string | null
           usos: number
@@ -3416,6 +3417,7 @@ export type Database = {
           id?: string
           revogado_em?: string | null
           revogado_por?: string | null
+          token?: string | null
           token_hash: string
           ultimo_uso?: string | null
           usos?: number
@@ -3427,6 +3429,7 @@ export type Database = {
           id?: string
           revogado_em?: string | null
           revogado_por?: string | null
+          token?: string | null
           token_hash?: string
           ultimo_uso?: string | null
           usos?: number

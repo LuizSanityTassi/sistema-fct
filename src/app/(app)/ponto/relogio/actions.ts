@@ -144,7 +144,7 @@ async function hashLinkRelogio(token: string) {
 /**
  * Gera o link do relógio da filial: aberto no computador da loja, entra direto no relógio (login do relógio da
  * filial, sem senha). Cria o login do relógio se ainda não existir (senha aleatória que ninguém sabe). Gerar outro
- * desliga o anterior. O link aparece uma vez só; fica guardado só o hash. Só admin.
+ * desliga o anterior. O link não vence e fica na lista para o administrador copiar de novo. Só admin.
  */
 export async function gerarLinkRelogio(_prev: EstadoLinkRelogio, fd: FormData): Promise<EstadoLinkRelogio> {
   const sessao = await getSessao();
@@ -180,7 +180,7 @@ export async function gerarLinkRelogio(_prev: EstadoLinkRelogio, fd: FormData): 
   if (e1) return { erro: mensagemBanco(e1) };
   const { data: novo, error: e2 } = await admin
     .from("relogio_links")
-    .insert({ branch_id: filial.id, token_hash: await hashLinkRelogio(token), criado_por: sessao.id })
+    .insert({ branch_id: filial.id, token, token_hash: await hashLinkRelogio(token), criado_por: sessao.id })
     .select("id")
     .single();
   if (e2) return { erro: mensagemBanco(e2) };
@@ -193,7 +193,7 @@ export async function gerarLinkRelogio(_prev: EstadoLinkRelogio, fd: FormData): 
   });
   revalidatePath("/ponto/relogio");
   return {
-    ok: `Link do relógio da ${filial.codigo} gerado. Abra no computador da loja e deixe aberto. Ele aparece só agora: copie antes de sair desta tela.`,
+    ok: `Link do relógio da ${filial.codigo} gerado. Ele não vence: vale até alguém gerar outro ou desativar. Fica na lista abaixo para copiar quando quiser.`,
     link: `${await origemDoSistema()}/relogio/entrar/${token}`,
   };
 }

@@ -8,7 +8,31 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { EstadoAcessoRelogio, EstadoLinkRelogio } from "./actions";
 
-/** Gerar o link do relógio de uma filial (abre direto no relógio, sem senha). O link aparece uma vez só. */
+/** Botão de copiar o link do relógio que já existe. */
+export function CopiarLink({ link }: { link: string }) {
+  const [copiado, setCopiado] = useState(false);
+  return (
+    <Button
+      type="button"
+      size="xs"
+      variant="outline"
+      title={link}
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(link);
+          setCopiado(true);
+        } catch {
+          window.prompt("Copie o link do relógio:", link);
+        }
+      }}
+    >
+      {copiado ? <Check aria-hidden /> : <Copy aria-hidden />}
+      {copiado ? "Copiado" : "Copiar link"}
+    </Button>
+  );
+}
+
+/** Gerar o link do relógio de uma filial (abre direto no relógio, sem senha). O link não vence. */
 export function FormLinkRelogio({
   acao,
   filiais,
