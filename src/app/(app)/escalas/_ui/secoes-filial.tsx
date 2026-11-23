@@ -3,6 +3,7 @@ import { Painel } from "@/components/layout/painel";
 import { Status } from "@/components/layout/status";
 import { Button } from "@/components/ui/button";
 import { equipeDetalhada, funcionariosRh, type FilialEscala } from "@/lib/data/escalas";
+import { contaComoFarmaceutico } from "@/lib/escalas/motor";
 import { modeloFilial } from "@/lib/escalas/resumo";
 import { vinculoRh } from "@/lib/escalas/vinculo";
 import { formatarDataHora } from "@/lib/formatos";
@@ -55,7 +56,7 @@ export async function SecoesFilial({ f, folgasNoSimulador = false }: { f: Filial
       <Painel
         titulo={`Equipe da escala · ${f.codigo}`}
         icone={Users}
-        descricao={`${equipe.length} pessoas · ${ativos.length} ativas · ${ativos.filter((p) => p.funcao === "farmaceutico").length} farmacêutico(s) ativo(s). Os horários de origem vieram da planilha e ficam só como referência.`}
+        descricao={`${equipe.length} pessoas · ${ativos.length} ativas · ${ativos.filter((p) => contaComoFarmaceutico(p.funcao)).length} farmacêutico(s) ativo(s). Os horários de origem vieram da planilha e ficam só como referência.`}
         className="mb-4"
       >
         <EquipeEscala branchId={f.id} equipe={equipe} funcionarios={rhDaFilial} />

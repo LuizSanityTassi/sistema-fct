@@ -7,13 +7,14 @@ export type Dia = (typeof DIAS)[number];
 export const ROTULO_DIA: Record<Dia, string> = { dom: "dom", seg: "seg", ter: "ter", qua: "qua", qui: "qui", sex: "sex", sab: "sáb" };
 export const NOME_DIA: Record<Dia, string> = { dom: "domingo", seg: "segunda-feira", ter: "terça-feira", qua: "quarta-feira", qui: "quinta-feira", sex: "sexta-feira", sab: "sábado" };
 
-export const FUNCOES = ["farmaceutico", "atendente", "caixa", "gerente", "estoquista", "motorista", "auditor", "servicos_gerais", "outros"] as const;
+export const FUNCOES = ["farmaceutico", "atendente", "caixa", "gerente", "gerente_farmaceutico", "estoquista", "motorista", "auditor", "servicos_gerais", "outros"] as const;
 export type Funcao = (typeof FUNCOES)[number];
 export const ROTULO_FUNCAO: Record<Funcao, string> = {
   farmaceutico: "Farmacêutico",
   atendente: "Atendente",
   caixa: "Caixa",
   gerente: "Gerente",
+  gerente_farmaceutico: "Gerente farmacêutico",
   estoquista: "Estoquista",
   motorista: "Motorista",
   auditor: "Auditor",
@@ -25,6 +26,7 @@ const PLURAL_FUNCAO: Record<Funcao, string> = {
   atendente: "atendentes",
   caixa: "caixas",
   gerente: "gerentes",
+  gerente_farmaceutico: "gerentes farmacêuticos",
   estoquista: "estoquistas",
   motorista: "motoristas",
   auditor: "auditores",
@@ -32,6 +34,9 @@ const PLURAL_FUNCAO: Record<Funcao, string> = {
   outros: "outros",
 };
 export const ehFuncao = (v: unknown): v is Funcao => typeof v === "string" && (FUNCOES as readonly string[]).includes(v);
+/** Função que conta na cobertura: o gerente farmacêutico cobre a farmácia como farmacêutico. */
+export const funcaoNaCobertura = (f: Funcao): Funcao => (f === "gerente_farmaceutico" ? "farmaceutico" : f);
+export const contaComoFarmaceutico = (f: string | null | undefined) => f === "farmaceutico" || f === "gerente_farmaceutico";
 
 export const SITUACOES = ["ativo", "afastado", "inativo"] as const;
 export type Situacao = (typeof SITUACOES)[number];
@@ -230,13 +235,13 @@ function distribuirFolgas(equipe: Pessoa[], abertos: number[], opcao: number, se
   const ativos = equipe
     .map((pessoa, indice) => ({ pessoa, indice }))
     .filter(({ pessoa }) => naEscala(pessoa))
-    .sort((a, b) => Number(b.pessoa.funcao === "farmaceutico") - Number(a.pessoa.funcao === "farmaceutico") || a.indice - b.indice);
-  const qtdFarm = ativos.filter(({ pessoa }) => pessoa.funcao === "farmaceutico").length;
+    .sort((a, b) => Number(contaComoFarmaceutico(b.pessoa.funcao)) - Number(contaComoFarmaceutico(a.pessoa.funcao)) || a.indice - b.indice);
+  const qtdFarm = ativos.filter(({ pessoa }) => contaComoFarmaceutico(pessoa.funcao)).length;
   const marcar = (p: Pessoa, dias: number[]) => {
     folgas.set(p.id, dias);
     for (const d of dias) {
       total.set(d, (total.get(d) ?? 0) + 1);
-      if (p.funcao === "farmaceutico") farm.set(d, (farm.get(d) ?? 0) + 1);
+      if (contaComoFarmaceutico(p.funcao)) farm.set(d, (farm.get(d) ?? 0) + 1);
     }
   };
   const escolher = <T>(itens: T[], notas: number[], indice: number) => {
@@ -245,10 +250,10 @@ function distribuirFolgas(equipe: Pessoa[], abertos: number[], opcao: number, se
     return empatados[(indice + opcao + semana) % empatados.length];
   };
   const umDia = (p: Pessoa, indice: number) => {
-    if (p.funcao === "farmaceutico" && qtdFarm >= 2) return escolher(candidatos, candidatos.map((d) => penalidade(d) * 2 + (farm.get(d) ?? 0) * 100 + (total.get(d) ?? 0) * 0.1), indice);
+    if (contaComoFarmaceutico(p.funcao) && qtdFarm >= 2) return escolher(candidatos, candidatos.map((d) => penalidade(d) * 2 + (farm.get(d) ?? 0) * 100 + (total.get(d) ?? 0) * 0.1), indice);
     return escolher(
       candidatos,
-      candidatos.map((d) => penalidade(d) * 2 + (total.get(d) ?? 0) + (p.funcao === "farmaceutico" ? 3 : 1) * (farm.get(d) ?? 0)),
+      candidatos.map((d) => penalidade(d) * 2 + (total.get(d) ?? 0) + (contaComoFarmaceutico(p.funcao) ? 3 : 1) * (farm.get(d) ?? 0)),
       indice,
     );
   };
@@ -261,7 +266,7 @@ function distribuirFolgas(equipe: Pessoa[], abertos: number[], opcao: number, se
   } else {
     const pares = candidatos.flatMap((d, i) => candidatos.slice(i + 1).map((o) => [d, o]));
     for (const { pessoa, indice } of ativos) {
-      if (pessoa.funcao === "farmaceutico") {
+      if (contaComoFarmaceutico(pessoa.funcao)) {
         const notas =
           qtdFarm < 2
             ? pares.map((par) => par.reduce((s, d) => s + penalidade(d) * 2, 0))
@@ -308,7 +313,7 @@ export function gerarOpcoes(
       for (const p of trabalhando) {
         const duracao = Number(p.horasDia || horasPadrao);
         const intervalo = Number(p.intervaloMin ?? 60);
-        const mesmaFuncao = trabalhando.filter((c) => c.funcao === p.funcao);
+        const mesmaFuncao = trabalhando.filter((c) => funcaoNaCobertura(c.funcao) === funcaoNaCobertura(p.funcao));
         const posicao = mesmaFuncao.findIndex((c) => c.id === p.id);
         const turno: Turno = { data, dia, status: "trabalho", horas: duracao, intervaloMin: intervalo, inicio: "", fim: "", intervaloInicio: "", intervaloFim: "" };
         if (faixa) {
@@ -364,7 +369,10 @@ function coberturaDoDia(cfg: ConfigFilial, data: number, dia: Dia, pessoas: Pess
   const faixa = faixaDoDia(cfg, dia);
   const trabalhando = pessoas.filter((p) => naEscala(p)).map((p) => ({ p, t: p.turnos.find((t) => t.data === data) })).filter(({ t }) => t?.status === "trabalho");
   const porFuncao: Partial<Record<Funcao, number>> = {};
-  for (const { p } of trabalhando) porFuncao[p.funcao] = (porFuncao[p.funcao] ?? 0) + 1;
+  for (const { p } of trabalhando) {
+    const f = funcaoNaCobertura(p.funcao);
+    porFuncao[f] = (porFuncao[f] ?? 0) + 1;
+  }
   const faixas: FaixaCobertura[] = [];
   if (abre && faixa) {
     for (let m = minutos(faixa.abre); m < minutos(faixa.fecha); m += 60) {
@@ -374,7 +382,8 @@ function coberturaDoDia(cfg: ConfigFilial, data: number, dia: Dia, pessoas: Pess
         const almocoDe = t.intervaloInicio ? minutos(t.intervaloInicio) : -1;
         const almocoAte = t.intervaloInicio ? almocoDe + Number(t.intervaloMin ?? 0) : -1;
         const cobre = minutos(t.inicio) <= m && minutos(t.fim) >= m + 60 && !(almocoDe < m + 60 && almocoAte > m);
-        if (cobre) presentes[p.funcao] = (presentes[p.funcao] ?? 0) + 1;
+        const f = funcaoNaCobertura(p.funcao);
+        if (cobre) presentes[f] = (presentes[f] ?? 0) + 1;
       }
       faixas.push({ hora: hora(m), porFuncao: presentes });
     }
@@ -721,7 +730,7 @@ function sugerir(cfg: ConfigFilial, escala: Escala, dia: DiaCobertura, funcao: F
   const singular = ROTULO_FUNCAO[funcao].toLowerCase();
   const quantos = (n: number) => `${n} ${n === 1 ? singular : PLURAL_FUNCAO[funcao]}`;
   const escalados = Number(dia.porFuncao[funcao] ?? 0);
-  const ativos = escala.equipe.filter((p) => p.funcao === funcao && naEscala(p));
+  const ativos = escala.equipe.filter((p) => funcaoNaCobertura(p.funcao) === funcao && naEscala(p));
   const turnosDia = ativos.map((p) => p.turnos.find((t) => t.data === dia.data && t.status === "trabalho")).filter((t): t is Turno => !!t);
   const horasEscaladas = turnosDia.reduce((x, t) => x + Number(t.horas || 0), 0);
   const necessidade = horasAbertas(cfg, dia.dia) * minimo;
@@ -806,7 +815,7 @@ export function preAnalise(cfg: ConfigFilial, equipe: Colaborador[], { ano, mes,
     const melhor = opcoes.reduce((m, o) => (o.alertas.length < m.alertas.length ? o : m));
     if (!melhor.alertas.length) return { status: "ok", rotulo: ROTULO_PRE.ok, detalhe: "A melhor das três opções automáticas não tem pendências.", alertas: 0 };
     const minimo = Number(cfg.minimos.farmaceutico ?? 0);
-    const farm = equipe.filter((p) => p.funcao === "farmaceutico" && naEscala(p));
+    const farm = equipe.filter((p) => contaComoFarmaceutico(p.funcao) && naEscala(p));
     const abertos = diasAbertos(cfg);
     const horasSemana = abertos.reduce((s, i) => s + horasAbertas(cfg, DIAS[i]), 0);
     const capacidade = farm.reduce((s, p) => s + Number(p.horasDia || jornadaSemanal / 5) * 5, 0);

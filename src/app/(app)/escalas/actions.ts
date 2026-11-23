@@ -48,6 +48,7 @@ function funcaoDoCargo(cargo: string | null | undefined): Funcao {
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase();
+  if (c.includes("gerente") && c.includes("farmaceut")) return "gerente_farmaceutico";
   if (c.includes("farmaceut")) return "farmaceutico";
   if (c.includes("gerente")) return "gerente";
   if (c.includes("estoqu")) return "estoquista";

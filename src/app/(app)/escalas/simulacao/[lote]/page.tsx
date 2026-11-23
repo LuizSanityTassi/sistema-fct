@@ -10,7 +10,7 @@ import { Status } from "@/components/layout/status";
 import { Button } from "@/components/ui/button";
 import { exigirAcesso } from "@/lib/auth/session";
 import { opcoesDoLote, simulacoesDaFilial, type Simulacao } from "@/lib/data/escalas";
-import { DIAS, ROTULO_DIA, rotuloData, type Dia } from "@/lib/escalas/motor";
+import { DIAS, ROTULO_DIA, contaComoFarmaceutico, rotuloData, type Dia } from "@/lib/escalas/motor";
 import { agruparAlertas, datasTexto, estatFolgas, excedenteEquipe, horasEquipe, lacunas, mesCurto, nomeMes, rotuloCompetencia, rotuloDias, textoFuncionamento, textoPeriodo } from "@/lib/escalas/resumo";
 import { formatarDataHora } from "@/lib/formatos";
 import { cn } from "@/lib/utils";
@@ -362,7 +362,7 @@ export default async function SimulacaoPage({ params, searchParams }: PageProps<
                   [
                     ["Folgas por dia", (s: Simulacao) => DIAS_ORDEM.map((d) => `${ROTULO_DIA[d]} ${estatFolgas(s).porDia[d]}`).join(" · ")],
                     ["Folgas em ter–qui / seg–sex", (s: Simulacao) => `${estatFolgas(s).preferidas} em ter–qui · ${estatFolgas(s).venda} em seg/sex`],
-                    ["Horas de farmacêutico no mês", (s: Simulacao) => `${s.equipe.filter((p) => p.funcao === "farmaceutico").reduce((x, p) => x + p.totalHoras, 0).toFixed(0)} h`],
+                    ["Horas de farmacêutico no mês", (s: Simulacao) => `${s.equipe.filter((p) => contaComoFarmaceutico(p.funcao)).reduce((x, p) => x + p.totalHoras, 0).toFixed(0)} h`],
                     ["Dias com farmacêutico o tempo todo", (s: Simulacao) => `${lacunas(s, "farmaceutico", minFarm).diasCobertos} de ${lacunas(s, "farmaceutico", minFarm).diasAbertos}`],
                     [
                       "Faixas sem farmacêutico",

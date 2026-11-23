@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { exigirAcesso } from "@/lib/auth/session";
 import { filiaisDaEscala, filiaisForaDaEscala } from "@/lib/data/escalas";
-import { preAnalise, ROTULO_PRE, type PreAnalise } from "@/lib/escalas/motor";
+import { contaComoFarmaceutico, preAnalise, ROTULO_PRE, type PreAnalise } from "@/lib/escalas/motor";
 import { horarioPendente, modeloFilial, proximoMes, rotuloCompetencia, rotuloDias, textoFuncionamento } from "@/lib/escalas/resumo";
 import type { Tom } from "@/lib/tons";
 import { AbasEscala } from "./abas";
@@ -42,7 +42,7 @@ export default async function EscalasPage({ searchParams }: PageProps<"/escalas"
 
   const equipe = filiais.flatMap((f) => f.equipe);
   const ativos = equipe.filter((p) => p.situacao === "ativo");
-  const farm = ativos.filter((p) => p.funcao === "farmaceutico").length;
+  const farm = ativos.filter((p) => contaComoFarmaceutico(p.funcao)).length;
   const pendentes = filiais.filter((f) => horarioPendente(f.linha)).length;
   const contagem = (s: PreAnalise["status"]) => [...analises.values()].filter((a) => a.status === s).length;
 
@@ -162,7 +162,7 @@ export default async function EscalasPage({ searchParams }: PageProps<"/escalas"
                       <td className="px-3 py-2.5 whitespace-nowrap">
                         {at.length} ativos
                         <p className="text-xs text-muted-foreground">
-                          {at.filter((p) => p.funcao === "farmaceutico").length} farmacêutico(s) · mín. {f.config.minimos.farmaceutico ?? 0}/h
+                          {at.filter((p) => contaComoFarmaceutico(p.funcao)).length} farmacêutico(s) · mín. {f.config.minimos.farmaceutico ?? 0}/h
                         </p>
                       </td>
                       <td className="px-3 py-2.5">
