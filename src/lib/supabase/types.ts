@@ -6556,6 +6556,144 @@ export type Database = {
           },
         ]
       }
+      wpp_agente: {
+        Row: {
+          conectado: boolean
+          criado_em: string | null
+          criado_por: string | null
+          id: number
+          numero: string | null
+          situacao: string | null
+          token_hash: string | null
+          ultimo_contato: string | null
+        }
+        Insert: {
+          conectado?: boolean
+          criado_em?: string | null
+          criado_por?: string | null
+          id?: number
+          numero?: string | null
+          situacao?: string | null
+          token_hash?: string | null
+          ultimo_contato?: string | null
+        }
+        Update: {
+          conectado?: boolean
+          criado_em?: string | null
+          criado_por?: string | null
+          id?: number
+          numero?: string | null
+          situacao?: string | null
+          token_hash?: string | null
+          ultimo_contato?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wpp_agente_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wpp_destinos: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          atualizado_por: string | null
+          categoria: Database["public"]["Enums"]["ticket_category"]
+          grupo_jid: string | null
+          grupo_nome: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          categoria: Database["public"]["Enums"]["ticket_category"]
+          grupo_jid?: string | null
+          grupo_nome?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          categoria?: Database["public"]["Enums"]["ticket_category"]
+          grupo_jid?: string | null
+          grupo_nome?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wpp_destinos_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wpp_fila: {
+        Row: {
+          categoria: Database["public"]["Enums"]["ticket_category"] | null
+          criado_em: string
+          enviado_em: string | null
+          erro: string | null
+          grupo_jid: string
+          id: number
+          mensagem: string | null
+          tentativas: number
+          ticket_id: string | null
+        }
+        Insert: {
+          categoria?: Database["public"]["Enums"]["ticket_category"] | null
+          criado_em?: string
+          enviado_em?: string | null
+          erro?: string | null
+          grupo_jid: string
+          id?: number
+          mensagem?: string | null
+          tentativas?: number
+          ticket_id?: string | null
+        }
+        Update: {
+          categoria?: Database["public"]["Enums"]["ticket_category"] | null
+          criado_em?: string
+          enviado_em?: string | null
+          erro?: string | null
+          grupo_jid?: string
+          id?: number
+          mensagem?: string | null
+          tentativas?: number
+          ticket_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wpp_fila_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wpp_grupos: {
+        Row: {
+          atualizado_em: string
+          jid: string
+          nome: string
+        }
+        Insert: {
+          atualizado_em?: string
+          jid: string
+          nome: string
+        }
+        Update: {
+          atualizado_em?: string
+          jid?: string
+          nome?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       caixa_operadores_resumo: {

@@ -5,7 +5,7 @@ import { NextResponse, type NextRequest } from "next/server";
 // /vitrine: catálogo visual dos componentes com dados fictícios, só no ambiente local (a página dá 404 em produção).
 // /api/cron: rotinas agendadas da Vercel, protegidas pelo CRON_SECRET na própria rota (sem sessão de usuário)
 // /relogio/entrar: link do relógio da filial (confere o link na própria rota e entra com o login do relógio)
-const ROTAS_PUBLICAS = ["/login", "/recuperar-senha", "/auth", "/relogio/entrar", "/api/conciliacao/agente", "/api/cron", ...(process.env.NODE_ENV === "development" ? ["/vitrine"] : [])];
+const ROTAS_PUBLICAS = ["/login", "/recuperar-senha", "/auth", "/relogio/entrar", "/api/conciliacao/agente", "/api/whatsapp/agente", "/api/cron", ...(process.env.NODE_ENV === "development" ? ["/vitrine"] : [])];
 
 // Renova a sessão em cada request e protege as rotas privadas.
 export async function updateSession(request: NextRequest) {

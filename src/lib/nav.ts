@@ -31,6 +31,7 @@ import {
   Landmark,
   Laptop,
   ListChecks,
+  MessageCircle,
   MessageCircleQuestion,
   PenLine,
   Scale,
@@ -321,6 +322,13 @@ export const NAV: NavGrupo[] = [
         papeis: ["admin", "ti", "rh", "financeiro", "coordenador", "manutencao", "compras", "marketing"],
         descricao: "SLA, tempo de primeira resposta e de resolução, por loja, por categoria e recorrentes.",
         oculto: true,
+      },
+      {
+        label: "WhatsApp dos setores",
+        href: "/chamados/whatsapp",
+        icon: MessageCircle,
+        papeis: ["admin"],
+        descricao: "Chamado aberto vai sozinho para o grupo de WhatsApp do setor (agente do escritório, sem custo).",
       },
       {
         label: "Quebras de caixa",

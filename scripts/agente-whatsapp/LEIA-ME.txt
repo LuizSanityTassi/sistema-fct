@@ -1,0 +1,19 @@
+AGENTE WHATSAPP - PORTAL FCT
+Manda os chamados novos nos grupos de WhatsApp de cada setor (TI, RH/DP, Financeiro, Manutencao, Compras, Marketing, Outros).
+Sem custo: usa um numero conectado pelo QR code, como o WhatsApp Web.
+
+IMPORTANTE: use um CHIP SO PARA ISSO, nunca o numero principal da farmacia. A conexao e nao oficial e o WhatsApp
+pode bloquear o numero.
+
+1) No portal: Chamados > WhatsApp dos setores > "Gerar a chave do agente". Copie a chave.
+2) Abra o config.json desta pasta (Bloco de Notas) e cole a chave no lugar de COLE_AQUI_A_CHAVE_DO_AGENTE. Salve.
+3) De dois cliques no iniciar.bat. Na primeira vez ele instala as bibliotecas (precisa de internet e do Node.js).
+4) Abre um QR code (tela e arquivo qr.png). No celular do chip: WhatsApp > Configuracoes > Aparelhos conectados >
+   Conectar aparelho, e escaneie.
+5) Coloque esse numero nos grupos de cada setor. Em ate 5 minutos os grupos aparecem no portal: ligue cada setor ao
+   grupo dele e clique em "Testar".
+6) Para abrir sozinho quando ligar o computador: de dois cliques no instalar-tarefa.bat.
+
+O computador precisa ficar ligado e com internet. Deixe a janela do agente aberta (pode minimizar).
+O que acontece fica no agente.log. A pasta "sessao" guarda o login do WhatsApp: nao apague (se apagar, escaneia de novo).
+Nao mande esta pasta para ninguem: ela tem a chave do agente e o login do WhatsApp.
