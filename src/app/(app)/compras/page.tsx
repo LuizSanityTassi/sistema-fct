@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
 import { DESCRICAO_PEDIDO, JANELA_MAXIMA, SITUACOES_PEDIDO, TOM_PEDIDO, type SituacaoPedido } from "@/lib/compras/rotulos";
+import { podeEscreverCompras } from "@/lib/compras/permissao";
 import { lerFiltrosPedidos, listarPedidos, opcoesCompras, paramsPedidos, TAMANHO_PAGINA_COMPRAS } from "@/lib/data/compras";
 import { formatarData, formatarMoeda } from "@/lib/formatos";
 
@@ -26,7 +27,7 @@ export default async function PedidosNotasPage({ searchParams }: PageProps<"/com
   const paginas = Math.max(1, Math.ceil(total / TAMANHO_PAGINA_COMPRAS));
   const link = (extra: Record<string, string | undefined>) =>
     `/compras?${new URLSearchParams(Object.entries({ ...params, ...extra }).filter((e): e is [string, string] => !!e[1])).toString()}`;
-  const podeImportar = sessao.papel === "admin" || sessao.papel === "compras";
+  const podeImportar = await podeEscreverCompras(sessao.papel);
 
   return (
     <>

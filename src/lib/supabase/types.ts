@@ -7959,6 +7959,7 @@ export type Database = {
           rede: string | null
         }[]
       }
+      compras_pode_escrever: { Args: never; Returns: boolean }
       cmp_cruzamento: {
         Args: {
           p_ate: string

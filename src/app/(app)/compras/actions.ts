@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { importarEspelhoPdf } from "@/lib/compras/importar-espelho";
+import { podeEscreverCompras } from "@/lib/compras/permissao";
 import { lerPrePedido, type PedidoLido } from "@/lib/compras/pre-pedido";
 import { caminhoDeEspelho } from "@/lib/compras/rotulos";
 import { buscarEspelhoNotasTrier } from "@/lib/conciliacao/trier-robo";
@@ -17,7 +18,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATA = /^\d{4}-\d{2}-\d{2}$/;
 const BUCKET = "compras";
 const MAX_AVISOS = 40;
-const podeImportar = (papel: string) => papel === "admin" || papel === "compras";
+const podeImportar = podeEscreverCompras;
 const revalidar = () => {
   revalidatePath("/compras");
   revalidatePath("/compras/notas");
@@ -35,7 +36,7 @@ async function mapaFiliais(supabase: Cliente) {
 /** Pré-pedidos do Trier (Excel Con_0018): grava cada pré-pedido (um por filial) com a data informada. Número que já está no portal não entra de novo. */
 export async function importarPrePedidos(_prev: EstadoImportacao, fd: FormData): Promise<EstadoImportacao> {
   const sessao = await getSessao();
-  if (!podeImportar(sessao.papel)) return { erro: "Só o Compras e o administrador importam pré-pedidos." };
+  if (!(await podeImportar(sessao.papel))) return { erro: "Só o Compras e o administrador importam pré-pedidos." };
   const data = String(fd.get("data_pedido") ?? "").trim();
   if (!DATA.test(data)) return { erro: "Informe a data do pedido." };
   if (data > hojeBrasil()) return { erro: "A data do pedido não pode ser no futuro." };
@@ -152,7 +153,7 @@ export async function importarPrePedidos(_prev: EstadoImportacao, fd: FormData):
  */
 export async function processarEspelho(caminho: string, nomeArquivo: string): Promise<EstadoImportacao> {
   const sessao = await getSessao();
-  if (!podeImportar(sessao.papel)) return { erro: "Só o Compras e o administrador importam o espelho das notas." };
+  if (!(await podeImportar(sessao.papel))) return { erro: "Só o Compras e o administrador importam o espelho das notas." };
   if (typeof caminho !== "string" || !caminhoDeEspelho(caminho)) return { erro: "Arquivo inválido." };
   const nome = String(nomeArquivo ?? "espelho.pdf").slice(0, 200);
   const supabase = await createClient();
@@ -175,7 +176,7 @@ const MAX_DIAS_BUSCA = 3;
  */
 export async function buscarEspelhoNoTrier(_prev: EstadoImportacao, fd: FormData): Promise<EstadoImportacao> {
   const sessao = await getSessao();
-  if (!podeImportar(sessao.papel)) return { erro: "Só o Compras e o administrador buscam as notas no Trier." };
+  if (!(await podeImportar(sessao.papel))) return { erro: "Só o Compras e o administrador buscam as notas no Trier." };
   const de = String(fd.get("de") ?? "").trim();
   const ate = String(fd.get("ate") ?? "").trim();
   if (!DATA.test(de) || !DATA.test(ate)) return { erro: "Informe o período (de e até)." };
@@ -207,7 +208,7 @@ export async function buscarEspelhoNoTrier(_prev: EstadoImportacao, fd: FormData
 /** Desfaz uma importação de pré-pedidos (apaga os pré-pedidos dela). O registro da importação fica, marcado como desfeito. */
 export async function desfazerImportacao(id: string): Promise<EstadoImportacao> {
   const sessao = await getSessao();
-  if (!podeImportar(sessao.papel)) return { erro: "Só o Compras e o administrador desfazem importações." };
+  if (!(await podeImportar(sessao.papel))) return { erro: "Só o Compras e o administrador desfazem importações." };
   if (!UUID.test(id)) return { erro: "Importação inválida." };
   const supabase = await createClient();
   const { data: imp } = await supabase.from("cmp_importacoes").select("id, tipo, resumo").eq("id", id).maybeSingle();

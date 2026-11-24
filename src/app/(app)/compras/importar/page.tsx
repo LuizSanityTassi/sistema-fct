@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { EstadoVazio, Painel } from "@/components/layout/painel";
 import { Status } from "@/components/layout/status";
 import { exigirAcesso } from "@/lib/auth/session";
+import { podeEscreverCompras } from "@/lib/compras/permissao";
 import { diasAtras, hojeBrasil, importacoesRecentes } from "@/lib/data/compras";
 import { formatarData, formatarDataHora } from "@/lib/formatos";
 import { BuscarNoTrier, DesfazerImportacao, ImportarEspelho, ImportarPrePedidos } from "./formularios";
@@ -16,7 +17,7 @@ const n = (v: unknown) => (typeof v === "number" ? v.toLocaleString("pt-BR") : "
 
 export default async function ImportarComprasPage() {
   const sessao = await exigirAcesso("/compras/importar");
-  const podeImportar = sessao.papel === "admin" || sessao.papel === "compras";
+  const podeImportar = await podeEscreverCompras(sessao.papel);
   const importacoes = await importacoesRecentes(25);
 
   return (
