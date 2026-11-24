@@ -7980,10 +7980,15 @@ export type Database = {
           pedido: number
           pedido_id: string
           prazo: string
+          preco: number
+          preco_referencia: boolean
           produto: string
           produto_codigo: number
           recebido: number
           ultima_entrada: string
+          valor_excedente: number
+          valor_faltando: number
+          valor_recebido: number
         }[]
       }
       cmp_pedidos_totais: {
@@ -8002,6 +8007,9 @@ export type Database = {
           qtd_pedida: number
           qtd_recebida: number
           situacao: string
+          valor_excedente: number
+          valor_faltando: number
+          valor_recebido: number
         }[]
       }
       cmp_pedidos_resumo: {
@@ -8019,6 +8027,7 @@ export type Database = {
           itens: number
           itens_a_mais: number
           itens_completos: number
+          itens_sem_preco: number
           itens_nao_chegaram: number
           itens_parciais: number
           laboratorio: string
@@ -8030,6 +8039,9 @@ export type Database = {
           qtd_recebida: number
           situacao: string
           ultima_entrada: string
+          valor_excedente: number
+          valor_faltando: number
+          valor_recebido: number
         }[]
       }
       lojas_para_sangria: {

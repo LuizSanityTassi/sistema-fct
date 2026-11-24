@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { exigirAcesso } from "@/lib/auth/session";
 import { DESCRICAO_PEDIDO, JANELA_MAXIMA, SITUACOES_PEDIDO, TOM_PEDIDO, type SituacaoPedido } from "@/lib/compras/rotulos";
 import { lerFiltrosPedidos, listarPedidos, opcoesCompras, paramsPedidos, TAMANHO_PAGINA_COMPRAS } from "@/lib/data/compras";
-import { formatarData } from "@/lib/formatos";
+import { formatarData, formatarMoeda } from "@/lib/formatos";
 
 export const metadata = { title: "Pedidos × notas" };
 
@@ -21,7 +21,7 @@ const num = (v: number) => v.toLocaleString("pt-BR", { maximumFractionDigits: 3 
 export default async function PedidosNotasPage({ searchParams }: PageProps<"/compras">) {
   const [sessao, sp] = await Promise.all([exigirAcesso("/compras"), searchParams]);
   const filtros = lerFiltrosPedidos(sp);
-  const [{ pedidos, total, porSituacao }, { filiais, laboratorios }] = await Promise.all([listarPedidos(filtros), opcoesCompras()]);
+  const [{ pedidos, total, porSituacao, geral }, { filiais, laboratorios }] = await Promise.all([listarPedidos(filtros), opcoesCompras()]);
   const params = paramsPedidos(filtros);
   const paginas = Math.max(1, Math.ceil(total / TAMANHO_PAGINA_COMPRAS));
   const link = (extra: Record<string, string | undefined>) =>
@@ -33,7 +33,7 @@ export default async function PedidosNotasPage({ searchParams }: PageProps<"/com
       <PageHeader
         eyebrow="Compras"
         titulo="Pedidos × notas"
-        descricao={`Cada pré-pedido do Trier cruzado com as notas de entrada da mesma filial, produto a produto (pelo código do Trier). Contam as notas que chegaram até ${filtros.janela} dias depois do pedido; transferências entre lojas ficam de fora.`}
+        descricao={`Cada pré-pedido do Trier cruzado com as notas de entrada da mesma filial, produto a produto (pelo código do Trier). Contam as notas que chegaram até ${filtros.janela} dias depois do pedido; transferências entre lojas ficam de fora. Os valores usam o preço das notas (o que falta, o último preço pago).`}
         acoes={
           podeImportar ? (
             <Button nativeButton={false} render={<Link href="/compras/importar" />}>
@@ -97,6 +97,21 @@ export default async function PedidosNotasPage({ searchParams }: PageProps<"/com
         </div>
       </form>
 
+      <div className="mb-3 flex flex-wrap gap-x-6 gap-y-1 rounded-xl border bg-card px-4 py-3 text-sm">
+        <span>
+          Recebido <strong className="tabular-nums">{formatarMoeda(geral.valorRecebido)}</strong>
+        </span>
+        <span>
+          Falta <strong className="tabular-nums text-red-800">{formatarMoeda(geral.valorFaltando)}</strong>
+        </span>
+        <span>
+          Veio a mais <strong className="tabular-nums text-amber-800">{formatarMoeda(geral.valorExcedente)}</strong>
+        </span>
+        <span className="text-muted-foreground">
+          {geral.pedidos} pré-pedidos · {num(geral.recebida)} de {num(geral.pedida)} unidades
+        </span>
+      </div>
+
       <div className="mb-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
         {(Object.keys(SITUACOES_PEDIDO) as SituacaoPedido[]).map((s) => {
           const t = porSituacao[s];
@@ -111,7 +126,8 @@ export default async function PedidosNotasPage({ searchParams }: PageProps<"/com
               </p>
               <p className="text-xs text-muted-foreground">
                 {DESCRICAO_PEDIDO[s]}
-                {s === "a_mais" && t.excedente ? ` · +${num(t.excedente)} un.` : ""}
+                {s === "a_mais" && t.excedente ? ` · +${num(t.excedente)} un. (${formatarMoeda(t.valorExcedente)})` : ""}
+                {(s === "faltou" || s === "aguardando") && t.valorFaltando ? ` · falta ${formatarMoeda(t.valorFaltando)}` : ""}
               </p>
             </Link>
           );
@@ -136,7 +152,7 @@ export default async function PedidosNotasPage({ searchParams }: PageProps<"/com
                   <TableHead className="hidden sm:table-cell">Pré-pedido</TableHead>
                   <TableHead className="text-right">Itens</TableHead>
                   <TableHead className="text-right">Recebido</TableHead>
-                  <TableHead className="hidden text-right lg:table-cell">Faltam</TableHead>
+                  <TableHead className="hidden text-right lg:table-cell">Falta</TableHead>
                   <TableHead className="hidden text-right lg:table-cell">A mais</TableHead>
                   <TableHead className="hidden xl:table-cell">Última nota</TableHead>
                   <TableHead>Situação</TableHead>
@@ -166,12 +182,30 @@ export default async function PedidosNotasPage({ searchParams }: PageProps<"/com
                       <TableCell className="text-right tabular-nums">{Number(p.itens)}</TableCell>
                       <TableCell className="text-right tabular-nums">
                         {num(recebida)} / {num(pedida)}
-                        <span className="block text-[11px] text-muted-foreground">{pct}%</span>
+                        <span className="block text-[11px] text-muted-foreground">
+                          {pct}% · {formatarMoeda(Number(p.valor_recebido))}
+                        </span>
                       </TableCell>
                       <TableCell className="hidden text-right tabular-nums lg:table-cell">
-                        {Number(p.itens_nao_chegaram) + Number(p.itens_parciais) || "—"}
+                        {Number(p.itens_nao_chegaram) + Number(p.itens_parciais) ? (
+                          <>
+                            {Number(p.itens_nao_chegaram) + Number(p.itens_parciais)} itens
+                            <span className="block text-[11px] text-muted-foreground">{formatarMoeda(Number(p.valor_faltando))}</span>
+                          </>
+                        ) : (
+                          "—"
+                        )}
                       </TableCell>
-                      <TableCell className="hidden text-right tabular-nums lg:table-cell">{Number(p.qtd_excedente) ? `+${num(Number(p.qtd_excedente))}` : "—"}</TableCell>
+                      <TableCell className="hidden text-right tabular-nums lg:table-cell">
+                        {Number(p.qtd_excedente) ? (
+                          <>
+                            +{num(Number(p.qtd_excedente))}
+                            <span className="block text-[11px] text-muted-foreground">{formatarMoeda(Number(p.valor_excedente))}</span>
+                          </>
+                        ) : (
+                          "—"
+                        )}
+                      </TableCell>
                       <TableCell className="hidden tabular-nums xl:table-cell">{p.ultima_entrada ? formatarData(p.ultima_entrada) : "—"}</TableCell>
                       <TableCell>
                         <Status tom={TOM_PEDIDO[sit] ?? "neutro"}>{SITUACOES_PEDIDO[sit] ?? p.situacao}</Status>

@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { exigirAcesso } from "@/lib/auth/session";
 import { JANELA_MAXIMA, JANELA_PADRAO, situacaoItem } from "@/lib/compras/rotulos";
 import { hojeBrasil, itensDoPedido, obterPedido } from "@/lib/data/compras";
-import { formatarData, formatarDataHora } from "@/lib/formatos";
+import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formatos";
 
 export const metadata = { title: "Pré-pedido" };
 
@@ -31,6 +31,8 @@ export default async function PedidoPage({ params, searchParams }: PageProps<"/c
   const pedida = linhas.reduce((s, i) => s + Number(i.pedido), 0);
   const recebida = linhas.reduce((s, i) => s + Number(i.recebido), 0);
   const excedente = linhas.reduce((s, i) => s + Number(i.excedente), 0);
+  const valor = (k: "valor_recebido" | "valor_faltando" | "valor_excedente") => Math.round(linhas.reduce((s, i) => s + Number(i[k] ?? 0), 0) * 100) / 100;
+  const semPreco = linhas.filter((i) => i.preco === null).length;
   const filial = p.filial as { nome: string } | null;
   const prazo = linhas[0]?.prazo ?? null;
 
@@ -39,7 +41,7 @@ export default async function PedidoPage({ params, searchParams }: PageProps<"/c
       <PageHeader
         eyebrow="Compras · Pedidos × notas"
         titulo={`${p.filial_codigo}${filial?.nome ? ` · ${filial.nome}` : ""} · ${p.laboratorio ?? "pré-pedido"} · ${formatarData(p.data_pedido)}`}
-        descricao={`Pré-pedido ${p.numero} · ${linhas.length} itens · recebido ${num(recebida)} de ${num(pedida)} unidades${excedente ? ` · +${num(excedente)} a mais` : ""} · prazo até ${prazo ? formatarData(prazo) : "—"} (${janela} dias)`}
+        descricao={`Pré-pedido ${p.numero} · ${linhas.length} itens · recebido ${num(recebida)} de ${num(pedida)} unidades (${formatarMoeda(valor("valor_recebido"))}) · falta ${formatarMoeda(valor("valor_faltando"))}${excedente ? ` · +${num(excedente)} a mais (${formatarMoeda(valor("valor_excedente"))})` : ""} · prazo até ${prazo ? formatarData(prazo) : "—"} (${janela} dias)${semPreco ? ` · ${semPreco} item(ns) sem preço em nenhuma nota` : ""}`}
         acoes={
           <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/compras" />}>
             <ChevronLeft data-icon="inline-start" />
@@ -56,6 +58,8 @@ export default async function PedidoPage({ params, searchParams }: PageProps<"/c
               <TableHead className="hidden lg:table-cell">Cód. barras</TableHead>
               <TableHead className="text-right">Pedido</TableHead>
               <TableHead className="text-right">Recebido</TableHead>
+              <TableHead className="hidden text-right sm:table-cell">Preço</TableHead>
+              <TableHead className="hidden text-right sm:table-cell">Valor</TableHead>
               <TableHead>Situação</TableHead>
               <TableHead className="hidden md:table-cell">Notas</TableHead>
             </TableRow>
@@ -71,6 +75,15 @@ export default async function PedidoPage({ params, searchParams }: PageProps<"/c
                 <TableCell className="hidden font-mono text-xs lg:table-cell">{i.barras ?? "—"}</TableCell>
                 <TableCell className="text-right tabular-nums">{num(Number(i.pedido))}</TableCell>
                 <TableCell className="text-right tabular-nums">{num(Number(i.recebido) + Number(i.excedente))}</TableCell>
+                <TableCell className="hidden text-right tabular-nums sm:table-cell">
+                  {i.preco === null ? "—" : formatarMoeda(Number(i.preco))}
+                  {i.preco_referencia && <span className="block text-[11px] text-muted-foreground">último preço pago</span>}
+                </TableCell>
+                <TableCell className="hidden text-right tabular-nums sm:table-cell">
+                  {Number(i.valor_recebido) ? formatarMoeda(Number(i.valor_recebido)) : "—"}
+                  {Number(i.valor_faltando) ? <span className="block text-[11px] text-red-800">falta {formatarMoeda(Number(i.valor_faltando))}</span> : null}
+                  {Number(i.valor_excedente) ? <span className="block text-[11px] text-amber-800">a mais {formatarMoeda(Number(i.valor_excedente))}</span> : null}
+                </TableCell>
                 <TableCell>
                   <Status tom={i.sit.tom}>{i.sit.rotulo}</Status>
                 </TableCell>

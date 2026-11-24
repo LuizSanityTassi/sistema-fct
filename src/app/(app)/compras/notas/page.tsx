@@ -74,6 +74,7 @@ export default async function NotasEntradaPage({ searchParams }: PageProps<"/com
                   <TableHead>Fornecedor</TableHead>
                   <TableHead>NF</TableHead>
                   <TableHead className="hidden text-right sm:table-cell">Itens</TableHead>
+                  <TableHead className="hidden text-right lg:table-cell">Mercadorias</TableHead>
                   <TableHead className="text-right">Total</TableHead>
                   <TableHead className="hidden md:table-cell">Estoque</TableHead>
                 </TableRow>
@@ -95,6 +96,7 @@ export default async function NotasEntradaPage({ searchParams }: PageProps<"/com
                       </Link>
                     </TableCell>
                     <TableCell className="hidden text-right tabular-nums sm:table-cell">{n.qtd_itens}</TableCell>
+                    <TableCell className="hidden text-right tabular-nums lg:table-cell">{formatarMoeda(Number(n.total_mercadorias ?? 0))}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatarMoeda(Number(n.total_nota ?? 0))}</TableCell>
                     <TableCell className="hidden md:table-cell">{n.estoque_atualizado === false ? <Status tom="atencao">Não atualizado</Status> : <span className="text-xs text-muted-foreground">Atualizado</span>}</TableCell>
                   </TableRow>

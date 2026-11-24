@@ -51,15 +51,26 @@ export async function listarPedidos(f: FiltrosPedidos) {
   ]);
   if (lista.error) throw new Error(lista.error.message);
   if (totais.error) throw new Error(totais.error.message);
-  const porSituacao = Object.fromEntries(Object.keys(SITUACOES_PEDIDO).map((s) => [s, { pedidos: 0, itens: 0, pedida: 0, recebida: 0, excedente: 0 }])) as Record<
-    SituacaoPedido,
-    { pedidos: number; itens: number; pedida: number; recebida: number; excedente: number }
-  >;
+  type Soma = { pedidos: number; itens: number; pedida: number; recebida: number; excedente: number; valorRecebido: number; valorFaltando: number; valorExcedente: number };
+  const zero = (): Soma => ({ pedidos: 0, itens: 0, pedida: 0, recebida: 0, excedente: 0, valorRecebido: 0, valorFaltando: 0, valorExcedente: 0 });
+  const porSituacao = Object.fromEntries(Object.keys(SITUACOES_PEDIDO).map((s) => [s, zero()])) as Record<SituacaoPedido, Soma>;
+  const geral = zero();
   for (const t of totais.data ?? []) {
     if (!ehSituacaoPedido(t.situacao)) continue;
-    porSituacao[t.situacao] = { pedidos: Number(t.pedidos), itens: Number(t.itens), pedida: Number(t.qtd_pedida), recebida: Number(t.qtd_recebida), excedente: Number(t.qtd_excedente) };
+    const s: Soma = {
+      pedidos: Number(t.pedidos),
+      itens: Number(t.itens),
+      pedida: Number(t.qtd_pedida),
+      recebida: Number(t.qtd_recebida),
+      excedente: Number(t.qtd_excedente),
+      valorRecebido: Number(t.valor_recebido ?? 0),
+      valorFaltando: Number(t.valor_faltando ?? 0),
+      valorExcedente: Number(t.valor_excedente ?? 0),
+    };
+    porSituacao[t.situacao] = s;
+    for (const k of Object.keys(geral) as (keyof Soma)[]) geral[k] = Math.round((geral[k] + s[k]) * 100) / 100;
   }
-  return { pedidos: lista.data ?? [], total: lista.count ?? 0, porSituacao };
+  return { pedidos: lista.data ?? [], total: lista.count ?? 0, porSituacao, geral };
 }
 
 export async function obterPedido(id: string) {
@@ -126,7 +137,7 @@ export async function listarNotas(f: FiltrosNotas) {
   const de = (f.pagina - 1) * TAMANHO_PAGINA_COMPRAS;
   let q = supabase
     .from("cmp_notas")
-    .select("id, filial_codigo, fornecedor_codigo, fornecedor_nome, transferencia, numero, serie, data_entrada, data_emissao, estoque_atualizado, total_nota, qtd_itens", { count: "exact" })
+    .select("id, filial_codigo, fornecedor_codigo, fornecedor_nome, transferencia, numero, serie, data_entrada, data_emissao, estoque_atualizado, total_mercadorias, total_nota, qtd_itens", { count: "exact" })
     .gte("data_entrada", f.de)
     .lte("data_entrada", f.ate);
   if (f.filial) q = q.eq("filial_codigo", f.filial);
