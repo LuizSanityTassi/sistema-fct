@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { ErroFormulario, SelectNativo } from "@/components/form/campo";
 import { Button } from "@/components/ui/button";
-import { DIAS, ROTULO_DIA, limiteSemanal } from "@/lib/escalas/motor";
+import { DIAS, MIN_DIAS_PERIODO, ROTULO_DIA, competenciaDoFim, fimMaximo, limiteSemanal } from "@/lib/escalas/motor";
+import { Input } from "@/components/ui/input";
 import { DIAS_SEMANA_ORDEM } from "@/lib/escalas/resumo";
 import { gerarSimulacao } from "../actions";
 
@@ -29,7 +30,13 @@ export function SimularForm({ filiais, filialInicial, meses, mesInicial }: { fil
   const atual = filiais.find((f) => f.id === filial);
   const [folgas, setFolgas] = React.useState<number[]>(atual?.folgas ?? [2, 3, 4]);
   const [doze, setDoze] = React.useState<string[]>(atual?.equipe.filter((p) => p.doze).map((p) => p.id) ?? []);
-  const [ano, mes] = periodo.split("-").map(Number);
+  // período escolhido (de … até …): começa no mês civil da competência sugerida
+  const livre = periodo === "datas";
+  const [anoIni, mesIni] = mesInicial.split("-").map(Number);
+  const [de, setDe] = React.useState(`${mesInicial}-01`);
+  const [ate, setAte] = React.useState(`${mesInicial}-${String(new Date(Date.UTC(anoIni, mesIni, 0)).getUTCDate()).padStart(2, "0")}`);
+  const maxAte = /^\d{4}-\d{2}-\d{2}$/.test(de) ? fimMaximo(de) : undefined;
+  const { ano, mes } = livre && /^\d{4}-\d{2}-\d{2}$/.test(ate) ? competenciaDoFim(ate) : { ano: Number(periodo.split("-")[0]) || anoIni, mes: Number(periodo.split("-")[1]) || mesIni };
   const limite = limiteSemanal(ano, mes);
   const jornadas = [40, 42, 44].filter((h) => h <= limite);
   const [jornada, setJornada] = React.useState(40);
@@ -63,13 +70,16 @@ export function SimularForm({ filiais, filialInicial, meses, mesInicial }: { fil
           </SelectNativo>
         </label>
         <label className="grid gap-1 text-sm">
-          <span className="font-medium">Período (21 a 20)</span>
+          <span className="font-medium">Período</span>
           <SelectNativo name="periodo" value={periodo} onChange={(e) => setPeriodo(e.target.value)}>
-            {meses.map((m) => (
-              <option key={m.valor} value={m.valor}>
-                {m.rotulo}
-              </option>
-            ))}
+            <optgroup label="Período da folha (21 a 20)">
+              {meses.map((m) => (
+                <option key={m.valor} value={m.valor}>
+                  {m.rotulo}
+                </option>
+              ))}
+            </optgroup>
+            <option value="datas">Escolher as datas (de … até …)</option>
           </SelectNativo>
         </label>
         <label className="grid gap-1 text-sm">
@@ -91,6 +101,38 @@ export function SimularForm({ filiais, filialInicial, meses, mesInicial }: { fil
           </SelectNativo>
         </label>
       </div>
+      {livre && (
+        <fieldset className="grid gap-1">
+          <legend className="mb-1 text-sm font-medium">Datas da escala</legend>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="grid gap-1 text-sm">
+              <span>De</span>
+              <Input
+                type="date"
+                name="de"
+                value={de}
+                min="2024-01-01"
+                max="2035-12-31"
+                required
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setDe(v);
+                  // o último dia acompanha: nunca antes do primeiro nem depois de 1 mês
+                  if (/^\d{4}-\d{2}-\d{2}$/.test(v) && (ate < v || ate > fimMaximo(v))) setAte(fimMaximo(v));
+                }}
+              />
+            </label>
+            <label className="grid gap-1 text-sm">
+              <span>Até</span>
+              <Input type="date" name="ate" value={ate} min={de} max={maxAte} required onChange={(e) => setAte(e.target.value)} />
+            </label>
+          </div>
+          <p className={`text-xs ${estado.erros?.periodo ? "font-medium text-destructive" : "text-muted-foreground"}`}>
+            {estado.erros?.periodo ??
+              `Do dia que quiser até no máximo 1 mês depois (pelo menos ${MIN_DIAS_PERIODO} dias). A escala entra na competência do mês do último dia; publicada como oficial, substitui a oficial dessa competência.`}
+          </p>
+        </fieldset>
+      )}
       {todas ? (
         <p className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
           Com todas as filiais, cada uma usa os dias de folga cadastrados nela. Pode levar alguns segundos.

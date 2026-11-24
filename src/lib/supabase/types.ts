@@ -4098,6 +4098,7 @@ export type Database = {
           criado_em: string
           criado_por: string | null
           equipe: Json
+          fim: string | null
           folgas_permitidas: number[]
           continua: boolean
           inicio: string | null
@@ -4125,6 +4126,7 @@ export type Database = {
           criado_em?: string
           criado_por?: string | null
           equipe: Json
+          fim?: string | null
           folgas_permitidas: number[]
           continua?: boolean
           inicio?: string | null
@@ -4152,6 +4154,7 @@ export type Database = {
           criado_em?: string
           criado_por?: string | null
           equipe?: Json
+          fim?: string | null
           folgas_permitidas?: number[]
           continua?: boolean
           inicio?: string | null

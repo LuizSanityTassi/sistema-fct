@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { exigirAcesso } from "@/lib/auth/session";
 import { escalasOficiais, filialDaEscala } from "@/lib/data/escalas";
 import { preAnalise } from "@/lib/escalas/motor";
-import { mesCurto, proximoMes, rotuloCompetencia } from "@/lib/escalas/resumo";
+import { proximoMes, rotuloCompetencia, rotuloDaEscala } from "@/lib/escalas/resumo";
 import { formatarDataHora } from "@/lib/formatos";
 import { AbasEscala } from "../../abas";
 import { SecoesFilial } from "../../_ui/secoes-filial";
@@ -56,7 +56,7 @@ export default async function FilialEscalaPage({ params, searchParams }: PagePro
             {oficiais.map((o) => (
               <li key={o.id} className="flex items-center justify-between border-b py-1.5 last:border-0">
                 <Link href={`/escalas/simulacao/${o.lote}?filial=${id}&op=${o.id}`} className="font-medium hover:underline">
-                  {mesCurto(o.ano, o.mes)} · opção {o.opcao} · {o.jornada_semanal} h
+                  {rotuloDaEscala(o)} · opção {o.opcao} · {o.jornada_semanal} h
                 </Link>
                 <span className="text-xs text-muted-foreground">
                   publicada {o.publicado_em ? formatarDataHora(o.publicado_em) : ""} {o.publicador?.nome ? `por ${o.publicador.nome}` : ""}

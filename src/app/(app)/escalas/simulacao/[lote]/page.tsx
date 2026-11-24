@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { exigirAcesso } from "@/lib/auth/session";
 import { opcoesDoLote, simulacoesDaFilial, type Simulacao } from "@/lib/data/escalas";
 import { DIAS, ROTULO_DIA, contaComoFarmaceutico, rotuloData, type Dia } from "@/lib/escalas/motor";
-import { agruparAlertas, datasTexto, estatFolgas, excedenteEquipe, horasEquipe, lacunas, mesCurto, nomeMes, rotuloCompetencia, rotuloDias, textoFuncionamento, textoPeriodo } from "@/lib/escalas/resumo";
+import { agruparAlertas, datasTexto, estatFolgas, excedenteEquipe, horasEquipe, lacunas, nomeMes, rotuloCompetencia, rotuloDaEscala, rotuloDias, textoFuncionamento, textoPeriodo } from "@/lib/escalas/resumo";
 import { formatarDataHora } from "@/lib/formatos";
 import { cn } from "@/lib/utils";
 import { alternarContinua, descartarLote, publicarSimulacao, reanalisarSimulacao } from "../../actions";
@@ -69,7 +69,7 @@ export default async function SimulacaoPage({ params, searchParams }: PageProps<
     <>
       <PageHeader
         eyebrow="Escala 5x2 · opções"
-        titulo={`${sel.filial.codigo} · ${sel.filial.nome} · ${sel.inicio ? `${nomeMes(sel.ano, sel.mes)} · ${textoPeriodo(sel)}` : nomeMes(sel.ano, sel.mes)}`}
+        titulo={`${sel.filial.codigo} · ${sel.filial.nome} · ${sel.fim ? `Período ${textoPeriodo(sel)}` : sel.inicio ? `${nomeMes(sel.ano, sel.mes)} · ${textoPeriodo(sel)}` : nomeMes(sel.ano, sel.mes)}`}
         descricao={`${sel.jornadaSemanal} h/semana · folgas em ${rotuloDias(sel.folgasPermitidas)} · ${textoFuncionamento(sel.config)} · gerado em ${formatarDataHora(sel.criadoEm)}${sel.autor ? ` por ${sel.autor}` : ""}`}
         acoes={
           rascunho ? (
@@ -185,7 +185,7 @@ export default async function SimulacaoPage({ params, searchParams }: PageProps<
       </section>
 
       <Painel
-        titulo={`Opção ${sel.opcao} · ${sel.inicio ? rotuloCompetencia(sel.ano, sel.mes) : mesCurto(sel.ano, sel.mes)}`}
+        titulo={`Opção ${sel.opcao} · ${rotuloDaEscala(sel)}`}
         icone={CalendarRange}
         descricao={
           sel.situacao === "oficial"
@@ -302,6 +302,7 @@ export default async function SimulacaoPage({ params, searchParams }: PageProps<
           ano={sel.ano}
           mes={sel.mes}
           inicio={sel.inicio ?? null}
+          fim={sel.fim ?? null}
           jornadaSemanal={sel.jornadaSemanal}
           equipe={sel.equipe}
           cobertura={sel.cobertura}

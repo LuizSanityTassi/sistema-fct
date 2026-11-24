@@ -6,7 +6,7 @@ import { Status } from "@/components/layout/status";
 import { exigirAcesso } from "@/lib/auth/session";
 import { escalasOficiais, filiaisDaEscala, lotesRecentes } from "@/lib/data/escalas";
 import { ROTULO_FUNCAO, diasAbertos, eh12x36 } from "@/lib/escalas/motor";
-import { mesCurto, proximoMes, rotuloCompetencia } from "@/lib/escalas/resumo";
+import { proximoMes, rotuloCompetencia, rotuloDaEscala } from "@/lib/escalas/resumo";
 import { formatarDataHora } from "@/lib/formatos";
 import { AbasEscala } from "../abas";
 import { SecoesFilial } from "../_ui/secoes-filial";
@@ -60,7 +60,7 @@ export default async function SimuladorPage({ searchParams }: PageProps<"/escala
                 <li key={l.lote} className="flex flex-wrap items-center justify-between gap-2 border-b py-2 last:border-0">
                   <div className="min-w-0">
                     <Link href={`/escalas/simulacao/${l.lote}`} className="font-medium hover:underline">
-                      {l.filiais.length === 1 ? `${l.filiais[0].codigo} · ${l.filiais[0].nome}` : `${l.filiais.length} filiais`} · {l.inicio ? rotuloCompetencia(l.ano, l.mes) : mesCurto(l.ano, l.mes)} · {l.jornada} h
+                      {l.filiais.length === 1 ? `${l.filiais[0].codigo} · ${l.filiais[0].nome}` : `${l.filiais.length} filiais`} · {rotuloDaEscala(l)} · {l.jornada} h
                     </Link>
                     <p className="text-xs text-muted-foreground">
                       {formatarDataHora(l.criadoEm)}
@@ -85,7 +85,7 @@ export default async function SimuladorPage({ searchParams }: PageProps<"/escala
               {oficiais.slice(0, 60).map((o) => (
                 <li key={o.id} className="flex flex-wrap items-center justify-between gap-2 border-b py-2 last:border-0">
                   <Link href={`/escalas/simulacao/${o.lote}?filial=${o.branch_id}&op=${o.id}`} className="font-medium hover:underline">
-                    {o.filial.codigo} · {o.filial.nome} · {o.inicio ? rotuloCompetencia(o.ano, o.mes) : mesCurto(o.ano, o.mes)}
+                    {o.filial.codigo} · {o.filial.nome} · {rotuloDaEscala(o)}
                   </Link>
                   {o.continua && <Status tom="info">Segue até ser alterada</Status>}
                   <span className="text-xs text-muted-foreground">

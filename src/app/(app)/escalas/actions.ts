@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { filiaisDaEscala, filialDaEscala, simulacao } from "@/lib/data/escalas";
-import { REGIMES, ROTULO_GRUPO, ajustarTurno, ajustarVariosDias, ehFuncao, ehRegime, type Regime, grupoDoDia, type ModoAjuste, rotuloData, rotuloPeriodo, ehSituacao, erroFolgas, gerarOpcoes, horaValida, limiteSemanal, minutos, reanalisar, type AjusteTurno, type Funcao } from "@/lib/escalas/motor";
+import { REGIMES, ROTULO_GRUPO, ajustarTurno, ajustarVariosDias, ehFuncao, ehRegime, type Regime, competenciaDoFim, erroPeriodoLivre, temSemanaCompleta, grupoDoDia, type ModoAjuste, rotuloData, rotuloPeriodo, ehSituacao, erroFolgas, gerarOpcoes, horaValida, limiteSemanal, minutos, reanalisar, type AjusteTurno, type Funcao } from "@/lib/escalas/motor";
 import { lerMesAno } from "@/lib/escalas/resumo";
 import { podeAcessar } from "@/lib/nav";
 import { createClient } from "@/lib/supabase/server";
@@ -264,10 +264,16 @@ export async function trazerDoRh(fd: FormData): Promise<void> {
 export async function gerarSimulacao(_prev: EstadoEscala, fd: FormData): Promise<EstadoEscala> {
   const sessao = await sessaoComAcesso();
   const alvo = texto(fd, "filial");
-  const periodo = lerMesAno(texto(fd, "periodo"));
+  // período: o da folha (21 a 20, "AAAA-MM") ou o escolhido pelo RH ("datas": de … até …, no máximo 1 mês)
+  const livre = texto(fd, "periodo") === "datas";
+  const de = texto(fd, "de");
+  const ate = texto(fd, "ate");
+  const erroLivre = livre ? erroPeriodoLivre(de, ate) : null;
+  const periodo = livre ? (erroLivre ? null : competenciaDoFim(ate)) : lerMesAno(texto(fd, "periodo"));
   const jornada = Number(texto(fd, "jornada"));
   const qtd = Number(texto(fd, "opcoes"));
   if (!alvo || (alvo !== "todas" && !UUID.test(alvo))) return { erro: "Escolha a filial (ou todas)." };
+  if (erroLivre) return { erro: erroLivre, erros: { periodo: erroLivre } };
   if (!periodo) return { erro: "Escolha o mês." };
   if (![40, 42, 44].includes(jornada)) return { erro: "Escolha a jornada semanal." };
   if (jornada > limiteSemanal(periodo.ano, periodo.mes)) return { erro: `Para ${String(periodo.mes).padStart(2, "0")}/${periodo.ano} o limite é ${limiteSemanal(periodo.ano, periodo.mes)} h/semana.` };
@@ -317,6 +323,7 @@ export async function gerarSimulacao(_prev: EstadoEscala, fd: FormData): Promise
     ano: number;
     mes: number;
     inicio: string | null;
+    fim: string | null;
     jornada_semanal: number;
     folgas_permitidas: number[];
     config: Json;
@@ -333,7 +340,7 @@ export async function gerarSimulacao(_prev: EstadoEscala, fd: FormData): Promise
     }
     try {
       const folgas = alvo === "todas" ? f.config.folgasPermitidas : folgasForm;
-      const opcoes = gerarOpcoes(f.config, f.equipe, { ano: periodo.ano, mes: periodo.mes, jornadaSemanal: jornada, opcoes: qtd, folgasPermitidas: folgas });
+      const opcoes = gerarOpcoes(f.config, f.equipe, { ano: periodo.ano, mes: periodo.mes, jornadaSemanal: jornada, opcoes: qtd, folgasPermitidas: folgas, ...(livre ? { inicio: de, fim: ate } : {}) });
       opcoes.forEach((o, i) =>
         linhas.push({
           lote,
@@ -342,6 +349,7 @@ export async function gerarSimulacao(_prev: EstadoEscala, fd: FormData): Promise
           ano: o.ano,
           mes: o.mes,
           inicio: o.inicio ?? null,
+          fim: o.fim ?? null,
           jornada_semanal: o.jornadaSemanal,
           folgas_permitidas: o.folgasPermitidas,
           config: { ...f.config, folgasPermitidas: o.folgasPermitidas } as unknown as Json,
@@ -370,7 +378,7 @@ export async function gerarSimulacao(_prev: EstadoEscala, fd: FormData): Promise
   if (alvo !== "todas" && folgasForm.join() !== alvos[0].config.folgasPermitidas.join()) {
     await supabase.from("esc_filiais").update({ folgas_permitidas: folgasForm }).eq("branch_id", alvos[0].id);
   }
-  await registrarAuditoria(supabase, { userId: sessao.id, acao: "criar", entidade: "esc_simulacoes", registroId: lote, novo: { filiais: alvos.length, opcoes: linhas.length, ano: periodo.ano, mes: periodo.mes, jornada } });
+  await registrarAuditoria(supabase, { userId: sessao.id, acao: "criar", entidade: "esc_simulacoes", registroId: lote, novo: { filiais: alvos.length, opcoes: linhas.length, ano: periodo.ano, mes: periodo.mes, ...(livre ? { de, ate } : {}), jornada } });
   revalidatePath(ROTA, "layout");
   const qs = ignoradas.length ? `?ignoradas=${encodeURIComponent(ignoradas.join("; ").slice(0, 600))}` : "";
   redirect(`${ROTA}/simulacao/${lote}${qs}`);
@@ -466,6 +474,7 @@ export async function publicarSimulacao(fd: FormData): Promise<void> {
     if (error) redirect(comMsg(volta, "erro", msgBanco(error.message)));
   }
   const continua = texto(fd, "continua") === "1";
+  if (continua && !temSemanaCompleta(s)) redirect(comMsg(volta, "erro", "Para seguir nos próximos períodos, a escala precisa ter pelo menos uma semana inteira (segunda a domingo). Publique sem “segue até ser alterada” ou escolha um período maior."));
   const { error } = await supabase.from("esc_simulacoes").update({ situacao: "oficial", continua }).eq("id", id);
   if (error) {
     // devolve a anterior para oficial não dá (substituída não volta): avisa para publicar de novo

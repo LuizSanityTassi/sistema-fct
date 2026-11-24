@@ -120,6 +120,7 @@ export type ResumoSimulacao = {
   ano: number;
   mes: number;
   inicio: string | null;
+  fim: string | null;
   continua: boolean;
   jornada_semanal: number;
   folgas_permitidas: number[];
@@ -134,7 +135,7 @@ export type ResumoSimulacao = {
 };
 
 const COLS_RESUMO =
-  "id, lote, branch_id, opcao, ano, mes, inicio, continua, jornada_semanal, folgas_permitidas, situacao, qtd_alertas, analise_pendente, criado_em, publicado_em, filial:branches!inner(id, codigo, nome), autor:profiles!esc_simulacoes_criado_por_fkey(nome), publicador:profiles!esc_simulacoes_publicado_por_fkey(nome)";
+  "id, lote, branch_id, opcao, ano, mes, inicio, fim, continua, jornada_semanal, folgas_permitidas, situacao, qtd_alertas, analise_pendente, criado_em, publicado_em, filial:branches!inner(id, codigo, nome), autor:profiles!esc_simulacoes_criado_por_fkey(nome), publicador:profiles!esc_simulacoes_publicado_por_fkey(nome)";
 
 export async function opcoesDoLote(lote: string): Promise<ResumoSimulacao[]> {
   const supabase = await createClient();
@@ -168,6 +169,7 @@ type LinhaSim = {
   ano: number;
   mes: number;
   inicio: string | null;
+  fim: string | null;
   continua: boolean;
   jornada_semanal: number;
   folgas_permitidas: number[];
@@ -196,6 +198,7 @@ export function simulacaoDaLinha(l: LinhaSim): Simulacao {
     ano: l.ano,
     mes: l.mes,
     inicio: l.inicio,
+    fim: l.fim,
     continua: !!l.continua,
     jornadaSemanal: l.jornada_semanal,
     folgasPermitidas: l.folgas_permitidas,
@@ -217,7 +220,7 @@ export function simulacaoDaLinha(l: LinhaSim): Simulacao {
 }
 
 const COLS_SIM =
-  "id, lote, branch_id, opcao, ano, mes, inicio, continua, jornada_semanal, folgas_permitidas, situacao, config, equipe, cobertura, alertas, alertas_base, analise, analise_pendente, analisado_em, criado_em, publicado_em, filial:branches!inner(id, codigo, nome), autor:profiles!esc_simulacoes_criado_por_fkey(nome), publicador:profiles!esc_simulacoes_publicado_por_fkey(nome)";
+  "id, lote, branch_id, opcao, ano, mes, inicio, fim, continua, jornada_semanal, folgas_permitidas, situacao, config, equipe, cobertura, alertas, alertas_base, analise, analise_pendente, analisado_em, criado_em, publicado_em, filial:branches!inner(id, codigo, nome), autor:profiles!esc_simulacoes_criado_por_fkey(nome), publicador:profiles!esc_simulacoes_publicado_por_fkey(nome)";
 
 /** Opções completas (com a escala) de uma filial dentro do lote. */
 export async function simulacoesDaFilial(lote: string, branchId: string): Promise<Simulacao[]> {
@@ -246,6 +249,7 @@ export type LoteRecente = {
   ano: number;
   mes: number;
   inicio: string | null;
+  fim: string | null;
   jornada: number;
   filiais: { codigo: string; nome: string }[];
   opcoes: number;
@@ -259,7 +263,7 @@ export async function lotesRecentes(limite = 15): Promise<LoteRecente[]> {
   const { data } = await supabase.from("esc_simulacoes").select(COLS_RESUMO).order("criado_em", { ascending: false }).limit(600);
   const lotes = new Map<string, LoteRecente>();
   for (const s of (data ?? []) as ResumoSimulacao[]) {
-    const l = lotes.get(s.lote) ?? { lote: s.lote, criadoEm: s.criado_em, autor: s.autor?.nome ?? null, ano: s.ano, mes: s.mes, inicio: s.inicio, jornada: s.jornada_semanal, filiais: [], opcoes: 0, semPendencia: 0, oficiais: 0 };
+    const l = lotes.get(s.lote) ?? { lote: s.lote, criadoEm: s.criado_em, autor: s.autor?.nome ?? null, ano: s.ano, mes: s.mes, inicio: s.inicio, fim: s.fim, jornada: s.jornada_semanal, filiais: [], opcoes: 0, semPendencia: 0, oficiais: 0 };
     if (!l.filiais.some((f) => f.codigo === s.filial.codigo)) l.filiais.push({ codigo: s.filial.codigo, nome: s.filial.nome });
     l.opcoes += 1;
     if (!s.qtd_alertas) l.semPendencia += 1;
@@ -299,5 +303,11 @@ export async function escalaVigente(branchId: string, ano: number, mes: number):
   if (!exata && !ultima.continua) return null;
   const base = await simulacao(ultima.id);
   if (!base) return null;
-  return exata ? { base, escala: base, projetada: false } : { base, escala: projetarEscala(base.config, base, ano, mes), projetada: true };
+  if (exata) return { base, escala: base, projetada: false };
+  // base sem semana inteira (período escolhido curto) não tem o que repetir: não segue
+  try {
+    return { base, escala: projetarEscala(base.config, base, ano, mes), projetada: true };
+  } catch {
+    return null;
+  }
 }

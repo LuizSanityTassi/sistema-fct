@@ -181,6 +181,15 @@ export function rotuloCompetencia(ano: number, mes: number) {
   return `${nome}/${ano} (${de.slice(0, 5)} a ${ate.slice(0, 5)})`;
 }
 
+/** Como a escala aparece nas listas: o período escolhido ("05/12 a 04/01/2027"), a competência da folha ou o mês civil (antigas). */
+export function rotuloDaEscala(e: { ano: number; mes: number; inicio?: string | null; fim?: string | null }) {
+  if (e.inicio && e.fim) {
+    const [de, ate] = rotuloPeriodo(e).split(" a ");
+    return `${de.slice(0, 5)} a ${ate}`;
+  }
+  return e.inicio ? rotuloCompetencia(e.ano, e.mes) : mesCurto(e.ano, e.mes);
+}
+
 /** Período de uma escala em texto: "21/11/2026 a 20/12/2026" (as antigas, do mês civil: "01/11/2026 a 30/11/2026"). */
 export const textoPeriodo = (p: PeriodoEscala) => rotuloPeriodo(p);
 

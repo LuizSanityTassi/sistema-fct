@@ -123,6 +123,8 @@ export type Escala = {
   mes: number;
   /** 1º dia do período (AAAA-MM-DD). Ausente nas opções antigas, que eram do mês civil. */
   inicio?: string | null;
+  /** Último dia, só no período escolhido pelo RH (de um dia até outro). Ausente = período da folha (até o dia 20). */
+  fim?: string | null;
   jornadaSemanal: number;
   folgasPermitidas: number[];
   equipe: PessoaEscala[];
@@ -156,21 +158,56 @@ export const diaChave = (ano: number, mes: number, data: number): Dia => DIAS[di
 // As opções antigas (sem `inicio`) eram do mês civil e continuam assim. Em qualquer caso `data` é o dia do mês e não
 // se repete dentro do período (21…31 de um mês e 1…20 do outro); a ordem e a semana vêm de `diasDoPeriodo`.
 
-export type PeriodoEscala = { ano: number; mes: number; inicio?: string | null };
+export type PeriodoEscala = { ano: number; mes: number; inicio?: string | null; fim?: string | null };
 export type DiaPeriodo = { data: number; ano: number; mes: number; iso: string; dia: Dia; pos: number };
 
 const isoUTC = (d: Date) => d.toISOString().slice(0, 10);
 /** 1º dia do período da competência (dia 21 do mês anterior). */
 export const inicioFolha = (ano: number, mes: number) => isoUTC(new Date(Date.UTC(ano, mes - 2, 21)));
 
+const DATA_ISO = /^\d{4}-\d{2}-\d{2}$/;
+/** O mesmo dia do mês seguinte (31/01 → 28/02): o período escolhido termina antes dele, para o dia do mês não se repetir. */
+const mesmoDiaMesSeguinte = (iso: string) => {
+  const [a, m, d] = iso.split("-").map(Number);
+  return isoUTC(new Date(Date.UTC(a, m, Math.min(d, new Date(Date.UTC(a, m + 1, 0)).getUTCDate()))));
+};
+/** Competência do período escolhido: o mês do último dia. */
+export const competenciaDoFim = (fim: string) => ({ ano: Number(fim.slice(0, 4)), mes: Number(fim.slice(5, 7)) });
+/** Último dia que o período escolhido pode ter (inclusive), começando em `inicio`. */
+export const fimMaximo = (inicio: string) => isoUTC(new Date(Date.parse(`${mesmoDiaMesSeguinte(inicio)}T00:00:00Z`) - 86_400_000));
+/** Quantos dias tem o período escolhido. */
+export const diasEntre = (inicio: string, fim: string) => Math.round((Date.parse(`${fim}T00:00:00Z`) - Date.parse(`${inicio}T00:00:00Z`)) / 86_400_000) + 1;
+export const MIN_DIAS_PERIODO = 7;
+/** Erro do período escolhido pelo RH (de … até …), ou null se serve. */
+export function erroPeriodoLivre(inicio: string, fim: string): string | null {
+  if (!DATA_ISO.test(inicio) || Number.isNaN(Date.parse(`${inicio}T00:00:00Z`))) return "Escolha o primeiro dia.";
+  if (!DATA_ISO.test(fim) || Number.isNaN(Date.parse(`${fim}T00:00:00Z`))) return "Escolha o último dia.";
+  const ano = Number(inicio.slice(0, 4));
+  if (ano < 2024 || ano > 2035) return "Escolha um período entre 2024 e 2035.";
+  if (fim < inicio) return "O último dia não pode ser antes do primeiro.";
+  if (diasEntre(inicio, fim) < MIN_DIAS_PERIODO) return `O período precisa ter pelo menos ${MIN_DIAS_PERIODO} dias.`;
+  if (fim > fimMaximo(inicio)) return `O período vai até 1 mês: começando em ${inicio.split("-").reverse().join("/")}, o último dia pode ser ${fimMaximo(inicio).split("-").reverse().join("/")}.`;
+  return null;
+}
+/** O período tem pelo menos uma semana inteira (segunda a domingo)? Sem ela não dá para a escala seguir nos próximos meses. */
+export const temSemanaCompleta = (p: PeriodoEscala) => {
+  const contagem = new Map<number, number>();
+  for (const d of diasDoPeriodo(p)) {
+    const s = semanaDoPeriodo(p, d.data);
+    contagem.set(s, (contagem.get(s) ?? 0) + 1);
+  }
+  return [...contagem.values()].some((n) => n === 7);
+};
+
 const cachePeriodo = new Map<string, DiaPeriodo[]>();
 /** Dias do período em ordem (não altere o que volta: é compartilhado). */
 export function diasDoPeriodo(p: PeriodoEscala): DiaPeriodo[] {
-  const chave = `${p.ano}-${p.mes}-${p.inicio ?? ""}`;
+  const chave = `${p.ano}-${p.mes}-${p.inicio ?? ""}-${p.fim ?? ""}`;
   const pronto = cachePeriodo.get(chave);
   if (pronto) return pronto;
   const ini = p.inicio ? new Date(`${p.inicio.slice(0, 10)}T00:00:00Z`) : new Date(Date.UTC(p.ano, p.mes - 1, 1));
-  const fim = p.inicio ? new Date(Date.UTC(p.ano, p.mes - 1, 20)) : new Date(Date.UTC(p.ano, p.mes, 0));
+  // período escolhido: até `fim`; período da folha: até o dia 20; antigas: até o fim do mês
+  const fim = p.inicio && p.fim ? new Date(`${p.fim.slice(0, 10)}T00:00:00Z`) : p.inicio ? new Date(Date.UTC(p.ano, p.mes - 1, 20)) : new Date(Date.UTC(p.ano, p.mes, 0));
   const dias: DiaPeriodo[] = [];
   for (const d = new Date(ini); d <= fim && dias.length < 62; d.setUTCDate(d.getUTCDate() + 1)) {
     dias.push({ data: d.getUTCDate(), ano: d.getUTCFullYear(), mes: d.getUTCMonth() + 1, iso: isoUTC(d), dia: DIAS[d.getUTCDay()], pos: dias.length });
@@ -305,7 +342,15 @@ function distribuirFolgas(equipe: Pessoa[], abertos: number[], opcao: number, se
 export function gerarOpcoes(
   cfg: ConfigFilial,
   equipe: Colaborador[],
-  { ano, mes, jornadaSemanal = 40, opcoes = 3, folgasPermitidas }: { ano: number; mes: number; jornadaSemanal?: number; opcoes?: number; folgasPermitidas?: number[] },
+  {
+    ano,
+    mes,
+    jornadaSemanal = 40,
+    opcoes = 3,
+    folgasPermitidas,
+    inicio,
+    fim,
+  }: { ano: number; mes: number; jornadaSemanal?: number; opcoes?: number; folgasPermitidas?: number[]; /** período escolhido (de … até …) */ inicio?: string; fim?: string },
 ): Escala[] {
   const abertos = diasAbertos(cfg);
   const escolhidas = [...new Set((folgasPermitidas ?? cfg.folgasPermitidas).map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))].sort();
@@ -313,8 +358,12 @@ export function gerarOpcoes(
   const erro = erroFolgas(cfg, escolhidas);
   if (erro) throw new Error(erro);
   const horasPadrao = jornadaSemanal / 5;
-  // período da folha: do dia 21 do mês anterior ao dia 20 da competência
-  const periodo: PeriodoEscala = { ano, mes, inicio: inicioFolha(ano, mes) };
+  // período escolhido pelo RH (de … até …) ou o da folha: do dia 21 do mês anterior ao dia 20 da competência
+  if (inicio && fim) {
+    const erroPeriodo = erroPeriodoLivre(inicio, fim);
+    if (erroPeriodo) throw new Error(erroPeriodo);
+  }
+  const periodo: PeriodoEscala = inicio && fim ? { ano, mes, inicio, fim } : { ano, mes, inicio: inicioFolha(ano, mes) };
   const nSemanas = semanasDoPeriodo(periodo);
   const resultado: Escala[] = [];
   // 12x36: quem é da mesma função se reveza (um trabalha no dia em que o outro está fora); cada opção troca os dias
@@ -401,7 +450,7 @@ export function gerarOpcoes(
       cobertura.push(coberturaDoDia(cfg, data, dia, pessoas));
     }
     for (const p of pessoas) resumirPessoa(p, jornadaSemanal, nSemanas);
-    const escala: Escala = { ano, mes, inicio: periodo.inicio, jornadaSemanal, folgasPermitidas: escolhidas, equipe: pessoas, cobertura, alertas: [] };
+    const escala: Escala = { ano, mes, inicio: periodo.inicio, fim: periodo.fim ?? null, jornadaSemanal, folgasPermitidas: escolhidas, equipe: pessoas, cobertura, alertas: [] };
     escala.alertas = auditar(cfg, escala);
     escala.alertasBase = structuredClone(escala.alertas);
     resultado.push(escala);

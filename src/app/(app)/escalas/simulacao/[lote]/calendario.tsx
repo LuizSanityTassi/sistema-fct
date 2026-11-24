@@ -35,6 +35,8 @@ type Props = {
   mes: number;
   /** 1º dia do período (nulo nas escalas antigas, do mês civil) */
   inicio: string | null;
+  /** último dia, só no período escolhido (de … até …) */
+  fim?: string | null;
   jornadaSemanal: number;
   equipe: PessoaEscala[];
   cobertura: DiaCobertura[];
@@ -58,8 +60,8 @@ function dica(p: PessoaEscala, t: Turno, periodo: PeriodoEscala) {
 }
 
 /** Calendário do mês (uma linha por pessoa). Clique num dia aberto para trocar folga ou horário. */
-export function Calendario({ simId, ano, mes, inicio, jornadaSemanal, equipe, cobertura, abertura, editavel }: Props) {
-  const periodo: PeriodoEscala = { ano, mes, inicio };
+export function Calendario({ simId, ano, mes, inicio, fim, jornadaSemanal, equipe, cobertura, abertura, editavel }: Props) {
+  const periodo: PeriodoEscala = { ano, mes, inicio, fim };
   // mês de cada dia do período (o período da folha atravessa dois meses)
   const mesDoDia = new Map(diasDoPeriodo(periodo).map((d) => [d.data, d]));
   const router = useRouter();
