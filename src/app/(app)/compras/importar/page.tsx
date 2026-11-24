@@ -1,11 +1,11 @@
-import { FileSpreadsheet, FileText, History } from "lucide-react";
+import { Bot, FileSpreadsheet, FileText, History } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { EstadoVazio, Painel } from "@/components/layout/painel";
 import { Status } from "@/components/layout/status";
 import { exigirAcesso } from "@/lib/auth/session";
-import { hojeBrasil, importacoesRecentes } from "@/lib/data/compras";
+import { diasAtras, hojeBrasil, importacoesRecentes } from "@/lib/data/compras";
 import { formatarData, formatarDataHora } from "@/lib/formatos";
-import { DesfazerImportacao, ImportarEspelho, ImportarPrePedidos } from "./formularios";
+import { BuscarNoTrier, DesfazerImportacao, ImportarEspelho, ImportarPrePedidos } from "./formularios";
 
 export const metadata = { title: "Importar — Compras" };
 // o espelho de vários dias tem milhares de páginas: a leitura roda no servidor
@@ -24,14 +24,17 @@ export default async function ImportarComprasPage() {
       <PageHeader
         eyebrow="Compras"
         titulo="Importar pedidos e notas"
-        descricao="Suba todo dia os pré-pedidos (Excel do Trier) e o espelho das notas de entrada (PDF do Trier). O cruzamento fica em Compras → Pedidos × notas."
+        descricao="Suba todo dia os pré-pedidos (Excel do Trier). As notas de entrada o robô busca sozinho no Trier; se precisar, busque agora ou envie o PDF do espelho. O cruzamento fica em Compras → Pedidos × notas."
       />
       {podeImportar ? (
         <div className="mb-4 grid gap-4 lg:grid-cols-2">
+          <Painel titulo="Notas: buscar no Trier" icone={Bot} descricao="O robô gera o “Espelho Nota Fiscal Entrada” de todas as filiais e importa" className="lg:col-span-2">
+            <BuscarNoTrier ontem={diasAtras(1)} hoje={hojeBrasil()} />
+          </Painel>
           <Painel titulo="Pré-pedidos" icone={FileSpreadsheet} descricao="Excel “PRÉ-PEDIDO” (Con_0018), um bloco por filial">
             <ImportarPrePedidos hoje={hojeBrasil()} />
           </Painel>
-          <Painel titulo="Espelho das notas" icone={FileText} descricao="PDF “Espelho Nota Fiscal Entrada” (Rel_0005)">
+          <Painel titulo="Notas: enviar o PDF" icone={FileText} descricao="Se preferir baixar à mão: PDF “Espelho Nota Fiscal Entrada” (Rel_0005)">
             <ImportarEspelho />
           </Painel>
         </div>

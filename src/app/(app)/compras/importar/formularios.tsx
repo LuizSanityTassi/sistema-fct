@@ -9,7 +9,38 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { caminhoEspelho, TAMANHO_MAXIMO_ESPELHO } from "@/lib/compras/rotulos";
 import { createClient } from "@/lib/supabase/client";
-import { desfazerImportacao, importarPrePedidos, processarEspelho, type EstadoImportacao } from "../actions";
+import { buscarEspelhoNoTrier, desfazerImportacao, importarPrePedidos, processarEspelho, type EstadoImportacao } from "../actions";
+
+/** O robô busca o espelho direto no Trier (sem baixar o PDF à mão). */
+export function BuscarNoTrier({ ontem, hoje }: { ontem: string; hoje: string }) {
+  const [estado, enviar, pendente] = useActionState(buscarEspelhoNoTrier, {});
+  return (
+    <form action={enviar} className="space-y-3 border-t px-5 py-4">
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="grid gap-1 text-sm">
+          <span className="font-medium">Entradas de</span>
+          <Input type="date" name="de" defaultValue={ontem} max={hoje} required disabled={pendente} />
+        </label>
+        <label className="grid gap-1 text-sm">
+          <span className="font-medium">até</span>
+          <Input type="date" name="ate" defaultValue={hoje} max={hoje} required disabled={pendente} />
+        </label>
+        <Button type="submit" disabled={pendente}>
+          <FileText data-icon="inline-start" />
+          {pendente ? "Buscando no Trier…" : "Buscar no Trier agora"}
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {pendente
+          ? "O robô está gerando o espelho no Trier e lendo as notas: pode levar alguns minutos. Não feche a tela."
+          : "Até 3 dias por vez. O robô também busca sozinho todo dia às 7h (ontem e hoje) e às 15h (hoje). Nada duplica."}
+      </p>
+      <ErroFormulario mensagem={estado.erro} />
+      <AvisoSucesso mensagem={estado.ok} />
+      <Avisos avisos={estado.avisos} />
+    </form>
+  );
+}
 
 function Avisos({ avisos }: { avisos?: string[] }) {
   if (!avisos?.length) return null;

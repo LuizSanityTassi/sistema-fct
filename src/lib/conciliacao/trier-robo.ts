@@ -915,6 +915,59 @@ export async function gerarRelatorioAvulsoTrier(cred: CredenciaisTrier, cfg: Rel
   }
 }
 
+// ---------- compras: "Espelho Nota Fiscal Entrada" (Rel_0005), todas as filiais e fornecedores, em PDF ----------
+
+export const TELA_ESPELHO_NOTAS = "Rel_0005.pod";
+// campos de fornecedor das telas: vazios = todos os fornecedores
+const FORNECEDOR_TODOS = ["cod_fornec", "cod_fornecEntrada", "id_cod_fornec", "id_cod_fornecEntrada", "sel_fornec", "sel_fornes"];
+
+/**
+ * Gera no Trier o espelho das notas de entrada do período (todas as filiais, todos os fornecedores, ordenação padrão
+ * da tela "sequencial nota") em PDF — o mesmo arquivo que o Compras baixa à mão e o portal já sabe ler. Só leitura.
+ * Num erro, a mensagem leva os campos da tela (sem senha) para acertar o pedido.
+ */
+export async function buscarEspelhoNotasTrier(cred: CredenciaisTrier, de: string, ate: string, prazoMs = 240_000) {
+  const comeco = Date.now();
+  const resta = () => prazoMs - (Date.now() - comeco);
+  const ck: Cookies = {};
+  const base = await trierEntrar(cred, ck);
+  const pagina = TELA_ESPELHO_NOTAS;
+  let telaTexto = "";
+  try {
+    const p = await trierPagina(base, pagina, ck);
+    if (!p.serial) throw new TrierErro('o usuário do robô no Trier não abre o "Espelho Nota Fiscal Entrada" (Rel_0005): libere a tela para ele no Trier.');
+    const inicio = await trierAcao(base, p.serial, "httpStart", { attributes: trierAtributos(p.html) }, ck, 30_000, pagina);
+    const camposTela = camposDaTela(p.html);
+    const padroes = padroesDoInicio(inicio);
+    const campos: Record<string, string> = { ...camposTentativa(camposTela, padroes) };
+    const datas = camposDeData(camposTela, padroes);
+    for (const n of datas) campos[n] = isoParaBr(EH_DATA_FIM.test(n) ? ate : de);
+    for (const n of [...FILIAL_TODAS, ...FORNECEDOR_TODOS]) if (n in campos) campos[n] = "";
+    // saída em PDF (a opção com "pdf" no nome; nas telas vistas, 1 = PDF)
+    const saida = camposTela.find((c) => c.tipo === "select" && /saida|formato/i.test(c.nome));
+    if (saida) campos[saida.nome] = saida.opcoes?.find((o) => /pdf/i.test(o.texto))?.valor ?? "1";
+    else campos.saida = "1";
+    telaTexto = Object.entries(campos)
+      .map(([k, v]) => `${k}=${v}`)
+      .join(" ");
+    if (datas.length < 2) throw new TrierErro(`não achei os dois campos de data na tela do espelho (campos: ${corta(telaTexto, 700)}).`);
+    const r = await trierAcao(base, p.serial, "runReport", campos, ck, Math.max(30_000, Math.min(200_000, resta() - 30_000)), pagina);
+    const m = /openReport\('([^']+)'/i.exec(r);
+    if (!m) {
+      const msg = trierMsg(r);
+      if (/nenhum|n[aã]o (h[aá]|foram|existe)|sem (registro|movimento)/i.test(msg)) return { semMovimento: true as const, ms: Date.now() - comeco };
+      throw new TrierErro(`o Trier não gerou o espelho${msg ? `: ${msg}` : ""} (campos: ${corta(telaTexto, 700)}).`);
+    }
+    const arq = await httpPedido("GET", base + m[1].replace(/^\/+/, ""), null, ck, Math.max(15_000, resta() - 5_000));
+    if (arq.cod !== 200 || arq.corpo.subarray(0, 4).toString("latin1") !== "%PDF") {
+      throw new TrierErro(`o Trier devolveu um arquivo que não é PDF (HTTP ${arq.cod}, ${arq.corpo.length} bytes, ${m[1].split("/").pop()}).`);
+    }
+    return { pdf: arq.corpo, ms: Date.now() - comeco };
+  } finally {
+    await trierSair(base, ck);
+  }
+}
+
 // ---------- produto: Cadastros >> Produtos e Fornecedores >> Produtos (Cad_0020), consulta pelo código reduzido ----------
 
 /**

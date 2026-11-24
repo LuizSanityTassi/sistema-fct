@@ -3,9 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
-import { lerEspelhoTrier } from "@/lib/compras/espelho-trier";
+import { importarEspelhoPdf } from "@/lib/compras/importar-espelho";
 import { lerPrePedido, type PedidoLido } from "@/lib/compras/pre-pedido";
 import { caminhoDeEspelho } from "@/lib/compras/rotulos";
+import { buscarEspelhoNotasTrier } from "@/lib/conciliacao/trier-robo";
+import { credenciaisTrier, credenciaisTrierServico } from "@/lib/integracoes/segredos";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export type EstadoImportacao = { erro?: string; ok?: string; avisos?: string[] };
@@ -136,8 +139,7 @@ export async function importarPrePedidos(_prev: EstadoImportacao, fd: FormData):
 
 /**
  * Espelho das notas de entrada (PDF Rel_0005 do Trier). O navegador já mandou o PDF para o Storage (passa do limite de
- * 4,5 MB por envio da Vercel); aqui ele é lido e cada nota entra ou é atualizada (filial + fornecedor + número + série),
- * com os itens trocados pelos do arquivo. Depois o PDF é apagado do Storage.
+ * 4,5 MB por envio da Vercel); aqui ele é lido e gravado (nada duplica) e depois apagado do Storage.
  */
 export async function processarEspelho(caminho: string, nomeArquivo: string): Promise<EstadoImportacao> {
   const sessao = await getSessao();
@@ -145,127 +147,52 @@ export async function processarEspelho(caminho: string, nomeArquivo: string): Pr
   if (typeof caminho !== "string" || !caminhoDeEspelho(caminho)) return { erro: "Arquivo inválido." };
   const nome = String(nomeArquivo ?? "espelho.pdf").slice(0, 200);
   const supabase = await createClient();
-  const apagarArquivo = () => supabase.storage.from(BUCKET).remove([caminho]);
-
   const { data: blob, error: eBaixar } = await supabase.storage.from(BUCKET).download(caminho);
   if (eBaixar || !blob) return { erro: `Não consegui abrir o arquivo enviado: ${eBaixar?.message ?? "vazio"}` };
-  let lido;
-  try {
-    lido = await lerEspelhoTrier(new Uint8Array(await blob.arrayBuffer()));
-  } catch (e) {
-    await apagarArquivo();
-    return { erro: `${nome}: não consegui ler o PDF (${e instanceof Error ? e.message : "erro"}). Confira se é o "Espelho Nota Fiscal Entrada" (Rel_0005).` };
-  }
-  if (!lido.notas.length) {
-    await apagarArquivo();
-    return { erro: `${nome}: nenhuma nota encontrada. Confira se é o "Espelho Nota Fiscal Entrada" (Rel_0005) do Trier.`, avisos: lido.avisos.slice(0, MAX_AVISOS) };
-  }
-
-  const avisos = [...lido.avisos];
-  const filiais = await mapaFiliais(supabase);
-  const semFilial = [...new Set(lido.notas.filter((n) => !filiais.has(n.filialCodigo.toUpperCase())).map((n) => n.filialCodigo))];
-  if (semFilial.length) avisos.push(`Filiais que não estão no cadastro (as notas entram, mas sem ligar à filial): ${semFilial.join(", ")}.`);
-  // a mesma nota duas vezes no arquivo (não deveria): fica a última
-  const porChave = new Map(lido.notas.map((n) => [`${n.filialCodigo}|${n.fornecedorCodigo}|${n.numero}|${n.serie}`, n]));
-  if (porChave.size < lido.notas.length) avisos.push(`${lido.notas.length - porChave.size} nota(s) repetida(s) no arquivo — ficou a última.`);
-  const notas = [...porChave.values()];
-
-  const { data: imp, error: eImp } = await supabase
-    .from("cmp_importacoes")
-    .insert({ tipo: "notas", arquivo: nome, criado_por_nome: sessao.nome, resumo: {} })
-    .select("id")
-    .single();
-  if (eImp) return { erro: `Não consegui registrar a importação: ${eImp.message}` };
-
-  let novas = 0;
-  let atualizadas = 0;
-  let itens = 0;
-  for (let i = 0; i < notas.length; i += 250) {
-    const lote = notas.slice(i, i + 250);
-    // quais já estavam no portal (para contar novas × atualizadas)
-    const { data: ja } = await supabase
-      .from("cmp_notas")
-      .select("filial_codigo, fornecedor_codigo, numero, serie")
-      .in("numero", [...new Set(lote.map((n) => n.numero))]);
-    const existentes = new Set((ja ?? []).map((n) => `${n.filial_codigo}|${n.fornecedor_codigo}|${n.numero}|${n.serie}`));
-    const { data: gravadas, error } = await supabase
-      .from("cmp_notas")
-      .upsert(
-        lote.map((n) => ({
-          filial_codigo: n.filialCodigo,
-          branch_id: filiais.get(n.filialCodigo.toUpperCase()) ?? null,
-          fornecedor_codigo: n.fornecedorCodigo,
-          fornecedor_nome: n.fornecedorNome || null,
-          transferencia: n.transferencia,
-          numero: n.numero,
-          serie: n.serie,
-          data_entrada: n.dataEntrada,
-          data_emissao: n.dataEmissao,
-          estoque_atualizado: n.estoqueAtualizado,
-          total_mercadorias: n.totalMercadorias,
-          total_descontos: n.totalDescontos,
-          total_nota: n.totalNota,
-          qtd_itens: n.itens.length,
-          importacao_id: imp.id,
-          atualizado_em: new Date().toISOString(),
-        })),
-        { onConflict: "filial_codigo,fornecedor_codigo,numero,serie" },
-      )
-      .select("id, filial_codigo, fornecedor_codigo, numero, serie");
-    if (error) {
-      await supabase.from("cmp_importacoes").update({ resumo: { erro: error.message, notas_gravadas: novas + atualizadas } }).eq("id", imp.id);
-      return { erro: `Parei na nota ${i + 1} de ${notas.length}: ${error.message}. As anteriores ficaram gravadas; envie o arquivo de novo (nada duplica).` };
-    }
-    const idDe = new Map((gravadas ?? []).map((g) => [`${g.filial_codigo}|${g.fornecedor_codigo}|${g.numero}|${g.serie}`, g.id]));
-    for (const n of lote) {
-      if (existentes.has(`${n.filialCodigo}|${n.fornecedorCodigo}|${n.numero}|${n.serie}`)) atualizadas++;
-      else novas++;
-    }
-    // itens: troca os da nota pelos do arquivo
-    const ids = [...idDe.values()];
-    const { error: eDel } = await supabase.from("cmp_nota_itens").delete().in("nota_id", ids);
-    if (eDel) return { erro: `Não consegui atualizar os itens: ${eDel.message}. Envie o arquivo de novo (nada duplica).` };
-    const linhas = lote.flatMap((n) =>
-      n.itens.map((x) => ({
-        nota_id: idDe.get(`${n.filialCodigo}|${n.fornecedorCodigo}|${n.numero}|${n.serie}`)!,
-        produto_codigo: x.produtoCodigo,
-        produto: x.produto || null,
-        laboratorio: x.laboratorio || null,
-        barras_final: x.barrasFinal || null,
-        quantidade: x.quantidade,
-        valor_unitario: x.valorUnitario,
-        desconto_pct: x.descontoPct,
-        valor_liquido: x.valorLiquido,
-        valor_total: x.valorTotal,
-      })),
-    );
-    for (let k = 0; k < linhas.length; k += 1000) {
-      const { error: eIns } = await supabase.from("cmp_nota_itens").insert(linhas.slice(k, k + 1000));
-      if (eIns) return { erro: `Não consegui gravar os itens: ${eIns.message}. Envie o arquivo de novo (nada duplica).` };
-    }
-    itens += linhas.length;
-  }
-  await apagarArquivo();
-  const entradas = notas.map((n) => n.dataEntrada).filter((d): d is string => !!d).sort();
-  const resumo = {
-    periodo: lido.periodo,
-    paginas: lido.paginas,
-    notas: notas.length,
-    novas,
-    atualizadas,
-    itens,
-    transferencias: notas.filter((n) => n.transferencia).length,
-    entrada_de: entradas[0] ?? null,
-    entrada_ate: entradas.at(-1) ?? null,
-    avisos: avisos.slice(0, MAX_AVISOS),
-  };
-  await supabase.from("cmp_importacoes").update({ resumo }).eq("id", imp.id);
-  await registrarAuditoria(supabase, { userId: sessao.id, acao: "importar", entidade: "cmp_notas", registroId: imp.id, novo: { ...resumo, avisos: undefined } });
+  const r = await importarEspelhoPdf(supabase, new Uint8Array(await blob.arrayBuffer()), nome, sessao.nome, "manual");
+  await supabase.storage.from(BUCKET).remove([caminho]);
+  if (r.erro) return { erro: r.erro, avisos: r.avisos };
+  await registrarAuditoria(supabase, { userId: sessao.id, acao: "importar", entidade: "cmp_notas", registroId: r.importacaoId, novo: { ...r.resumo, avisos: undefined } });
   revalidar();
-  return {
-    ok: `${notas.length} notas lidas (${novas} novas, ${atualizadas} atualizadas), ${itens} itens${resumo.transferencias ? `; ${resumo.transferencias} são transferências entre lojas e ficam fora do cruzamento` : ""}.`,
-    avisos: avisos.slice(0, MAX_AVISOS),
-  };
+  return { ok: r.ok, avisos: r.avisos };
+}
+
+/** Máximo de dias por busca na tela (o Trier leva mais para gerar muitos dias e a função tem 5 minutos). */
+const MAX_DIAS_BUSCA = 3;
+
+/**
+ * "Buscar no Trier agora": o robô entra no Trier com o usuário das integrações, gera o espelho das notas do período
+ * (todas as filiais) e importa, como se o PDF tivesse sido enviado à mão.
+ */
+export async function buscarEspelhoNoTrier(_prev: EstadoImportacao, fd: FormData): Promise<EstadoImportacao> {
+  const sessao = await getSessao();
+  if (!podeImportar(sessao.papel)) return { erro: "Só o Compras e o administrador buscam as notas no Trier." };
+  const de = String(fd.get("de") ?? "").trim();
+  const ate = String(fd.get("ate") ?? "").trim();
+  if (!DATA.test(de) || !DATA.test(ate)) return { erro: "Informe o período (de e até)." };
+  if (de > ate) return { erro: "O primeiro dia não pode ser depois do último." };
+  if (ate > hojeBrasil()) return { erro: "O período não pode passar de hoje." };
+  const dias = Math.round((Date.parse(`${ate}T00:00:00Z`) - Date.parse(`${de}T00:00:00Z`)) / 86_400_000) + 1;
+  if (dias > MAX_DIAS_BUSCA) return { erro: `No máximo ${MAX_DIAS_BUSCA} dias por busca (o Trier demora para gerar muitos dias). Para mais, busque em partes.` };
+
+  const supabase = await createClient();
+  // a senha do robô é lida com a chave de serviço (o Compras não lê os segredos); nunca sai do servidor
+  const admin = createAdminClient();
+  const cred = admin ? await credenciaisTrierServico(admin) : await credenciaisTrier(supabase);
+  if (!cred.usuario || !cred.senha) return { erro: "O robô do Trier não tem usuário e senha: o administrador configura em Administração → Integrações." };
+  let gerado: Awaited<ReturnType<typeof buscarEspelhoNotasTrier>>;
+  try {
+    gerado = await buscarEspelhoNotasTrier(cred, de, ate, 200_000);
+  } catch (e) {
+    return { erro: `Trier: ${e instanceof Error ? e.message : String(e)}` };
+  }
+  if ("semMovimento" in gerado) return { ok: "O Trier não tem notas de entrada nesse período." };
+  const nome = `Trier espelho notas ${de.split("-").reverse().join("-")} a ${ate.split("-").reverse().join("-")}.pdf`;
+  const r = await importarEspelhoPdf(supabase, new Uint8Array(gerado.pdf), nome, `${sessao.nome} (robô do Trier)`, "robo");
+  if (r.erro) return { erro: r.erro, avisos: r.avisos };
+  await registrarAuditoria(supabase, { userId: sessao.id, acao: "importar", entidade: "cmp_notas", registroId: r.importacaoId, novo: { ...r.resumo, avisos: undefined, trier_ms: gerado.ms } });
+  revalidar();
+  return { ok: `Buscado no Trier em ${Math.round(gerado.ms / 1000)} s. ${r.ok}`, avisos: r.avisos };
 }
 
 /** Desfaz uma importação de pré-pedidos (apaga os pré-pedidos dela). O registro da importação fica, marcado como desfeito. */
