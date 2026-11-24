@@ -12,6 +12,7 @@ import { exigirAcesso } from "@/lib/auth/session";
 import { podeConciliar } from "@/lib/conciliacao/permissoes";
 import { PROBLEMA_LABEL, PROBLEMAS, STATUS_PENDENCIA, STATUS_PENDENCIA_LABEL } from "@/lib/conciliacao/rotulos";
 import { Paginacao } from "@/components/layout/paginacao";
+import { linhaDigitavel } from "@/lib/conciliacao/linha-digitavel";
 import { barrasDasPendencias, lerFiltrosPendencias, listarPendencias, listarResponsaveis, mapaFiliais, TAMANHO_PAGINA_PENDENCIAS } from "@/lib/data/conciliacao";
 import { formatarData, formatarMoeda, pluralizar } from "@/lib/formatos";
 import { alterarStatusPendencias, atribuirPendencias } from "../actions";
@@ -198,9 +199,14 @@ export default async function PendenciasPage({ searchParams }: PageProps<"/conci
                       {p.detalhe ? ` · ${p.detalhe}` : ""}
                     </p>
                     {barras.get(p.chave) && (
-                      <p className="text-xs text-muted-foreground">
-                        Código de barras: <span className="font-mono break-all select-all">{barras.get(p.chave)}</span>
-                      </p>
+                      <>
+                        <p className="text-xs text-muted-foreground">
+                          Código de barras: <span className="font-mono break-all select-all">{barras.get(p.chave)}</span>
+                        </p>
+                        <p className="text-xs font-medium text-red-700">
+                          DIGITÁVEL: <span className="font-mono break-all select-all">{linhaDigitavel(barras.get(p.chave)).replace(/\D/g, "")}</span>
+                        </p>
+                      </>
                     )}
                     {p.motivo && (
                       <p className="text-xs text-foreground/80">
