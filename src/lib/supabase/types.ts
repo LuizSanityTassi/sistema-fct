@@ -3616,6 +3616,274 @@ export type Database = {
           },
         ]
       }
+      cmp_importacoes: {
+        Row: {
+          arquivo: string
+          criado_em: string
+          criado_por: string | null
+          criado_por_nome: string | null
+          id: string
+          resumo: Json
+          tipo: string
+        }
+        Insert: {
+          arquivo: string
+          criado_em?: string
+          criado_por?: string | null
+          criado_por_nome?: string | null
+          id?: string
+          resumo?: Json
+          tipo: string
+        }
+        Update: {
+          arquivo?: string
+          criado_em?: string
+          criado_por?: string | null
+          criado_por_nome?: string | null
+          id?: string
+          resumo?: Json
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cmp_importacoes_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cmp_notas: {
+        Row: {
+          atualizado_em: string
+          branch_id: string | null
+          data_emissao: string | null
+          data_entrada: string | null
+          estoque_atualizado: boolean | null
+          filial_codigo: string
+          fornecedor_codigo: string
+          fornecedor_nome: string | null
+          id: string
+          importacao_id: string | null
+          numero: string
+          qtd_itens: number
+          serie: string
+          total_descontos: number | null
+          total_mercadorias: number | null
+          total_nota: number | null
+          transferencia: boolean
+        }
+        Insert: {
+          atualizado_em?: string
+          branch_id?: string | null
+          data_emissao?: string | null
+          data_entrada?: string | null
+          estoque_atualizado?: boolean | null
+          filial_codigo: string
+          fornecedor_codigo: string
+          fornecedor_nome?: string | null
+          id?: string
+          importacao_id?: string | null
+          numero: string
+          qtd_itens?: number
+          serie?: string
+          total_descontos?: number | null
+          total_mercadorias?: number | null
+          total_nota?: number | null
+          transferencia?: boolean
+        }
+        Update: {
+          atualizado_em?: string
+          branch_id?: string | null
+          data_emissao?: string | null
+          data_entrada?: string | null
+          estoque_atualizado?: boolean | null
+          filial_codigo?: string
+          fornecedor_codigo?: string
+          fornecedor_nome?: string | null
+          id?: string
+          importacao_id?: string | null
+          numero?: string
+          qtd_itens?: number
+          serie?: string
+          total_descontos?: number | null
+          total_mercadorias?: number | null
+          total_nota?: number | null
+          transferencia?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cmp_notas_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cmp_notas_importacao_id_fkey"
+            columns: ["importacao_id"]
+            isOneToOne: false
+            referencedRelation: "cmp_importacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cmp_nota_itens: {
+        Row: {
+          barras_final: string | null
+          desconto_pct: number | null
+          id: number
+          laboratorio: string | null
+          nota_id: string
+          produto: string | null
+          produto_codigo: number
+          quantidade: number
+          valor_liquido: number | null
+          valor_total: number | null
+          valor_unitario: number | null
+        }
+        Insert: {
+          barras_final?: string | null
+          desconto_pct?: number | null
+          id?: number
+          laboratorio?: string | null
+          nota_id: string
+          produto?: string | null
+          produto_codigo: number
+          quantidade: number
+          valor_liquido?: number | null
+          valor_total?: number | null
+          valor_unitario?: number | null
+        }
+        Update: {
+          barras_final?: string | null
+          desconto_pct?: number | null
+          id?: number
+          laboratorio?: string | null
+          nota_id?: string
+          produto?: string | null
+          produto_codigo?: number
+          quantidade?: number
+          valor_liquido?: number | null
+          valor_total?: number | null
+          valor_unitario?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cmp_nota_itens_nota_id_fkey"
+            columns: ["nota_id"]
+            isOneToOne: false
+            referencedRelation: "cmp_notas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cmp_pedidos: {
+        Row: {
+          arquivo: string | null
+          branch_id: string | null
+          criado_em: string
+          criado_por: string | null
+          data_pedido: string
+          filial_codigo: string
+          id: string
+          importacao_id: string | null
+          laboratorio: string | null
+          numero: number
+          qtd_itens: number
+          qtd_total: number
+        }
+        Insert: {
+          arquivo?: string | null
+          branch_id?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data_pedido: string
+          filial_codigo: string
+          id?: string
+          importacao_id?: string | null
+          laboratorio?: string | null
+          numero: number
+          qtd_itens?: number
+          qtd_total?: number
+        }
+        Update: {
+          arquivo?: string | null
+          branch_id?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data_pedido?: string
+          filial_codigo?: string
+          id?: string
+          importacao_id?: string | null
+          laboratorio?: string | null
+          numero?: number
+          qtd_itens?: number
+          qtd_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cmp_pedidos_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cmp_pedidos_importacao_id_fkey"
+            columns: ["importacao_id"]
+            isOneToOne: false
+            referencedRelation: "cmp_importacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cmp_pedidos_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cmp_pedido_itens: {
+        Row: {
+          barras: string | null
+          id: number
+          laboratorio: string | null
+          pedido_id: string
+          produto: string | null
+          produto_codigo: number
+          quantidade: number
+        }
+        Insert: {
+          barras?: string | null
+          id?: number
+          laboratorio?: string | null
+          pedido_id: string
+          produto?: string | null
+          produto_codigo: number
+          quantidade: number
+        }
+        Update: {
+          barras?: string | null
+          id?: number
+          laboratorio?: string | null
+          pedido_id?: string
+          produto?: string | null
+          produto_codigo?: number
+          quantidade?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cmp_pedido_itens_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "cmp_pedidos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sangria_anexos: {
         Row: {
           criado_em: string
@@ -7689,6 +7957,79 @@ export type Database = {
           id: string
           nome: string
           rede: string | null
+        }[]
+      }
+      cmp_cruzamento: {
+        Args: {
+          p_ate: string
+          p_de: string
+          p_filial?: string
+          p_janela?: number
+          p_laboratorio?: string
+          p_pedido?: string
+        }
+        Returns: {
+          barras: string
+          data_pedido: string
+          excedente: number
+          filial_codigo: string
+          item_id: number
+          laboratorio: string
+          notas: string
+          numero: number
+          pedido: number
+          pedido_id: string
+          prazo: string
+          produto: string
+          produto_codigo: number
+          recebido: number
+          ultima_entrada: string
+        }[]
+      }
+      cmp_pedidos_totais: {
+        Args: {
+          p_ate: string
+          p_de: string
+          p_filial?: string
+          p_hoje?: string
+          p_janela?: number
+          p_laboratorio?: string
+        }
+        Returns: {
+          itens: number
+          pedidos: number
+          qtd_excedente: number
+          qtd_pedida: number
+          qtd_recebida: number
+          situacao: string
+        }[]
+      }
+      cmp_pedidos_resumo: {
+        Args: {
+          p_ate: string
+          p_de: string
+          p_filial?: string
+          p_hoje?: string
+          p_janela?: number
+          p_laboratorio?: string
+        }
+        Returns: {
+          data_pedido: string
+          filial_codigo: string
+          itens: number
+          itens_a_mais: number
+          itens_completos: number
+          itens_nao_chegaram: number
+          itens_parciais: number
+          laboratorio: string
+          numero: number
+          pedido_id: string
+          prazo: string
+          qtd_excedente: number
+          qtd_pedida: number
+          qtd_recebida: number
+          situacao: string
+          ultima_entrada: string
         }[]
       }
       lojas_para_sangria: {
