@@ -66,7 +66,8 @@ export async function fichaFornecedor(raiz: string) {
 
 export async function boletosFornecedor(raiz: string, limite = 300) {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("conc_boletos_vistos").select("*").eq("raiz", raiz).order("vencimento", { ascending: false, nullsFirst: false }).limit(limite);
+  // a função filtra o fornecedor antes (índice): a view olha todos os itens de todas as conciliações
+  const { data, error } = await supabase.rpc("conc_boletos_da_raiz", { p_raizes: [raiz] }).order("vencimento", { ascending: false, nullsFirst: false }).limit(limite);
   if (error) throw error;
   return data;
 }

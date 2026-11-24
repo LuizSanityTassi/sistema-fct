@@ -7960,6 +7960,27 @@ export type Database = {
         }[]
       }
       compras_pode_escrever: { Args: never; Returns: boolean }
+      conc_boletos_da_raiz: {
+        Args: { p_raizes: string[] }
+        Returns: {
+          anomalias: Json | null
+          banco: string | null
+          beneficiario: string | null
+          categoria: string | null
+          chave: string | null
+          cnpj_num: string | null
+          conciliacao_id: string | null
+          criado_em: string | null
+          filial: number | null
+          fora_padrao: boolean | null
+          fornecedor: string | null
+          fornecedor_real: string | null
+          grupo: string | null
+          raiz: string | null
+          valor: number | null
+          vencimento: string | null
+        }[]
+      }
       cmp_cruzamento: {
         Args: {
           p_ate: string
