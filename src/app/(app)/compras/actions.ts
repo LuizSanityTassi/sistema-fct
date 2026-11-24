@@ -56,29 +56,38 @@ export async function importarPrePedidos(_prev: EstadoImportacao, fd: FormData):
     }
   }
   if (!lidos.length) return { erro: "Nenhum pré-pedido com itens nos arquivos.", avisos: avisos.slice(0, MAX_AVISOS) };
-  // o mesmo número em dois arquivos do mesmo envio
-  const vistos = new Set<number>();
+  // o pré-pedido é o número + a filial (o Trier numera por empresa: o mesmo número aparece em filiais de redes diferentes)
+  const chaveDe = (numero: number, filial: string) => `${numero}|${filial.toUpperCase()}`;
+  const vistos = new Set<string>();
   const unicos = lidos.filter(({ pedido, arquivo }) => {
-    if (vistos.has(pedido.numero)) {
-      avisos.push(`${arquivo}: pré-pedido ${pedido.numero} repetido no envio — entrou uma vez só.`);
+    const k = chaveDe(pedido.numero, pedido.filialCodigo);
+    if (vistos.has(k)) {
+      avisos.push(`${arquivo}: pré-pedido ${pedido.numero} da ${pedido.filialCodigo} repetido no envio — entrou uma vez só.`);
       return false;
     }
-    vistos.add(pedido.numero);
+    vistos.add(k);
     return true;
   });
 
   const supabase = await createClient();
   const filiais = await mapaFiliais(supabase);
-  const existentes = new Set<number>();
-  const numeros = unicos.map((l) => l.pedido.numero);
+  const existentes = new Set<string>();
+  const numeros = [...new Set(unicos.map((l) => l.pedido.numero))];
   for (let i = 0; i < numeros.length; i += 300) {
-    const { data: ja } = await supabase.from("cmp_pedidos").select("numero").in("numero", numeros.slice(i, i + 300));
-    for (const p of ja ?? []) existentes.add(Number(p.numero));
+    const { data: ja } = await supabase.from("cmp_pedidos").select("numero, filial_codigo").in("numero", numeros.slice(i, i + 300));
+    for (const p of ja ?? []) existentes.add(chaveDe(Number(p.numero), p.filial_codigo));
   }
-  const novos = unicos.filter((l) => !existentes.has(l.pedido.numero));
+  const novos = unicos.filter((l) => !existentes.has(chaveDe(l.pedido.numero, l.pedido.filialCodigo)));
   const semFilial = [...new Set(novos.filter((l) => !filiais.has(l.pedido.filialCodigo.toUpperCase())).map((l) => l.pedido.filialCodigo))];
   if (semFilial.length) avisos.push(`Filiais que não estão no cadastro (o pedido entra, mas sem ligar à filial): ${semFilial.join(", ")}.`);
-  if (existentes.size) avisos.push(`${existentes.size} pré-pedido(s) já estavam no portal e não entraram de novo: ${[...existentes].slice(0, 15).join(", ")}${existentes.size > 15 ? "…" : ""}.`);
+  const jaEstavam = unicos.filter((l) => existentes.has(chaveDe(l.pedido.numero, l.pedido.filialCodigo)));
+  if (jaEstavam.length)
+    avisos.push(
+      `${jaEstavam.length} pré-pedido(s) já estavam no portal e não entraram de novo: ${jaEstavam
+        .slice(0, 15)
+        .map((l) => `${l.pedido.numero} (${l.pedido.filialCodigo})`)
+        .join(", ")}${jaEstavam.length > 15 ? "…" : ""}.`,
+    );
   if (!novos.length) return { erro: "Todos esses pré-pedidos já estavam no portal.", avisos: avisos.slice(0, MAX_AVISOS) };
 
   const { data: imp, error: eImp } = await supabase
@@ -111,14 +120,14 @@ export async function importarPrePedidos(_prev: EstadoImportacao, fd: FormData):
           importacao_id: imp.id,
         })),
       )
-      .select("id, numero");
+      .select("id, numero, filial_codigo");
     if (error) {
       await desfazer();
       return { erro: `Não consegui gravar os pré-pedidos: ${error.message}` };
     }
-    const idDe = new Map((gravados ?? []).map((g) => [Number(g.numero), g.id]));
+    const idDe = new Map((gravados ?? []).map((g) => [chaveDe(Number(g.numero), g.filial_codigo), g.id]));
     const linhas = lote.flatMap(({ pedido: p }) =>
-      p.itens.map((x) => ({ pedido_id: idDe.get(p.numero)!, produto_codigo: x.produtoCodigo, produto: x.produto, barras: x.barras || null, laboratorio: x.laboratorio || null, quantidade: x.quantidade })),
+      p.itens.map((x) => ({ pedido_id: idDe.get(chaveDe(p.numero, p.filialCodigo))!, produto_codigo: x.produtoCodigo, produto: x.produto, barras: x.barras || null, laboratorio: x.laboratorio || null, quantidade: x.quantidade })),
     );
     for (let k = 0; k < linhas.length; k += 1000) {
       const { error: eItens } = await supabase.from("cmp_pedido_itens").insert(linhas.slice(k, k + 1000));
@@ -130,7 +139,7 @@ export async function importarPrePedidos(_prev: EstadoImportacao, fd: FormData):
     itens += linhas.length;
     quantidade += linhas.reduce((s, x) => s + x.quantidade, 0);
   }
-  const resumo = { data_pedido: data, arquivos: arquivos.map((a) => a.name), pedidos: novos.length, ja_existiam: existentes.size, itens, quantidade, laboratorios: [...new Set(novos.map((l) => l.pedido.laboratorio))], avisos: avisos.slice(0, MAX_AVISOS) };
+  const resumo = { data_pedido: data, arquivos: arquivos.map((a) => a.name), pedidos: novos.length, ja_existiam: jaEstavam.length, itens, quantidade, laboratorios: [...new Set(novos.map((l) => l.pedido.laboratorio))], avisos: avisos.slice(0, MAX_AVISOS) };
   await supabase.from("cmp_importacoes").update({ resumo }).eq("id", imp.id);
   await registrarAuditoria(supabase, { userId: sessao.id, acao: "importar", entidade: "cmp_pedidos", registroId: imp.id, novo: { ...resumo, avisos: undefined } });
   revalidar();
