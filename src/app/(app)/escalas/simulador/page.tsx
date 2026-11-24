@@ -5,8 +5,8 @@ import { EstadoVazio, Painel } from "@/components/layout/painel";
 import { Status } from "@/components/layout/status";
 import { exigirAcesso } from "@/lib/auth/session";
 import { escalasOficiais, filiaisDaEscala, lotesRecentes } from "@/lib/data/escalas";
-import { ROTULO_FUNCAO, diasAbertos, eh12x36 } from "@/lib/escalas/motor";
-import { proximoMes, rotuloCompetencia, rotuloDaEscala } from "@/lib/escalas/resumo";
+import { ROTULO_FUNCAO, diasAbertos, eh12x36, inicioFolha } from "@/lib/escalas/motor";
+import { proximoMes, rotuloDaEscala } from "@/lib/escalas/resumo";
 import { formatarDataHora } from "@/lib/formatos";
 import { AbasEscala } from "../abas";
 import { SecoesFilial } from "../_ui/secoes-filial";
@@ -17,14 +17,8 @@ export const metadata = { title: "Simulador de escala 5x2" };
 export default async function SimuladorPage({ searchParams }: PageProps<"/escalas/simulador">) {
   const [, sp] = await Promise.all([exigirAcesso("/escalas"), searchParams]);
   const [filiais, lotes, oficiais] = await Promise.all([filiaisDaEscala(), lotesRecentes(15), escalasOficiais()]);
+  // as datas vêm preenchidas com o próximo período da folha (dia 21 ao dia 20); o RH troca como quiser
   const ref = proximoMes();
-  // do período que está correndo até 12 à frente (cada um do dia 21 ao dia 20, como a folha)
-  const meses = Array.from({ length: 14 }, (_, i) => {
-    const t = ref.ano * 12 + (ref.mes - 1) - 1 + i;
-    const ano = Math.floor(t / 12);
-    const mes = (t % 12) + 1;
-    return { valor: `${ano}-${String(mes).padStart(2, "0")}`, rotulo: rotuloCompetencia(ano, mes) };
-  });
   const filialInicial = typeof sp.filial === "string" && filiais.some((f) => f.id === sp.filial) ? sp.filial : filiais.length === 1 ? filiais[0].id : "";
   const selecionada = filiais.find((f) => f.id === filialInicial);
 
@@ -33,7 +27,7 @@ export default async function SimuladorPage({ searchParams }: PageProps<"/escala
       <PageHeader
         eyebrow="Ponto · Escala 5x2"
         titulo="Simulador de escala 5x2"
-        descricao="Compare distribuições de folga para uma filial ou para a rede, ajuste dia a dia e publique a escala oficial. Cada escala vai do dia 21 ao dia 20 do mês seguinte, como a folha. Nada muda no ponto: é planejamento."
+        descricao="Compare distribuições de folga para uma filial ou para a rede, ajuste dia a dia e publique a escala oficial. Você escolhe de que dia até que dia vai a escala (até 1 mês). Nada muda no ponto: é planejamento."
       />
       <AbasEscala ativa="/escalas/simulador" />
 
@@ -43,8 +37,8 @@ export default async function SimuladorPage({ searchParams }: PageProps<"/escala
             equipe: f.equipe.filter((p) => p.situacao === "ativo").map((p) => ({ id: p.id, nome: p.nome, funcao: ROTULO_FUNCAO[p.funcao], doze: eh12x36(p) })),
           }))}
           filialInicial={filialInicial}
-          meses={meses}
-          mesInicial={`${ref.ano}-${String(ref.mes).padStart(2, "0")}`}
+          deInicial={inicioFolha(ref.ano, ref.mes)}
+          ateInicial={`${ref.ano}-${String(ref.mes).padStart(2, "0")}-20`}
         />
       </Painel>
 

@@ -21,22 +21,20 @@ type FilialOpcao = {
   equipe: { id: string; nome: string; funcao: string; doze: boolean }[];
 };
 
-/** Gerar as opções do mês: filial (ou todas), mês, jornada, quantas opções e os dias permitidos para folga. */
-export function SimularForm({ filiais, filialInicial, meses, mesInicial }: { filiais: FilialOpcao[]; filialInicial: string; meses: { valor: string; rotulo: string }[]; mesInicial: string }) {
+/** Gerar as opções: filial (ou todas), de que dia até que dia, jornada, quantas opções e os dias permitidos para folga. */
+export function SimularForm({ filiais, filialInicial, deInicial, ateInicial }: { filiais: FilialOpcao[]; filialInicial: string; deInicial: string; ateInicial: string }) {
   const router = useRouter();
   const [estado, enviar, pendente] = useActionState(gerarSimulacao, {});
   const [filial, setFilial] = React.useState(filialInicial);
-  const [periodo, setPeriodo] = React.useState(mesInicial);
   const atual = filiais.find((f) => f.id === filial);
   const [folgas, setFolgas] = React.useState<number[]>(atual?.folgas ?? [2, 3, 4]);
   const [doze, setDoze] = React.useState<string[]>(atual?.equipe.filter((p) => p.doze).map((p) => p.id) ?? []);
-  // período escolhido (de … até …): começa no mês civil da competência sugerida
-  const livre = periodo === "datas";
-  const [anoIni, mesIni] = mesInicial.split("-").map(Number);
-  const [de, setDe] = React.useState(`${mesInicial}-01`);
-  const [ate, setAte] = React.useState(`${mesInicial}-${String(new Date(Date.UTC(anoIni, mesIni, 0)).getUTCDate()).padStart(2, "0")}`);
-  const maxAte = /^\d{4}-\d{2}-\d{2}$/.test(de) ? fimMaximo(de) : undefined;
-  const { ano, mes } = livre && /^\d{4}-\d{2}-\d{2}$/.test(ate) ? competenciaDoFim(ate) : { ano: Number(periodo.split("-")[0]) || anoIni, mes: Number(periodo.split("-")[1]) || mesIni };
+  // período da escala: de que dia até que dia (vem preenchido com o próximo período da folha, 21 a 20)
+  const [de, setDe] = React.useState(deInicial);
+  const [ate, setAte] = React.useState(ateInicial);
+  const dataOk = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
+  const maxAte = dataOk(de) ? fimMaximo(de) : undefined;
+  const { ano, mes } = competenciaDoFim(dataOk(ate) ? ate : ateInicial);
   const limite = limiteSemanal(ano, mes);
   const jornadas = [40, 42, 44].filter((h) => h <= limite);
   const [jornada, setJornada] = React.useState(40);
@@ -56,7 +54,7 @@ export function SimularForm({ filiais, filialInicial, meses, mesInicial }: { fil
   return (
     <form action={enviar} className="space-y-4 px-5 pb-5">
       <ErroFormulario mensagem={estado.erro} />
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <label className="grid gap-1 text-sm">
           <span className="font-medium">Filial</span>
           <SelectNativo name="filial" value={filial} onChange={(e) => trocarFilial(e.target.value)} required>
@@ -70,17 +68,26 @@ export function SimularForm({ filiais, filialInicial, meses, mesInicial }: { fil
           </SelectNativo>
         </label>
         <label className="grid gap-1 text-sm">
-          <span className="font-medium">Período</span>
-          <SelectNativo name="periodo" value={periodo} onChange={(e) => setPeriodo(e.target.value)}>
-            <optgroup label="Período da folha (21 a 20)">
-              {meses.map((m) => (
-                <option key={m.valor} value={m.valor}>
-                  {m.rotulo}
-                </option>
-              ))}
-            </optgroup>
-            <option value="datas">Escolher as datas (de … até …)</option>
-          </SelectNativo>
+          <span className="font-medium">De</span>
+          <Input
+            type="date"
+            name="de"
+            value={de}
+            min="2024-01-01"
+            max="2035-12-31"
+            required
+            aria-invalid={!!estado.erros?.periodo}
+            onChange={(e) => {
+              const v = e.target.value;
+              setDe(v);
+              // o último dia acompanha: nunca antes do primeiro nem depois de 1 mês
+              if (dataOk(v) && (ate < v || ate > fimMaximo(v))) setAte(fimMaximo(v));
+            }}
+          />
+        </label>
+        <label className="grid gap-1 text-sm">
+          <span className="font-medium">Até</span>
+          <Input type="date" name="ate" value={ate} min={de} max={maxAte} required aria-invalid={!!estado.erros?.periodo} onChange={(e) => setAte(e.target.value)} />
         </label>
         <label className="grid gap-1 text-sm">
           <span className="font-medium">Jornada semanal</span>
@@ -101,38 +108,10 @@ export function SimularForm({ filiais, filialInicial, meses, mesInicial }: { fil
           </SelectNativo>
         </label>
       </div>
-      {livre && (
-        <fieldset className="grid gap-1">
-          <legend className="mb-1 text-sm font-medium">Datas da escala</legend>
-          <div className="flex flex-wrap items-end gap-3">
-            <label className="grid gap-1 text-sm">
-              <span>De</span>
-              <Input
-                type="date"
-                name="de"
-                value={de}
-                min="2024-01-01"
-                max="2035-12-31"
-                required
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setDe(v);
-                  // o último dia acompanha: nunca antes do primeiro nem depois de 1 mês
-                  if (/^\d{4}-\d{2}-\d{2}$/.test(v) && (ate < v || ate > fimMaximo(v))) setAte(fimMaximo(v));
-                }}
-              />
-            </label>
-            <label className="grid gap-1 text-sm">
-              <span>Até</span>
-              <Input type="date" name="ate" value={ate} min={de} max={maxAte} required onChange={(e) => setAte(e.target.value)} />
-            </label>
-          </div>
-          <p className={`text-xs ${estado.erros?.periodo ? "font-medium text-destructive" : "text-muted-foreground"}`}>
-            {estado.erros?.periodo ??
-              `Do dia que quiser até no máximo 1 mês depois (pelo menos ${MIN_DIAS_PERIODO} dias). A escala entra na competência do mês do último dia; publicada como oficial, substitui a oficial dessa competência.`}
-          </p>
-        </fieldset>
-      )}
+      <p className={`-mt-1 text-xs ${estado.erros?.periodo ? "font-medium text-destructive" : "text-muted-foreground"}`}>
+        {estado.erros?.periodo ??
+          `Escolha de que dia até que dia vai a escala: até 1 mês (pelo menos ${MIN_DIAS_PERIODO} dias). Ela conta para o mês do último dia; publicada como oficial, substitui a oficial desse mês.`}
+      </p>
       {todas ? (
         <p className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
           Com todas as filiais, cada uma usa os dias de folga cadastrados nela. Pode levar alguns segundos.

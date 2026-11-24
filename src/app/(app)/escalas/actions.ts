@@ -6,7 +6,6 @@ import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { filiaisDaEscala, filialDaEscala, simulacao } from "@/lib/data/escalas";
 import { REGIMES, ROTULO_GRUPO, ajustarTurno, ajustarVariosDias, ehFuncao, ehRegime, type Regime, competenciaDoFim, erroPeriodoLivre, temSemanaCompleta, grupoDoDia, type ModoAjuste, rotuloData, rotuloPeriodo, ehSituacao, erroFolgas, gerarOpcoes, horaValida, limiteSemanal, minutos, reanalisar, type AjusteTurno, type Funcao } from "@/lib/escalas/motor";
-import { lerMesAno } from "@/lib/escalas/resumo";
 import { podeAcessar } from "@/lib/nav";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/types";
@@ -264,17 +263,16 @@ export async function trazerDoRh(fd: FormData): Promise<void> {
 export async function gerarSimulacao(_prev: EstadoEscala, fd: FormData): Promise<EstadoEscala> {
   const sessao = await sessaoComAcesso();
   const alvo = texto(fd, "filial");
-  // período: o da folha (21 a 20, "AAAA-MM") ou o escolhido pelo RH ("datas": de … até …, no máximo 1 mês)
-  const livre = texto(fd, "periodo") === "datas";
+  // período escolhido pelo RH: de que dia até que dia (no máximo 1 mês); conta para o mês do último dia
   const de = texto(fd, "de");
   const ate = texto(fd, "ate");
-  const erroLivre = livre ? erroPeriodoLivre(de, ate) : null;
-  const periodo = livre ? (erroLivre ? null : competenciaDoFim(ate)) : lerMesAno(texto(fd, "periodo"));
+  const erroLivre = erroPeriodoLivre(de, ate);
+  const periodo = erroLivre ? null : competenciaDoFim(ate);
   const jornada = Number(texto(fd, "jornada"));
   const qtd = Number(texto(fd, "opcoes"));
   if (!alvo || (alvo !== "todas" && !UUID.test(alvo))) return { erro: "Escolha a filial (ou todas)." };
   if (erroLivre) return { erro: erroLivre, erros: { periodo: erroLivre } };
-  if (!periodo) return { erro: "Escolha o mês." };
+  if (!periodo) return { erro: "Escolha as datas." };
   if (![40, 42, 44].includes(jornada)) return { erro: "Escolha a jornada semanal." };
   if (jornada > limiteSemanal(periodo.ano, periodo.mes)) return { erro: `Para ${String(periodo.mes).padStart(2, "0")}/${periodo.ano} o limite é ${limiteSemanal(periodo.ano, periodo.mes)} h/semana.` };
   if (![2, 3, 4].includes(qtd)) return { erro: "Escolha 2, 3 ou 4 opções." };
@@ -340,7 +338,7 @@ export async function gerarSimulacao(_prev: EstadoEscala, fd: FormData): Promise
     }
     try {
       const folgas = alvo === "todas" ? f.config.folgasPermitidas : folgasForm;
-      const opcoes = gerarOpcoes(f.config, f.equipe, { ano: periodo.ano, mes: periodo.mes, jornadaSemanal: jornada, opcoes: qtd, folgasPermitidas: folgas, ...(livre ? { inicio: de, fim: ate } : {}) });
+      const opcoes = gerarOpcoes(f.config, f.equipe, { ano: periodo.ano, mes: periodo.mes, jornadaSemanal: jornada, opcoes: qtd, folgasPermitidas: folgas, inicio: de, fim: ate });
       opcoes.forEach((o, i) =>
         linhas.push({
           lote,
@@ -378,7 +376,7 @@ export async function gerarSimulacao(_prev: EstadoEscala, fd: FormData): Promise
   if (alvo !== "todas" && folgasForm.join() !== alvos[0].config.folgasPermitidas.join()) {
     await supabase.from("esc_filiais").update({ folgas_permitidas: folgasForm }).eq("branch_id", alvos[0].id);
   }
-  await registrarAuditoria(supabase, { userId: sessao.id, acao: "criar", entidade: "esc_simulacoes", registroId: lote, novo: { filiais: alvos.length, opcoes: linhas.length, ano: periodo.ano, mes: periodo.mes, ...(livre ? { de, ate } : {}), jornada } });
+  await registrarAuditoria(supabase, { userId: sessao.id, acao: "criar", entidade: "esc_simulacoes", registroId: lote, novo: { filiais: alvos.length, opcoes: linhas.length, ano: periodo.ano, mes: periodo.mes, de, ate, jornada } });
   revalidatePath(ROTA, "layout");
   const qs = ignoradas.length ? `?ignoradas=${encodeURIComponent(ignoradas.join("; ").slice(0, 600))}` : "";
   redirect(`${ROTA}/simulacao/${lote}${qs}`);
