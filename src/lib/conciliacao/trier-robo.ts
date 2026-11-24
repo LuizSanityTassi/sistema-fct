@@ -345,6 +345,26 @@ function camposDaTela(html: string): CampoTrier[] {
   return campos;
 }
 
+/** Opções de um grupo de rádio da tela com o texto de cada uma (o <label for> ou o texto logo depois do botão). */
+function opcoesRadio(html: string, nome: string) {
+  const out: { valor: string; texto: string }[] = [];
+  const re = /<input\b[^>]*>/gi;
+  for (let m = re.exec(html); m; m = re.exec(html)) {
+    const tag = m[0];
+    if (atributo(tag, "name") !== nome || (atributo(tag, "type") || "").toLowerCase() !== "radio") continue;
+    const valor = atributo(tag, "value");
+    const id = atributo(tag, "id");
+    let texto = "";
+    if (id) {
+      const lab = new RegExp(`<label\\b[^>]*\\bfor\\s*=\\s*["']?${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}["']?[^>]*>([\\s\\S]*?)</label>`, "i").exec(html);
+      if (lab) texto = limpo(lab[1]);
+    }
+    if (!texto) texto = limpo(html.slice(m.index + tag.length, m.index + tag.length + 300).split(/<(?:input|br|\/td|\/div|\/label)\b/i)[0]);
+    if (!out.some((o) => o.valor === valor)) out.push({ valor, texto: texto.slice(0, 60) });
+  }
+  return out;
+}
+
 /** Valores que a tela preenche sozinha ao abrir (resposta do httpStart). */
 function padroesDoInicio(js: string) {
   const out: Record<string, string> = {};
@@ -600,7 +620,7 @@ export async function diagnosticarVendasTrier(cred: CredenciaisTrier, dia: strin
   }
 }
 
-export const _testeDiagnostico = { linksDoMenu, camposDaTela, padroesDoInicio, camposTentativa, telasCaixaTrier, camposDeData, pedidoAmostra };
+export const _testeDiagnostico = { linksDoMenu, camposDaTela, padroesDoInicio, camposTentativa, telasCaixaTrier, camposDeData, pedidoAmostra, opcoesRadio };
 
 // ---------- diferença de caixa: "Relatório de Diferenças de Caixa" (Rel_0122) de cada filial, em Excel ----------
 
@@ -951,12 +971,38 @@ export async function buscarEspelhoNotasTrier(cred: CredenciaisTrier, de: string
       .map(([k, v]) => `${k}=${v}`)
       .join(" ");
     if (datas.length < 2) throw new TrierErro(`não achei os dois campos de data na tela do espelho (campos: ${corta(telaTexto, 700)}).`);
-    const r = await trierAcao(base, p.serial, "runReport", campos, ck, Math.max(30_000, Math.min(200_000, resta() - 30_000)), pagina);
-    const m = /openReport\('([^']+)'/i.exec(r);
-    if (!m) {
+    // "selecao1" escolhe o modo da tela: a opção padrão é UMA nota (pede filial, fornecedor e número). O espelho do
+    // Compras é o do período: tenta primeiro a opção com "período"/"data"/"entrada" no nome, depois as outras.
+    const modos = opcoesRadio(p.html, "selecao1");
+    const ordem = [
+      ...modos.filter((o) => /per[ií]odo/i.test(o.texto)),
+      ...modos.filter((o) => !/per[ií]odo/i.test(o.texto) && /data|entrada|emiss/i.test(o.texto)),
+      ...modos.filter((o) => !/per[ií]odo|data|entrada|emiss/i.test(o.texto) && !/nota/i.test(o.texto)),
+      ...modos.filter((o) => !/per[ií]odo|data|entrada|emiss/i.test(o.texto) && /nota/i.test(o.texto)),
+    ];
+    const tentativas = ordem.length ? ordem.map((o) => o.valor) : ["2", "0", "3", "1"];
+    let r = "";
+    let m: RegExpExecArray | null = null;
+    const recusas: string[] = [];
+    for (const modo of [...new Set(tentativas)]) {
+      if (resta() < 45_000) break;
+      const pedido = { ...campos, selecao1: modo };
+      // como clicar na opção da tela: algumas telas liberam os campos do modo com uma ação (se não houver, segue)
+      try {
+        await trierAcao(base, p.serial, "onChangeSelecao1", pedido, ck, 20_000, pagina);
+      } catch {
+        /* tela sem essa ação */
+      }
+      r = await trierAcao(base, p.serial, "runReport", pedido, ck, Math.max(30_000, Math.min(200_000, resta() - 30_000)), pagina);
+      m = /openReport\('([^']+)'/i.exec(r);
+      if (m) break;
       const msg = trierMsg(r);
       if (/nenhum|n[aã]o (h[aá]|foram|existe)|sem (registro|movimento)/i.test(msg)) return { semMovimento: true as const, ms: Date.now() - comeco };
-      throw new TrierErro(`o Trier não gerou o espelho${msg ? `: ${msg}` : ""} (campos: ${corta(telaTexto, 700)}).`);
+      recusas.push(`modo ${modo}${modos.find((o) => o.valor === modo)?.texto ? ` (${modos.find((o) => o.valor === modo)!.texto})` : ""}: ${msg || "sem arquivo"}`);
+    }
+    if (!m) {
+      const opcoes = ["selecao1", "selecao2", "ordenacao1"].map((n) => `${n}: ${opcoesRadio(p.html, n).map((o) => `${o.valor}=${o.texto || "?"}`).join(", ") || "—"}`).join(" | ");
+      throw new TrierErro(`o Trier não gerou o espelho. ${corta(recusas.join(" · "), 600)} [opções da tela: ${corta(opcoes, 500)}] (campos: ${corta(telaTexto, 500)}).`);
     }
     const arq = await httpPedido("GET", base + m[1].replace(/^\/+/, ""), null, ck, Math.max(15_000, resta() - 5_000));
     if (arq.cod !== 200 || arq.corpo.subarray(0, 4).toString("latin1") !== "%PDF") {
