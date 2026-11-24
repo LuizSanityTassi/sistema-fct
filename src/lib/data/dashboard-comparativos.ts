@@ -6,7 +6,7 @@ import { situacaoSla } from "@/lib/chamados/sla";
 import { podeAcessar } from "@/lib/nav";
 import { horaNoBrasil, mesmoDia, metasDoMes, porPeriodo, serieVendas, ultimoDia, ultimoDiaVendas } from "@/lib/data/vendas";
 import { rotuloCompetencia } from "@/lib/rh/competencia";
-import { desdeOInicio, INICIO_OPERACAO } from "@/lib/operacao";
+import { desdeOInicio, INICIO_OPERACAO, vencimentoMinimoPendencias } from "@/lib/operacao";
 import { createClient } from "@/lib/supabase/server";
 
 export type Comparativo = {
@@ -186,7 +186,7 @@ async function conciliacao(supabase: Cliente, p: Periodos): Promise<Comparativo[
     // só as rodadas do robô (criado_por nulo): as feitas à mão cobrem outros períodos e arquivos e distorciam o cartão
     supabase.from("conc_conciliacoes").select("pct_bateu, qtd_trier, criado_em, fil_min, fil_max").is("criado_por", null).order("criado_em", { ascending: false }).limit(40),
     supabase.rpc("conc_pendencias_novas", { p_de: `${desdeOInicio(p.inicioAnt)}T00:00:00-03:00` }),
-    supabase.from("conc_pendencias").select("chave", { count: "exact", head: true }).in("status", ["pendente", "em_analise"]).gte("vencimento", INICIO_OPERACAO),
+    supabase.from("conc_pendencias").select("chave", { count: "exact", head: true }).in("status", ["pendente", "em_analise"]).gte("vencimento", vencimentoMinimoPendencias()),
     supabase.from("conc_conciliacoes").select("criado_em").order("criado_em").limit(1).maybeSingle(),
   ]);
   if (novasPorDia.error) throw new Error(novasPorDia.error.message);

@@ -2,7 +2,7 @@
 // PostgREST não soma; o resultado é um Relatorio (mesma tabela e CSV dos Relatórios). `_href` em uma linha vira link
 // na tela e não vai para a planilha.
 import type { Sessao } from "@/lib/auth/session";
-import { INICIO_OPERACAO } from "@/lib/operacao";
+import { INICIO_OPERACAO, vencimentoMinimoPendencias } from "@/lib/operacao";
 import { PRIORIDADE_LABEL } from "@/lib/chamados/rotulos";
 import { PROBLEMA_LABEL, type Problema } from "@/lib/conciliacao/rotulos";
 import { podeAcessar } from "@/lib/nav";
@@ -163,7 +163,7 @@ async function quebrasSemJustificativa(supabase: Cliente, financeiro: boolean, f
 
 async function pendenciasPorFornecedor(supabase: Cliente): Promise<Relatorio> {
   const linhas = await todas<{ beneficiario: string | null; cnpj: string | null; valor: number; vencimento: string | null }>((de, ate) =>
-    supabase.from("conc_pendencias").select("beneficiario, cnpj, valor, vencimento").in("status", ["pendente", "em_analise"]).gte("vencimento", INICIO_OPERACAO).range(de, ate),
+    supabase.from("conc_pendencias").select("beneficiario, cnpj, valor, vencimento").in("status", ["pendente", "em_analise"]).gte("vencimento", vencimentoMinimoPendencias()).range(de, ate),
   );
   const out: Linha[] = [...somarPor(linhas, (l) => (l.beneficiario ?? "—").trim().toUpperCase())].map(([nome, ls]) => {
     const vencs = ls
@@ -200,7 +200,7 @@ async function pendenciasVencendo(supabase: Cliente, filial?: string): Promise<R
     .from("conc_pendencias")
     .select("beneficiario, documento, filial, problema, valor, vencimento, status")
     .in("status", ["pendente", "em_analise"])
-    .gte("vencimento", INICIO_OPERACAO)
+    .gte("vencimento", vencimentoMinimoPendencias())
     .lte("vencimento", somarDias(hoje, 7))
     .order("vencimento");
   if (filial) q = q.eq("branch_id", filial);

@@ -13,7 +13,7 @@ import {
   type StatusPendencia,
   type TipoArquivoConc,
 } from "@/lib/conciliacao/rotulos";
-import { CONCILIACOES_DESDE, INICIO_OPERACAO } from "@/lib/operacao";
+import { CONCILIACOES_DESDE, INICIO_OPERACAO, vencimentoMinimoPendencias } from "@/lib/operacao";
 import { createClient } from "@/lib/supabase/server";
 
 export const TAMANHO_PAGINA_ITENS = 100;
@@ -387,7 +387,9 @@ export async function listarPendencias(f: FiltrosPendencias, usuarioId: string) 
         // só o primeiro lote precisa contar: contar em todos deixava a tela bem mais lenta
         { count: inicio === 0 ? "exact" : undefined },
       );
-    consulta = consulta.gte("vencimento", INICIO_OPERACAO);
+    // em aberto: só o que vence de hoje em diante (o vencido até ontem sai da lista); resolvidas, ignoradas e "Todas" mostram tudo
+    const emAberto = f.status === "abertas" || f.status === "pendente" || f.status === "em_analise";
+    consulta = consulta.gte("vencimento", emAberto ? vencimentoMinimoPendencias() : INICIO_OPERACAO);
     if (f.status === "abertas") consulta = consulta.in("status", ["pendente", "em_analise"]);
     else if (f.status !== "todas") consulta = consulta.eq("status", f.status);
     if (f.problema) consulta = consulta.eq("problema", f.problema);
@@ -462,7 +464,7 @@ export async function resumoPendencias() {
       .from("conc_pendencias")
       .select("chave, status, problema, valor, vencimento, filial", { count: inicio === 0 ? "exact" : undefined })
       .in("status", ["pendente", "em_analise"])
-      .gte("vencimento", INICIO_OPERACAO)
+      .gte("vencimento", vencimentoMinimoPendencias())
       .order("chave")
       .range(inicio, inicio + LOTE - 1);
   const primeiro = await lerLote(0);

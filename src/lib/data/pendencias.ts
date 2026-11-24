@@ -2,7 +2,7 @@
 // Cada contagem passa pela RLS do banco (cada papel só conta o que pode ver) e cada item só aparece para quem pode
 // abrir a tela de destino (mesma regra do menu). O link já leva para a tela filtrada.
 import type { Sessao } from "@/lib/auth/session";
-import { INICIO_OPERACAO } from "@/lib/operacao";
+import { INICIO_OPERACAO, vencimentoMinimoPendencias } from "@/lib/operacao";
 import { filtroSlaEstourado } from "@/lib/chamados/sla";
 import { CHAVE_LEMBRETE_DRE, lerLembreteDre, mesesAtrasadosDre } from "@/lib/financeiro/dre-lembrete";
 import { podeAcessar } from "@/lib/nav";
@@ -223,25 +223,13 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
   if (pode("/conciliacao/pendencias")) {
     tarefas.push(
       (async () => {
-        const abertas = () => supabase.from("conc_pendencias").select("chave", { count: "exact", head: true }).in("status", ["pendente", "em_analise"]).gte("vencimento", INICIO_OPERACAO);
-        const [vencidas, aVencer, minhas, total] = await Promise.all([
-          contar(abertas().lt("vencimento", hoje)),
+        // a que venceu até ontem saiu das telas (vencimentoMinimoPendencias): não há mais aviso de pendência vencida
+        const abertas = () => supabase.from("conc_pendencias").select("chave", { count: "exact", head: true }).in("status", ["pendente", "em_analise"]).gte("vencimento", vencimentoMinimoPendencias());
+        const [aVencer, minhas, total] = await Promise.all([
           contar(abertas().gte("vencimento", hoje).lte("vencimento", em3dias)),
           contar(abertas().eq("responsavel", sessao.id)),
           contar(abertas()),
         ]);
-        if (vencidas)
-          out.push({
-            id: "conc-vencidas",
-            severidade: "critico",
-            area: "DDA x Trier",
-            quantidade: vencidas,
-            prazo: "vencido",
-            total,
-            href: "/conciliacao/pendencias?ordem=vencimento",
-            titulo: `${vencidas} ${plural(vencidas, "pendência de conciliação vencida", "pendências de conciliação vencidas")}`,
-            detalhe: `${total} em aberto no total.`,
-          });
         if (aVencer)
           out.push({
             id: "conc-a-vencer",
@@ -263,7 +251,7 @@ export async function carregarPendencias(sessao: Sessao): Promise<Pendencia[]> {
             href: `/conciliacao/pendencias?responsavel=${sessao.id}`,
             titulo: `${minhas} ${plural(minhas, "pendência atribuída", "pendências atribuídas")} a você`,
           });
-        if (!vencidas && !aVencer && total)
+        if (!aVencer && total)
           out.push({
             id: "conc-abertas",
             severidade: "atencao",

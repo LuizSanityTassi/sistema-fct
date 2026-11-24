@@ -8,3 +8,9 @@ export const CONCILIACOES_DESDE = "2026-11-04T12:54:00Z";
 
 /** A data mais recente entre a pedida e o início da operação. */
 export const desdeOInicio = (dia: string) => (dia < INICIO_OPERACAO ? INICIO_OPERACAO : dia);
+
+/**
+ * Pendência da conciliação em aberto só aparece (lista, contagens, sino) se vence hoje ou depois: a que venceu até ontem
+ * sai das telas (pedido do Luiz em 24/11/2026). Nada é apagado: continua no banco e aparece em "Todas".
+ */
+export const vencimentoMinimoPendencias = () => desdeOInicio(new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date()));

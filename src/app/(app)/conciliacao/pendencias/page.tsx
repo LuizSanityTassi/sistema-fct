@@ -55,7 +55,7 @@ export default async function PendenciasPage({ searchParams }: PageProps<"/conci
       <PageHeader
         eyebrow="DDA x Trier"
         titulo="Pendências"
-        descricao="Divergências encontradas nas conciliações. Resolvem sozinhas quando conciliam ou são enviadas ao Omie; o resto é decidido aqui, com motivo."
+        descricao="Divergências encontradas nas conciliações. Resolvem sozinhas quando conciliam ou são enviadas ao Omie; o resto é decidido aqui, com motivo. As que venceram até ontem saem da lista (continuam em “Todas”)."
       />
 
       {ok !== null && Number.isFinite(ok) && (
