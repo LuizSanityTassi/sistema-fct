@@ -24,12 +24,29 @@ export function lerPrePedido(nome: string, buf: ArrayBuffer | Uint8Array): Resul
     const linhas = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[aba], { header: 1, raw: true, defval: null });
     let filial: { codigo: string; nome: string } | null = null;
     let atual: PedidoLido | null = null;
+    // colunas pelo título (o Trier tem modelos com e sem Fornecedor/Fator/Dem./Estoq. antes de "Qtd. Pedir")
+    const col = { codigo: 0, produto: 1, barras: 4, lab: 6, fornecedor: -1, qtd: 7 };
     for (const [i, l] of linhas.entries()) {
       const a = semAcento(limpo(l[0]));
-      if (!a && semAcento(limpo(l[4])).includes("PRE-PEDIDO")) ehPrePedido = true;
+      if (l.some((v) => semAcento(limpo(v)).includes("PRE-PEDIDO"))) ehPrePedido = true;
+      const titulos = l.map((v) => semAcento(limpo(v)));
+      const qtdTitulo = titulos.findIndex((v) => v.includes("PEDIR"));
+      if (qtdTitulo >= 0 && titulos.some((v) => v.startsWith("COD"))) {
+        col.qtd = qtdTitulo;
+        const achar = (re: RegExp, padrao: number) => {
+          const k = titulos.findIndex((v) => re.test(v));
+          return k >= 0 ? k : padrao;
+        };
+        col.produto = achar(/DESCRI/, col.produto);
+        col.barras = achar(/BARRAS/, col.barras);
+        col.lab = achar(/LABORAT/, col.lab);
+        col.fornecedor = achar(/FORNECEDOR/, -1);
+        continue;
+      }
       if (a.startsWith("FILIAL:")) {
-        // " F001 - FRETTA - 30.598.529/0001-10"
+        // " F001 - FRETTA - 30.598.529/0001-10" (o "Filial: TODAS AS FILIAIS" do cabeçalho do relatório não conta)
         const texto = limpo(l[4]);
+        if (!texto || /^TODAS/i.test(texto)) continue;
         const m = /^([A-Z]{1,4}[-\w]*?\d+[A-Z]?)\s*-\s*(.*)$/.exec(texto);
         filial = { codigo: m ? m[1] : texto.split(" ")[0], nome: m ? m[2].replace(/\s*-?\s*[\d./-]{14,}$/, "").trim() : texto };
         atual = null;
@@ -42,11 +59,11 @@ export function lerPrePedido(nome: string, buf: ArrayBuffer | Uint8Array): Resul
         atual = { numero: n, filialCodigo: filial.codigo, filialNome: filial.nome, laboratorio: "", itens: [], totalArquivo: null };
         pedidos.push(atual);
       } else if (a.startsWith("TOTAL FILIAL")) {
-        if (atual) atual.totalArquivo = inteiro(l[7]);
+        if (atual) atual.totalArquivo = inteiro(l[col.qtd]);
       } else if (a.startsWith("TOTAL GERAL")) {
-        totalGeral = inteiro(l[7]);
+        totalGeral = inteiro(l[col.qtd]);
       } else if (typeof l[0] === "number" || /^\d+$/.test(limpo(l[0]))) {
-        const quantidade = inteiro(l[7]);
+        const quantidade = inteiro(l[col.qtd]);
         if (!atual) {
           avisos.push(`${nome}, linha ${i + 1}: item sem o número do pré-pedido antes — ignorado.`);
           continue;
@@ -55,13 +72,21 @@ export function lerPrePedido(nome: string, buf: ArrayBuffer | Uint8Array): Resul
           avisos.push(`${nome}, linha ${i + 1}: item ${limpo(l[0])} sem quantidade — ignorado.`);
           continue;
         }
-        const laboratorio = limpo(l[6]).slice(0, 120);
-        atual.laboratorio ||= laboratorio;
-        atual.itens.push({ produtoCodigo: Number(l[0]), produto: limpo(l[1]).slice(0, 200), barras: limpo(l[4]).slice(0, 20), laboratorio, quantidade });
+        const laboratorio = limpo(l[col.lab]).slice(0, 120);
+        const fornecedor = col.fornecedor >= 0 ? limpo(l[col.fornecedor]) : "";
+        if (fornecedor) atual.laboratorio ||= fornecedor.slice(0, 120);
+        atual.itens.push({ produtoCodigo: Number(l[col.codigo]), produto: limpo(l[col.produto]).slice(0, 200), barras: limpo(l[col.barras]).slice(0, 20), laboratorio, quantidade });
       }
     }
   }
   if (!ehPrePedido && !pedidos.length) throw new Error(`${nome}: não parece o pré-pedido do Trier (Con_0018).`);
+  // quem é o pedido: o fornecedor do arquivo; senão o laboratório, se for um só; senão o nome do arquivo (ex. MEDCHAP)
+  const doArquivo = nome.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim().toUpperCase().slice(0, 120);
+  for (const p of pedidos) {
+    if (p.laboratorio) continue;
+    const labs = [...new Set(p.itens.map((i) => i.laboratorio).filter(Boolean))];
+    p.laboratorio = labs.length === 1 ? labs[0] : doArquivo;
+  }
   // conferências do próprio arquivo
   for (const p of pedidos) {
     const soma = p.itens.reduce((s, i) => s + i.quantidade, 0);
