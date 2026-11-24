@@ -606,12 +606,27 @@ export function ajustarTurno(cfg: ConfigFilial, escala: Escala, a: AjusteTurno):
   let movidaDe: number | null = null;
 
   if (a.status === "folga") {
-    // no 5x2 a folga troca com a outra folga da semana; no 12x36 não há folga da semana para trocar
+    // no 5x2 a folga troca com outra folga da semana (segunda a domingo), mas só quando a semana já tem as folgas que o
+    // sistema gerou para ela; se falta folga na semana, a nova só entra. E troca primeiro a que o sistema pôs: antes
+    // marcar o domingo desfazia a segunda-feira marcada à mão (folga dupla domingo + segunda, F009 24/11/2026).
+    // No 12x36 não há folga da semana para trocar.
     if (t.status === "trabalho" && !eh12x36(p)) {
       const semana = semanaDoPeriodo(escala, a.data);
-      const outra = p.turnos.find(
-        (x) => x.data !== a.data && x.status === "folga" && semanaDoPeriodo(escala, x.data) === semana && escala.cobertura.find((c) => c.data === x.data)?.aberto,
-      );
+      const abertoNoDia = (d: number) => escala.cobertura.find((c) => c.data === d)?.aberto;
+      const daSemana = p.turnos.filter((x) => semanaDoPeriodo(escala, x.data) === semana && abertoNoDia(x.data));
+      // folgas que a geração pôs nesta semana (horasBase guarda as horas de antes do 1º ajuste do dia)
+      const geradas = daSemana.filter((x) => (x.horasBase === undefined ? x.status === "folga" : Number(x.horasBase) === 0)).length;
+      const folgasDaSemana = daSemana.filter((x) => x.data !== a.data && x.status === "folga");
+      const pos = (d: number) => posicaoNoPeriodo(escala, d);
+      const colada = (x: Turno, d: number) => Math.abs(pos(x.data) - pos(d)) === 1;
+      // nota menor = troca primeiro: a que ninguém marcou à mão; a que não fica colada no dia novo; a que não forma
+      // par com uma folga de outra semana (ex.: segunda colada no domingo anterior)
+      const nota = (x: Turno) =>
+        (x.ajustado ? 4 : 0) +
+        (colada(x, a.data) ? 2 : 0) +
+        (p.turnos.some((y) => y.status === "folga" && !folgasDaSemana.includes(y) && colada(x, y.data)) ? 1 : 0);
+      const outra =
+        folgasDaSemana.length >= Math.max(1, geradas) ? folgasDaSemana.reduce((melhor, x) => (nota(x) < nota(melhor) ? x : melhor)) : undefined;
       if (outra) {
         if (outra.horasBase === undefined) outra.horasBase = Number(outra.horas || 0);
         const abre = cfg.horarios[outra.dia]?.abre || cfg.horarios.seg?.abre || "08:00";
