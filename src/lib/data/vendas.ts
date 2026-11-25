@@ -67,8 +67,8 @@ const periodoFechado = (ate: string) => ate < somarDias(hojeNoBrasil(), -3);
 async function guardarPassado<T>(chave: string[], ler: () => Promise<T>) {
   const sessao = await getSessao();
   // admin e financeiro veem a rede toda (mesma regra das tabelas); o coordenador, só a regional dele (guardado por
-  // regional); os outros só o que é deles, guardado por pessoa
-  const escopo = sessao.papel === "admin" || sessao.papel === "financeiro" ? "rede" : sessao.papel === "coordenador" ? `coord:${sessao.regional ?? sessao.id}` : sessao.id;
+  // regional, chave nova desde a regra 0180/0181 no banco); os outros só o que é deles, guardado por pessoa
+  const escopo = sessao.papel === "admin" || sessao.papel === "financeiro" ? "rede" : sessao.papel === "coordenador" ? `coord-regional:${sessao.regional ?? sessao.id}` : sessao.id;
   return unstable_cache(ler, ["vendas", escopo, ...chave], { revalidate: GUARDAR_PASSADO_S })();
 }
 
