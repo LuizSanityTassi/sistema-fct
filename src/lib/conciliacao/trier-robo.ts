@@ -805,6 +805,14 @@ export const RELATORIOS_VENDAS = {
     ajustes: { ...AJUSTES_VENDAS_PRODUTOS, selecaoVendas: "1" },
     antes: ANTES_VENDAS_PRODUTOS,
   },
+  // vendas por hora para a IA (pedido do Luiz, 25/11/2026): Relatórios > Vendas > Outros > Relatório de Vendas Por Horário.
+  // selecao 5 = todas as vendas; selecao_tipVenda 0 = todas (balcão e tele); selecao_venda 0 = vendas menos devoluções;
+  // opcao 1 = totais por horário. Hora inicial e final são obrigatórias na tela: o dia inteiro. Filial vazia = todas.
+  horario: {
+    pagina: "Rel_0212.pod",
+    rotulo: "Vendas por horário",
+    ajustes: { hora_inicio: "00:00", hora_fim: "23:59", selecao: "5", selecao_tipVenda: "0", selecao_venda: "0", opcao: "1" },
+  },
 } as const;
 export type RelatorioVendas = keyof typeof RELATORIOS_VENDAS;
 type PassoAntes = { acao: string; campos?: Record<string, string>; confere?: RegExp; falha?: string };

@@ -60,7 +60,7 @@ const checar = ({ error }: { error: { message: string } | null }) => {
 /** Filiais que ficam fora da receita da DRE em um mês (mesma regra das outras contas daquele mês). */
 const FORA_DA_DRE: Record<string, (filial: number) => boolean> = { "2026-09": (f) => (f >= 200 && f < 300) || (f >= 500 && f < 600) };
 
-const DIARIOS: RelatorioVendas[] = ["filiais", "grupos", "laboratorios", "atendimentos", "tele_entrega", "ecommerce", "tele_filial"];
+const DIARIOS: RelatorioVendas[] = ["filiais", "grupos", "laboratorios", "atendimentos", "tele_entrega", "ecommerce", "tele_filial", "horario"];
 
 /** Lê uma coleta e grava os números. Lança LeituraErro quando o Excel não tem o formato esperado. */
 export async function lerColeta(client: Cliente, coleta: ColetaParaLer, filiais: Map<number, string>): Promise<ResultadoLeitura> {
@@ -210,6 +210,9 @@ export async function lerColeta(client: Cliente, coleta: ColetaParaLer, filiais:
     const { error } = await client.rpc("dre_devolucoes_trier_gravar", { p_competencia: coleta.de, p_valores: valores, p_arquivo: `Trier: Vendas Produtos (devoluções) ${coleta.de.slice(0, 7)} (robô, total ${totalGeral.toFixed(2)})` });
     if (error) throw new LeituraErro(`DRE: ${error.message}`);
     linhas = valores.length;
+  } else if (rel === "horario") {
+    // vendas por horário (Rel_0212): o Excel fica guardado; a leitura entra depois de conferir o formato da primeira busca
+    throw new LeituraErro("vendas por horário: Excel guardado, leitura ainda não liberada");
   } else throw new LeituraErro(`relatório desconhecido: ${coleta.relatorio}`);
 
   checar(await client.from("vendas_coletas").update({ lido_em: new Date().toISOString(), linhas, erro: null }).eq("id", coleta.id));
