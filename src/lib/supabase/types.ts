@@ -8026,6 +8026,50 @@ export type Database = {
             venda_grupos: number
         }[]
       }
+      vendas_rede_resumo: {
+        Args: {
+          p_ate: string
+          p_de: string
+        }
+        Returns: {
+            atendimentos: number
+            branch_id: string | null
+            codigo: string
+            custo: number
+            dias: number
+            fortvigor: number
+            generico: number
+            itens: number
+            nome: string
+            premium: number
+            referencia: number
+            regional: string | null
+            similares: number
+            unidades: number
+            venda: number
+            venda_grupos: number
+        }[]
+      }
+      vendas_serie_rede: {
+        Args: {
+          p_ate: string
+          p_de: string
+          p_por?: string
+        }
+        Returns: {
+            atendimentos: number
+            custo: number
+            generico: number
+            periodo: string
+            premium: number
+            referencia: number
+            regional: string
+            similares: number
+            unidades: number
+            venda: number
+            venda_grupos: number
+        }[]
+      }
       vendas_serie: {
         Args: {
           p_ate: string

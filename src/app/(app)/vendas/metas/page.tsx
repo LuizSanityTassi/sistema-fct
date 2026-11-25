@@ -130,7 +130,9 @@ export default async function MetasPage({ searchParams }: PageProps<"/vendas/met
   const mesAtual = `${lido.slice(0, 7)}-01`;
   const meses = mesesDoSeletor(mesAtual);
   const mes = meses.includes(`${s("mes")}-01`) ? `${s("mes")}-01` : mesAtual;
-  const secao: Secao = SECOES.some((x) => x.chave === s("secao")) ? (s("secao") as Secao) : "filiais";
+  // coordenador: só as filiais da regional dele; o televendas é da rede inteira e fica de fora
+  const secoes = sessao.papel === "coordenador" ? SECOES.filter((x) => x.chave !== "televendas") : SECOES;
+  const secao: Secao = secoes.some((x) => x.chave === s("secao")) ? (s("secao") as Secao) : "filiais";
   const fim = fimDoMes(mes);
   const ateReal = fim < lido ? fim : lido;
   const temRealizado = mes <= lido;
@@ -247,7 +249,7 @@ export default async function MetasPage({ searchParams }: PageProps<"/vendas/met
         )}
         <Button type="submit">Abrir</Button>
         <nav aria-label="Metas de" className="ml-auto flex flex-wrap gap-1 rounded-lg border p-0.5 text-sm">
-          {SECOES.map((x) => (
+          {secoes.map((x) => (
             <Link key={x.chave} href={link({ secao: x.chave })} aria-current={secao === x.chave ? "page" : undefined} className={cn("rounded-md px-3 py-1", secao === x.chave ? "bg-primary text-primary-foreground" : "hover:bg-muted")}>
               {x.rotulo}
             </Link>

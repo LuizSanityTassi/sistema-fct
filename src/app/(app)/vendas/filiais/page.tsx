@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
 import { cn } from "cn";
-import { chaveMetaFilial, diasSemVendas, ehRegionalVendas, ehTele, faixasDeDias, metasDoMes, REGIONAIS_VENDAS, somar, teleDasFiliais, TELEVENDAS, ultimoDiaVendas, vendasPorFilial, type LinhaFilialVendas } from "@/lib/data/vendas";
+import { chaveMetaFilial, diasSemVendas, ehRegionalVendas, ehTele, faixasDeDias, metasDoMes, REGIONAIS_VENDAS, somar, teleDasFiliais, TELEVENDAS, ultimoDiaVendas, vendasPorFilial, vendasRede, type LinhaFilialVendas, type RegionalVendas } from "@/lib/data/vendas";
 import { AtualizaSozinho } from "../atualiza-sozinho";
 import { AbasVendas, AvisoDiasFaltando, decimal, inteiro, moeda, pct } from "../comum";
 import { CamposPeriodo, lerPeriodoVendas } from "../periodo";
@@ -32,10 +32,19 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
   const s = (k: string) => (typeof sp[k] === "string" ? sp[k] : "");
   const periodo = lerPeriodoVendas(sp, ultimo.dia);
   const { de, ate } = periodo;
-  const regional = ehRegionalVendas(s("regional")) ? s("regional") : "";
+  // coordenador: só a regional dele (a regra das tabelas já só devolve as filiais dela) e o total da rede numa linha
+  const coord = sessao.papel === "coordenador";
+  const minhaRegional: RegionalVendas | null = coord && ehRegionalVendas(sessao.regional) ? sessao.regional : null;
+  const regional = coord ? (minhaRegional ?? "") : ehRegionalVendas(s("regional")) ? s("regional") : "";
   const ordem: Ordem = s("ordem") in ORDENS || s("ordem") === "tele" ? (s("ordem") as Ordem) : "venda";
 
-  const [todas, faltam, metas, teles] = await Promise.all([vendasPorFilial(de, ate), diasSemVendas(de, ate), periodo.ver === "mes" ? metasDoMes(`${periodo.mes}-01`) : Promise.resolve(new Map<string, number>()), teleDasFiliais(de, ate)]);
+  const [todas, faltam, metas, teles, rede] = await Promise.all([
+    vendasPorFilial(de, ate),
+    diasSemVendas(de, ate),
+    periodo.ver === "mes" ? metasDoMes(`${periodo.mes}-01`) : Promise.resolve(new Map<string, number>()),
+    teleDasFiliais(de, ate),
+    coord ? vendasRede(de, ate) : Promise.resolve(null),
+  ]);
   // quanto a filial vendeu no tele (sem a central de televendas, que tem linha própria)
   const teleDe = (l: LinhaFilialVendas) => (ehTele(l) ? null : (teles.get(l.branchId)?.venda ?? 0));
   const valorOrdem = (l: LinhaFilialVendas) => (ordem === "tele" ? (teleDe(l) ?? -1) : ORDENS[ordem].valor(l));
@@ -63,8 +72,8 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
         <label className="grid gap-1 text-sm">
           <span className="font-medium">Regional</span>
           <SelectNativo name="regional" defaultValue={regional} className="w-36">
-            <option value="">Todas</option>
-            {REGIONAIS_VENDAS.map((r) => (
+            {!coord && <option value="">Todas</option>}
+            {(coord ? (minhaRegional ? [minhaRegional] : []) : REGIONAIS_VENDAS).map((r) => (
               <option key={r} value={r}>
                 {r}
               </option>
@@ -196,6 +205,12 @@ export default async function VendaFiliaisPage({ searchParams }: PageProps<"/ven
           </Table>
         )}
       </section>
+      {rede && rede.length > 0 && (
+        <p className="mt-2 rounded-lg border bg-muted/30 px-4 py-2 text-sm">
+          <strong className="font-semibold">Rede (todas as regionais):</strong> {moeda(somar(rede).venda)} · {inteiro(somar(rede).atendimentos)} atendimentos · ticket {moeda(somar(rede).ticket)}
+          {linhas.length > 0 && somar(rede).venda > 0 && <span className="text-muted-foreground"> · {regional || "sua regional"} = {pct((total.venda / somar(rede).venda) * 100, 1)} da rede</span>}
+        </p>
+      )}
       <p className="mt-2 text-xs text-muted-foreground">
         Tele R$ = quanto a filial vendeu no tele-entrega (Trier: Relação de Vendas, sem o tipo de cartão 30 e sem os vendedores da central de televendas); % tele = parte da venda da filial. Unid. sacola = unidades por atendimento. CMV = custo do cadastro do produto ÷ venda. % rentab. = 100% − CMV. Fortvigor = laboratórios Fortvigor/FCT e Agape/Fortvigor. Alta rentab. = grupo 113 do Trier (Alta Rentabilidade); antes de 04/11/2026, Premium G47 + Marca Própria, que o Trier juntou no 113.
         {temTele && (

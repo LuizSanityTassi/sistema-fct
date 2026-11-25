@@ -13,6 +13,8 @@ export const ehRegionalVendas = (r: string | null | undefined): r is RegionalVen
 /** A venda da equipe de televendas sai das filiais e vai para a filial da central de cada vendedor (código 'TLV-…',
  * cidade = equipe; Criciúma no Sul, Lages na Serra, Concórdia no Oeste). Equipe sem central fica na "regional" Televendas. */
 export const TELEVENDAS = "Televendas" as const;
+/** Linha de total da rede (vendas_rede_resumo / vendas_serie_rede): não é filial nem regional. */
+export const REDE = "Rede" as const;
 export type RegionalOuTele = RegionalVendas | typeof TELEVENDAS;
 const ehRegionalOuTele = (r: string | null | undefined): r is RegionalOuTele => r === TELEVENDAS || ehRegionalVendas(r);
 export const PREFIXO_CENTRAL_TELE = "TLV-";
@@ -64,28 +66,41 @@ const periodoFechado = (ate: string) => ate < somarDias(hojeNoBrasil(), -3);
 
 async function guardarPassado<T>(chave: string[], ler: () => Promise<T>) {
   const sessao = await getSessao();
-  // admin, financeiro e coordenador veem a rede toda (mesma regra das tabelas); os outros só o que é deles, guardado por pessoa
-  const escopo = sessao.papel === "admin" || sessao.papel === "financeiro" || sessao.papel === "coordenador" ? "rede" : sessao.id;
+  // admin e financeiro veem a rede toda (mesma regra das tabelas); o coordenador, só a regional dele (guardado por
+  // regional); os outros só o que é deles, guardado por pessoa
+  const escopo = sessao.papel === "admin" || sessao.papel === "financeiro" ? "rede" : sessao.papel === "coordenador" ? `coord:${sessao.regional ?? sessao.id}` : sessao.id;
   return unstable_cache(ler, ["vendas", escopo, ...chave], { revalidate: GUARDAR_PASSADO_S })();
 }
 
 export async function vendasPorFilial(de: string, ate: string): Promise<LinhaFilialVendas[]> {
+  return lerFiliais("vendas_filiais", de, ate);
+}
+
+/**
+ * Total da REDE numa linha só (sem filial nenhuma): o coordenador vê a rede e a regional dele, mas não as filiais das
+ * outras regionais (migração 0180). A linha vem com a regional "Rede".
+ */
+export async function vendasRede(de: string, ate: string): Promise<LinhaFilialVendas[]> {
+  return lerFiliais("vendas_rede_resumo", de, ate);
+}
+
+async function lerFiliais(funcao: "vendas_filiais" | "vendas_rede_resumo", de: string, ate: string): Promise<LinhaFilialVendas[]> {
   const supabase = await createClient();
   const ler = async () => {
-    const { data, error } = await supabase.rpc("vendas_filiais", { p_de: de, p_ate: ate });
+    const { data, error } = await supabase.rpc(funcao, { p_de: de, p_ate: ate });
     if (error) throw new Error(error.message);
     return data ?? [];
   };
-  const linhas = periodoFechado(ate) ? await guardarPassado(["filiais", de, ate], ler) : await ler();
+  const linhas = periodoFechado(ate) ? await guardarPassado([funcao === "vendas_filiais" ? "filiais" : "rede", de, ate], ler) : await ler();
   return linhas.flatMap((r) =>
-    ehRegionalOuTele(r.regional)
+    ehRegionalOuTele(r.regional) || r.regional === REDE
       ? [
           {
             ...metricas({ venda: n(r.venda), atendimentos: n(r.atendimentos), itens: n(r.itens), unidades: n(r.unidades), vendaGrupos: n(r.venda_grupos), custo: n(r.custo), premium: n(r.premium), generico: n(r.generico), similares: n(r.similares), referencia: n(r.referencia), fortvigor: n(r.fortvigor) }),
             branchId: r.branch_id ?? "televendas",
             codigo: r.codigo,
             nome: r.nome,
-            regional: r.regional,
+            regional: r.regional as RegionalOuTele,
             dias: n(r.dias),
           },
         ]
@@ -118,23 +133,33 @@ export type PontoSerie = MetricasVendas & { periodo: string; regional: RegionalO
 
 /** Vendas por dia ou por mês (periodo = 1º dia do mês) e regional. */
 export async function serieVendas(de: string, ate: string, por: "dia" | "mes"): Promise<PontoSerie[]> {
+  return lerSerie("vendas_serie", de, ate, por);
+}
+
+/** A mesma série só com o total da REDE (regional "Rede"), para o coordenador (migração 0180). */
+export async function serieVendasRede(de: string, ate: string, por: "dia" | "mes"): Promise<PontoSerie[]> {
+  return lerSerie("vendas_serie_rede", de, ate, por);
+}
+
+async function lerSerie(funcao: "vendas_serie" | "vendas_serie_rede", de: string, ate: string, por: "dia" | "mes"): Promise<PontoSerie[]> {
   const supabase = await createClient();
+  const pre = funcao === "vendas_serie" ? "serie" : "serie-rede";
   const ler = (inicio: string, fim: string) => async () => {
-    const { data, error } = await supabase.rpc("vendas_serie", { p_de: inicio, p_ate: fim, p_por: por });
+    const { data, error } = await supabase.rpc(funcao, { p_de: inicio, p_ate: fim, p_por: por });
     if (error) throw new Error(error.message);
     return data ?? [];
   };
   const fimMesPassado = somarDias(`${hojeNoBrasil().slice(0, 7)}-01`, -1);
   let linhas: Awaited<ReturnType<ReturnType<typeof ler>>>;
-  if (periodoFechado(ate)) linhas = await guardarPassado(["serie", de, ate, por], ler(de, ate));
+  if (periodoFechado(ate)) linhas = await guardarPassado([pre, de, ate, por], ler(de, ate));
   else if (por === "mes" && de <= fimMesPassado && periodoFechado(fimMesPassado)) {
     // só o mês atual muda: junta os meses fechados, guardados, com ele
-    const [passado, atual] = await Promise.all([guardarPassado(["serie", de, fimMesPassado, por], ler(de, fimMesPassado)), ler(somarDias(fimMesPassado, 1), ate)()]);
+    const [passado, atual] = await Promise.all([guardarPassado([pre, de, fimMesPassado, por], ler(de, fimMesPassado)), ler(somarDias(fimMesPassado, 1), ate)()]);
     linhas = [...passado, ...atual];
   } else linhas = await ler(de, ate)();
   return linhas.flatMap((r) =>
-    ehRegionalOuTele(r.regional)
-      ? [{ ...metricas({ venda: n(r.venda), atendimentos: n(r.atendimentos), itens: 0, unidades: n(r.unidades), vendaGrupos: n(r.venda_grupos), custo: n(r.custo), premium: n(r.premium), generico: n(r.generico), similares: n(r.similares), referencia: n(r.referencia), fortvigor: 0 }), periodo: r.periodo, regional: r.regional }]
+    ehRegionalOuTele(r.regional) || r.regional === REDE
+      ? [{ ...metricas({ venda: n(r.venda), atendimentos: n(r.atendimentos), itens: 0, unidades: n(r.unidades), vendaGrupos: n(r.venda_grupos), custo: n(r.custo), premium: n(r.premium), generico: n(r.generico), similares: n(r.similares), referencia: n(r.referencia), fortvigor: 0 }), periodo: r.periodo, regional: r.regional as RegionalOuTele }]
       : [],
   );
 }

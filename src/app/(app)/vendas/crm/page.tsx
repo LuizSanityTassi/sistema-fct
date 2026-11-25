@@ -39,7 +39,10 @@ export default async function CrmPage({ searchParams }: PageProps<"/vendas/crm">
   const ontem = somarDias(hoje, -1);
   const periodo = lerPeriodoVendas(sp, ontem);
   const { de, ate } = periodo;
-  const regional = ehRegionalVendas(s("regional")) ? s("regional") : "";
+  // coordenador: só a regional dele (a regra da tabela já só devolve as filiais dela)
+  const coord = sessao.papel === "coordenador";
+  const minhaRegional = coord && ehRegionalVendas(sessao.regional) ? sessao.regional : null;
+  const regional = coord ? (minhaRegional ?? "") : ehRegionalVendas(s("regional")) ? s("regional") : "";
   const ordem: Ordem = s("ordem") in ORDENS ? (s("ordem") as Ordem) : "indice";
   const filialPedida = /^F\d{3}$/i.test(s("filial")) ? s("filial").toUpperCase() : "";
   const envia = sessao.papel === "admin" || sessao.papel === "financeiro";
@@ -77,8 +80,8 @@ export default async function CrmPage({ searchParams }: PageProps<"/vendas/crm">
         <label className="grid gap-1 text-sm">
           <span className="font-medium">Regional</span>
           <SelectNativo name="regional" defaultValue={regional} className="w-36">
-            <option value="">Todas</option>
-            {REGIONAIS_VENDAS.map((r) => (
+            {!coord && <option value="">Todas</option>}
+            {(coord ? (minhaRegional ? [minhaRegional] : []) : REGIONAIS_VENDAS).map((r) => (
               <option key={r} value={r}>
                 {r}
               </option>

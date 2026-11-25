@@ -5,7 +5,7 @@ import { BarrasDuplas } from "@/components/graficos";
 import { PageHeader } from "@/components/layout/page-header";
 import { EstadoVazio, LinkPainel } from "@/components/layout/painel";
 import { exigirAcesso } from "@/lib/auth/session";
-import { chaveMetaFilial, DIAS_SEMANA, diaDaSemana, diasSemVendas, ehRegionalVendas, ehTele, faixasDeDias, hojeNoBrasil, horaNoBrasil, MESES, mesmoDia, metasDoMes, porPeriodo, REGIONAIS_VENDAS, resumirTelevendas, serieVendas, serieVendasFilial, somar, somarDias, TELEVENDAS, televendasNoPeriodo, ultimoDia, ultimoDiaVendas, vendasPorFilial, type LinhaFilialVendas, type RegionalVendas } from "@/lib/data/vendas";
+import { chaveMetaFilial, DIAS_SEMANA, diaDaSemana, diasSemVendas, ehRegionalVendas, ehTele, faixasDeDias, hojeNoBrasil, horaNoBrasil, MESES, mesmoDia, metasDoMes, porPeriodo, REGIONAIS_VENDAS, resumirTelevendas, serieVendas, serieVendasFilial, somar, somarDias, serieVendasRede, TELEVENDAS, televendasNoPeriodo, ultimoDia, ultimoDiaVendas, vendasPorFilial, vendasRede, type LinhaFilialVendas, type RegionalVendas } from "@/lib/data/vendas";
 import { feriadosDoPeriodo } from "@/lib/data/fluxo-caixa";
 import { formatarData } from "@/lib/formatos";
 import { diasEspeciais, projetarMes } from "@/lib/vendas/projecao";
@@ -28,8 +28,16 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
   const soLoja = sessao.papel === "gerente";
   // uma filial só (?filial=<id>): o painel inteiro passa a ser dela; a lista de escolha é a das lojas que a pessoa vê
   const filial = typeof sp.filial === "string" && UUID.test(sp.filial) ? sp.filial : "";
-  const regional: RegionalVendas | "" = !soLoja && !filial && typeof sp.regional === "string" && ehRegionalVendas(sp.regional) ? sp.regional : "";
+  // coordenador: a REDE (só o total, sem filiais) e a regional dele, filial por filial (a regra das tabelas já só devolve
+  // as filiais da regional dele; migração 0180)
+  const coord = sessao.papel === "coordenador";
+  const minhaRegional: RegionalVendas | null = coord && ehRegionalVendas(sessao.regional) ? sessao.regional : null;
+  const regionaisVisiveis: readonly RegionalVendas[] = coord ? (minhaRegional ? [minhaRegional] : []) : REGIONAIS_VENDAS;
+  const pedida: RegionalVendas | "" = !soLoja && !filial && typeof sp.regional === "string" && ehRegionalVendas(sp.regional) ? sp.regional : "";
+  const regional: RegionalVendas | "" = coord && pedida && pedida !== minhaRegional ? (minhaRegional ?? "") : pedida;
   const r = regional || undefined;
+  const redeAgregada = coord && !filial && !regional;
+  const lerLojas = redeAgregada ? vendasRede : vendasPorFilial;
   // o mês vai até o último dia lido: hoje (parcial, o robô de hoje lê a cada 10 min) ou ontem. Médias, projeção e a
   // semana usam só dias completos (até ontem).
   const ultimo = await ultimoDiaVendas();
@@ -42,29 +50,32 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
   const fimMesAnt = `${inicioMesAnt.slice(0, 7)}-${String(ultimoDia(anoAnt, mesAntNum)).padStart(2, "0")}`;
 
   // venda por dia/mês: da filial escolhida ou das regionais (rede ou uma regional)
-  const serie = (de: string, fim: string, por: "dia" | "mes") => (filial ? serieVendasFilial(filial, de, fim, por) : serieVendas(de, fim, por).then((p) => porPeriodo(p, r)));
+  const serie = (de: string, fim: string, por: "dia" | "mes") => (filial ? serieVendasFilial(filial, de, fim, por) : (redeAgregada ? serieVendasRede : serieVendas)(de, fim, por).then((p) => porPeriodo(p, r)));
   const fimDe = (inicio: string) => `${inicio.slice(0, 7)}-${String(ultimoDia(Number(inicio.slice(0, 4)), Number(inicio.slice(5, 7)))).padStart(2, "0")}`;
   const fimDoMes = fimDe(inicioMes);
   // os 12 meses fechados anteriores, dia a dia, para os pesos da projeção (um mês por chamada: cabe no limite de linhas e
   // cada mês fechado fica guardado em cache)
   const inicioHist = mesmoDia(inicioMes, 12);
   const mesesHist = Array.from({ length: 12 }, (_, i) => mesmoDia(inicioMes, 12 - i));
-  const [listaMes, listaMesAnt, listaAnoAnt, porMes, porDia, porDiaAnt, porDia14, faltamMes, faltamMesAnt, teleLinhas, teleLinhasAnt, metas, feriados, porDiaHist] = await Promise.all([
-    vendasPorFilial(inicioMes, ate),
-    vendasPorFilial(inicioMesAnt, mesmoDia(ate, 1)),
-    vendasPorFilial(`${ano - 1}-01-01`, mesmoDia(ate, 12)),
+  const [listaMes, listaMesAnt, listaAnoAnt, porMes, porDia, porDiaAnt, porDia14, faltamMes, faltamMesAnt, teleLinhas, teleLinhasAnt, metas, feriados, porDiaHist, lojasCoord, redeCoord] = await Promise.all([
+    lerLojas(inicioMes, ate),
+    lerLojas(inicioMesAnt, mesmoDia(ate, 1)),
+    lerLojas(`${ano - 1}-01-01`, mesmoDia(ate, 12)),
     serie(`${ano - 1}-01-01`, ate, "mes"),
     serie(inicioMes, ate, "dia"),
     serie(inicioMesAnt, fimMesAnt, "dia"),
     serie(somarDias(ontem, -13), ate, "dia"),
     diasSemVendas(inicioMes, ate),
     diasSemVendas(inicioMesAnt, fimMesAnt),
-    // televendas (equipe de tele-vendas): a RLS não devolve nada para o gerente
-    soLoja ? Promise.resolve([]) : televendasNoPeriodo(inicioMes, ate),
-    soLoja ? Promise.resolve([]) : televendasNoPeriodo(inicioMesAnt, mesmoDia(ate, 1)),
+    // televendas (equipe de tele-vendas): a RLS não devolve nada para o gerente; o coordenador não vê (é da rede toda)
+    soLoja || coord ? Promise.resolve([]) : televendasNoPeriodo(inicioMes, ate),
+    soLoja || coord ? Promise.resolve([]) : televendasNoPeriodo(inicioMesAnt, mesmoDia(ate, 1)),
     metasDoMes(inicioMes),
     feriadosDoPeriodo(inicioHist, fimDoMes),
     Promise.all(mesesHist.map((m) => serie(m, fimDe(m), "dia"))),
+    // coordenador: as lojas dele (para escolher) e o total da rede (participação da regional)
+    coord ? vendasPorFilial(inicioMes, ate) : Promise.resolve(null),
+    coord ? vendasRede(inicioMes, ate) : Promise.resolve(null),
   ]);
   const tele = resumirTelevendas(teleLinhas);
   const teleAnt = resumirTelevendas(teleLinhasAnt);
@@ -79,12 +90,12 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
   const nomeMes = MESES[mes - 1];
   const nomeMesAnt = MESES[mesAntNum - 1].toLowerCase();
   // lojas para escolher (as que a pessoa vê, com venda neste mês ou no anterior), sem as centrais de televendas
-  const opcoesLojas = [...new Map([...listaMes, ...listaMesAnt].filter((l) => !ehTele(l)).map((l) => [l.branchId, l])).values()]
+  const opcoesLojas = [...new Map((lojasCoord ?? [...listaMes, ...listaMesAnt]).filter((l) => !ehTele(l)).map((l) => [l.branchId, l])).values()]
     .sort((a, b) => a.codigo.localeCompare(b.codigo, "pt-BR", { numeric: true }))
     .map((l) => ({ id: l.branchId, rotulo: `${l.codigo} ${l.nome}`, grupo: l.regional }));
   const lojaEscolhida = filial ? opcoesLojas.find((o) => o.id === filial) : undefined;
   // painel de uma loja só: a do gerente com uma loja ou a filial escolhida (sem regiões, ranking nem televendas)
-  const visaoLoja = soLoja || !!filial;
+  const visaoLoja = soLoja || !!filial || redeAgregada;
   const escopo = filial ? (lojaEscolhida?.rotulo ?? "filial sem venda no período") : soLoja ? (lojasMes.length === 1 ? `${lojasMes[0].codigo} ${lojasMes[0].nome}` : "suas lojas") : regional || "Rede";
 
   if (!listaMes.length && !porMes.size) {
@@ -163,7 +174,7 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
     .filter((x) => x.lojas > 0)
     .sort((a, b) => b.atual.venda - a.atual.venda);
   // a rede = as três regiões + o televendas (a venda da equipe saiu das lojas)
-  const totalRede = somar(listaMes).venda || 1;
+  const totalRede = (redeCoord ? somar(redeCoord).venda : somar(listaMes).venda) || 1;
   const maxRegiao = Math.max(1, ...regioes.map((x) => x.atual.venda));
 
   // ---------- composição ----------
@@ -248,7 +259,7 @@ export default async function PainelVendasPage({ searchParams }: PageProps<"/ven
             <div className="flex flex-wrap items-center gap-2">
               {!soLoja && (
                 <nav aria-label="Escopo" className="flex rounded-lg border bg-card p-0.5 text-sm">
-                  {(["", ...REGIONAIS_VENDAS] as const).map((x) => {
+                  {(["", ...regionaisVisiveis] as const).map((x) => {
                     const ativo = !filial && regional === x;
                     return (
                       <Link key={x || "rede"} href={x ? `/vendas?regional=${encodeURIComponent(x)}` : "/vendas"} aria-current={ativo ? "page" : undefined} className={cn("rounded-md px-3 py-1", ativo ? "bg-primary text-primary-foreground" : "hover:bg-muted")}>

@@ -445,7 +445,7 @@ export const NAV: NavGrupo[] = [
         label: "Televendas",
         href: "/vendas/televendas",
         icon: Headset,
-        papeis: ["admin", "financeiro", "coordenador"],
+        papeis: ["admin", "financeiro"],
         descricao: "Venda da equipe de tele-vendas como uma loja à parte: ranking dos vendedores, equipes (Criciúma, Concórdia, Lages) e onde a venda foi lançada.",
       },
       {
