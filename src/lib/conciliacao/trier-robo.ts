@@ -805,14 +805,6 @@ export const RELATORIOS_VENDAS = {
     ajustes: { ...AJUSTES_VENDAS_PRODUTOS, selecaoVendas: "1" },
     antes: ANTES_VENDAS_PRODUTOS,
   },
-  // vendas por hora para a IA (pedido do Luiz, 25/11/2026): Relatórios > Vendas > Outros > Relatório de Vendas Por Horário.
-  // selecao 5 = todas as vendas; selecao_tipVenda 0 = todas (balcão e tele); selecao_venda 0 = vendas menos devoluções;
-  // opcao 1 = totais por horário. Hora inicial e final são obrigatórias na tela: o dia inteiro. Filial vazia = todas.
-  horario: {
-    pagina: "Rel_0212.pod",
-    rotulo: "Vendas por horário",
-    ajustes: { hora_inicio: "00:00", hora_fim: "23:59", selecao: "5", selecao_tipVenda: "0", selecao_venda: "0", opcao: "1" },
-  },
 } as const;
 export type RelatorioVendas = keyof typeof RELATORIOS_VENDAS;
 type PassoAntes = { acao: string; campos?: Record<string, string>; confere?: RegExp; falha?: string };
@@ -877,6 +869,71 @@ export async function buscarVendasTrier(cred: CredenciaisTrier, pedidos: PedidoV
         const m = /openReport\('([^']+\.xlsx?)'/i.exec(r);
         if (m) {
           const arq = await httpPedido("GET", base + m[1].replace(/^\/+/, ""), null, ck, Math.max(10_000, Math.min(60_000, resta() - 10_000)));
+          if (arq.cod !== 200 || arq.corpo.subarray(0, 2).toString("latin1") !== "PK") throw new TrierErro("não consegui baixar o Excel gerado pelo Trier.");
+          resposta = { ...pedido, xlsx: arq.corpo, ms: Date.now() - t0 };
+        } else {
+          const msg = trierMsg(r);
+          resposta = /nenhum|n[aã]o (h[aá]|foram|existe)|sem (registro|movimento)/i.test(msg) ? { ...pedido, semMovimento: true, ms: Date.now() - t0 } : { ...pedido, erro: msg || "o Trier não gerou o relatório", ms: Date.now() - t0 };
+        }
+      } catch (e) {
+        resposta = { ...pedido, erro: e instanceof Error ? e.message : String(e), ms: Date.now() - t0 };
+      }
+      restantes.shift();
+      await aoReceber(resposta);
+      if (resposta.erro && /sem conex[aã]o|tempo esgotado/i.test(resposta.erro)) break;
+    }
+  } finally {
+    await trierSair(base, ck);
+  }
+  return { restantes, ms: Date.now() - comeco };
+}
+
+// ---------- vendas por horário (Rel_0212): uma filial por vez, porque a tela exige a filial ----------
+
+export type PedidoHorarioTrier = { filial: number; dia: string }; // aaaa-mm-dd
+export type RespostaHorarioTrier = PedidoHorarioTrier & { xlsx?: Buffer; semMovimento?: boolean; erro?: string; ms: number };
+
+/**
+ * Relatórios > Vendas > Outros > Relatório de Vendas Por Horário (pedido do Luiz, 25/11/2026, para a IA): todas as
+ * vendas (balcão e tele), vendas menos devoluções, totais por horário, o dia inteiro (00:00–23:59), Excel. A tela não
+ * aceita "todas as filiais": vai uma por vez, enquanto couber no prazo. Só leitura: não altera nada no Trier.
+ */
+export async function buscarVendasHorarioTrier(cred: CredenciaisTrier, pedidos: PedidoHorarioTrier[], aoReceber: (r: RespostaHorarioTrier) => Promise<void>, prazoMs = 200_000) {
+  const comeco = Date.now();
+  const resta = () => prazoMs - (Date.now() - comeco);
+  const ck: Cookies = {};
+  const base = await trierEntrar(cred, ck);
+  const restantes = [...pedidos];
+  const pagina = "Rel_0212.pod";
+  try {
+    const p = await trierPagina(base, pagina, ck);
+    if (!p.serial) throw new TrierErro('o usuário do robô no Trier não abre o "Relatório de Vendas Por Horário" (Rel_0212).');
+    const inicio = await trierAcao(base, p.serial, "httpStart", { attributes: trierAtributos(p.html) }, ck, 30_000, pagina);
+    const formulario = camposTentativa(camposDaTela(p.html), padroesDoInicio(inicio));
+    while (restantes.length && resta() > 30_000) {
+      const pedido = restantes[0];
+      const t0 = Date.now();
+      const dia = isoParaBr(pedido.dia);
+      const campos = {
+        ...formulario,
+        cod_filialEntrada: String(pedido.filial),
+        cod_filial: String(pedido.filial),
+        data_inicio: dia,
+        data_fim: dia,
+        hora_inicio: "00:00",
+        hora_fim: "23:59",
+        selecao: "5", // todas as vendas
+        selecao_tipVenda: "0", // balcão e tele
+        selecao_venda: "0", // vendas menos devoluções
+        opcao: "1", // totais por horário
+        saida: "4", // XLS
+      };
+      let resposta: RespostaHorarioTrier;
+      try {
+        const r = await trierAcao(base, p.serial, "runReport", campos, ck, Math.min(90_000, resta() - 10_000), pagina);
+        const m = /openReport\('([^']+\.xlsx?)'/i.exec(r);
+        if (m) {
+          const arq = await httpPedido("GET", base + m[1].replace(/^\/+/, ""), null, ck, Math.max(10_000, Math.min(45_000, resta() - 10_000)));
           if (arq.cod !== 200 || arq.corpo.subarray(0, 2).toString("latin1") !== "PK") throw new TrierErro("não consegui baixar o Excel gerado pelo Trier.");
           resposta = { ...pedido, xlsx: arq.corpo, ms: Date.now() - t0 };
         } else {

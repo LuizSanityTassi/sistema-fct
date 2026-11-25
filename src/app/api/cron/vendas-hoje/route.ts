@@ -3,6 +3,7 @@ import { after, NextResponse } from "next/server";
 import { credenciaisTrierServico } from "@/lib/integracoes/segredos";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { coletarVendas, lerReceitasGuardadas, pedidosDeHoje, receitaPendente } from "@/lib/vendas/coleta";
+import { coletarHorario, pedidosHorario } from "@/lib/vendas/horario";
 
 // Robô das vendas de HOJE (a cada 10 minutos, das 7h às 23h50): quem chama é o banco (pg_cron + pg_net, migração 0105),
 // porque o cron da Vercel no plano Hobby roda só uma vez por dia. Senha: "Authorization: Bearer <token>", em que o
@@ -51,6 +52,19 @@ export async function GET(req: Request) {
       await admin.from("vendas_coletas").delete().eq("parcial", true).lt("ate", pedidos[0].ate);
       const r = await coletarVendas(admin, cred, pedidos, null, prazo, true);
       console.log("[cron vendas-hoje]", JSON.stringify({ pedidos: pedidos.map((p) => p.relatorio), ok: r.ok, vazios: r.vazios, erros: r.erros.map((e) => `${e.relatorio}: ${e.erro}`), faltam: r.restantes.length, ms: r.ms }));
+      // venda por horário (Rel_0212): uma filial por vez, com o tempo que sobrou da rodada; o resto fica para a próxima
+      const sobra = prazo - r.ms - 10_000;
+      if (sobra > 40_000) {
+        try {
+          const ph = await pedidosHorario(admin, agora);
+          if (ph.length) {
+            const h = await coletarHorario(admin, cred, ph, sobra, agora);
+            console.log("[cron vendas-hoje] horario", JSON.stringify({ pedidos: ph.length, ok: h.ok, vazios: h.vazios, erros: h.erros.slice(0, 5), faltam: h.faltam, ms: h.ms }));
+          }
+        } catch (e) {
+          console.error("[cron vendas-hoje] horario", e instanceof Error ? e.message : String(e));
+        }
+      }
     } catch (e) {
       console.error("[cron vendas-hoje]", e instanceof Error ? e.message : String(e));
     }

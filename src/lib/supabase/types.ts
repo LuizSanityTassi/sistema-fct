@@ -2925,6 +2925,59 @@ export type Database = {
           },
         ]
       }
+      vendas_hora_coletas: {
+        Row: {
+          arquivo_b64: string | null
+          branch_id: string | null
+          coletado_em: string
+          data: string
+          erro: string | null
+          filial: number
+          lido_em: string | null
+          linhas: number | null
+          ms: number | null
+          parcial: boolean
+          status: string
+          tamanho: number | null
+        }
+        Insert: {
+          arquivo_b64?: string | null
+          branch_id?: string | null
+          coletado_em?: string
+          data: string
+          erro?: string | null
+          filial: number
+          lido_em?: string | null
+          linhas?: number | null
+          ms?: number | null
+          parcial?: boolean
+          status: string
+          tamanho?: number | null
+        }
+        Update: {
+          arquivo_b64?: string | null
+          branch_id?: string | null
+          coletado_em?: string
+          data?: string
+          erro?: string | null
+          filial?: number
+          lido_em?: string | null
+          linhas?: number | null
+          ms?: number | null
+          parcial?: boolean
+          status?: string
+          tamanho?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendas_hora_coletas_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vendas_coletas: {
         Row: {
           arquivo_b64: string | null
