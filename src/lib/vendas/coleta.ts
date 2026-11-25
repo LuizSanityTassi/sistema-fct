@@ -128,14 +128,52 @@ export async function pedidosDoRoboVendas(admin: Cliente, agora = new Date()): P
     return m === 1 ? `${a - 1}-12-01` : `${a}-${String(m - 1).padStart(2, "0")}-01`;
   })();
   const receita = await pedidosPendentes(admin, RELATORIOS_DRE.map((relatorio) => ({ relatorio, ...mesAnteriorFechado(agora) })));
+  // erro na conferência com a venda por horário não para o robô
+  const divergentes = await diasDivergentes(admin, agora)
+    .then((d) => d.pedidos)
+    .catch((e) => {
+      console.error("[vendas] conferência com a venda por horário", e instanceof Error ? e.message : String(e));
+      return [] as PedidoVendasTrier[];
+    });
   const recentes = await pedidosPendentes(admin, pedidosDoPeriodo(corte, ontem, RELATORIOS_DIARIOS));
   const mes = await pedidosPendentes(admin, [{ relatorio: "vendedores", de: `${ontem.slice(0, 7)}-01`, ate: ontem }]);
   // (o mês corrente dos vendedores já vai acima, até ontem; a receita também)
   const semReceita = RELATORIOS_COLETA.filter((r) => !(RELATORIOS_DRE as readonly string[]).includes(r));
   const doisMeses = corte > inicioMesAnt ? await pedidosPendentes(admin, pedidosDoPeriodo(inicioMesAnt, diaBrasil(agora, DIAS_CONFERIDOS + 1), semReceita).filter((p) => !(p.relatorio === "vendedores" && p.de === `${ontem.slice(0, 7)}-01`))) : [];
   const historico = await pedidosPendentes(admin, pedidosDoPeriodo(INICIO_HISTORICO, diaBrasil(agora, DIAS_CONFERIDOS + 1), RELATORIOS_HISTORICO));
-  const vistos = new Set([...receita, ...recentes, ...mes, ...doisMeses].map((p) => `${p.relatorio}|${p.de}|${p.ate}`));
-  return [...receita, ...recentes, ...mes, ...doisMeses, ...historico.filter((p) => !vistos.has(`${p.relatorio}|${p.de}|${p.ate}`))];
+  const lista: PedidoVendasTrier[] = [];
+  const vistos = new Set<string>();
+  for (const p of [...receita, ...divergentes, ...recentes, ...mes, ...doisMeses, ...historico]) {
+    const chave = `${p.relatorio}|${p.de}|${p.ate}`;
+    if (vistos.has(chave)) continue;
+    vistos.add(chave);
+    lista.push(p);
+  }
+  return lista;
+}
+
+/** Até quantos dias divergentes o robô diário relê por rodada (os mais recentes primeiro; o resto fica para a próxima). */
+const MAX_DIVERGENTES = 10;
+
+/**
+ * Dias que o painel leu e que não batem com a venda por horário buscada depois (loja que mandou a venda para o Trier
+ * atrasada): o robô diário busca de novo os relatórios diários desse dia e, se o dia é de um mês que já fechou, o vendedor
+ * por grupo daquele mês. A receita da DRE (mês fechado) não é buscada de novo aqui. A função do banco só devolve o dia
+ * enquanto a venda por horário for mais nova que a leitura do painel: depois de relido, o dia não volta sozinho.
+ */
+export async function diasDivergentes(admin: Cliente, agora = new Date()) {
+  const hoje = diaBrasil(agora, 0);
+  const [a, m] = hoje.split("-").map(Number);
+  const inicio = m === 1 ? `${a - 1}-12-01` : `${a}-${String(m - 1).padStart(2, "0")}-01`;
+  const { data, error } = await admin.rpc("vendas_divergencias_horario", { p_de: inicio });
+  if (error) throw new Error(error.message);
+  const dias = (data ?? []).filter((d) => d.data < hoje).slice(0, MAX_DIVERGENTES);
+  const meses = [...new Set(dias.map((d) => d.data.slice(0, 7)).filter((mes) => mes < hoje.slice(0, 7)))];
+  const pedidos: PedidoVendasTrier[] = [
+    ...dias.flatMap((d) => pedidosDoPeriodo(d.data, d.data, RELATORIOS_DIARIOS)),
+    ...meses.map((mes) => ({ relatorio: "vendedores" as const, de: `${mes}-01`, ate: fimDoMes(`${mes}-01`) })),
+  ];
+  return { dias, pedidos };
 }
 
 /**

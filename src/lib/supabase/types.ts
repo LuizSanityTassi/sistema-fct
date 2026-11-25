@@ -8006,6 +8006,17 @@ export type Database = {
           ultimo_login: string | null
         }[]
       }
+      vendas_divergencias_horario: {
+        Args: {
+          p_de: string
+        }
+        Returns: {
+          data: string
+          detalhe: string
+          diferenca: number
+          filiais: number
+        }[]
+      }
       vendas_dias: {
         Args: {
           p_ate: string

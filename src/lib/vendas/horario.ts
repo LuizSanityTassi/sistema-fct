@@ -15,6 +15,8 @@ type Cliente = SupabaseClient<Database>;
 const diaBrasil = (agora: Date, diasAtras: number) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(agora.getTime() - diasAtras * 86_400_000));
 /** De quanto em quanto tempo cada filial tem o dia de hoje buscado de novo (e erro tentado de novo). */
 const INTERVALO_MS = 25 * 60_000;
+/** Os dias da última semana são buscados de novo depois deste tempo (uma vez por dia). */
+const REVER_MS = 20 * 60 * 60_000;
 
 /** Filiais deste Trier que venderam na última semana (as que o painel de vendas já conhece). */
 async function filiaisComVenda(admin: Cliente, agora: Date) {
@@ -61,6 +63,16 @@ export async function pedidosHorario(admin: Cliente, agora = new Date()): Promis
     })
     .sort((a, b) => Date.parse(feito.get(`${hoje}|${a}`)?.coletado_em ?? "1970-01-01") - Date.parse(feito.get(`${hoje}|${b}`)?.coletado_em ?? "1970-01-01"))
     .map((filial) => ({ filial, dia: hoje }));
+  // dias 2 a 7 para trás: busca de novo uma vez por dia (loja que manda a venda atrasada para o Trier); se mudar e o
+  // painel não bater, o robô da madrugada relê o painel daquele dia (vendas_divergencias_horario)
+  const semana = diaBrasil(agora, 7);
+  const rever: PedidoHorarioTrier[] = [];
+  for (let dia = diaAntes(ontem); dia >= semana; dia = diaAntes(dia)) {
+    for (const filial of filiais) {
+      const c = feito.get(`${dia}|${filial}`);
+      if (c && !c.parcial && c.status !== "erro" && Date.parse(c.coletado_em) < agora.getTime() - REVER_MS) rever.push({ filial, dia });
+    }
+  }
   const historico: PedidoHorarioTrier[] = [];
   for (let dia = diaAntes(ontem); dia >= inicio; dia = diaAntes(dia)) {
     for (const filial of filiais) {
@@ -68,7 +80,7 @@ export async function pedidosHorario(admin: Cliente, agora = new Date()): Promis
       if (!c || c.parcial || (c.status === "erro" && velho(c))) historico.push({ filial, dia });
     }
   }
-  return [...ontemPend, ...hojePend, ...historico];
+  return [...ontemPend, ...hojePend, ...rever, ...historico];
 }
 
 /**
