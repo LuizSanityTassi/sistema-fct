@@ -2,7 +2,7 @@
 // gerente a filial dele).
 import "server-only";
 import { colaboradorDaLinha, configDaLinha, type LinhaFilialEscala } from "@/lib/escalas/resumo";
-import { projetarEscala, type Alerta, type Analise, type Colaborador, type ConfigFilial, type DiaCobertura, type Escala, type PessoaEscala } from "@/lib/escalas/motor";
+import { projetarEscala, type Alerta, type Analise, type Colaborador, type ConfigFilial, type ConfigSimulacao, type DiaCobertura, type Escala, type PessoaEscala } from "@/lib/escalas/motor";
 import { createClient } from "@/lib/supabase/server";
 
 export type FilialEscala = {
@@ -154,7 +154,8 @@ export type Simulacao = Escala & {
   situacao: "rascunho" | "oficial" | "substituida";
   /** oficial que segue valendo nos próximos períodos até outra ser publicada */
   continua: boolean;
-  config: ConfigFilial;
+  /** a da filial na hora de gerar + escolhas da geração (semFolgas); não muda depois (gatilho) */
+  config: ConfigSimulacao;
   analisadoEm: string | null;
   criadoEm: string;
   publicadoEm: string | null;
@@ -192,6 +193,7 @@ type LinhaSim = {
 };
 
 export function simulacaoDaLinha(l: LinhaSim): Simulacao {
+  const config = l.config as ConfigSimulacao;
   return {
     id: l.id,
     lote: l.lote,
@@ -204,8 +206,10 @@ export function simulacaoDaLinha(l: LinhaSim): Simulacao {
     continua: !!l.continua,
     jornadaSemanal: l.jornada_semanal,
     folgasPermitidas: l.folgas_permitidas,
+    // gerada sem folgas (a loja define): fica no config, que o gatilho não deixa mudar
+    semFolgas: !!config?.semFolgas,
     situacao: l.situacao as Simulacao["situacao"],
-    config: l.config as ConfigFilial,
+    config,
     equipe: l.equipe as PessoaEscala[],
     cobertura: l.cobertura as DiaCobertura[],
     alertas: (l.alertas ?? []) as Alerta[],

@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { getSessao } from "@/lib/auth/session";
 import { filiaisDaEscala, filialDaEscala, simulacao } from "@/lib/data/escalas";
-import { REGIMES, ROTULO_GRUPO, ajustarTurno, ajustarVariosDias, ehFuncao, ehRegime, type Regime, competenciaDoFim, erroPeriodoLivre, temSemanaCompleta, grupoDoDia, type ModoAjuste, rotuloData, rotuloPeriodo, ehSituacao, erroFolgas, gerarOpcoes, horaValida, limiteSemanal, minutos, reanalisar, type AjusteTurno, type Funcao } from "@/lib/escalas/motor";
+import { REGIMES, ROTULO_GRUPO, ajustarTurno, ajustarVariosDias, ehFuncao, ehRegime, type Regime, competenciaDoFim, erroPeriodoLivre, temSemanaCompleta, grupoDoDia, type ModoAjuste, rotuloData, rotuloPeriodo, ehSituacao, erroFolgas, gerarOpcoes, horaValida, limiteSemanal, minutos, reanalisar, semanasForaDo5x2, type AjusteTurno, type ConfigSimulacao, type Funcao } from "@/lib/escalas/motor";
 import { podeAcessar } from "@/lib/nav";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/types";
@@ -284,6 +284,8 @@ export async function gerarSimulacao(_prev: EstadoEscala, fd: FormData): Promise
   if (jornada > limiteSemanal(periodo.ano, periodo.mes)) return { erro: `Para ${String(periodo.mes).padStart(2, "0")}/${periodo.ano} o limite é ${limiteSemanal(periodo.ano, periodo.mes)} h/semana.` };
   if (![2, 3, 4].includes(qtd)) return { erro: "Escolha 2, 3 ou 4 opções." };
   const folgasForm = [...new Set(fd.getAll("folgas").map(Number))].filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
+  // sem folgas: o 5x2 sai com horário em todos os dias abertos e a loja marca as folgas no calendário (as regras ficam)
+  const semFolgas = texto(fd, "sem_folgas") === "1";
 
   const todas = await filiaisDaEscala();
   const alvos = alvo === "todas" ? todas : todas.filter((f) => f.id === alvo);
@@ -345,7 +347,7 @@ export async function gerarSimulacao(_prev: EstadoEscala, fd: FormData): Promise
     }
     try {
       const folgas = alvo === "todas" ? f.config.folgasPermitidas : folgasForm;
-      const opcoes = gerarOpcoes(f.config, f.equipe, { ano: periodo.ano, mes: periodo.mes, jornadaSemanal: jornada, opcoes: qtd, folgasPermitidas: folgas, inicio: de, fim: ate });
+      const opcoes = gerarOpcoes(f.config, f.equipe, { ano: periodo.ano, mes: periodo.mes, jornadaSemanal: jornada, opcoes: qtd, folgasPermitidas: folgas, inicio: de, fim: ate, semFolgas });
       opcoes.forEach((o, i) =>
         linhas.push({
           lote,
@@ -357,7 +359,7 @@ export async function gerarSimulacao(_prev: EstadoEscala, fd: FormData): Promise
           fim: o.fim ?? null,
           jornada_semanal: o.jornadaSemanal,
           folgas_permitidas: o.folgasPermitidas,
-          config: { ...f.config, folgasPermitidas: o.folgasPermitidas } as unknown as Json,
+          config: { ...f.config, folgasPermitidas: o.folgasPermitidas, ...(semFolgas ? { semFolgas: true } : {}) } satisfies ConfigSimulacao as unknown as Json,
           equipe: o.equipe as unknown as Json,
           cobertura: o.cobertura as unknown as Json,
           alertas: o.alertas as unknown as Json,
@@ -383,7 +385,7 @@ export async function gerarSimulacao(_prev: EstadoEscala, fd: FormData): Promise
   if (alvo !== "todas" && folgasForm.join() !== alvos[0].config.folgasPermitidas.join()) {
     await supabase.from("esc_filiais").update({ folgas_permitidas: folgasForm }).eq("branch_id", alvos[0].id);
   }
-  await registrarAuditoria(supabase, { userId: sessao.id, acao: "criar", entidade: "esc_simulacoes", registroId: lote, novo: { filiais: alvos.length, opcoes: linhas.length, ano: periodo.ano, mes: periodo.mes, de, ate, jornada } });
+  await registrarAuditoria(supabase, { userId: sessao.id, acao: "criar", entidade: "esc_simulacoes", registroId: lote, novo: { filiais: alvos.length, opcoes: linhas.length, ano: periodo.ano, mes: periodo.mes, de, ate, jornada, sem_folgas: semFolgas } });
   revalidatePath(ROTA, "layout");
   const qs = ignoradas.length ? `?ignoradas=${encodeURIComponent(ignoradas.join("; ").slice(0, 600))}` : "";
   redirect(`${ROTA}/simulacao/${lote}${qs}`);
@@ -428,7 +430,17 @@ export async function ajustarDia(simId: string, ajuste: AjusteTurno, modo: ModoA
   revalidatePath(`${ROTA}/simulacao/${s.lote}`);
   const onde = m === "grupo" ? (grupo === "seg_sex" ? " (segunda a sexta)" : ` (${ROTULO_GRUPO[grupo]})`) : "";
   const replicados = outrosDias.length ? ` Mesmo horário aplicado em mais ${outrosDias.length} dia(s)${onde}: ${outrosDias.map((d) => rotuloData(s, d)).join(", ")}.` : "";
-  return { ok: `Ajuste salvo.${replicados} Cobertura e pendências recalculadas.${movidaDe ? ` Folga trocada: ${rotuloData(s, movidaDe)} → ${rotuloData(s, ajuste.data)}.` : ""}`, movidaDe };
+  // escala gerada sem folgas: diz quantas semanas inteiras da pessoa ainda estão sem os dois descansos
+  let folgasLoja = "";
+  if (s.semFolgas && ajuste.status === "folga") {
+    const pessoa = s.equipe.find((p) => p.id === ajuste.pessoaId);
+    const faltam = pessoa ? semanasForaDo5x2(s, pessoa).faltam : [];
+    const primeiro = pessoa?.nome.split(" ")[0] ?? "a pessoa";
+    folgasLoja = faltam.length
+      ? ` ${primeiro} ainda tem ${faltam.length} semana(s) sem os dois descansos: ${faltam.map((w) => `${rotuloData(s, w.dias[0].data)} a ${rotuloData(s, w.dias[6].data)}`).join(", ")}.`
+      : ` ${primeiro} já tem os dois descansos em todas as semanas inteiras.`;
+  }
+  return { ok: `Ajuste salvo.${replicados} Cobertura e pendências recalculadas.${movidaDe ? ` Folga trocada: ${rotuloData(s, movidaDe)} → ${rotuloData(s, ajuste.data)}.` : ""}${folgasLoja}`, movidaDe };
 }
 
 /** "Atualizar pendências": registra o que foi resolvido, o que continua e o que é novo. */

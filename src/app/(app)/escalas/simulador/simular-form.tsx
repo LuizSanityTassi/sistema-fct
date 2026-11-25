@@ -32,6 +32,8 @@ export function SimularForm({ filiais, filialInicial, deInicial, ateInicial }: {
   // período da escala: de que dia até que dia (vem preenchido com o próximo período da folha, 21 a 20)
   const [de, setDe] = React.useState(deInicial);
   const [ate, setAte] = React.useState(ateInicial);
+  // sem folgas: o 5x2 sai com horário em todos os dias abertos e a loja marca as folgas no calendário
+  const [semFolgas, setSemFolgas] = React.useState(false);
   const dataOk = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
   const maxAte = dataOk(de) ? fimMaximo(de) : undefined;
   const { ano, mes } = competenciaDoFim(dataOk(ate) ? ate : ateInicial);
@@ -112,9 +114,18 @@ export function SimularForm({ filiais, filialInicial, deInicial, ateInicial }: {
         {estado.erros?.periodo ??
           `Escolha de que dia até que dia vai a escala: até 1 mês (pelo menos ${MIN_DIAS_PERIODO} dias). Ela conta para o mês do último dia; publicada como oficial, substitui a oficial desse mês.`}
       </p>
+      <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+        <input type="checkbox" name="sem_folgas" value="1" checked={semFolgas} onChange={(e) => setSemFolgas(e.target.checked)} className="mt-0.5 size-4 accent-primary" />
+        <span>
+          <strong>Gerar sem folgas: a loja define.</strong> Quem é 5x2 sai com horário em todos os dias em que a loja abre, sem nenhuma folga marcada; o gerente ou líder marca as
+          duas folgas de cada semana clicando nos dias do calendário. As regras do 5x2 continuam valendo: a auditoria aponta cada semana ainda sem os dois descansos (e as
+          demais pendências), e a escala só é publicada como oficial depois que todas as folgas estiverem definidas. Quem é 12x36 continua um dia sim, um dia não.
+        </span>
+      </label>
       {todas ? (
         <p className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-          Com todas as filiais, cada uma usa os dias de folga cadastrados nela. Pode levar alguns segundos.
+          {semFolgas ? "Com todas as filiais, cada uma sai sem folgas para a própria loja definir." : "Com todas as filiais, cada uma usa os dias de folga cadastrados nela."} Pode levar
+          alguns segundos.
         </p>
       ) : (
         <fieldset className="grid gap-1">
@@ -129,9 +140,11 @@ export function SimularForm({ filiais, filialInicial, deInicial, ateInicial }: {
           </div>
           <p className={`text-xs ${estado.erros?.folgas ? "font-medium text-destructive" : "text-muted-foreground"}`}>
             {estado.erros?.folgas ??
-              (atual?.diasAbertos === 7
-                ? "Esta loja abre todos os dias: marque pelo menos dois dias para as duas folgas da semana. A escolha fica salva como padrão da filial."
-                : "Marque pelo menos um dia em que a loja abre. A escolha fica salva como padrão da filial.")}
+              (semFolgas
+                ? "Nesta geração as folgas não são distribuídas (a loja define); os dias marcados ficam só como padrão da filial."
+                : atual?.diasAbertos === 7
+                  ? "Esta loja abre todos os dias: marque pelo menos dois dias para as duas folgas da semana. A escolha fica salva como padrão da filial."
+                  : "Marque pelo menos um dia em que a loja abre. A escolha fica salva como padrão da filial.")}
           </p>
         </fieldset>
       )}
@@ -156,8 +169,8 @@ export function SimularForm({ filiais, filialInicial, deInicial, ateInicial }: {
       )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="max-w-2xl text-xs text-muted-foreground">
-          As folgas caem só nos dias marcados, com preferência para terça, quarta e quinta. A auditoria usa horário, equipe e mínimo de farmacêuticos da filial; acordos coletivos, feriados e afastamentos fora do
-          cadastro não entram.
+          {semFolgas ? "Sem folgas marcadas: a loja define as folgas no calendário da opção." : "As folgas caem só nos dias marcados, com preferência para terça, quarta e quinta."} A auditoria usa horário,
+          equipe e mínimo de farmacêuticos da filial; acordos coletivos, feriados e afastamentos fora do cadastro não entram.
         </p>
         <Button type="submit" disabled={pendente || !filial}>
           <Sparkles data-icon="inline-start" />

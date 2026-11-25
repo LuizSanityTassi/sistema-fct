@@ -10,8 +10,8 @@ import { Status } from "@/components/layout/status";
 import { Button } from "@/components/ui/button";
 import { exigirAcesso } from "@/lib/auth/session";
 import { opcoesDoLote, simulacoesDaFilial, type Simulacao } from "@/lib/data/escalas";
-import { DIAS, ROTULO_DIA, contaComoFarmaceutico, naEscala, rotuloData, type Dia } from "@/lib/escalas/motor";
-import { agruparAlertas, datasTexto, estatFolgas, excedenteEquipe, horasEquipe, lacunas, nomeMes, rotuloCompetencia, rotuloDaEscala, rotuloDias, textoFuncionamento, textoPeriodo } from "@/lib/escalas/resumo";
+import { DIAS, ROTULO_DIA, contaComoFarmaceutico, naEscala, resumoFolgasPendentes, rotuloData, type Dia } from "@/lib/escalas/motor";
+import { agruparAlertas, datasTexto, estatFolgas, excedenteEquipe, horasEquipe, lacunas, nomeMes, rotuloCompetencia, rotuloDaEscala, textoFolgas, textoFuncionamento, textoPeriodo } from "@/lib/escalas/resumo";
 import { formatarDataHora } from "@/lib/formatos";
 import { cn } from "@/lib/utils";
 import { alternarContinua, descartarLote, publicarSimulacao, reanalisarSimulacao } from "../../actions";
@@ -64,13 +64,15 @@ export default async function SimulacaoPage({ params, searchParams }: PageProps<
   const ignoradas = typeof sp.ignoradas === "string" ? sp.ignoradas : undefined;
   const opcoesDaRede = [...new Set(resumo.map((r) => r.opcao))].sort();
   const abertura = Object.fromEntries(DIAS.map((d) => [d, sel.config.horarios[d]?.abre ?? ""]));
+  // escala gerada sem folgas: quantas semanas (pessoa × semana) a loja ainda precisa completar
+  const pendentes = sel.semFolgas ? resumoFolgasPendentes(sel) : null;
 
   return (
     <>
       <PageHeader
         eyebrow="Escala 5x2 · opções"
         titulo={`${sel.filial.codigo} · ${sel.filial.nome} · ${sel.fim ? `Período ${textoPeriodo(sel)}` : sel.inicio ? `${nomeMes(sel.ano, sel.mes)} · ${textoPeriodo(sel)}` : nomeMes(sel.ano, sel.mes)}`}
-        descricao={`${sel.jornadaSemanal} h/semana · folgas em ${rotuloDias(sel.folgasPermitidas)} · ${textoFuncionamento(sel.config)} · gerado em ${formatarDataHora(sel.criadoEm)}${sel.autor ? ` por ${sel.autor}` : ""}`}
+        descricao={`${sel.jornadaSemanal} h/semana · ${textoFolgas(sel)} · ${textoFuncionamento(sel.config)} · gerado em ${formatarDataHora(sel.criadoEm)}${sel.autor ? ` por ${sel.autor}` : ""}`}
         acoes={
           rascunho ? (
             <ConfirmarAcao
@@ -192,7 +194,9 @@ export default async function SimulacaoPage({ params, searchParams }: PageProps<
             ? `Escala oficial publicada ${sel.publicadoEm ? formatarDataHora(sel.publicadoEm) : ""}${sel.publicador ? ` por ${sel.publicador}` : ""}. Não muda mais.${sel.continua ? " Segue valendo nos próximos períodos até outra ser publicada." : ""}`
             : sel.situacao === "substituida"
               ? "Esta escala foi oficial e depois substituída por outra publicação."
-              : `Folgas marcadas: ${folgas.preferidas}/${folgas.total} em terça–quinta (${folgas.pct}%) · ${folgas.venda} em segunda/sexta.`
+              : pendentes
+                ? `Gerada sem folgas: a loja define. ${pendentes.semanas ? `Faltam os dois descansos em ${pendentes.semanas} semana(s) de ${pendentes.pessoas} pessoa(s).` : "Todas as semanas inteiras já têm os dois descansos."} Folgas marcadas: ${folgas.total}.`
+                : `Folgas marcadas: ${folgas.preferidas}/${folgas.total} em terça–quinta (${folgas.pct}%) · ${folgas.venda} em segunda/sexta.`
         }
         acao={
           <div className="flex flex-wrap items-center justify-end gap-2">
@@ -218,7 +222,7 @@ export default async function SimulacaoPage({ params, searchParams }: PageProps<
             {rascunho &&
               (sel.alertas.length || sel.analisePendente ? (
                 <span className="text-xs text-muted-foreground" title="A escala oficial só é publicada sem pendências na auditoria.">
-                  Publicar: resolva as pendências
+                  {pendentes?.semanas ? "Publicar: defina as folgas e resolva as pendências" : "Publicar: resolva as pendências"}
                 </span>
               ) : (
                 <ConfirmarAcao
@@ -308,6 +312,7 @@ export default async function SimulacaoPage({ params, searchParams }: PageProps<
           cobertura={sel.cobertura}
           abertura={abertura}
           editavel={rascunho}
+          semFolgas={!!sel.semFolgas}
         />
       </Painel>
 

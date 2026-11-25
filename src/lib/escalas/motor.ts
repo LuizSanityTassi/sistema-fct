@@ -63,6 +63,11 @@ export type ConfigFilial = {
   acordoJornadaEstendida: boolean;
   folgasPermitidas: number[];
 };
+/** Configuração gravada na opção (esc_simulacoes.config): a da filial na hora de gerar, mais as escolhas da geração. */
+export type ConfigSimulacao = ConfigFilial & {
+  /** Gerada sem folgas no 5x2: a loja marca as folgas no calendário (ver `semanasForaDo5x2`). */
+  semFolgas?: boolean;
+};
 
 export type Colaborador = {
   id: string;
@@ -130,6 +135,12 @@ export type Escala = {
   fim?: string | null;
   jornadaSemanal: number;
   folgasPermitidas: number[];
+  /**
+   * Gerada sem folgas (pedido do Luiz, 25/11/2026): quem é 5x2 sai com horário em todos os dias em que a loja abre e a
+   * loja marca as folgas no calendário. As regras do 5x2 continuam: a auditoria aponta cada semana inteira sem os dois
+   * descansos, e a oficial só sai sem pendências. O 12x36 não muda (dia sim, dia não é a própria escala).
+   */
+  semFolgas?: boolean;
   equipe: PessoaEscala[];
   cobertura: DiaCobertura[];
   alertas: Alerta[];
@@ -363,7 +374,19 @@ export function gerarOpcoes(
     folgasPermitidas,
     inicio,
     fim,
-  }: { ano: number; mes: number; jornadaSemanal?: number; opcoes?: number; folgasPermitidas?: number[]; /** período escolhido (de … até …) */ inicio?: string; fim?: string },
+    semFolgas = false,
+  }: {
+    ano: number;
+    mes: number;
+    jornadaSemanal?: number;
+    opcoes?: number;
+    folgasPermitidas?: number[];
+    /** período escolhido (de … até …) */
+    inicio?: string;
+    fim?: string;
+    /** sem folgas no 5x2: a loja define (ver `Escala.semFolgas`) */
+    semFolgas?: boolean;
+  },
 ): Escala[] {
   const abertos = diasAbertos(cfg);
   const escolhidas = [...new Set((folgasPermitidas ?? cfg.folgasPermitidas).map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))].sort();
@@ -410,7 +433,11 @@ export function gerarOpcoes(
       const dias = diasDoPeriodo(periodo).filter((d) => semanaDoPeriodo(periodo, d.data) === s);
       return equipe.filter((p) => dias.some((d) => !afastadoNoDia(p, d.iso)));
     };
-    const folgasSemana = new Map(Array.from({ length: nSemanas }, (_, s) => [s, distribuirFolgas(equipeDaSemana(s), abertos, opcao, s, candidatos, doze.length ? ausentesDaSemana(s) : undefined)]));
+    // sem folgas: o rodízio não roda e o 5x2 trabalha em todos os dias abertos (a loja marca as folgas depois)
+    const folgasSemana = semFolgas
+      ? null
+      : new Map(Array.from({ length: nSemanas }, (_, s) => [s, distribuirFolgas(equipeDaSemana(s), abertos, opcao, s, candidatos, doze.length ? ausentesDaSemana(s) : undefined)]));
+    const folga5x2 = (p: Pessoa, semana: number, indiceDia: number) => !!folgasSemana && (folgasSemana.get(semana)?.get(p.id) ?? []).includes(indiceDia);
     const pessoas: PessoaEscala[] = equipe.map((p) => ({ ...p, turnos: [], totalHoras: 0, mediaSemanal: 0, excedente: 0 }));
     const cobertura: DiaCobertura[] = [];
 
@@ -419,9 +446,7 @@ export function gerarOpcoes(
       const semana = semanaDoPeriodo(periodo, data);
       const abre = aberto(cfg, dia);
       const faixa = faixaDoDia(cfg, dia);
-      const trabalhando = pessoas.filter(
-        (p) => naEscala(p) && abre && !afastadoNoDia(p, iso) && (eh12x36(p) ? trabalha12(p, iso) : !(folgasSemana.get(semana)?.get(p.id) ?? []).includes(indiceDia)),
-      );
+      const trabalhando = pessoas.filter((p) => naEscala(p) && abre && !afastadoNoDia(p, iso) && (eh12x36(p) ? trabalha12(p, iso) : !folga5x2(p, semana, indiceDia)));
 
       for (const p of trabalhando) {
         const duracao = horasDoTurno(p, horasPadrao);
@@ -463,14 +488,15 @@ export function gerarOpcoes(
         p.turnos.push(turno);
       }
       for (const p of pessoas.filter((x) => !trabalhando.includes(x))) {
-        const deFolga = eh12x36(p) || (folgasSemana.get(semana)?.get(p.id) ?? []).includes(indiceDia);
+        const deFolga = eh12x36(p) || folga5x2(p, semana, indiceDia);
         const status: StatusTurno = afastadoNoDia(p, iso) ? "afastamento" : p.situacao === "inativo" ? "inativo" : deFolga && abre ? "folga" : "fechado";
         p.turnos.push({ data, dia, status, horas: 0 });
       }
       cobertura.push(coberturaDoDia(cfg, data, dia, pessoas));
     }
-    for (const p of pessoas) resumirPessoa(p, jornadaSemanal, nSemanas);
     const escala: Escala = { ano, mes, inicio: periodo.inicio, fim: periodo.fim ?? null, jornadaSemanal, folgasPermitidas: escolhidas, equipe: pessoas, cobertura, alertas: [] };
+    if (semFolgas) escala.semFolgas = true;
+    for (const p of pessoas) resumirPessoa(p, escala);
     escala.alertas = auditar(cfg, escala);
     escala.alertasBase = structuredClone(escala.alertas);
     resultado.push(escala);
@@ -505,7 +531,9 @@ function coberturaDoDia(cfg: ConfigFilial, data: number, dia: Dia, pessoas: Pess
   return { data, dia, aberto: abre, porFuncao, total: trabalhando.length, faixas };
 }
 
-function resumirPessoa(p: PessoaEscala, jornadaSemanal: number, nSemanas: number) {
+function resumirPessoa(p: PessoaEscala, escala: Pick<Escala, "ano" | "mes" | "inicio" | "fim" | "jornadaSemanal" | "semFolgas">) {
+  const { jornadaSemanal } = escala;
+  const nSemanas = semanasDoPeriodo(escala);
   const horasDia = Number(p.horasDia || jornadaSemanal / 5);
   p.totalHoras = Number(p.turnos.reduce((s, t) => s + (t.status === "trabalho" ? Number(t.horas || 0) : 0), 0).toFixed(1));
   if (eh12x36(p)) {
@@ -514,10 +542,91 @@ function resumirPessoa(p: PessoaEscala, jornadaSemanal: number, nSemanas: number
     p.excedente = 0;
     return;
   }
+  if (escala.semFolgas) {
+    // gerada sem folgas: a média é a das horas de fato escaladas nas semanas inteiras (sem afastamento); enquanto a loja
+    // não marca as folgas, ela passa da jornada e a auditoria aponta. Sem semana inteira, a média é proporcional aos dias.
+    const inteiras = semanasDaPessoa(escala, p).filter((w) => w.completa && !w.afastada);
+    const dias = diasDoPeriodo(escala).length;
+    const media = inteiras.length ? inteiras.reduce((s, w) => s + w.horas, 0) / inteiras.length : (p.totalHoras * 7) / Math.max(dias, 1);
+    p.mediaSemanal = naEscala(p) ? Number(media.toFixed(1)) : 0;
+    p.excedente = Math.max(0, Number((p.mediaSemanal - jornadaSemanal).toFixed(1)));
+    return;
+  }
   // um ciclo completo tem cinco dias de trabalho: a primeira e a última semana do mês (parciais) não viram hora extra
   const ajuste = p.turnos.filter((t) => t.ajustado).reduce((s, t) => s + Number(t.horas || 0) - Number(t.horasBase ?? 0), 0);
   p.mediaSemanal = naEscala(p) ? Number((horasDia * 5 + ajuste / Math.max(nSemanas, 1)).toFixed(1)) : 0;
   p.excedente = Math.max(0, Number((p.mediaSemanal - jornadaSemanal).toFixed(1)));
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Descansos da semana (regra do 5x2: cinco dias de trabalho e dois de descanso por semana)
+// ---------------------------------------------------------------------------------------------------------------
+
+/** Descansos que o 5x2 tem por semana: folga ou dia em que a loja fecha. */
+export const DESCANSOS_5X2 = 2;
+export type SemanaPessoa = {
+  semana: number;
+  dias: DiaPeriodo[];
+  /** os sete dias (segunda a domingo) estão no período */
+  completa: boolean;
+  folgas: number;
+  fechados: number;
+  /** folgas + dias fechados */
+  descansos: number;
+  /** tem dia de afastamento: a semana não é julgada */
+  afastada: boolean;
+  /** horas de trabalho escaladas */
+  horas: number;
+};
+
+/** Semanas do período (segunda a domingo) com o que a pessoa tem em cada uma. */
+export function semanasDaPessoa(p: PeriodoEscala, pessoa: Pick<PessoaEscala, "turnos">): SemanaPessoa[] {
+  const turnos = new Map(pessoa.turnos.map((t) => [t.data, t]));
+  const porSemana = new Map<number, SemanaPessoa>();
+  for (const d of diasDoPeriodo(p)) {
+    const s = semanaDoPeriodo(p, d.data);
+    const w = porSemana.get(s) ?? { semana: s, dias: [], completa: false, folgas: 0, fechados: 0, descansos: 0, afastada: false, horas: 0 };
+    w.dias.push(d);
+    const t = turnos.get(d.data);
+    if (t?.status === "folga") w.folgas += 1;
+    else if (t?.status === "fechado") w.fechados += 1;
+    else if (t?.status === "afastamento") w.afastada = true;
+    else if (t?.status === "trabalho") w.horas += Number(t.horas || 0);
+    w.descansos = w.folgas + w.fechados;
+    w.completa = w.dias.length === 7;
+    porSemana.set(s, w);
+  }
+  return [...porSemana.values()].sort((a, b) => a.semana - b.semana);
+}
+
+/**
+ * Semanas inteiras (segunda a domingo, sem afastamento) em que a pessoa do 5x2 foge da regra: `faltam` = menos de dois
+ * descansos (folga ou loja fechada); `sobram` = descansos além dos dois (ou além dos dias em que a loja fecha, quando
+ * ela fecha mais). Semanas parciais do começo e do fim do período não são julgadas. 12x36, afastados e inativos: nada.
+ */
+export function semanasForaDo5x2(
+  escala: PeriodoEscala,
+  pessoa: Pick<PessoaEscala, "turnos" | "regime" | "situacao" | "afastadoDe" | "afastadoAte">,
+): { faltam: SemanaPessoa[]; sobram: SemanaPessoa[] } {
+  if (eh12x36(pessoa) || !naEscala(pessoa)) return { faltam: [], sobram: [] };
+  const inteiras = semanasDaPessoa(escala, pessoa).filter((w) => w.completa && !w.afastada);
+  return {
+    faltam: inteiras.filter((w) => w.descansos < DESCANSOS_5X2),
+    sobram: inteiras.filter((w) => w.descansos > Math.max(DESCANSOS_5X2, w.fechados)),
+  };
+}
+
+/** Quantas semanas (pessoa × semana) da escala ainda estão sem os dois descansos do 5x2, e de quantas pessoas. */
+export function resumoFolgasPendentes(escala: Pick<Escala, "ano" | "mes" | "inicio" | "fim" | "equipe">) {
+  let semanas = 0;
+  let pessoas = 0;
+  for (const p of escala.equipe) {
+    const n = semanasForaDo5x2(escala, p).faltam.length;
+    if (!n) continue;
+    semanas += n;
+    pessoas += 1;
+  }
+  return { semanas, pessoas };
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -630,8 +739,9 @@ export function ajustarTurno(cfg: ConfigFilial, escala: Escala, a: AjusteTurno):
     // no 5x2 a folga troca com outra folga da semana (segunda a domingo), mas só quando a semana já tem as folgas que o
     // sistema gerou para ela; se falta folga na semana, a nova só entra. E troca primeiro a que o sistema pôs: antes
     // marcar o domingo desfazia a segunda-feira marcada à mão (folga dupla domingo + segunda, F009 24/11/2026).
-    // No 12x36 não há folga da semana para trocar.
-    if (t.status === "trabalho" && !eh12x36(p)) {
+    // No 12x36 não há folga da semana para trocar. Na escala gerada sem folgas a loja monta as folgas do zero: a nova
+    // só entra (a auditoria aponta a semana com descanso a mais ou a menos).
+    if (t.status === "trabalho" && !eh12x36(p) && !escala.semFolgas) {
       const semana = semanaDoPeriodo(escala, a.data);
       const abertoNoDia = (d: number) => escala.cobertura.find((c) => c.data === d)?.aberto;
       const daSemana = p.turnos.filter((x) => semanaDoPeriodo(escala, x.data) === semana && abertoNoDia(x.data));
@@ -691,8 +801,7 @@ export function ajustarTurno(cfg: ConfigFilial, escala: Escala, a: AjusteTurno):
 
 /** Recalcula horas, cobertura e alertas depois de ajustes. */
 export function recalcular(cfg: ConfigFilial, escala: Escala) {
-  const nSemanas = semanasDoPeriodo(escala);
-  for (const p of escala.equipe) resumirPessoa(p, escala.jornadaSemanal, nSemanas);
+  for (const p of escala.equipe) resumirPessoa(p, escala);
   escala.cobertura = escala.cobertura.map((c) => coberturaDoDia(cfg, c.data, c.dia, escala.equipe));
   escala.alertas = auditar(cfg, escala);
   return escala;
@@ -757,6 +866,7 @@ export function projetarEscala(cfg: ConfigFilial, base: Escala, ano: number, mes
     cobertura: diasDestino.map((d) => ({ data: d.data, dia: d.dia, aberto: aberto(cfg, d.dia), porFuncao: {}, total: 0, faixas: [] })),
     alertas: [],
   };
+  if (base.semFolgas) escala.semFolgas = true;
   recalcular(cfg, escala);
   escala.alertasBase = structuredClone(escala.alertas);
   return escala;
@@ -849,6 +959,26 @@ function auditar(cfg: ConfigFilial, escala: Escala): Alerta[] {
       alertas.push({ severidade: "media", pessoaId: p.id, mensagem: `${p.nome}: jornada diária acima de 8 horas sem acordo/convenção coletiva marcado na filial.` });
     const pos = (t: Turno) => posicaoNoPeriodo(escala, t.data);
     const fmtDia = (data: number) => rotuloData(escala, data);
+    if (!doze) {
+      // regra do 5x2: dois descansos por semana (folga ou loja fechada). A geração sempre cumpre; a semana foge da regra
+      // quando a loja ainda não marcou as folgas (escala gerada sem folgas) ou trocou uma folga por trabalho à mão.
+      // A data do alerta é a segunda-feira da semana (mesma mensagem por pessoa: as semanas se juntam na lista).
+      const { faltam, sobram } = semanasForaDo5x2(escala, p);
+      for (const w of faltam)
+        alertas.push({
+          severidade: "alta",
+          pessoaId: p.id,
+          data: w.dias[0].data,
+          mensagem: `${p.nome}: semana sem os dois dias de descanso do 5x2 (folga ou dia em que a loja fecha). A data é a segunda-feira da semana; marque no calendário as folgas que faltam.`,
+        });
+      for (const w of sobram)
+        alertas.push({
+          severidade: "media",
+          pessoaId: p.id,
+          data: w.dias[0].data,
+          mensagem: `${p.nome}: semana com mais dias de descanso do que o 5x2 (dois por semana): sobram menos de cinco dias de trabalho. A data é a segunda-feira da semana.`,
+        });
+    }
     const dias = p.turnos.filter((t) => t.status === "trabalho").sort((x, y) => pos(x) - pos(y));
     for (const t of dias) {
       if (!doze && t.ajustado && t.horas > 8 && !cfg.acordoJornadaEstendida)

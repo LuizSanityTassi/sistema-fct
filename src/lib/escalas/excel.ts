@@ -3,8 +3,8 @@
 import "server-only";
 import * as XLSX from "xlsx";
 import type { Simulacao } from "@/lib/data/escalas";
-import { ROTULO_DIA, ROTULO_FUNCAO, ROTULO_SITUACAO, eh12x36, horasDoTurno, naEscala, rotuloData, type Funcao } from "./motor";
-import { celula, excedenteEquipe, horasEquipe, rotuloDias, textoFuncionamento, textoPeriodo } from "./resumo";
+import { ROTULO_DIA, ROTULO_FUNCAO, ROTULO_SITUACAO, eh12x36, horasDoTurno, naEscala, rotuloData, semanasForaDo5x2, type Funcao } from "./motor";
+import { celula, excedenteEquipe, horasEquipe, rotuloDias, textoFolgas, textoFuncionamento, textoPeriodo } from "./resumo";
 
 type Celula = string | number | boolean | null | { t: "n"; v: number; f: string };
 
@@ -30,6 +30,9 @@ export function gerarExcelEscala(sims: Simulacao[], pessoaId?: string): Buffer {
   const lista = sims.map((s) => (pessoaId ? { ...s, equipe: s.equipe.filter((p) => p.id === pessoaId) } : s));
   const rascunho = sims.some((s) => s.situacao !== "oficial");
   const comPendencia = sims.some((s) => s.alertas.length);
+  const semFolgas = sims.some((s) => s.semFolgas);
+  // semanas inteiras de cada pessoa do 5x2 ainda sem os dois descansos (folga ou loja fechada)
+  const semanasFaltando = (s: Simulacao, p: Simulacao["equipe"][number]) => semanasForaDo5x2(s, p).faltam.map((w) => `${rotuloData(s, w.dias[0].data)} a ${rotuloData(s, w.dias[6].data)}`);
 
   const resumo: Celula[][] = [
     ["SIMULADOR DE ESCALA 5x2 · FCT"],
@@ -37,9 +40,11 @@ export function gerarExcelEscala(sims: Simulacao[], pessoaId?: string): Buffer {
       `Gerado em ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`,
       rascunho ? (comPendencia ? "RASCUNHO com pendências de auditoria (veja a aba AUDITORIA)" : "RASCUNHO sem pendências") : "ESCALA OFICIAL",
     ],
+    ...(semFolgas ? [["Escala gerada SEM FOLGAS: a loja define as folgas no calendário (duas por semana no 5x2; dia em que a loja fecha conta). Semanas sem os dois descansos na coluna 'Semanas sem descanso' da ESCALA MENSAL e na AUDITORIA."]] : []),
     [],
     ["Filial", "Nome", "Período", "Opção", "Situação", "Pessoas ativas", "Jornada (h/sem)", "Horas no mês", "Excedente semanal (h)", "Pendências", "Folgas permitidas"],
   ];
+  const linhaCabecalho = resumo.length - 1;
   for (const s of lista)
     resumo.push([
       s.filial.codigo,
@@ -52,25 +57,31 @@ export function gerarExcelEscala(sims: Simulacao[], pessoaId?: string): Buffer {
       Number(horasEquipe(s).toFixed(1)),
       Number(excedenteEquipe(s).toFixed(1)),
       s.alertas.length,
-      rotuloDias(s.folgasPermitidas),
+      s.semFolgas ? "a loja define" : rotuloDias(s.folgasPermitidas),
     ]);
-  aba(wb, "RESUMO", resumo, [10, 28, 10, 7, 12, 13, 14, 13, 18, 11, 22], 3);
+  aba(wb, "RESUMO", resumo, [10, 28, 10, 7, 12, 13, 14, 13, 18, 11, 22], linhaCabecalho);
 
   // escala mensal: guarda onde ficou o total de horas de cada pessoa (as abas de horas apontam para lá)
-  const escala: Celula[][] = [["ESCALA MENSAL · horário de entrada (F folga · — fechado · A afastado · I inativo)"]];
+  const escala: Celula[][] = [[`ESCALA MENSAL · horário de entrada (F folga · — fechado · A afastado · I inativo)${semFolgas ? " · gerada sem folgas: a loja define" : ""}`]];
   const celulaHoras = new Map<string, string>();
   for (const s of lista) {
     const n = s.cobertura.length;
     escala.push([]);
-    escala.push([`${s.filial.codigo} · ${s.filial.nome} · opção ${s.opcao} · ${textoPeriodo(s)} · folgas em ${rotuloDias(s.folgasPermitidas)}`]);
-    escala.push(["Colaborador", "Função", ...s.cobertura.map((c) => `${rotuloData(s, c.data)} ${ROTULO_DIA[c.dia]}`), "Horas"]);
+    escala.push([`${s.filial.codigo} · ${s.filial.nome} · opção ${s.opcao} · ${textoPeriodo(s)} · ${textoFolgas(s)}`]);
+    escala.push(["Colaborador", "Função", ...s.cobertura.map((c) => `${rotuloData(s, c.data)} ${ROTULO_DIA[c.dia]}`), "Horas", "Semanas sem descanso"]);
     for (const p of s.equipe) {
       const turnos = new Map(p.turnos.map((t) => [t.data, t]));
-      escala.push([p.nome, `${ROTULO_FUNCAO[p.funcao]}${eh12x36(p) ? " (12x36)" : ""}`, ...s.cobertura.map((c) => celula(turnos.get(c.data)?.status ?? "fechado", turnos.get(c.data)?.inicio)), Number(p.totalHoras.toFixed(1))]);
+      escala.push([
+        p.nome,
+        `${ROTULO_FUNCAO[p.funcao]}${eh12x36(p) ? " (12x36)" : ""}`,
+        ...s.cobertura.map((c) => celula(turnos.get(c.data)?.status ?? "fechado", turnos.get(c.data)?.inicio)),
+        Number(p.totalHoras.toFixed(1)),
+        semanasFaltando(s, p).join(", "),
+      ]);
       celulaHoras.set(`${s.id}:${p.id}`, XLSX.utils.encode_cell({ r: escala.length - 1, c: n + 2 }));
     }
   }
-  aba(wb, "ESCALA MENSAL", escala, [30, 15, ...Array.from({ length: 31 }, () => 7), 8]);
+  aba(wb, "ESCALA MENSAL", escala, [30, 15, ...Array.from({ length: 31 }, () => 7), 8, 28]);
 
   const pessoas: Celula[][] = [["Filial", "Nome", "Função", "Situação", "Regime", "Horas/dia", "Intervalo (min)", "Registro (CRF)"]];
   const turnos: Celula[][] = [["Filial", "Nome", "Data", "Dia", "Entrada", "Saída p/ almoço", "Retorno", "Saída final", "Horas", "Ajuste manual"]];
@@ -113,7 +124,7 @@ export function gerarExcelEscala(sims: Simulacao[], pessoaId?: string): Buffer {
       if (pessoaId && a.pessoaId && a.pessoaId !== pessoaId) continue;
       auditoria.push([cod, a.severidade === "alta" ? "Alta" : "Média", a.pessoaId ? (nomes.get(a.pessoaId) ?? "") : "", a.data ? rotuloData(s, a.data) : "", a.mensagem, (a.faixas ?? []).join(", "), (a.sugestoes ?? []).join(" | ")]);
     }
-    config.push([cod, s.filial.nome, textoFuncionamento(s.config), s.config.minimos.farmaceutico ?? 0, s.config.acordoJornadaEstendida ? "Sim" : "Não", s.jornadaSemanal, rotuloDias(s.folgasPermitidas), s.situacao]);
+    config.push([cod, s.filial.nome, textoFuncionamento(s.config), s.config.minimos.farmaceutico ?? 0, s.config.acordoJornadaEstendida ? "Sim" : "Não", s.jornadaSemanal, s.semFolgas ? `a loja define (padrão da filial: ${rotuloDias(s.folgasPermitidas)})` : rotuloDias(s.folgasPermitidas), s.situacao]);
   }
   aba(wb, "FUNCIONÁRIOS", pessoas, [8, 32, 15, 10, 10, 14, 14], 0);
   aba(wb, "HORÁRIOS E TURNOS", turnos, [8, 32, 8, 6, 9, 14, 9, 11, 7, 13], 0);

@@ -20,6 +20,8 @@ import {
   minutos,
   naEscala,
   rotuloData,
+  semanaDoPeriodo,
+  semanasForaDo5x2,
   type DiaCobertura,
   type ModoAjuste,
   type PeriodoEscala,
@@ -43,6 +45,8 @@ type Props = {
   cobertura: DiaCobertura[];
   abertura: Record<string, string>;
   editavel: boolean;
+  /** gerada sem folgas: a loja marca as folgas aqui */
+  semFolgas?: boolean;
 };
 
 const COR: Record<string, string> = {
@@ -61,10 +65,14 @@ function dica(p: PessoaEscala, t: Turno, periodo: PeriodoEscala) {
 }
 
 /** Calendário do mês (uma linha por pessoa). Clique num dia aberto para trocar folga ou horário. */
-export function Calendario({ simId, ano, mes, inicio, fim, jornadaSemanal, equipe, cobertura, abertura, editavel }: Props) {
+export function Calendario({ simId, ano, mes, inicio, fim, jornadaSemanal, equipe, cobertura, abertura, editavel, semFolgas = false }: Props) {
   const periodo: PeriodoEscala = { ano, mes, inicio, fim };
   // mês de cada dia do período (o período da folha atravessa dois meses)
   const mesDoDia = new Map(diasDoPeriodo(periodo).map((d) => [d.data, d]));
+  // semanas inteiras de cada pessoa do 5x2 ainda sem os dois descansos (folga ou loja fechada): ficam marcadas na grade
+  const semanasFaltando = new Map(equipe.map((p) => [p.id, new Set(semanasForaDo5x2(periodo, p).faltam.map((w) => w.semana))]));
+  const faltando = (p: PessoaEscala, t: Turno) => !!semanasFaltando.get(p.id)?.has(semanaDoPeriodo(periodo, t.data));
+  const totalFaltando = [...semanasFaltando.values()].reduce((s, x) => s + x.size, 0);
   const router = useRouter();
   const [aberto, setAberto] = React.useState<{ p: PessoaEscala; t: Turno } | null>(null);
   const [status, setStatus] = React.useState<"trabalho" | "folga">("trabalho");
@@ -135,6 +143,17 @@ export function Calendario({ simId, ano, mes, inicio, fim, jornadaSemanal, equip
           <AvisoSucesso mensagem={aviso} />
         </div>
       )}
+      {semFolgas && (
+        <div className="mx-5 mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+          <span className="font-medium">Escala gerada sem folgas: a loja define.</span>{" "}
+          {editavel
+            ? "Clique no dia de cada pessoa e escolha “Folga” para marcar as duas folgas de cada semana (dias em que a loja fecha contam como descanso). "
+            : ""}
+          {totalFaltando
+            ? `Semanas com a barra laranja ainda não têm os dois descansos (${totalFaltando} no total); elas aparecem nas pendências e a escala só é publicada depois de completas.`
+            : "Todas as semanas inteiras já têm os dois descansos do 5x2."}
+        </div>
+      )}
       <div className="overflow-x-auto">
         <table className="border-separate border-spacing-0 text-xs">
           <thead>
@@ -170,14 +189,15 @@ export function Calendario({ simId, ano, mes, inicio, fim, jornadaSemanal, equip
                 </th>
                 {p.turnos.map((t) => {
                   const pode = editavel && !!abertoNoDia.get(t.data) && naEscala(p) && t.status !== "afastamento";
+                  const semDescanso = faltando(p, t);
                   return (
-                    <td key={t.data} className={cn("h-10 border-r border-b p-0 text-center tabular-nums", COR[t.status])}>
+                    <td key={t.data} className={cn("h-10 border-r border-b p-0 text-center tabular-nums", COR[t.status], semDescanso && "border-t-2 border-t-amber-500")}>
                       <button
                         type="button"
                         disabled={!pode}
                         onClick={() => abrir(p, t)}
-                        title={dica(p, t, periodo)}
-                        aria-label={`${pode ? "Ajustar" : "Ver"} ${dica(p, t, periodo)}`}
+                        title={`${dica(p, t, periodo)}${semDescanso ? " · semana sem os dois descansos" : ""}`}
+                        aria-label={`${pode ? "Ajustar" : "Ver"} ${dica(p, t, periodo)}${semDescanso ? " · semana sem os dois descansos" : ""}`}
                         className={cn("h-full w-full px-0.5", pode && "cursor-pointer hover:bg-black/5", t.ajustado && "ring-2 ring-sky-400 ring-inset")}
                       >
                         {celula(t.status, t.inicio)}
@@ -192,8 +212,8 @@ export function Calendario({ simId, ano, mes, inicio, fim, jornadaSemanal, equip
         </table>
       </div>
       <p className="px-5 pt-2 pb-4 text-xs text-muted-foreground">
-        Hora = entrada · F folga · — loja fechada · A afastado · I inativo · contorno azul = ajuste manual. Passe o mouse para ver almoço e saída
-        {editavel ? "; clique num dia aberto para ajustar." : "."}
+        Hora = entrada · F folga · — loja fechada · A afastado · I inativo · contorno azul = ajuste manual · barra laranja = semana inteira ainda sem os dois descansos do 5x2. Passe o
+        mouse para ver almoço e saída{editavel ? "; clique num dia aberto para ajustar." : "."}
       </p>
 
       <Dialog open={!!aberto} onOpenChange={(o) => !o && setAberto(null)}>
@@ -277,7 +297,9 @@ export function Calendario({ simId, ano, mes, inicio, fim, jornadaSemanal, equip
                 <p className="text-xs text-muted-foreground">
                   {status === "folga"
                     ? aberto.t.status === "trabalho"
-                      ? "A folga que já existia nesta semana vira dia de trabalho (com o horário de abertura), para manter os cinco dias."
+                      ? semFolgas || eh12x36(aberto.p)
+                        ? "A folga entra neste dia (nada é trocado). A auditoria aponta a semana que ficar com descanso a mais ou a menos."
+                        : "A folga que já existia nesta semana vira dia de trabalho (com o horário de abertura), para manter os cinco dias."
                       : "O dia continua de folga."
                     : "Horas, cobertura e pendências são recalculadas ao salvar. Depois clique em “Atualizar pendências” para registrar o que mudou."}
                 </p>

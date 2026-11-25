@@ -5,8 +5,8 @@ import { notFound } from "next/navigation";
 import { BotaoImprimir } from "@/app/etiquetas/ti/imprimir";
 import { exigirAcesso } from "@/lib/auth/session";
 import { escalaVigente, simulacao } from "@/lib/data/escalas";
-import { ROTULO_DIA, ROTULO_FUNCAO, eh12x36, rotuloData, type Escala } from "@/lib/escalas/motor";
-import { agruparAlertas, celula, datasTexto, lerMesAno, nomeMes, rotuloCompetencia, rotuloDias, textoFuncionamento, textoPeriodo } from "@/lib/escalas/resumo";
+import { ROTULO_DIA, ROTULO_FUNCAO, eh12x36, resumoFolgasPendentes, rotuloData, semanaDoPeriodo, semanasForaDo5x2, type Escala } from "@/lib/escalas/motor";
+import { agruparAlertas, celula, datasTexto, lerMesAno, nomeMes, rotuloCompetencia, textoFolgas, textoFuncionamento, textoPeriodo } from "@/lib/escalas/resumo";
 
 export const metadata: Metadata = { title: "Escala 5x2" };
 
@@ -45,6 +45,9 @@ export default async function ImprimirEscalaPage({ params, searchParams }: PageP
   const alertas = pessoaId ? e.alertas.filter((a) => !a.pessoaId || a.pessoaId === pessoaId) : e.alertas;
   const grupos = agruparAlertas(alertas);
   const oficial = s.situacao === "oficial";
+  // semanas inteiras de cada pessoa do 5x2 ainda sem os dois descansos: barra laranja na grade
+  const semanasFaltando = new Map(equipe.map((p) => [p.id, new Set(semanasForaDo5x2(e, p).faltam.map((w) => w.semana))]));
+  const pendentes = e.semFolgas ? resumoFolgasPendentes({ ...e, equipe }) : null;
 
   return (
     <main className="mx-auto w-full max-w-[297mm] bg-white p-6 text-[10px] text-black print:p-0">
@@ -70,7 +73,7 @@ export default async function ImprimirEscalaPage({ params, searchParams }: PageP
             {projetada ? ` · segue a escala oficial de ${rotuloCompetencia(s.ano, s.mes)} (até ser alterada)` : ""}
           </p>
           <p>
-            Opção {s.opcao} · {s.jornadaSemanal} h/semana · folgas em {rotuloDias(s.folgasPermitidas)} · {textoFuncionamento(s.config)} · mínimo de {s.config.minimos.farmaceutico ?? 0} farmacêutico(s) por hora
+            Opção {s.opcao} · {s.jornadaSemanal} h/semana · {textoFolgas(s)} · {textoFuncionamento(s.config)} · mínimo de {s.config.minimos.farmaceutico ?? 0} farmacêutico(s) por hora
           </p>
           {pessoaId && (
             <p className="font-semibold">
@@ -84,6 +87,12 @@ export default async function ImprimirEscalaPage({ params, searchParams }: PageP
       </header>
       {aviso && <p className="mb-2 font-semibold text-amber-800">{aviso}</p>}
       {!oficial && alertas.length > 0 && <p className="mb-2 font-semibold text-red-700">Rascunho para análise: há {alertas.length} pendência(s) de auditoria (lista no fim). Não publicar antes de revisar.</p>}
+      {pendentes && (
+        <p className="mb-2 font-semibold text-amber-800">
+          Escala gerada sem folgas: a loja define as folgas no calendário (duas por semana no 5x2; dia em que a loja fecha conta).{" "}
+          {pendentes.semanas ? `Faltam os dois descansos em ${pendentes.semanas} semana(s) de ${pendentes.pessoas} pessoa(s): barra laranja na grade.` : "Todas as semanas inteiras já têm os dois descansos."}
+        </p>
+      )}
 
       <table className="w-full border-collapse [&_td]:border [&_td]:border-gray-300 [&_th]:border [&_th]:border-gray-300">
         <thead>
@@ -111,7 +120,11 @@ export default async function ImprimirEscalaPage({ params, searchParams }: PageP
                 </span>
               </td>
               {p.turnos.map((t) => (
-                <td key={t.data} className="px-0 py-0.5 text-center text-[8px] tabular-nums" style={{ background: COR[t.status] }}>
+                <td
+                  key={t.data}
+                  className="px-0 py-0.5 text-center text-[8px] tabular-nums"
+                  style={{ background: COR[t.status], ...(semanasFaltando.get(p.id)?.has(semanaDoPeriodo(e, t.data)) ? { borderTop: "2px solid #d97706" } : {}) }}
+                >
                   {celula(t.status, t.inicio)}
                 </td>
               ))}
@@ -120,7 +133,7 @@ export default async function ImprimirEscalaPage({ params, searchParams }: PageP
           ))}
         </tbody>
       </table>
-      <p className="mt-1 text-[8px] text-gray-600">Hora = entrada · F folga · — loja fechada · A afastado · I inativo. Almoço e saída na próxima página.</p>
+      <p className="mt-1 text-[8px] text-gray-600">Hora = entrada · F folga · — loja fechada · A afastado · I inativo · barra laranja = semana inteira sem os dois descansos do 5x2. Almoço e saída na próxima página.</p>
 
       <section className="quebra mt-4">
         <h2 className="mb-1 text-sm font-bold">TURNOS E RESUMO DE HORAS</h2>

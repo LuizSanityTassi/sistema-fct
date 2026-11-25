@@ -100,6 +100,11 @@ export function rotuloDias(dias: number[] | null | undefined) {
 /** Ordem de exibição dos dias (segunda primeiro). */
 export const DIAS_SEMANA_ORDEM = [1, 2, 3, 4, 5, 6, 0] as const;
 
+/** "folgas em ter, qua, qui" ou, na escala gerada sem folgas, "folgas a definir pela loja". */
+export function textoFolgas(e: Pick<Escala, "folgasPermitidas" | "semFolgas">) {
+  return e.semFolgas ? "folgas a definir pela loja" : `folgas em ${rotuloDias(e.folgasPermitidas)}`;
+}
+
 export type GrupoAlerta = Alerta & { ocorrencias: number; datas: number[]; faixasTodas: string[]; sugestoesTodas: string[] };
 
 /** Junta os alertas repetidos (mesma mensagem, pessoa e função) com as datas e faixas de cada um. */
