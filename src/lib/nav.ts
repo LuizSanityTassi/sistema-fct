@@ -121,7 +121,7 @@ export const NAV: NavGrupo[] = [
         label: "Assistente IA",
         href: "/assistente",
         icon: Sparkles,
-        papeis: ["admin", "financeiro", "rh", "contador"],
+        papeis: ["admin", "financeiro", "rh", "contador", "coordenador"],
         descricao: "Pergunte em português sobre vendas, quebras, conciliação, pendências, DRE, caixa contábil, RH, folha e ponto; a IA responde com os dados que você já pode ver.",
       },
     ],
