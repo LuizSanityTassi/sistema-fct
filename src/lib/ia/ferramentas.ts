@@ -608,6 +608,75 @@ export function ferramentasDe(sessao: Sessao): Ferramenta[] {
       },
     }),
     criar({
+      nome: "vendas_por_horario",
+      rota: "/vendas",
+      status: "Consultando a venda por horário",
+      descricao:
+        "Venda por hora do dia (Trier, Relatório de Vendas Por Horário), por filial: quantidade de vendas (atendimentos), produtos e valor em cada hora cheia — hora 7 = 07:00 às 07:59. É o total da filial no Trier (com a televendas lançada nela), igual ao total do dia da filial. Faixa: 'das 7h às 8h' = hora_de 7 e hora_ate 7; 'das 7h às 9h' = 7 e 8; 'depois das 18h' = hora_de 18. O dia de hoje é parcial (atualiza a cada ~25 min). Sem filial, soma as filiais que a pessoa vê (ou a regional). Devolve por hora, por filial (quando não pede uma) e por dia (quando o período tem mais de um dia). Período de até 62 dias; o histórico começa no mês passado.",
+      esquema: z.object({
+        de: DIA,
+        ate: DIA,
+        filial: CODIGO_FILIAL.optional(),
+        regional: z.enum(["Sul", "Serra", "Oeste"]).optional(),
+        hora_de: z.number().int().min(0).max(23).optional().describe("Primeira hora cheia da faixa (0–23)."),
+        hora_ate: z.number().int().min(0).max(23).optional().describe("Última hora cheia da faixa (0–23), inclusive."),
+      }),
+      executar: async ({ de, ate, filial, regional, hora_de, hora_ate }) => {
+        if (ate < de) throw new Error("A data final vem antes da inicial.");
+        if ((Date.parse(ate) - Date.parse(de)) / 86_400_000 > 62) throw new Error("Período grande demais: use até 62 dias.");
+        const hDe = hora_de ?? 0;
+        const hAte = hora_ate ?? 23;
+        if (hAte < hDe) throw new Error("A hora final vem antes da inicial.");
+        const todas = await filiais();
+        const porId = new Map(todas.map((f) => [f.id, f]));
+        const alvo = filial ? [await idDaFilial(filial)] : todas.filter((f) => !regional || f.regional === regional);
+        const supabase = await createClient();
+        const linhas: { branch_id: string; data: string; hora: number; vendas: number; produtos: number; valor: number }[] = [];
+        for (let desde = 0; ; desde += 1000) {
+          let q = supabase.from("vendas_hora_dia").select("branch_id, data, hora, vendas, produtos, valor").gte("data", de).lte("data", ate).gte("hora", hDe).lte("hora", hAte);
+          q = filial ? q.eq("branch_id", alvo[0].id) : regional ? q.in("branch_id", alvo.map((f) => f.id)) : q;
+          const { data, error } = await q.order("data").order("branch_id").order("hora").range(desde, desde + 999);
+          if (error) throw new Error(error.message);
+          linhas.push(...(data ?? []).map((l) => ({ ...l, produtos: Number(l.produtos), valor: Number(l.valor) })));
+          if ((data?.length ?? 0) < 1000) break;
+        }
+        const faixa = hDe === 0 && hAte === 23 ? "dia inteiro" : `${String(hDe).padStart(2, "0")}:00 às ${String(hAte).padStart(2, "0")}:59`;
+        if (!linhas.length) return { periodo: { de, ate }, faixa, aviso: "Não há venda por horário guardada nesse período e faixa para as filiais pedidas (o histórico começa no mês passado; a filial pode não ter vendido nessas horas)." };
+        type Soma = { vendas: number; produtos: number; valor: number };
+        const somar = (mapa: Map<string, Soma>, chave: string, l: Soma) => {
+          const s = mapa.get(chave) ?? { vendas: 0, produtos: 0, valor: 0 };
+          mapa.set(chave, { vendas: s.vendas + l.vendas, produtos: s.produtos + l.produtos, valor: s.valor + l.valor });
+        };
+        const fmt = (s: Soma) => ({ vendas: s.vendas, produtos: r2(s.produtos), valor: r2(s.valor), ticket_medio: s.vendas ? r2(s.valor / s.vendas) : null });
+        const porHora = new Map<string, Soma>();
+        const porFilial = new Map<string, Soma>();
+        const porDia = new Map<string, Soma>();
+        const total = new Map<string, Soma>();
+        for (const l of linhas) {
+          somar(porHora, String(l.hora), l);
+          somar(porFilial, l.branch_id, l);
+          somar(porDia, l.data, l);
+          somar(total, "t", l);
+        }
+        const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+        return {
+          periodo: { de, ate },
+          faixa,
+          filial: filial ? `${alvo[0].codigo} ${alvo[0].nome}` : (regional ?? "filiais que a pessoa vê"),
+          hoje_parcial: ate >= hoje || undefined,
+          total: fmt(total.get("t")!),
+          por_hora: [...porHora].sort(([a], [b]) => Number(a) - Number(b)).map(([h, s]) => ({ hora: `${h.padStart(2, "0")}:00–${h.padStart(2, "0")}:59`, ...fmt(s) })),
+          por_filial: filial
+            ? undefined
+            : [...porFilial]
+                .sort(([, a], [, b]) => b.valor - a.valor)
+                .slice(0, MAX_LINHAS)
+                .map(([id, s]) => ({ filial: porId.get(id)?.codigo ?? id, nome: porId.get(id)?.nome ?? null, ...fmt(s) })),
+          por_dia: porDia.size > 1 ? [...porDia].sort(([a], [b]) => a.localeCompare(b)).slice(-MAX_LINHAS).map(([d, s]) => ({ dia: d, ...fmt(s) })) : undefined,
+        };
+      },
+    }),
+    criar({
       nome: "vendas_por_periodo",
       rota: "/vendas",
       status: "Consultando a evolução das vendas",

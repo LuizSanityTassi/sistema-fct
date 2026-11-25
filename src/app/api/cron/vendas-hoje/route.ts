@@ -3,7 +3,7 @@ import { after, NextResponse } from "next/server";
 import { credenciaisTrierServico } from "@/lib/integracoes/segredos";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { coletarVendas, lerReceitasGuardadas, pedidosDeHoje, receitaPendente } from "@/lib/vendas/coleta";
-import { coletarHorario, pedidosHorario } from "@/lib/vendas/horario";
+import { coletarHorario, lerHorarioGuardados, pedidosHorario } from "@/lib/vendas/horario";
 
 // Robô das vendas de HOJE (a cada 10 minutos, das 7h às 23h50): quem chama é o banco (pg_cron + pg_net, migração 0105),
 // porque o cron da Vercel no plano Hobby roda só uma vez por dia. Senha: "Authorization: Bearer <token>", em que o
@@ -56,9 +56,14 @@ export async function GET(req: Request) {
       const sobra = prazo - r.ms - 10_000;
       if (sobra > 40_000) {
         try {
-          const ph = await pedidosHorario(admin, agora);
+          // Excel já guardado e ainda não lido (leitor novo ou erro de leitura): lê antes de buscar mais
+          const inicio = Date.now();
+          const relidas = await lerHorarioGuardados(admin, 60);
+          if (relidas.lidas || relidas.erros.length) console.log("[cron vendas-hoje] horario relido", JSON.stringify({ lidas: relidas.lidas, erros: relidas.erros.slice(0, 5) }));
+          const resta = sobra - (Date.now() - inicio);
+          const ph = resta > 40_000 ? await pedidosHorario(admin, agora) : [];
           if (ph.length) {
-            const h = await coletarHorario(admin, cred, ph, sobra, agora);
+            const h = await coletarHorario(admin, cred, ph, resta, agora);
             console.log("[cron vendas-hoje] horario", JSON.stringify({ pedidos: ph.length, ok: h.ok, vazios: h.vazios, erros: h.erros.slice(0, 5), faltam: h.faltam, ms: h.ms }));
           }
         } catch (e) {

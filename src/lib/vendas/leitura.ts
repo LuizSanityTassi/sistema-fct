@@ -27,7 +27,7 @@ export async function mapaFiliaisTrier(client: Cliente) {
   return mapa;
 }
 
-function matrizDe(b64: string): Matriz {
+export function matrizDe(b64: string): Matriz {
   const wb = XLSX.read(Buffer.from(b64, "base64"), { type: "buffer" });
   return XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: null, blankrows: false });
 }

@@ -300,3 +300,53 @@ export function lerReceitaPorFilial(m: Matriz): { filiais: ReceitaFilial[]; tota
   if (Math.abs(soma - totalGeral) > 0.05) throw new LeituraErro(`as filiais somam ${soma} e o Total Geral é ${totalGeral}`);
   return { filiais, totalGeral };
 }
+
+// ---------- Rel_0212 Vendas por Horário, uma filial, totais por horário ----------
+
+export type VendaHora = { hora: number; vendas: number; produtos: number; valor: number };
+
+/**
+ * Cabeçalho "Filial: | 11 - " e "Período: | 24/11/2026 à 24/11/2026"; a tabela começa em "Intervalo de Horas" (colunas
+ * Quant. Vendas, Quant. Produtos e Valor Vendas), uma linha por hora com venda ("07:00:00    07:59:59"), e fecha em
+ * "Total Geral:". Hora sem venda não vem. Confere a soma das horas com o Total Geral.
+ */
+export function lerVendasPorHorario(m: Matriz): { filial: number | null; dia: string | null; horas: VendaHora[]; total: Omit<VendaHora, "hora"> } {
+  let filial: number | null = null;
+  let dia: string | null = null;
+  for (const linha of m.slice(0, 12)) {
+    const iFil = indice(linha, (t) => /^filial:?$/i.test(t));
+    if (iFil >= 0 && filial === null) {
+      const valor = /^(\d{1,4})\b/.exec(txt(linha.slice(iFil + 1).find((c) => txt(c)) ?? ""));
+      if (valor) filial = Number(valor[1]);
+    }
+    const iPer = indice(linha, (t) => /^per[ií]odo:?$/i.test(t));
+    if (iPer >= 0 && dia === null) {
+      const p = /(\d{2})\/(\d{2})\/(\d{4})/.exec(txt(linha.slice(iPer + 1).find((c) => txt(c)) ?? ""));
+      if (p) dia = `${p[3]}-${p[2]}-${p[1]}`;
+    }
+  }
+  const iCab = m.findIndex((l) => indice(l, (t) => /^intervalo de horas$/i.test(t)) >= 0);
+  if (iCab < 0) throw new LeituraErro("Vendas por horário: não achei a coluna \"Intervalo de Horas\".");
+  const cab = m[iCab];
+  const cVendas = indice(cab, (t) => /^quant\.? vendas$/i.test(t));
+  const cProdutos = indice(cab, (t) => /^quant\.? produtos$/i.test(t));
+  const cValor = indice(cab, (t) => /^valor vendas$/i.test(t));
+  if (cVendas < 0 || cProdutos < 0 || cValor < 0) throw new LeituraErro("Vendas por horário: faltam as colunas Quant. Vendas, Quant. Produtos ou Valor Vendas.");
+  const horas: VendaHora[] = [];
+  let total: Omit<VendaHora, "hora"> | null = null;
+  for (const linha of m.slice(iCab + 1)) {
+    const rotulo = linha.map(txt).find((t) => t) ?? "";
+    if (/^total geral/i.test(rotulo)) {
+      total = { vendas: num(linha[cVendas]), produtos: num(linha[cProdutos]), valor: cent(num(linha[cValor])) };
+      break;
+    }
+    const h = /^(\d{2}):00:00\s+\d{2}:59:59$/.exec(rotulo);
+    if (!h) continue;
+    horas.push({ hora: Number(h[1]), vendas: num(linha[cVendas]), produtos: num(linha[cProdutos]), valor: cent(num(linha[cValor])) });
+  }
+  if (!total) throw new LeituraErro("Vendas por horário: não achei o Total Geral.");
+  const soma = horas.reduce((s, h) => s + h.valor, 0);
+  if (Math.abs(soma - total.valor) > 0.05) throw new LeituraErro(`Vendas por horário: as horas somam ${cent(soma)} e o Total Geral é ${total.valor}.`);
+  if (new Set(horas.map((h) => h.hora)).size !== horas.length) throw new LeituraErro("Vendas por horário: hora repetida no relatório.");
+  return { filial, dia, horas, total };
+}

@@ -2978,6 +2978,41 @@ export type Database = {
           },
         ]
       }
+      vendas_hora_dia: {
+        Row: {
+          branch_id: string
+          data: string
+          hora: number
+          produtos: number
+          valor: number
+          vendas: number
+        }
+        Insert: {
+          branch_id: string
+          data: string
+          hora: number
+          produtos?: number
+          valor?: number
+          vendas?: number
+        }
+        Update: {
+          branch_id?: string
+          data?: string
+          hora?: number
+          produtos?: number
+          valor?: number
+          vendas?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendas_hora_dia_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vendas_coletas: {
         Row: {
           arquivo_b64: string | null
