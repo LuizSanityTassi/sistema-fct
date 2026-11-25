@@ -336,6 +336,11 @@ export function lerVendasPorHorario(m: Matriz): { filial: number | null; dia: st
   let total: Omit<VendaHora, "hora"> | null = null;
   for (const linha of m.slice(iCab + 1)) {
     const rotulo = linha.map(txt).find((t) => t) ?? "";
+    // filial fechada no dia (domingo, feriado): o Trier manda a tabela vazia com esta frase e sem Total Geral
+    if (!horas.length && /^nenhum relat[oó]rio encontrado/i.test(rotulo)) {
+      total = { vendas: 0, produtos: 0, valor: 0 };
+      break;
+    }
     if (/^total geral/i.test(rotulo)) {
       total = { vendas: num(linha[cVendas]), produtos: num(linha[cProdutos]), valor: cent(num(linha[cValor])) };
       break;

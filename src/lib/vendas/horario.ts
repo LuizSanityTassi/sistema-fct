@@ -109,7 +109,7 @@ async function lerAnotando(admin: Cliente, c: Parameters<typeof gravarHoras>[1])
 
 /** Coletas já guardadas e ainda não lidas (leitor novo ou erro de leitura): lê de novo o Excel guardado. */
 export async function lerHorarioGuardados(admin: Cliente, limite = 120) {
-  const { data, error } = await admin.from("vendas_hora_coletas").select("data, filial, branch_id, status").in("status", ["ok", "vazio"]).is("lido_em", null).order("data").limit(limite);
+  const { data, error } = await admin.from("vendas_hora_coletas").select("data, filial, branch_id, status").in("status", ["ok", "vazio"]).is("lido_em", null).order("erro", { nullsFirst: true }).order("data").limit(limite);
   if (error) throw new Error(error.message);
   let lidas = 0;
   const erros: string[] = [];
