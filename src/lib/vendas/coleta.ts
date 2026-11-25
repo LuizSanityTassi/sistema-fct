@@ -179,7 +179,7 @@ export async function lerReceitasGuardadas(admin: Cliente) {
 }
 
 /** Relatórios de Excel grande (laboratórios, vendedor por grupo do mês): no robô de hoje entram uma vez por hora. */
-const PESADOS_DE_HOJE: RelatorioVendas[] = ["laboratorios", "vendedores", "horario"];
+const PESADOS_DE_HOJE: RelatorioVendas[] = ["laboratorios", "vendedores"];
 
 /** Pedidos do robô de hoje (a cada 10 minutos): os relatórios diários do dia corrente e, se a última leitura parcial
  * deles tem mais de 55 minutos, os pesados (vendedores por grupo do dia 1 até hoje). */
