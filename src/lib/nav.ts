@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowLeftRight,
+  HeartHandshake,
   BadgeDollarSign,
   CalendarClock,
   CalendarDays,
@@ -446,6 +447,13 @@ export const NAV: NavGrupo[] = [
         icon: Headset,
         papeis: ["admin", "financeiro", "coordenador"],
         descricao: "Venda da equipe de tele-vendas como uma loja à parte: ranking dos vendedores, equipes (Criciúma, Concórdia, Lages) e onde a venda foi lançada.",
+      },
+      {
+        label: "CRM (fidelização)",
+        href: "/vendas/crm",
+        icon: HeartHandshake,
+        papeis: ["admin", "financeiro", "coordenador", "gerente"],
+        descricao: "Índice de fidelização do Bunker por loja e, dentro da loja, por vendedor: vendas com cliente identificado ÷ vendas.",
       },
       {
         label: "Metas",

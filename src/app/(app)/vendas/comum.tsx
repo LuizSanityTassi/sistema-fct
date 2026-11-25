@@ -69,6 +69,7 @@ const ABAS = [
   { href: "/vendas", rotulo: "Painel" },
   { href: "/vendas/filiais", rotulo: "Venda por filial" },
   { href: "/vendas/televendas", rotulo: "Televendas" },
+  { href: "/vendas/crm", rotulo: "CRM" },
   { href: "/vendas/metas", rotulo: "Metas" },
   { href: "/vendas/vendedores", rotulo: "Acesso dos vendedores" },
 ] as const;

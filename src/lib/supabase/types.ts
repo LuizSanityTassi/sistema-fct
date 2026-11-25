@@ -3616,6 +3616,131 @@ export type Database = {
           },
         ]
       }
+      crm_fidelizacao_dia: {
+        Row: {
+          branch_id: string | null
+          cod_univend: number
+          data: string
+          filial_codigo: string
+          importacao_id: string | null
+          qtd_avulsas: number
+          qtd_fidelizadas: number
+          qtd_funcionario: number
+          qtd_inativo: number
+          qtd_vendas: number
+          valor_credito_gerado: number
+          valor_fidelizado: number
+          valor_funcionario: number
+          valor_inativo: number
+          valor_resgate: number
+          valor_vendas: number
+          valor_vinculado: number
+          vendedor_bunker: number
+          vendedor_codigo: string | null
+          vendedor_nome: string | null
+        }
+        Insert: {
+          branch_id?: string | null
+          cod_univend: number
+          data: string
+          filial_codigo: string
+          importacao_id?: string | null
+          qtd_avulsas?: number
+          qtd_fidelizadas?: number
+          qtd_funcionario?: number
+          qtd_inativo?: number
+          qtd_vendas?: number
+          valor_credito_gerado?: number
+          valor_fidelizado?: number
+          valor_funcionario?: number
+          valor_inativo?: number
+          valor_resgate?: number
+          valor_vendas?: number
+          valor_vinculado?: number
+          vendedor_bunker: number
+          vendedor_codigo?: string | null
+          vendedor_nome?: string | null
+        }
+        Update: {
+          branch_id?: string | null
+          cod_univend?: number
+          data?: string
+          filial_codigo?: string
+          importacao_id?: string | null
+          qtd_avulsas?: number
+          qtd_fidelizadas?: number
+          qtd_funcionario?: number
+          qtd_inativo?: number
+          qtd_vendas?: number
+          valor_credito_gerado?: number
+          valor_fidelizado?: number
+          valor_funcionario?: number
+          valor_inativo?: number
+          valor_resgate?: number
+          valor_vendas?: number
+          valor_vinculado?: number
+          vendedor_bunker?: number
+          vendedor_codigo?: string | null
+          vendedor_nome?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_fidelizacao_dia_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_fidelizacao_dia_importacao_id_fkey"
+            columns: ["importacao_id"]
+            isOneToOne: false
+            referencedRelation: "crm_importacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_importacoes: {
+        Row: {
+          arquivo: string
+          criado_em: string
+          criado_por: string | null
+          criado_por_nome: string | null
+          dias: string[]
+          id: string
+          linhas: number
+          resumo: Json
+        }
+        Insert: {
+          arquivo: string
+          criado_em?: string
+          criado_por?: string | null
+          criado_por_nome?: string | null
+          dias?: string[]
+          id?: string
+          linhas?: number
+          resumo?: Json
+        }
+        Update: {
+          arquivo?: string
+          criado_em?: string
+          criado_por?: string | null
+          criado_por_nome?: string | null
+          dias?: string[]
+          id?: string
+          linhas?: number
+          resumo?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_importacoes_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cmp_importacoes: {
         Row: {
           arquivo: string
@@ -7647,6 +7772,30 @@ export type Database = {
       ponto_cadastrar_digital: { Args: { p_employee: string; p_dedo: number; p_template: string; p_leitor: string }; Returns: undefined }
       ponto_digitais_cadastradas: { Args: { p_employees: string[] }; Returns: { employee_id: string; dedo: number }[] }
       conc_contagem_abas: { Args: { p_conciliacao: string }; Returns: Json }
+      crm_dias: { Args: { p_ate: string; p_de: string }; Returns: string[] }
+      crm_fidelizacao_resumo: {
+        Args: { p_ate: string; p_de: string }
+        Returns: {
+          branch_id: string | null
+          dias: number
+          filial_codigo: string
+          qtd_avulsas: number
+          qtd_fidelizadas: number
+          qtd_funcionario: number
+          qtd_inativo: number
+          qtd_vendas: number
+          valor_credito_gerado: number
+          valor_fidelizado: number
+          valor_resgate: number
+          valor_vendas: number
+          vendedor_codigo: string | null
+          vendedor_nome: string | null
+        }[]
+      }
+      crm_importar: {
+        Args: { p_arquivo: string; p_dias: string[]; p_linhas: Json; p_nome: string; p_resumo: Json }
+        Returns: string
+      }
       conc_pendencias_novas: { Args: { p_de: string }; Returns: { dia: string; qtd: number }[] }
       folha_equipe: { Args: { p_competencia: string }; Returns: Json }
       conc_resumo_periodo: { Args: { p_conciliacao: string }; Returns: { filial: number | null; grupo: string; qtd: number; valor: number; qtd_aberto: number; valor_aberto: number }[] }
