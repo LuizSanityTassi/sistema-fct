@@ -11,8 +11,11 @@ export type EstadoCrm = { erro?: string; ok?: string; avisos?: string[] };
 const DATA = /^\d{4}-\d{2}-\d{2}$/;
 const hojeBrasil = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
 const br = (d: string) => d.split("-").reverse().join("/");
-/** Fora disso, o arquivo não é do dia informado (o Bunker conta quase as mesmas vendas que os atendimentos do Trier). */
-const FAIXA_TRIER = { min: 0.8, max: 1.25 };
+/**
+ * Fora disso, o arquivo não é do dia informado: o Bunker conta quase as mesmas vendas que os atendimentos do Trier (de
+ * 09/10/2026 em diante, 96–100%; no começo de outubro, 77–89%). Dois dias juntos ou o dia errado passam longe disso.
+ */
+const FAIXA_TRIER = { min: 0.7, max: 1.25 };
 
 /**
  * CSV "Exportar Vendedores" do Bunker (Índice de Fidelização por Vendedor (Adm), filtrado num dia só). Confere com os
