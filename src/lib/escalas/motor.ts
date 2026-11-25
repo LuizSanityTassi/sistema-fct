@@ -74,6 +74,9 @@ export type Colaborador = {
   registro?: string | null;
   /** Ausente nas escalas antigas = 5x2. */
   regime?: Regime;
+  /** Afastamento com datas (aaaa-mm-dd): fora da escala só de afastadoDe até afastadoAte; sem datas = o período inteiro. */
+  afastadoDe?: string | null;
+  afastadoAte?: string | null;
 };
 
 export type StatusTurno = "trabalho" | "folga" | "fechado" | "afastamento" | "inativo";
@@ -247,7 +250,17 @@ export const horasAbertas = (cfg: ConfigFilial, dia: Dia) => {
   return f ? (minutos(f.fecha) - minutos(f.abre)) / 60 : 0;
 };
 export const diasAbertos = (cfg: ConfigFilial) => DIAS.map((_, i) => i).filter((i) => aberto(cfg, DIAS[i]));
-const naEscala = (p: { situacao: Situacao }) => p.situacao === "ativo";
+type ComAfastamento = { situacao: Situacao; afastadoDe?: string | null; afastadoAte?: string | null };
+/** Entra na escala: ativo, ou afastado com datas (trabalha nos dias fora do afastamento e volta sozinho depois do fim). */
+export const naEscala = (p: ComAfastamento) => p.situacao === "ativo" || (p.situacao === "afastado" && !!(p.afastadoDe || p.afastadoAte));
+/** Afastado neste dia (aaaa-mm-dd): afastado sem datas = todos os dias; com datas = só de afastadoDe até afastadoAte. */
+export const afastadoNoDia = (p: ComAfastamento, iso: string) =>
+  p.situacao === "afastado" && (!p.afastadoDe || iso >= p.afastadoDe) && (!p.afastadoAte || iso <= p.afastadoAte);
+/** Situação de hoje para as telas: o afastamento que já terminou vira "ativo" (a pessoa voltou). */
+export function situacaoHoje(p: ComAfastamento, hoje: string): Situacao {
+  if (p.situacao === "afastado" && p.afastadoAte && p.afastadoAte < hoje) return "ativo";
+  return p.situacao;
+}
 
 /** Horas trabalhadas no dia: 12x36 = 12 h corridas menos o intervalo; 5x2 = horas da pessoa ou jornada ÷ 5. */
 export const horasDoTurno = (p: Pick<Colaborador, "horasDia" | "intervaloMin" | "regime">, horasPadrao: number) =>
@@ -385,14 +398,19 @@ export function gerarOpcoes(
         if (semanaDoPeriodo(periodo, d.data) !== s) continue;
         const i = DIAS.indexOf(d.dia);
         for (const p of doze) {
-          if (trabalha12(p, d.iso)) continue;
+          if (trabalha12(p, d.iso) && !afastadoNoDia(p, d.iso)) continue;
           a.total.set(i, (a.total.get(i) ?? 0) + 1);
           if (contaComoFarmaceutico(p.funcao)) a.farm.set(i, (a.farm.get(i) ?? 0) + 1);
         }
       }
       return a;
     };
-    const folgasSemana = new Map(Array.from({ length: nSemanas }, (_, s) => [s, distribuirFolgas(equipe, abertos, opcao, s, candidatos, doze.length ? ausentesDaSemana(s) : undefined)]));
+    // quem está afastado a semana inteira não entra no rodízio de folgas daquela semana
+    const equipeDaSemana = (s: number) => {
+      const dias = diasDoPeriodo(periodo).filter((d) => semanaDoPeriodo(periodo, d.data) === s);
+      return equipe.filter((p) => dias.some((d) => !afastadoNoDia(p, d.iso)));
+    };
+    const folgasSemana = new Map(Array.from({ length: nSemanas }, (_, s) => [s, distribuirFolgas(equipeDaSemana(s), abertos, opcao, s, candidatos, doze.length ? ausentesDaSemana(s) : undefined)]));
     const pessoas: PessoaEscala[] = equipe.map((p) => ({ ...p, turnos: [], totalHoras: 0, mediaSemanal: 0, excedente: 0 }));
     const cobertura: DiaCobertura[] = [];
 
@@ -401,7 +419,9 @@ export function gerarOpcoes(
       const semana = semanaDoPeriodo(periodo, data);
       const abre = aberto(cfg, dia);
       const faixa = faixaDoDia(cfg, dia);
-      const trabalhando = pessoas.filter((p) => naEscala(p) && abre && (eh12x36(p) ? trabalha12(p, iso) : !(folgasSemana.get(semana)?.get(p.id) ?? []).includes(indiceDia)));
+      const trabalhando = pessoas.filter(
+        (p) => naEscala(p) && abre && !afastadoNoDia(p, iso) && (eh12x36(p) ? trabalha12(p, iso) : !(folgasSemana.get(semana)?.get(p.id) ?? []).includes(indiceDia)),
+      );
 
       for (const p of trabalhando) {
         const duracao = horasDoTurno(p, horasPadrao);
@@ -444,7 +464,7 @@ export function gerarOpcoes(
       }
       for (const p of pessoas.filter((x) => !trabalhando.includes(x))) {
         const deFolga = eh12x36(p) || (folgasSemana.get(semana)?.get(p.id) ?? []).includes(indiceDia);
-        const status: StatusTurno = p.situacao === "afastado" ? "afastamento" : p.situacao === "inativo" ? "inativo" : deFolga && abre ? "folga" : "fechado";
+        const status: StatusTurno = afastadoNoDia(p, iso) ? "afastamento" : p.situacao === "inativo" ? "inativo" : deFolga && abre ? "folga" : "fechado";
         p.turnos.push({ data, dia, status, horas: 0 });
       }
       cobertura.push(coberturaDoDia(cfg, data, dia, pessoas));
@@ -601,6 +621,7 @@ export function ajustarTurno(cfg: ConfigFilial, escala: Escala, a: AjusteTurno):
   const dia = escala.cobertura.find((x) => x.data === a.data);
   if (!t || !dia?.aberto) throw new Error("Só dá para ajustar datas em que a loja abre.");
   if (!naEscala(p)) throw new Error("Afastados e inativos não entram na escala.");
+  if (t.status === "afastamento") throw new Error("Dia de afastamento: mude as datas do afastamento na equipe da escala e gere de novo.");
   if (!Array.isArray(escala.alertasBase)) escala.alertasBase = structuredClone(escala.alertas);
   if (t.horasBase === undefined) t.horasBase = Number(t.horas || 0);
   let movidaDe: number | null = null;

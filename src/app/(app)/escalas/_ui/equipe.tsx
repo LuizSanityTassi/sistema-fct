@@ -11,12 +11,19 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { ColaboradorDetalhe, FuncionarioRh } from "@/lib/data/escalas";
-import { FUNCOES, ROTULO_FUNCAO, ROTULO_SITUACAO, SITUACOES, ehFuncao, ehSituacao } from "@/lib/escalas/motor";
+import { FUNCOES, ROTULO_FUNCAO, ROTULO_SITUACAO, SITUACOES, ehFuncao, ehSituacao, situacaoHoje, type Situacao } from "@/lib/escalas/motor";
 import { vinculoRh } from "@/lib/escalas/vinculo";
 import type { Tom } from "@/lib/tons";
 import { excluirColaborador, salvarColaborador, type EstadoEscala } from "../actions";
 
 const TOM_SIT: Record<string, Tom> = { ativo: "sucesso", afastado: "atencao", inativo: "neutro" };
+const hojeLocal = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+const br = (d: string) => d.split("-").reverse().join("/");
+const somarDia = (d: string) => new Date(Date.parse(`${d}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+const paraMotor = (c: ColaboradorDetalhe) => ({ situacao: (ehSituacao(c.situacao) ? c.situacao : "ativo") as Situacao, afastadoDe: c.afastado_de, afastadoAte: c.afastado_ate });
+/** "de 10/12 a 20/12", "até 20/12", "desde 10/12" */
+const periodoAfastado = (c: ColaboradorDetalhe) =>
+  c.afastado_de && c.afastado_ate ? `de ${br(c.afastado_de)} a ${br(c.afastado_ate)}` : c.afastado_ate ? `até ${br(c.afastado_ate)}` : c.afastado_de ? `desde ${br(c.afastado_de)}` : "";
 
 function FormPessoa({ branchId, pessoa, funcionarios, aoSalvar }: { branchId: string; pessoa: ColaboradorDetalhe | null; funcionarios: FuncionarioRh[]; aoSalvar: () => void }) {
   const [estado, enviar, pendente] = useActionState(async (prev: EstadoEscala, fd: FormData) => {
@@ -26,6 +33,7 @@ function FormPessoa({ branchId, pessoa, funcionarios, aoSalvar }: { branchId: st
   }, {});
   const e = estado.erros ?? {};
   const [ficha, setFicha] = React.useState(pessoa?.employee_id ?? "");
+  const [situacao, setSituacao] = React.useState<string>(pessoa && ehSituacao(pessoa.situacao) ? situacaoHoje(paraMotor(pessoa), hojeLocal()) : "ativo");
   const nomeRef = React.useRef<HTMLInputElement>(null);
   const escolherFicha = (id: string) => {
     setFicha(id);
@@ -70,7 +78,7 @@ function FormPessoa({ branchId, pessoa, funcionarios, aoSalvar }: { branchId: st
         </label>
         <label className="grid gap-1 text-sm">
           <span className="font-medium">Situação</span>
-          <SelectNativo name="situacao" defaultValue={pessoa && ehSituacao(pessoa.situacao) ? pessoa.situacao : "ativo"}>
+          <SelectNativo name="situacao" value={situacao} onChange={(ev) => setSituacao(ev.target.value)}>
             {SITUACOES.map((s) => (
               <option key={s} value={s}>
                 {ROTULO_SITUACAO[s]}
@@ -78,6 +86,22 @@ function FormPessoa({ branchId, pessoa, funcionarios, aoSalvar }: { branchId: st
             ))}
           </SelectNativo>
         </label>
+        {situacao === "afastado" && (
+          <div className="grid gap-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3 sm:col-span-2 sm:grid-cols-2">
+            <label className="grid gap-1 text-sm">
+              <span className="font-medium">Afastado de</span>
+              <Input name="afastado_de" type="date" defaultValue={pessoa?.afastado_de ?? ""} />
+            </label>
+            <label className="grid gap-1 text-sm">
+              <span className="font-medium">até (último dia afastado)</span>
+              <Input name="afastado_ate" type="date" defaultValue={pessoa?.afastado_ate ?? ""} aria-invalid={!!e.afastado_ate || undefined} />
+              {e.afastado_ate && <span className="text-xs font-medium text-destructive">{e.afastado_ate}</span>}
+            </label>
+            <p className="text-xs text-muted-foreground sm:col-span-2">
+              Com as datas, a pessoa fica fora da escala só nesses dias e volta sozinha no dia seguinte ao fim: o simulador já monta folgas e turnos a partir do retorno. Sem datas, fica fora do período inteiro.
+            </p>
+          </div>
+        )}
         <label className="grid gap-1 text-sm sm:col-span-2">
           <span className="font-medium">Regime</span>
           <SelectNativo name="regime" defaultValue={pessoa?.regime === "12x36" ? "12x36" : "5x2"}>
@@ -119,13 +143,14 @@ export function EquipeEscala({ branchId, equipe, funcionarios }: { branchId: str
   const [editando, setEditando] = React.useState<ColaboradorDetalhe | "novo" | null>(null);
   const [busca, setBusca] = React.useState("");
   const [situacao, setSituacao] = React.useState("todos");
+  const hoje = hojeLocal();
   const termo = busca
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase();
   const lista = equipe.filter(
     (c) =>
-      (situacao === "todos" || c.situacao === situacao) &&
+      (situacao === "todos" || situacaoHoje(paraMotor(c), hoje) === situacao) &&
       (!termo ||
         `${c.nome} ${ROTULO_FUNCAO[ehFuncao(c.funcao) ? c.funcao : "outros"]} ${c.observacoes ?? ""}`
           .normalize("NFD")
@@ -190,7 +215,12 @@ export function EquipeEscala({ branchId, equipe, funcionarios }: { branchId: str
                     {c.regime === "12x36" && <span className="block text-xs font-medium text-sky-700">12x36</span>}
                   </td>
                   <td className="px-3 py-2">
-                    <Status tom={TOM_SIT[c.situacao] ?? "neutro"}>{ROTULO_SITUACAO[ehSituacao(c.situacao) ? c.situacao : "ativo"]}</Status>
+                    <Status tom={TOM_SIT[situacaoHoje(paraMotor(c), hoje)] ?? "neutro"}>{ROTULO_SITUACAO[situacaoHoje(paraMotor(c), hoje)]}</Status>
+                    {c.situacao === "afastado" && periodoAfastado(c) && (
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {situacaoHoje(paraMotor(c), hoje) === "ativo" ? `voltou em ${br(somarDia(c.afastado_ate!))}` : `afastado ${periodoAfastado(c)}`}
+                      </p>
+                    )}
                   </td>
                   <td className="max-w-md px-3 py-2 text-xs text-muted-foreground">{[h.semana, h.sabado, h.domingo].some(Boolean) ? [h.semana ?? "—", h.sabado ?? "—", h.domingo ?? "—"].join(" · ") : "—"}</td>
                   <td className="px-3 py-2">

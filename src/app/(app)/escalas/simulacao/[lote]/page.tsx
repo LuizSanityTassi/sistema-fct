@@ -10,7 +10,7 @@ import { Status } from "@/components/layout/status";
 import { Button } from "@/components/ui/button";
 import { exigirAcesso } from "@/lib/auth/session";
 import { opcoesDoLote, simulacoesDaFilial, type Simulacao } from "@/lib/data/escalas";
-import { DIAS, ROTULO_DIA, contaComoFarmaceutico, rotuloData, type Dia } from "@/lib/escalas/motor";
+import { DIAS, ROTULO_DIA, contaComoFarmaceutico, naEscala, rotuloData, type Dia } from "@/lib/escalas/motor";
 import { agruparAlertas, datasTexto, estatFolgas, excedenteEquipe, horasEquipe, lacunas, nomeMes, rotuloCompetencia, rotuloDaEscala, rotuloDias, textoFuncionamento, textoPeriodo } from "@/lib/escalas/resumo";
 import { formatarDataHora } from "@/lib/formatos";
 import { cn } from "@/lib/utils";
@@ -166,7 +166,7 @@ export default async function SimulacaoPage({ params, searchParams }: PageProps<
               </div>
               <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
                 <dt className="text-muted-foreground">Equipe ativa</dt>
-                <dd className="text-right tabular-nums">{s.equipe.filter((p) => p.situacao === "ativo").length}</dd>
+                <dd className="text-right tabular-nums">{s.equipe.filter((p) => naEscala(p)).length}</dd>
                 <dt className="text-muted-foreground">Horas no mês</dt>
                 <dd className="text-right tabular-nums">{horasEquipe(s).toFixed(0)} h</dd>
                 <dt className="text-muted-foreground">Excedente semanal</dt>
@@ -214,7 +214,7 @@ export default async function SimulacaoPage({ params, searchParams }: PageProps<
               <FileSpreadsheet data-icon="inline-start" />
               Excel
             </Button>
-            <ExportarIndividual simId={sel.id} pessoas={sel.equipe.filter((p) => p.situacao === "ativo").map((p) => ({ id: p.id, nome: p.nome }))} />
+            <ExportarIndividual simId={sel.id} pessoas={sel.equipe.filter((p) => naEscala(p)).map((p) => ({ id: p.id, nome: p.nome }))} />
             {rascunho &&
               (sel.alertas.length || sel.analisePendente ? (
                 <span className="text-xs text-muted-foreground" title="A escala oficial só é publicada sem pendências na auditoria.">

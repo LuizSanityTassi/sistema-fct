@@ -15,6 +15,7 @@ import {
   type Funcao,
   type PeriodoEscala,
   inicioFolha,
+  naEscala,
   ordenarDatas,
   rotuloData,
   rotuloPeriodo,
@@ -41,6 +42,8 @@ export type LinhaColaborador = {
   intervalo_min: number;
   registro: string | null;
   regime?: string | null;
+  afastado_de?: string | null;
+  afastado_ate?: string | null;
 };
 
 const hm = (t: string | null) => (t ? t.slice(0, 5) : "");
@@ -70,6 +73,8 @@ export function colaboradorDaLinha(l: LinhaColaborador): Colaborador {
     intervaloMin: Number(l.intervalo_min ?? 60),
     registro: l.registro,
     regime: ehRegime(l.regime) ? l.regime : "5x2",
+    afastadoDe: l.afastado_de ?? null,
+    afastadoAte: l.afastado_ate ?? null,
   };
 }
 
@@ -119,7 +124,7 @@ export const datasTexto = (datas: number[], p: PeriodoEscala) => (datas.length ?
 
 /** Folgas da equipe ativa: quantas caem em ter–qui (preferência) e quantas em seg/sex (dias de venda). */
 export function estatFolgas(e: Pick<Escala, "equipe">) {
-  const folgas = e.equipe.filter((p) => p.situacao === "ativo").flatMap((p) => p.turnos.filter((t) => t.status === "folga"));
+  const folgas = e.equipe.filter((p) => naEscala(p)).flatMap((p) => p.turnos.filter((t) => t.status === "folga"));
   const preferidas = folgas.filter((t) => ["ter", "qua", "qui"].includes(t.dia)).length;
   const venda = folgas.filter((t) => ["seg", "sex"].includes(t.dia)).length;
   const porDia = Object.fromEntries(DIAS.map((d) => [d, 0])) as Record<Dia, number>;

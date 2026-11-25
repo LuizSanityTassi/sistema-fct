@@ -185,12 +185,19 @@ export async function salvarColaborador(_prev: EstadoEscala, fd: FormData): Prom
   if (!ehRegime(regime)) erros.regime = "Escolha o regime.";
   const employee = texto(fd, "employee_id");
   if (employee && !UUID.test(employee)) erros.employee_id = "Ficha inválida.";
+  // afastamento com datas: fora da escala só nesses dias; volta sozinho no dia seguinte ao fim
+  const ISO = /^\d{4}-\d{2}-\d{2}$/;
+  const afastado_de = situacao === "afastado" && ISO.test(texto(fd, "afastado_de")) ? texto(fd, "afastado_de") : null;
+  const afastado_ate = situacao === "afastado" && ISO.test(texto(fd, "afastado_ate")) ? texto(fd, "afastado_ate") : null;
+  if (afastado_de && afastado_ate && afastado_ate < afastado_de) erros.afastado_ate = "O fim tem que ser no mesmo dia ou depois do início.";
   if (Object.keys(erros).length) return { erro: "Confira os campos destacados.", erros };
 
   const dados = {
     nome,
     funcao: funcao as Funcao,
     situacao,
+    afastado_de,
+    afastado_ate,
     horas_dia,
     intervalo_min,
     regime: regime as Regime,

@@ -4390,6 +4390,8 @@ export type Database = {
       }
       esc_colaboradores: {
         Row: {
+          afastado_ate: string | null
+          afastado_de: string | null
           atualizado_em: string
           atualizado_por: string | null
           branch_id: string
@@ -4411,6 +4413,8 @@ export type Database = {
           situacao: string
         }
         Insert: {
+          afastado_ate?: string | null
+          afastado_de?: string | null
           atualizado_em?: string
           atualizado_por?: string | null
           branch_id: string
@@ -4432,6 +4436,8 @@ export type Database = {
           situacao?: string
         }
         Update: {
+          afastado_ate?: string | null
+          afastado_de?: string | null
           atualizado_em?: string
           atualizado_por?: string | null
           branch_id?: string

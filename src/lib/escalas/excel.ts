@@ -3,7 +3,7 @@
 import "server-only";
 import * as XLSX from "xlsx";
 import type { Simulacao } from "@/lib/data/escalas";
-import { ROTULO_DIA, ROTULO_FUNCAO, ROTULO_SITUACAO, eh12x36, horasDoTurno, rotuloData, type Funcao } from "./motor";
+import { ROTULO_DIA, ROTULO_FUNCAO, ROTULO_SITUACAO, eh12x36, horasDoTurno, naEscala, rotuloData, type Funcao } from "./motor";
 import { celula, excedenteEquipe, horasEquipe, rotuloDias, textoFuncionamento, textoPeriodo } from "./resumo";
 
 type Celula = string | number | boolean | null | { t: "n"; v: number; f: string };
@@ -47,7 +47,7 @@ export function gerarExcelEscala(sims: Simulacao[], pessoaId?: string): Buffer {
       textoPeriodo(s),
       s.opcao,
       s.situacao === "oficial" ? "Oficial" : s.situacao === "substituida" ? "Substituída" : "Rascunho",
-      s.equipe.filter((p) => p.situacao === "ativo").length,
+      s.equipe.filter((p) => naEscala(p)).length,
       s.jornadaSemanal,
       Number(horasEquipe(s).toFixed(1)),
       Number(excedenteEquipe(s).toFixed(1)),

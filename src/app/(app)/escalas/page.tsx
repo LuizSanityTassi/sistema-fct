@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { exigirAcesso } from "@/lib/auth/session";
 import { filiaisDaEscala, filiaisForaDaEscala } from "@/lib/data/escalas";
-import { contaComoFarmaceutico, preAnalise, ROTULO_PRE, type PreAnalise } from "@/lib/escalas/motor";
+import { contaComoFarmaceutico, preAnalise, ROTULO_PRE, situacaoHoje, type PreAnalise } from "@/lib/escalas/motor";
+import { hojeNoBrasil } from "@/lib/data/vendas";
 import { horarioPendente, modeloFilial, proximoMes, rotuloCompetencia, rotuloDias, textoFuncionamento } from "@/lib/escalas/resumo";
 import type { Tom } from "@/lib/tons";
 import { AbasEscala } from "./abas";
@@ -41,7 +42,8 @@ export default async function EscalasPage({ searchParams }: PageProps<"/escalas"
   );
 
   const equipe = filiais.flatMap((f) => f.equipe);
-  const ativos = equipe.filter((p) => p.situacao === "ativo");
+  const hoje = hojeNoBrasil();
+  const ativos = equipe.filter((p) => situacaoHoje(p, hoje) === "ativo");
   const farm = ativos.filter((p) => contaComoFarmaceutico(p.funcao)).length;
   const pendentes = filiais.filter((f) => horarioPendente(f.linha)).length;
   const contagem = (s: PreAnalise["status"]) => [...analises.values()].filter((a) => a.status === s).length;
@@ -67,7 +69,7 @@ export default async function EscalasPage({ searchParams }: PageProps<"/escalas"
           rotulo="Pessoas na escala"
           valor={equipe.length}
           icone={Users}
-          detalhe={`${ativos.length} ativos · ${equipe.filter((p) => p.situacao === "afastado").length} afastados · ${equipe.filter((p) => p.situacao === "inativo").length} inativos`}
+          detalhe={`${ativos.length} ativos · ${equipe.filter((p) => situacaoHoje(p, hoje) === "afastado").length} afastados · ${equipe.filter((p) => p.situacao === "inativo").length} inativos`}
         />
         <Indicador rotulo="Farmacêuticos ativos" valor={farm} icone={Users} detalhe="mínimo por hora definido em cada filial" />
         <Indicador rotulo="Horário pendente" valor={pendentes} icone={AlarmClock} tomValor={pendentes ? "atencao" : undefined} detalhe={pendentes ? "filiais sem horário de seg–sex" : "todas com horário"} />
@@ -144,7 +146,7 @@ export default async function EscalasPage({ searchParams }: PageProps<"/escalas"
               <tbody>
                 {lista.map((f) => {
                   const a = analises.get(f.id)!;
-                  const at = f.equipe.filter((p) => p.situacao === "ativo");
+                  const at = f.equipe.filter((p) => situacaoHoje(p, hoje) === "ativo");
                   return (
                     <tr key={f.id} className="border-b align-top last:border-0 hover:bg-muted/30">
                       <td className="px-4 py-2.5">

@@ -18,6 +18,7 @@ import {
   hora,
   horasDoTurno,
   minutos,
+  naEscala,
   rotuloData,
   type DiaCobertura,
   type ModoAjuste,
@@ -164,11 +165,11 @@ export function Calendario({ simId, ano, mes, inicio, fim, jornadaSemanal, equip
                   <span className="text-muted-foreground">
                     {ROTULO_FUNCAO[p.funcao]}
                     {eh12x36(p) ? " · 12x36" : ""}
-                    {p.situacao !== "ativo" ? ` · ${p.situacao}` : ""}
+                    {p.situacao !== "ativo" ? ` · ${p.situacao}${p.afastadoDe || p.afastadoAte ? ` ${[p.afastadoDe, p.afastadoAte].map((d) => (d ? d.slice(8, 10) + "/" + d.slice(5, 7) : "…")).join(" a ")}` : ""}` : ""}
                   </span>
                 </th>
                 {p.turnos.map((t) => {
-                  const pode = editavel && !!abertoNoDia.get(t.data) && p.situacao === "ativo";
+                  const pode = editavel && !!abertoNoDia.get(t.data) && naEscala(p) && t.status !== "afastamento";
                   return (
                     <td key={t.data} className={cn("h-10 border-r border-b p-0 text-center tabular-nums", COR[t.status])}>
                       <button

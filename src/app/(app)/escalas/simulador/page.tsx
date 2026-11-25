@@ -5,7 +5,7 @@ import { EstadoVazio, Painel } from "@/components/layout/painel";
 import { Status } from "@/components/layout/status";
 import { exigirAcesso } from "@/lib/auth/session";
 import { escalasOficiais, filiaisDaEscala, lotesRecentes } from "@/lib/data/escalas";
-import { ROTULO_FUNCAO, diasAbertos, eh12x36, inicioFolha } from "@/lib/escalas/motor";
+import { ROTULO_FUNCAO, diasAbertos, eh12x36, inicioFolha, naEscala } from "@/lib/escalas/motor";
 import { proximoMes, rotuloDaEscala } from "@/lib/escalas/resumo";
 import { formatarDataHora } from "@/lib/formatos";
 import { AbasEscala } from "../abas";
@@ -34,7 +34,7 @@ export default async function SimuladorPage({ searchParams }: PageProps<"/escala
       <Painel titulo="Gerar opções" icone={Sparkles} className="mb-4">
         <SimularForm
           filiais={filiais.map((f) => ({ id: f.id, codigo: f.codigo, nome: f.nome, folgas: f.config.folgasPermitidas, diasAbertos: diasAbertos(f.config).length,
-            equipe: f.equipe.filter((p) => p.situacao === "ativo").map((p) => ({ id: p.id, nome: p.nome, funcao: ROTULO_FUNCAO[p.funcao], doze: eh12x36(p) })),
+            equipe: f.equipe.filter((p) => naEscala(p)).map((p) => ({ id: p.id, nome: p.nome, funcao: ROTULO_FUNCAO[p.funcao], doze: eh12x36(p) })),
           }))}
           filialInicial={filialInicial}
           deInicial={inicioFolha(ref.ano, ref.mes)}
