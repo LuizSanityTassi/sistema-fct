@@ -6,7 +6,7 @@ import { getSessao } from "@/lib/auth/session";
 import { importarEspelhoPdf } from "@/lib/compras/importar-espelho";
 import { podeEscreverCompras } from "@/lib/compras/permissao";
 import { lerPrePedido, type PedidoLido } from "@/lib/compras/pre-pedido";
-import { caminhoDeEspelho } from "@/lib/compras/rotulos";
+import { caminhoDeEspelho, ehPedidoDoDia } from "@/lib/compras/rotulos";
 import { buscarEspelhoNotasTrier } from "@/lib/conciliacao/trier-robo";
 import { credenciaisTrier, credenciaisTrierServico } from "@/lib/integracoes/segredos";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -57,13 +57,21 @@ export async function importarPrePedidos(_prev: EstadoImportacao, fd: FormData):
     }
   }
   if (!lidos.length) return { erro: "Nenhum pré-pedido com itens nos arquivos.", avisos: avisos.slice(0, MAX_AVISOS) };
+  // a planilha "Pedido" traz a própria data (vale ela); o pré-pedido do Trier usa a data informada
+  const br = (d: string) => d.split("-").reverse().join("/");
+  const dataDe = (p: PedidoLido) => p.dataPedido ?? data;
+  const futura = lidos.find((l) => dataDe(l.pedido) > hojeBrasil());
+  if (futura) return { erro: `${futura.arquivo}: pedido com data no futuro (${br(dataDe(futura.pedido))}).` };
+  const doArquivo = [...new Set(lidos.map((l) => l.pedido.dataPedido).filter((d): d is string => !!d && d !== data))];
+  if (doArquivo.length) avisos.push(`A planilha "Pedido" entrou com a data dela (${doArquivo.map(br).join(", ")}), não com a data informada.`);
+  const nomeDe = (p: PedidoLido) => (ehPedidoDoDia(p.numero) ? `pedido do dia ${br(dataDe(p))}` : String(p.numero));
   // o pré-pedido é o número + a filial (o Trier numera por empresa: o mesmo número aparece em filiais de redes diferentes)
   const chaveDe = (numero: number, filial: string) => `${numero}|${filial.toUpperCase()}`;
   const vistos = new Set<string>();
   const unicos = lidos.filter(({ pedido, arquivo }) => {
     const k = chaveDe(pedido.numero, pedido.filialCodigo);
     if (vistos.has(k)) {
-      avisos.push(`${arquivo}: pré-pedido ${pedido.numero} da ${pedido.filialCodigo} repetido no envio — entrou uma vez só.`);
+      avisos.push(`${arquivo}: ${nomeDe(pedido)} da ${pedido.filialCodigo} repetido no envio — entrou uma vez só.`);
       return false;
     }
     vistos.add(k);
@@ -86,7 +94,7 @@ export async function importarPrePedidos(_prev: EstadoImportacao, fd: FormData):
     avisos.push(
       `${jaEstavam.length} pré-pedido(s) já estavam no portal e não entraram de novo: ${jaEstavam
         .slice(0, 15)
-        .map((l) => `${l.pedido.numero} (${l.pedido.filialCodigo})`)
+        .map((l) => `${nomeDe(l.pedido)} (${l.pedido.filialCodigo})`)
         .join(", ")}${jaEstavam.length > 15 ? "…" : ""}.`,
     );
   if (!novos.length) return { erro: "Todos esses pré-pedidos já estavam no portal.", avisos: avisos.slice(0, MAX_AVISOS) };
@@ -114,7 +122,7 @@ export async function importarPrePedidos(_prev: EstadoImportacao, fd: FormData):
           filial_codigo: p.filialCodigo,
           branch_id: filiais.get(p.filialCodigo.toUpperCase()) ?? null,
           laboratorio: p.laboratorio || null,
-          data_pedido: data,
+          data_pedido: dataDe(p),
           qtd_itens: p.itens.length,
           qtd_total: p.itens.reduce((s, x) => s + x.quantidade, 0),
           arquivo: arquivo.slice(0, 300),
@@ -140,11 +148,13 @@ export async function importarPrePedidos(_prev: EstadoImportacao, fd: FormData):
     itens += linhas.length;
     quantidade += linhas.reduce((s, x) => s + x.quantidade, 0);
   }
-  const resumo = { data_pedido: data, arquivos: arquivos.map((a) => a.name), pedidos: novos.length, ja_existiam: jaEstavam.length, itens, quantidade, laboratorios: [...new Set(novos.map((l) => l.pedido.laboratorio))], avisos: avisos.slice(0, MAX_AVISOS) };
+  const datas = [...new Set(novos.map((l) => dataDe(l.pedido)))].sort();
+  const dataResumo = datas.length === 1 ? datas[0] : data;
+  const resumo = { data_pedido: dataResumo, arquivos: arquivos.map((a) => a.name), pedidos: novos.length, ja_existiam: jaEstavam.length, itens, quantidade, laboratorios: [...new Set(novos.map((l) => l.pedido.laboratorio))], avisos: avisos.slice(0, MAX_AVISOS) };
   await supabase.from("cmp_importacoes").update({ resumo }).eq("id", imp.id);
   await registrarAuditoria(supabase, { userId: sessao.id, acao: "importar", entidade: "cmp_pedidos", registroId: imp.id, novo: { ...resumo, avisos: undefined } });
   revalidar();
-  return { ok: `${novos.length} pré-pedido(s) importado(s) com ${itens} itens (${quantidade} unidades), data do pedido ${data.split("-").reverse().join("/")}.`, avisos: avisos.slice(0, MAX_AVISOS) };
+  return { ok: `${novos.length} pedido(s) importado(s) com ${itens} itens (${quantidade} unidades), data do pedido ${datas.map(br).join(", ")}.`, avisos: avisos.slice(0, MAX_AVISOS) };
 }
 
 /**

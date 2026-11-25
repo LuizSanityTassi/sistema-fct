@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
-import { DESCRICAO_PEDIDO, JANELA_MAXIMA, SITUACOES_PEDIDO, TOM_PEDIDO, type SituacaoPedido } from "@/lib/compras/rotulos";
+import { DESCRICAO_PEDIDO, ehPedidoDoDia, JANELA_MAXIMA, SITUACOES_PEDIDO, TOM_PEDIDO, type SituacaoPedido } from "@/lib/compras/rotulos";
 import { podeEscreverCompras } from "@/lib/compras/permissao";
 import { lerFiltrosPedidos, listarPedidos, opcoesCompras, paramsPedidos, TAMANHO_PAGINA_COMPRAS } from "@/lib/data/compras";
 import { formatarData, formatarMoeda } from "@/lib/formatos";
@@ -179,7 +179,7 @@ export default async function PedidosNotasPage({ searchParams }: PageProps<"/com
                         </Link>
                       </TableCell>
                       <TableCell className="hidden md:table-cell">{p.laboratorio ?? "—"}</TableCell>
-                      <TableCell className="hidden font-mono text-xs sm:table-cell">{p.numero}</TableCell>
+                      <TableCell className="hidden font-mono text-xs sm:table-cell">{ehPedidoDoDia(p.numero) ? "do dia" : p.numero}</TableCell>
                       <TableCell className="text-right tabular-nums">{Number(p.itens)}</TableCell>
                       <TableCell className="text-right tabular-nums">
                         {num(recebida)} / {num(pedida)}

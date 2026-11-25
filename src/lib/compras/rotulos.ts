@@ -2,6 +2,17 @@
 import { nomeSeguro } from "@/lib/rh/arquivos";
 import type { Tom } from "@/lib/tons";
 
+/**
+ * Planilha "Pedido" (todas as filiais numa aba, sem número do Trier): entra um pedido por filial e por dia, com o número
+ * 9 + a data (AAAAMMDD, ex. 920261124). O mesmo dia da mesma filial não entra duas vezes. Os pré-pedidos do Trier têm 8
+ * dígitos, então não se confundem.
+ */
+export const LAB_PEDIDO_DO_DIA = "PEDIDO DO DIA";
+export const numeroPedidoDoDia = (dataIso: string) => Number(`9${dataIso.replace(/-/g, "")}`);
+export const ehPedidoDoDia = (numero: number | string) => /^9\d{8}$/.test(String(numero));
+/** "Pré-pedido 20013686" ou "Pedido do dia" (o número inventado não diz nada a quem lê). */
+export const rotuloPedido = (numero: number | string) => (ehPedidoDoDia(numero) ? "Pedido do dia" : `Pré-pedido ${numero}`);
+
 /** Dias depois do pré-pedido em que as notas ainda contam para ele (prazo de entrega). */
 export const JANELA_PADRAO = 7;
 export const JANELA_MAXIMA = 30;

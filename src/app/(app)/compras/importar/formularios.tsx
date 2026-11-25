@@ -80,6 +80,9 @@ export function ImportarPrePedidos({ hoje }: { hoje: string }) {
       <p className="text-xs text-muted-foreground">
         O arquivo “PRÉ-PEDIDO” do Trier (Con_0018), com um bloco por filial. Pode mandar vários de uma vez (EMS, Germed, Geolab…). Pré-pedido que já está no portal não entra de novo.
       </p>
+      <p className="text-xs text-muted-foreground">
+        Também aceita a planilha “Pedido” (todas as filiais numa aba: Data, Codigo filial, Codigo reduzido, Fabricante, Quantidade pedido…): entra um “pedido do dia” por filial, com a data da planilha. O mesmo dia da mesma filial não entra duas vezes; para trocar, desfaça a importação abaixo e suba de novo.
+      </p>
       <ErroFormulario mensagem={estado.erro} />
       <AvisoSucesso mensagem={estado.ok} />
       <Avisos avisos={estado.avisos} />

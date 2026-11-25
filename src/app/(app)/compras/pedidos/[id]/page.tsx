@@ -7,7 +7,7 @@ import { Status } from "@/components/layout/status";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirAcesso } from "@/lib/auth/session";
-import { JANELA_MAXIMA, JANELA_PADRAO, situacaoItem } from "@/lib/compras/rotulos";
+import { JANELA_MAXIMA, JANELA_PADRAO, rotuloPedido, situacaoItem } from "@/lib/compras/rotulos";
 import { hojeBrasil, itensDoPedido, obterPedido } from "@/lib/data/compras";
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formatos";
 
@@ -41,7 +41,7 @@ export default async function PedidoPage({ params, searchParams }: PageProps<"/c
       <PageHeader
         eyebrow="Compras · Pedidos × notas"
         titulo={`${p.filial_codigo}${filial?.nome ? ` · ${filial.nome}` : ""} · ${p.laboratorio ?? "pré-pedido"} · ${formatarData(p.data_pedido)}`}
-        descricao={`Pré-pedido ${p.numero} · ${linhas.length} itens · recebido ${num(recebida)} de ${num(pedida)} unidades (${formatarMoeda(valor("valor_recebido"))}) · falta ${formatarMoeda(valor("valor_faltando"))}${excedente ? ` · +${num(excedente)} a mais (${formatarMoeda(valor("valor_excedente"))})` : ""} · prazo até ${prazo ? formatarData(prazo) : "—"} (${janela} dias)${semPreco ? ` · ${semPreco} item(ns) sem preço em nenhuma nota` : ""}`}
+        descricao={`${rotuloPedido(p.numero)} · ${linhas.length} itens · recebido ${num(recebida)} de ${num(pedida)} unidades (${formatarMoeda(valor("valor_recebido"))}) · falta ${formatarMoeda(valor("valor_faltando"))}${excedente ? ` · +${num(excedente)} a mais (${formatarMoeda(valor("valor_excedente"))})` : ""} · prazo até ${prazo ? formatarData(prazo) : "—"} (${janela} dias)${semPreco ? ` · ${semPreco} item(ns) sem preço em nenhuma nota` : ""}`}
         acoes={
           <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/compras" />}>
             <ChevronLeft data-icon="inline-start" />
