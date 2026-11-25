@@ -12,6 +12,7 @@ import { lerFiltrosAtivos, listarAtivos, TAMANHO_PAGINA } from "@/lib/data/ti";
 import { formatarMoeda } from "@/lib/formatos";
 import { STATUS_ATIVO_LABEL, TIPO_ATIVO_LABEL, TIPOS_ATIVO } from "@/lib/ti/rotulos";
 import { BadgeAtivo } from "./badge-ativo";
+import { MarcarTodosEtiquetas } from "./marcar-etiquetas";
 
 export const metadata = { title: "Ativos de TI" };
 
@@ -28,10 +29,14 @@ export default async function AtivosPage({ searchParams }: PageProps<"/ti/ativos
       <PageHeader
         eyebrow="Tecnologia"
         titulo="Ativos de TI"
-        descricao="Equipamentos por unidade, com patrimônio, situação, rede e histórico. Filtre uma loja para imprimir as etiquetas com QR Code de todos os equipamentos dela."
+        descricao="Equipamentos por unidade, com patrimônio, situação, rede e histórico. Etiquetas com QR Code: marque os equipamentos e clique em “Etiquetas dos marcados” (vários na mesma folha), ou filtre uma loja para imprimir todos os dela."
         acoes={
           podeEditar ? (
             <>
+              <Button type="submit" form="form-etiquetas" variant="outline">
+                <Printer data-icon="inline-start" />
+                Etiquetas dos marcados
+              </Button>
               {filtros.filial && (
                 <Button variant="outline" nativeButton={false} render={<a href={`/etiquetas/ti?filial=${filtros.filial}`} target="_blank" rel="noopener" />}>
                   <Printer data-icon="inline-start" />
@@ -95,10 +100,17 @@ export default async function AtivosPage({ searchParams }: PageProps<"/ti/ativos
         )}
       </form>
 
+      {/* etiquetas: as caixas de cada linha pertencem a este formulário (abre a impressão em outra aba) */}
+      {podeEditar && <form id="form-etiquetas" action="/etiquetas/ti" method="get" target="_blank" rel="noopener" />}
       <div className="rounded-xl border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
+              {podeEditar && (
+                <TableHead className="w-10">
+                  <MarcarTodosEtiquetas />
+                </TableHead>
+              )}
               <TableHead>Equipamento</TableHead>
               <TableHead className="hidden md:table-cell">Unidade</TableHead>
               <TableHead className="hidden lg:table-cell">Patrimônio / série</TableHead>
@@ -110,13 +122,18 @@ export default async function AtivosPage({ searchParams }: PageProps<"/ti/ativos
           <TableBody>
             {resultado.itens.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="vazio">
+                <TableCell colSpan={podeEditar ? 7 : 6} className="vazio">
                   Nenhum ativo encontrado.
                 </TableCell>
               </TableRow>
             ) : (
               resultado.itens.map((a) => (
                 <TableRow key={a.id}>
+                  {podeEditar && (
+                    <TableCell>
+                      <input type="checkbox" name="id" value={a.id} form="form-etiquetas" className="size-4 accent-fct-tinta" aria-label={`Etiqueta de ${a.descricao}`} />
+                    </TableCell>
+                  )}
                   <TableCell>
                     <Link href={`/ti/ativos/${a.id}`} className="font-medium hover:underline">
                       {a.descricao}
