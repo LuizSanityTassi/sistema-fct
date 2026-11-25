@@ -920,8 +920,8 @@ export async function buscarVendasHorarioTrier(cred: CredenciaisTrier, pedidos: 
         cod_filial: String(pedido.filial),
         data_inicio: dia,
         data_fim: dia,
-        hora_inicio: "00:00",
-        hora_fim: "23:59",
+        hora_inicio: "00:00:00", // a tela usa hh:mm:ss (8 caracteres); "00:00" dá "Unparseable date"
+        hora_fim: "23:59:59",
         selecao: "5", // todas as vendas
         selecao_tipVenda: "0", // balcão e tele
         selecao_venda: "0", // vendas menos devoluções
